@@ -190,34 +190,45 @@ Två vanliga fallgropar:
 
 Se [#7992](https://github.com/diegosouzapw/OmniRoute/issues/7992) och [#7111](https://github.com/diegosouzapw/OmniRoute/issues/7111) för den ursprungliga förvirring som detta dokumenterar.
 
-## Så fungerar det (beständiga Auto-Combos)
+## Hur det fungerar (Persisterade Auto-Combos)
 
-Auto-Combo-motorn väljer dynamiskt den bästa leverantören/modellen för varje begäran med hjälp av en **poängfunktion med 16 faktorer** (definierad i `open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`). Standardvikterna summeras till `1.0`; anpassade vikter normaliseras om av `normalizeScoringWeights()`. Två av de sexton — `cacheAffinity` och `resetWindowAffinity` — har standardvikten `0`; `reliability` har `0` i `DEFAULT_WEIGHTS` men `0.03` i generiska paket och `0.04` i `reliability-first`, och `quality` har `0.02` i paket (`0.03` i `quality-first`): de beräknas fortfarande för varje kandidat, och `cacheAffinity` styr deduplicering av promptcachen utanför poängberäkningen. Faktorerna med standardvikten noll påverkar alltså inte resultatet som standard, medan paketen gör det.
+Auto-Combo-motorn väljer dynamiskt den bästa leverantören/modellen för varje förfrågan med hjälp av en **poängfunktion med 16 faktorer** (definierad i `open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`). Standardvikterna summerar till `1.0`; anpassade vikter renormaliseras av `normalizeScoringWeights()`. Två av de sexton — `cacheAffinity` och `resetWindowAffinity` — har en standardvikt på `0`; `reliability` har `0` i `DEFAULT_WEIGHTS` men `0.03` i generiska paket och `0.04` i `reliability-first`, och `quality` har `0.02` i paket (`0.03` i `quality-first`): de beräknas fortfarande för varje kandidat, och `cacheAffinity` styr deduplicering av prompt-cache utanför poängen, så faktorerna med noll som standard röstar helt enkelt inte som standard medan paket gör det.
 
-![Auto-Combos poängberäkning med 16 faktorer](../diagrams/exported/auto-combo-scoring.svg)
+![Auto-Combo 16-faktorpoäng](../diagrams/exported/auto-combo-scoring.svg)
 
-> Källa: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (generera om via `npm run docs:render-diagrams`). Filnamnet är historiskt; källan och det renderade diagrammet visar samtliga 16 faktorer som deklareras i `DEFAULT_WEIGHTS`.
+> Källa: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (generera på nytt via `npm run docs:render-diagrams`). Filnamnet är historiskt; källan och det renderade diagrammet visar alla 16 faktorer som deklarerats i `DEFAULT_WEIGHTS`.
 
-| Faktor                | Standardvikt | Beskrivning                                                                                                                                                                                                              |
-| :-------------------- | :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `quota`               | 0.1429       | Återstående kvot/utrymme till frekvensgränsen [0..1]                                                                                                                                                                     |
-| `health`              | 0.1605       | Hälsopoäng från kretsbrytaren (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                                      |
-| `costInv`             | 0.1429       | Inverterad **blandad** kost (60 % pris för indatatoken + 40 % pris för utdatatoken, normaliserat) — billigare = högre poäng                                                                                              |
-| `latencyInv`          | 0.1143       | Inverterad p95-latens normaliserad mot poolen — snabbare = högre poäng                                                                                                                                                   |
-| `taskFit`             | 0.0762       | Lämplighet för uppgiftstypen (kodning, granskning, planering, analys, felsökning, dokumentation)                                                                                                                         |
-| `stability`           | 0.0476       | Variansbaserad stabilitet utifrån latensens standardavvikelse — en kandidat vars svarstid varierar får lägre poäng                                                                                                       |
-| `tierPriority`        | 0.0476       | Kontonivåns prioritet — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                                     |
-| `tierAffinity`        | 0.0476       | Överensstämmelse mellan kandidatens nivå och den nivå som rekommenderas i manifestet                                                                                                                                     |
-| `specificityMatch`    | 0.0476       | Matchning mellan begärans specificitet (ledtråd i manifestet) och modellnivån                                                                                                                                            |
-| `contextAffinity`     | 0.0476       | Överensstämmelse mellan begärans behov av kontextfönster och modellens kontextfönster                                                                                                                                    |
-| `sessionAvailability` | 0.0476       | Tillgänglighet för OAuth-sessionen för kandidatanslutningen i den här sessionen (`getOAuthSessionAvailability()`; anslutningar utan OAuth får poängen 1.0)                                                               |
-| `connectionDensity`   | 0.0476       | Fördelar belastningen mellan anslutningar från samma leverantör (motverkar koncentration)                                                                                                                                |
-| `cacheAffinity`       | 0.00         | Rendezvous-hashöverensstämmelse med den anslutning som troligast redan innehåller den här begärans prefix i promptcachen (`open-sse/services/combo/promptCacheAffinity.ts`); inaktiverad som standard (#8008)            |
-| `resetWindowAffinity` | 0.00         | Gynnar anslutningar vars återställningsfönster för kvoten är fördelaktigt (inaktiverad som standard)                                                                                                                     |
-| `quality`             | 0.03         | Återkopplingsdriven signal för utdatakvalitet från kvalitetsmätaren för routningshändelser; kandidater utan observationer får neutrala 0.5                                                                               |
-| `reliability`         | 0.00         | Observerad andel lyckade anrop, `1 - failureRate`, från 24 timmars användningshistorik med ett golv på tio stickprov (annars realtidsmätvärden); kandidater utan observationer avläses som 1.0. Inaktiverad som standard |
+| Faktor                | Standardvikt | Beskrivning                                                                                                                                                                                                           |
+| :-------------------- | :----------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota`               | 0.1429       | Återstående kvot / marginal för hastighetsbegränsning [0..1]                                                                                                                                                          |
+| `health`              | 0.1605       | Hälsopoäng från kretsbrytare (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                                    |
+| `costInv`             | 0.1429       | Inverterad **blandad** kostnad (60 % indata + 40 % utdata-tokenpris, normaliserat) — billigare = högre poäng                                                                                                          |
+| `latencyInv`          | 0.1143       | Inverterad p95-latens normaliserad mot poolen — snabbare = högre poäng                                                                                                                                                |
+| `taskFit`             | 0.0762       | Lämplighet för uppgiftstyp (kodning, granskning, planering, analys, felsökning, dokumentation)                                                                                                                        |
+| `stability`           | 0.0476       | Variansbaserad stabilitet från latensstandardavvikelse — en kandidat vars svarstid svänger får lägre poäng                                                                                                            |
+| `tierPriority`        | 0.0476       | Prioritet för kontonivå — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                                |
+| `tierAffinity`        | 0.0476       | Affinitet mellan kandidatens nivå och manifestets rekommenderade nivå                                                                                                                                                 |
+| `specificityMatch`    | 0.0476       | Matchning mellan förfrågans specificitet (manifest-tips) och modellnivå                                                                                                                                               |
+| `contextAffinity`     | 0.0476       | Affinitet mellan förfrågans behov av kontextfönster och modellens kontextfönster                                                                                                                                      |
+| `sessionAvailability` | 0.0476       | OAuth-sessionstillgänglighet för kandidatanslutningen för denna session (`getOAuthSessionAvailability()`; icke-OAuth-anslutningar får 1.0)                                                                            |
+| `connectionDensity`   | 0.0476       | Sprider belastning över anslutningar från samma leverantör (antikoncentration)                                                                                                                                        |
+| `cacheAffinity`       | 0.00         | Rendezvous-hash-affinitet gentemot anslutningen som mest sannolikt redan har denna förfrågans prompt-cacheprefix (`open-sse/services/combo/promptCacheAffinity.ts`); inaktiverad som standard (#8008)                 |
+| `resetWindowAffinity` | 0.00         | Förskjutning mot anslutningar vars återställningsfönster för kvot är gynnsamt (inaktiverad som standard)                                                                                                              |
+| `quality`             | 0.03         | Feedback-driven signal för utdatakvalitet från kvalitetsspåraren för routningshändelser; kandidater utan observationer får ett neutralt värde på 0.5                                                                  |
+| `reliability`         | 0.00         | Observerad andel lyckade anrop, `1 - failureRate`, från 24 timmars användningshistorik bakom ett golv på tio sampel (realtidsmätvärden annars); kandidater utan observationer läses som 1.0. Inaktiverad som standard |
 
-**Summa:** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0` enligt deklarationen i `DEFAULT_WEIGHTS`; användarkonfigurerade vikter normaliseras om till en fördelning av `normalizeScoringWeights()` före poängberäkningen.
+> **Oläsbar kvot (#15347).** När en leverantör har en kvisthämtare (quota fetcher) men den inte returnerar något
+> läsbart (misslyckad hämtning, saknade autentiseringsuppgifter, användningsdata med endast meddelanden, eller en felaktig ögonblicksbild utan
+> tolkningsbara `windows` och inget ändligt `percentUsed`, inklusive `percentUsed: null`), får kandidaten
+> poängen `0` på `quota`-axeln och dess slutliga poäng multipliceras med
+> `UNREADABLE_QUOTA_SOFT_DEPRIORITIZE_FACTOR` (0.5, `autoStrategy.ts`), samma mjukstraffmönster
+> som för anslutningsstatusstraffet. En misslyckad avläsning av användning är ett tecken på telemetrin,
+> inte leverantören, så den rankas strikt under alla faktiska avläsningar, inklusive en bekräftad till 100 % använd,
+> men blir aldrig hårdblockerad eller avhyst. En leverantör utan tak rapporterar `unlimited: true` och
+> får full kvotpoäng; en leverantör utan registrerad kvisthämtare har ingen telemetrikälla alls
+> och behåller standardvärdet `100`.
+
+**Summa:** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0` enligt deklarationen i `DEFAULT_WEIGHTS`; användarkonfigurerade vikter renormaliseras till en fördelning av `normalizeScoringWeights()` före poängsättning.
 
 ## Lägespaket
 

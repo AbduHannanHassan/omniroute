@@ -190,34 +190,45 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 Wo [#7992](https://github.com/diegosouzapw/OmniRoute/issues/7992) àti [#7111](https://github.com/diegosouzapw/OmniRoute/issues/7111) fún ìdàrúdàpọ̀ àkọ́kọ́ tí àkọsílẹ̀ yìí ń ṣàlàyé.
 
-## Bí Ó Ṣe Ń Ṣiṣẹ́ (Àwọn Auto-Combo Tí A Fi Pamọ́)
+## Bí Ó Ṣe Ń Ṣiṣẹ́ (Àwọn Auto-Combo tí a Fi Pamọ́)
 
-Auto-Combo Engine ń yan olùpèsè/àwòṣe tó dára jù lọ fún ìbéèrè kọ̀ọ̀kan ní ìmúdàgba nípa lílo **iṣẹ́ ìṣírò oní-okùnfà 16** (tí a ṣàlàyé nínú `open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`). Àpapọ̀ àwọn ìwọ̀n àìyípadà jẹ́ `1.0`; `normalizeScoringWeights()` tún àwọn ìwọ̀n àdáni ṣe sí ìwọ̀n tó péye. Méjì nínú mẹ́rìndínlógún náà — `cacheAffinity` àti `resetWindowAffinity` — ní ìwọ̀n àìyípadà `0`; `reliability` ní `0` nínú `DEFAULT_WEIGHTS`, ṣùgbọ́n ó ní `0.03` nínú àwọn àkójọpọ̀ gbogbogbò àti `0.04` nínú `reliability-first`, `quality` sì ní `0.02` nínú àwọn àkójọpọ̀ (`0.03` nínú `quality-first`): a ṣì ń ṣírò wọn fún olùdíje kọ̀ọ̀kan, `cacheAffinity` sì ń ṣàkóso ìyọkúrò àwọn àdákọ prompt-cache lẹ́yìn ààlà ìṣírò náà, nítorí náà àwọn okùnfà tí iye àìyípadà wọn jẹ́ òdo kì í dìbò nípasẹ̀ àìyípadà, nígbà tí àwọn àkójọpọ̀ ń ṣe bẹ́ẹ̀.
+Ẹnjini Auto-Combo ń yan olùpèsè/àwoṣe tó dára jùlọ fún ìbéèrè kọ̀ọ̀kan nípasẹ̀ **iṣẹ́ àmì-ìwọ̀n oní-kókó 16** (tí a ṣàlàyé nínú `open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`). Àpapọ̀ àwọn ìwọ̀n àkọ́kọ́ jẹ́ `1.0`; àwọn ìwọ̀n àṣà ni a tún ṣe àtúnṣe ìwọ̀n wọn nípasẹ̀ `normalizeScoringWeights()`. Méjì nínú mẹ́rìndínlógún náà — `cacheAffinity` àti `resetWindowAffinity` — ní ìwọ̀n àkọ́kọ́ tí ó jẹ́ `0`; `reliability` ní `0` nínú `DEFAULT_WEIGHTS` ṣùgbọ́n ó ní `0.03` nínú àwọn generic pack àti `0.04` nínú `reliability-first`, bẹ́ẹ̀ sì ni `quality` ní `0.02` nínú àwọn pack (`0.03` nínú `quality-first`): wọ́n ṣì ń ṣe ìṣirò wọn fún olùdíje kọ̀ọ̀kan, àti pé `cacheAffinity` ń ṣàkóso yíyọ àwọn ẹ̀dà prompt-cache kúrò lẹ́yìn àmì-ìwọ̀n, nítorí náà àwọn kókó tí ìwọ̀n àkọ́kọ́ wọn jẹ́ odo kò ní kò dìbò nípa àkọ́kọ́ nígbà tí àwọn pack ń ṣe bẹ́ẹ̀.
 
-![Ìṣírò oní-okùnfà 16 ti Auto-Combo](../diagrams/exported/auto-combo-scoring.svg)
+![Auto-Combo 16-factor scoring](../diagrams/exported/auto-combo-scoring.svg)
 
-> Orísun: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (tún un ṣe nípasẹ̀ `npm run docs:render-diagrams`). Orúkọ fáìlì náà jẹ́ ti ìtàn; orísun àti àwòrán tí a ṣe jáde fi gbogbo àwọn okùnfà 16 tí a kéde nínú `DEFAULT_WEIGHTS` hàn.
+> Orísun: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (tún un ṣe nípasẹ̀ `npm run docs:render-diagrams`). Orúkọ fáìlì náà jẹ́ ti ìtàn; orísun àti àwòrán tí a gbé jáde fún gbogbo àwọn kókó 16 tí a kéde nínú `DEFAULT_WEIGHTS`.
 
-| Okùnfà                | Ìwọ̀n Àìyípadà | Àpèjúwe                                                                                                                                                                                                             |
-| :-------------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `quota`               | 0.1429        | Ìpín tí ó ṣẹ́kù / ààyè àfikún ààlà ìwọ̀n-lílo [0..1]                                                                                                                                                                  |
-| `health`              | 0.1605        | Ìṣírò ìlera láti ọ̀dọ̀ circuit breaker (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                          |
-| `costInv`             | 0.1429        | Òdìkejì iye owó **àpapọ̀** (60% iye owó token àbáwọlé + 40% iye owó token àbájáde, tí a mú bá òṣùwọ̀n mu) — èyí tó din owó kù = ìṣírò tó ga jù                                                                        |
-| `latencyInv`          | 0.1143        | Òdìkejì ìdádúró p95 tí a mú bá àkójọpọ̀ mu — èyí tó yára jù = ìṣírò tó ga jù                                                                                                                                         |
-| `taskFit`             | 0.0762        | Ìbámu pẹ̀lú irú iṣẹ́ (kíkọ kóòdù, àyẹ̀wò, ètò, ìtúpalẹ̀, ṣíṣe àtúnṣe àṣìṣe, ìwé àkọsílẹ̀)                                                                                                                                |
-| `stability`           | 0.0476        | Ìdúróṣinṣin tó dá lórí ìyàtọ̀ láti inú standard deviation ìdádúró — olùdíje tí àkókò ìdáhùn rẹ̀ ń yí padà gan-an máa ń ní ìṣírò kékeré                                                                                |
-| `tierPriority`        | 0.0476        | Ipò àkọ́kọ́ ipele àkọọ́lẹ̀ — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                               |
-| `tierAffinity`        | 0.0476        | Ìbámu láàárín ipele olùdíje àti ipele tí manifest dábàá                                                                                                                                                             |
-| `specificityMatch`    | 0.0476        | Ìbámu láàárín bí ìbéèrè ṣe ṣe pàtó tó (ìtọ́kasí manifest) àti ipele àwòṣe                                                                                                                                            |
-| `contextAffinity`     | 0.0476        | Ìbámu láàárín àìní context-window ìbéèrè àti context window àwòṣe                                                                                                                                                   |
-| `sessionAvailability` | 0.0476        | Wíwà igba OAuth ti ìsopọ̀ olùdíje fún igba yìí (`getOAuthSessionAvailability()`; àwọn ìsopọ̀ tí kì í ṣe OAuth ní ìṣírò 1.0)                                                                                           |
-| `connectionDensity`   | 0.0476        | Pín ẹrù káàkiri àwọn ìsopọ̀ olùpèsè kan náà (láti dènà ìkójọpọ̀ sí ibi kan)                                                                                                                                           |
-| `cacheAffinity`       | 0.00          | Ìbámu rendezvous-hash sí ìsopọ̀ tó ṣeé ṣe jù lọ láti ti ní ìpele ìbẹ̀rẹ̀ prompt-cache ti ìbéèrè yìí (`open-sse/services/combo/promptCacheAffinity.ts`); a ti pa á nípasẹ̀ àìyípadà (#8008)                              |
-| `resetWindowAffinity` | 0.00          | Ìtẹ̀sí sí àwọn ìsopọ̀ tí fèrèsé ìtúntò quota wọn rọrùn (a ti pa á nípasẹ̀ àìyípadà)                                                                                                                                    |
-| `quality`             | 0.03          | Àmì dídára àbájáde tó dá lórí èsì láti ọ̀dọ̀ olùtọpa dídára routing-event; àwọn olùdíje tí kò ní àkíyèsí gba iye àárín gbùngbùn 0.5                                                                                   |
-| `reliability`         | 0.00          | Ìpín àṣeyọrí tí a ṣàkíyèsí, `1 - failureRate`, láti inú ìtàn lílo wákàtí 24 lẹ́yìn ààlà ìsàlẹ̀ àpẹẹrẹ mẹ́wàá (àwọn ìwọ̀n àkókò-gidi bí bẹ́ẹ̀ kọ́); àwọn olùdíje tí kò ní àkíyèsí ni a kà sí 1.0. A ti pa á nípasẹ̀ àìyípadà |
+| Kókó                  | Ìwọ̀n Àkọ́kọ́ | Àpèjúwe                                                                                                                                                                                                        |
+| :-------------------- | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota`               | 0.1429     | Àkókò quota / rate-limit headroom tó kù [0..1]                                                                                                                                                                 |
+| `health`              | 0.1605     | Àmì-ìwọ̀n ìlera láti circuit breaker (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                      |
+| `costInv`             | 0.1429     | Inverse **blended** cost (60% input + 40% output token price, tí a ṣe àtúnṣe ìwọ̀n rẹ̀) — dídínkù owó = àmì-ìwọ̀n tó ga jù                                                                                        |
+| `latencyInv`          | 0.1143     | Inverse p95 latency tí a ṣe àtúnṣe ìwọ̀n rẹ̀ sí pool — yíyára jù = àmì-ìwọ̀n tó ga jù                                                                                                                             |
+| `taskFit`             | 0.0762     | Ìbáramu irú iṣẹ́ (coding, review, planning, analysis, debugging, docs)                                                                                                                                          |
+| `stability`           | 0.0476     | Ìdúróṣinṣin tí ó dá lórí ìyàtọ̀ láti latency standard deviation — olùdíje tí àkókò ìdáhùn rẹ̀ ń yípadà máa ń gba àmì-ìwọ̀n tó kéré                                                                                |
+| `tierPriority`        | 0.0476     | Ìtẹnumọ́ account-tier — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                            |
+| `tierAffinity`        | 0.0476     | Ìbáramu láàárín tier olùdíje náà àti tier tí manifest dámọ̀ràn                                                                                                                                                  |
+| `specificityMatch`    | 0.0476     | Ìbáramu láàárín pàtó ìbéèrè (àbá manifest) àti model tier                                                                                                                                                      |
+| `contextAffinity`     | 0.0476     | Ìbáramu láàárín àìní context-window ti ìbéèrè àti context window ti àwoṣe náà                                                                                                                                  |
+| `sessionAvailability` | 0.0476     | Àrífí ìgbérò OAuth ti ìsopọ̀ olùdíje fún ìgbérò yìí (`getOAuthSessionAvailability()`; àwọn ìsopọ̀ tí kì í ṣe OAuth máa ń gba 1.0)                                                                                |
+| `connectionDensity`   | 0.0476     | Ń pín ẹrù káàkiri àwọn ìsopọ̀ ti olùpèsè kan náà (ìdènà ìkórajọpọ̀)                                                                                                                                              |
+| `cacheAffinity`       | 0.00       | Ìbáramu Rendezvous-hash sí ìsopọ̀ tí ó ṣeé ṣe jùlọ láti ní ìbẹ̀rẹ̀ prompt-cache ti ìbéèrè yìí tẹ́lẹ̀ (`open-sse/services/combo/promptCacheAffinity.ts`); a pa á tì nípa àkọ́kọ́ (#8008)                               |
+| `resetWindowAffinity` | 0.00       | Ìtẹ̀sí sí àwọn ìsopọ̀ tí fèrèsé ìtúnṣe quota wọn dára (a pa á tì nípa àkọ́kọ́)                                                                                                                                     |
+| `quality`             | 0.03       | Àmì dídára-àbájáde tí ó dá lórí èsì láti ọ̀dọ̀ olùtọpa dídára routing-event; àwọn olùdíje tí kò ní àkíyèsí máa ń gba àmì àárín 0.5                                                                               |
+| `reliability`         | 0.00       | Ìpín àṣeyọrí tí a ṣàkíyèsí, `1 - failureRate`, láti wákàtí 24 ti ìtàn ìlò lẹ́yìn àkójọ àpẹẹrẹ mẹ́wàá (àwọn metrics ti àkókò gidi bí bẹ́ẹ̀ kọ́); àwọn olùdíje tí kò ní àkíyèsí máa ń kà sí 1.0. A pa á tì nípa àkọ́kọ́ |
 
-**Àpapọ̀:** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0` gẹ́gẹ́ bí a ṣe kéde rẹ̀ nínú `DEFAULT_WEIGHTS`; `normalizeScoringWeights()` máa ń tún àwọn ìwọ̀n tí aṣàmúlò ṣètò ṣe sí ìpínkiri tó péye kí ìṣírò tó bẹ̀rẹ̀.
+> **Quota tí a kò lè kà (#15347).** Nígbà tí olùpèsè kan bá ní olùgbà quota ṣùgbọ́n tí kò dá ohunkóhun
+> tí a lè kà padà (ìgbìyànjú gbígbà tí ó kùnà, àwọn ẹ̀rí ìdánimọ̀ tí ó sonù, ìlò tí ó jẹ́ ti ifiranṣẹ́ nìkan, tàbí àkójọ snapshot tí kò ní ìrísí tó tọ́ láìsí `windows`
+> tí a lè ṣe ìtúpalẹ̀ àti láìsí `percentUsed` tó ní òpin, pẹ̀lú `percentUsed: null`), olùdíje náà
+> yóò gba máàkì `0` lórí axis `quota` àti pé àpapọ̀ máàkì rẹ̀ ìkẹyìn ni a ó sọ di púpọ̀ nípa
+> `UNREADABLE_QUOTA_SOFT_DEPRIORITIZE_FACTOR` (0.5, `autoStrategy.ts`), irú àpẹẹrẹ ìjìyà-fẹ́lẹ́fẹ́
+> kan náà gẹ́gẹ́ bí ìjìyà ipò-ìsopọ̀. Ìkùnà láti ka ìlò jẹ́ ẹ̀rí nípa telemetry,
+> kì í ṣe olùpèsè, nítorí náà ó máa ń wà ní ipò tí ó rẹlẹ̀ pátápátá sí àkàwé gidi èyíkéyìí, pẹ̀lú èyí tí a fìdí rẹ̀ múlẹ̀ pé 100%-ti-lò,
+> ṣùgbọ́n a kì í dènà rẹ̀ pátápátá tàbí lé e jáde láéláé. Olùpèsè tí kò ní ààlà máa ń jábọ̀ `unlimited: true` àti pé
+> ó máa ń gba máàkì gẹ́gẹ́ bí quota kíkún; olùpèsè tí kò ní olùgbà quota tí a forúkọsílẹ̀ kò ní orísun telemetry kankan rárá
+> ó sì máa ń pa àkójọ àtìbẹ̀rẹ̀ ti `100` mọ́.
+
+**Àpapọ̀:** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0` gẹ́gẹ́ bí a ti kéde rẹ̀ nínú `DEFAULT_WEIGHTS`; àwọn ìwọ̀n tí olùlò tò ni a máa ń tún ṣe àtúnṣe wọn sí ìpínkiri nípa `normalizeScoringWeights()` kí a tó fún un ní máàkì.
 
 ## Àkójọpọ̀ Módù
 

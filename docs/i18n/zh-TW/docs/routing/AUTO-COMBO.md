@@ -157,34 +157,43 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 請參閱 [#7992](https://github.com/diegosouzapw/OmniRoute/issues/7992) 和 [#7111](https://github.com/diegosouzapw/OmniRoute/issues/7111)，以瞭解本文所說明之原始混淆。
 
-## 運作方式（持久化自動組合）
+## 運作方式（持久化 Auto-Combos）
 
-自動組合引擎使用**含 16 項因素的評分函式**（定義於 `open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`），為每個請求動態選擇最佳的提供者／模型。預設權重總和為 `1.0`；自訂權重會由 `normalizeScoringWeights()` 重新正規化。這十六項因素中有兩項——`cacheAffinity` 與 `resetWindowAffinity`——的預設權重為 `0`；`reliability` 在 `DEFAULT_WEIGHTS` 中的權重為 `0`，但在一般套件中為 `0.03`，在 `reliability-first` 中則為 `0.04`；而 `quality` 在套件中的權重為 `0.02`（在 `quality-first` 中為 `0.03`）：系統仍會為每個候選項目計算這些因素，且 `cacheAffinity` 會在評分之外控制提示快取去重，因此，預設為零的因素在預設情況下不會參與評分，但套件會使用它們。
+Auto-Combo 引擎使用 **16 因子評分函式**（定義於 `open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`）為每個請求動態選擇最佳的提供者/模型。預設權重總和為 `1.0`；自訂權重會由 `normalizeScoringWeights()` 重新正規化。十六個因子中有兩個 —— `cacheAffinity` 和 `resetWindowAffinity` —— 預設權重為 `0`；`reliability` 在 `DEFAULT_WEIGHTS` 中為 `0`，但在通用 packages 中為 `0.03`，在 `reliability-first` 中為 `0.04`，而 `quality` 在 packages 中為 `0.02`（在 `quality-first` 中為 `0.03`）：它們仍會針對每個候選者進行計算，且 `cacheAffinity` 在評分之外控制 prompt-cache 去重，因此預設為零的因子在預設情況下只是不參與投票，而 packages 則會參與。
 
-![自動組合的 16 因素評分](../diagrams/exported/auto-combo-scoring.svg)
+![Auto-Combo 16 因子評分](../diagrams/exported/auto-combo-scoring.svg)
 
-> 來源：[diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd)（可透過 `npm run docs:render-diagrams` 重新產生）。檔名是沿用歷史命名；原始檔與轉譯後的圖表皆顯示 `DEFAULT_WEIGHTS` 中宣告的全部 16 項因素。
+> 來源：[diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd)（透過 `npm run docs:render-diagrams` 重新產生）。該檔案名稱為歷史遺留；原始碼與算繪出的圖表顯示了 `DEFAULT_WEIGHTS` 中宣告的所有 16 個因子。
 
-| 因素                  | 預設權重 | 說明                                                                                                                                                 |
-| :-------------------- | :------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `quota`               | 0.1429   | 剩餘配額／速率限制餘裕 [0..1]                                                                                                                        |
-| `health`              | 0.1605   | 來自斷路器的健康分數（CLOSED=1.0、HALF_OPEN=0.5、OPEN=0.0）                                                                                          |
-| `costInv`             | 0.1429   | **混合**成本的倒數（60% 輸入 + 40% 輸出 token 價格，經正規化）——越便宜，分數越高                                                                     |
-| `latencyInv`          | 0.1143   | 相對於候選池正規化後的 p95 延遲倒數——越快，分數越高                                                                                                  |
-| `taskFit`             | 0.0762   | 任務類型適配度（編碼、審查、規劃、分析、除錯、文件）                                                                                                 |
-| `stability`           | 0.0476   | 根據延遲標準差計算、以變異程度為基礎的穩定性——回應時間波動較大的候選項目分數較低                                                                     |
-| `tierPriority`        | 0.0476   | 帳戶層級優先順序——Ultra=1.0、Pro=0.67、Standard=0.33、Free=0.0                                                                                       |
-| `tierAffinity`        | 0.0476   | 候選項目層級與資訊清單建議層級之間的親和度                                                                                                           |
-| `specificityMatch`    | 0.0476   | 請求明確程度（資訊清單提示）與模型層級之間的匹配度                                                                                                   |
-| `contextAffinity`     | 0.0476   | 請求所需的上下文視窗與模型上下文視窗之間的親和度                                                                                                     |
-| `sessionAvailability` | 0.0476   | 此工作階段中候選連線的 OAuth 工作階段可用性（`getOAuthSessionAvailability()`；非 OAuth 連線的分數為 1.0）                                            |
-| `connectionDensity`   | 0.0476   | 將負載分散至同一提供者的不同連線（避免集中）                                                                                                         |
-| `cacheAffinity`       | 0.00     | 透過 Rendezvous 雜湊，優先選擇最有可能已持有此請求提示快取前綴的連線（`open-sse/services/combo/promptCacheAffinity.ts`）；預設停用（#8008）          |
-| `resetWindowAffinity` | 0.00     | 偏向配額重設時間窗較有利的連線（預設停用）                                                                                                           |
-| `quality`             | 0.03     | 由路由事件品質追蹤器根據回饋產生的輸出品質訊號；沒有觀測資料的候選項目會獲得中性分數 0.5                                                             |
-| `reliability`         | 0.00     | 根據過去 24 小時使用記錄，在至少十個樣本的門檻下計算觀測到的成功比例 `1 - failureRate`（否則使用即時指標）；沒有觀測資料的候選項目視為 1.0。預設停用 |
+| 因子                  | 預設權重 | 說明                                                                                                                                               |
+| :-------------------- | :------- | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota`               | 0.1429   | 剩餘配額 / 速率限制餘裕 [0..1]                                                                                                                     |
+| `health`              | 0.1605   | 來自斷路器的健康分數（CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0）                                                                                        |
+| `costInv`             | 0.1429   | 反向**混合**成本（60% 輸入 + 40% 輸出 token 價格，已正規化）— 越便宜 = 分數越高                                                                    |
+| `latencyInv`          | 0.1143   | 正規化至資源池的反向 p95 延遲 — 越快 = 分數越高                                                                                                    |
+| `taskFit`             | 0.0762   | 任務類型適配度（coding、review、planning、analysis、debugging、docs）                                                                              |
+| `stability`           | 0.0476   | 基於延遲標準差的變異數穩定性 — 回應時間波動較大的候選者得分較低                                                                                    |
+| `tierPriority`        | 0.0476   | 帳號層級優先度 — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                      |
+| `tierAffinity`        | 0.0476   | 候選者層級與清單建議層級之間的親和度                                                                                                               |
+| `specificityMatch`    | 0.0476   | 請求特異性（清單提示）與模型層級之間的相符度                                                                                                       |
+| `contextAffinity`     | 0.0476   | 請求的上下文視窗需求與模型上下文視窗之間的親和度                                                                                                   |
+| `sessionAvailability` | 0.0476   | 候選連線在此工作階段的 OAuth 工作階段可用性（`getOAuthSessionAvailability()`；非 OAuth 連線得分為 1.0）                                            |
+| `connectionDensity`   | 0.0476   | 將負載分散至相同提供者的各個連線（防止過度集中）                                                                                                   |
+| `cacheAffinity`       | 0.00     | 對最可能已持有此請求 prompt-cache 前綴的連線之 Rendezvous-hash 親和度（`open-sse/services/combo/promptCacheAffinity.ts`）；預設停用 (#8008)        |
+| `resetWindowAffinity` | 0.00     | 對配額重設視窗較有利的連線之偏好度（預設停用）                                                                                                     |
+| `quality`             | 0.03     | 來自路由事件品質追蹤器的回饋驅動輸出品質訊號；無觀測資料的候選者獲得中立的 0.5                                                                     |
+| `reliability`         | 0.00     | 來自 24 小時使用歷史紀錄中觀測到的成功比例 `1 - failureRate`，並設有 10 個樣本的下限門檻（否則為即時指標）；無觀測資料的候選者讀取為 1.0。預設停用 |
 
-**總和：**`0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0`，如 `DEFAULT_WEIGHTS` 中所宣告；使用者設定的權重會在評分前由 `normalizeScoringWeights()` 重新正規化為一個分布。
+> **無法讀取的配額 (#15347)。** 當提供者擁有配額擷取器（quota fetcher），但未回傳任何可讀內容時
+> （擷取失敗、遺失憑證、僅有訊息的使用量，或是沒有可解析 `windows` 且沒有有限 `percentUsed`
+> 的格式錯誤快照，包含 `percentUsed: null`），該候選者在 `quota` 軸上的得分為 `0`，且其最終得分會乘以
+> `UNREADABLE_QUOTA_SOFT_DEPRIORITIZE_FACTOR` (0.5, `autoStrategy.ts`)，此為與連線狀態懲罰相同的
+> 軟性懲罰（soft-penalty）模式。失敗的使用量讀取是遙測（telemetry）問題的證據，
+> 而非提供者本身的問題，因此其排名嚴格低於任何真實讀取值（包括已確認 100% 用盡的情況），
+> 但絕不會被硬性阻擋或驅逐。沒有上限的提供者會回報 `unlimited: true` 並獲得滿額配額評分；
+> 沒有註冊配額擷取器的提供者則完全沒有遙測來源，並保留預設值 `100`。
+
+**總和：** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0`（如 `DEFAULT_WEIGHTS` 中所宣告）；在評分前，使用者設定的權重會由 `normalizeScoringWeights()` 重新正規化為一個分佈。
 
 ## 模式套件
 
