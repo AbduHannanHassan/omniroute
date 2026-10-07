@@ -170,34 +170,36 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 이 문서에서 다루는 최초의 혼동에 대해서는 [#7992](https://github.com/diegosouzapw/OmniRoute/issues/7992) 및 [#7111](https://github.com/diegosouzapw/OmniRoute/issues/7111)을 참조하세요.
 
-## 작동 방식 (영구 저장되는 자동 조합)
+## 작동 방식 (영속화된 Auto-Combos)
 
-자동 조합 엔진은 **16개 요소의 점수 계산 함수**(`open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`에 정의됨)를 사용하여 각 요청에 가장 적합한 제공자/모델을 동적으로 선택합니다. 기본 가중치의 합은 `1.0`이며, 사용자 지정 가중치는 `normalizeScoringWeights()`를 통해 다시 정규화됩니다. 16개 요소 중 `cacheAffinity`와 `resetWindowAffinity`의 기본 가중치는 `0`입니다. `reliability`는 `DEFAULT_WEIGHTS`에서 `0`이지만 일반 팩에서는 `0.03`, `reliability-first`에서는 `0.04`이고, `quality`는 팩에서 `0.02`(`quality-first`에서는 `0.03`)입니다. 이러한 요소는 여전히 모든 후보에 대해 계산되며, `cacheAffinity`는 점수 계산 외부에서 프롬프트 캐시 중복 제거 여부를 제어합니다. 따라서 기본 가중치가 0인 요소는 기본적으로 점수에 영향을 주지 않지만, 팩에서는 영향을 줍니다.
+Auto-Combo Engine은 **16가지 요소 점수 산출 함수**(`open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS`에 정의됨)를 사용하여 각 요청에 대해 동적으로 최적의 제공자/모델을 선택합니다. 기본 가중치의 합은 `1.0`이며, 커스텀 가중치는 `normalizeScoringWeights()`에 의해 정규화(renormalized)됩니다. 16가지 요소 중 `cacheAffinity`와 `resetWindowAffinity` 2가지는 기본 가중치 `0`을 갖습니다. `reliability`는 `DEFAULT_WEIGHTS`에서 `0`이지만 제네릭 팩에서는 `0.03`, `reliability-first`에서는 `0.04`를 가지며, `quality`는 팩에서 `0.02`(`quality-first`에서는 `0.03`)를 가집니다. 이 요소들은 여전히 모든 후보에 대해 계산되며, `cacheAffinity`는 점수 산출과 별개로 프롬프트 캐시 중복 제거를 제어하므로, 기본값이 0인 요소들은 팩이 활성화되지 않는 한 기본적으로 투표에 참여하지 않는 것뿐입니다.
 
-![자동 조합 16개 요소 점수 계산](../diagrams/exported/auto-combo-scoring.svg)
+![Auto-Combo 16-factor scoring](../diagrams/exported/auto-combo-scoring.svg)
 
-> 출처: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (`npm run docs:render-diagrams`를 통해 다시 생성). 파일 이름은 이전 명칭을 그대로 사용한 것입니다. 소스와 렌더링된 다이어그램에는 `DEFAULT_WEIGHTS`에 선언된 16개 요소가 모두 표시됩니다.
+> 출처: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (`npm run docs:render-diagrams`를 통해 재생성). 파일 이름은 히스토리 용도이며, 소스 및 렌더링된 다이어그램은 `DEFAULT_WEIGHTS`에 선언된 16가지 요소를 모두 보여줍니다.
 
-| 요소                  | 기본 가중치 | 설명                                                                                                                                                                                  |
-| :-------------------- | :---------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `quota`               | 0.1429      | 남은 할당량 / 속도 제한 여유 [0..1]                                                                                                                                                   |
-| `health`              | 0.1605      | 서킷 브레이커의 상태 점수(CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                        |
-| `costInv`             | 0.1429      | **혼합된** 비용의 역수(입력 토큰 가격 60% + 출력 토큰 가격 40%, 정규화됨) — 저렴할수록 점수가 높음                                                                                    |
-| `latencyInv`          | 0.1143      | 풀을 기준으로 정규화된 p95 지연 시간의 역수 — 빠를수록 점수가 높음                                                                                                                    |
-| `taskFit`             | 0.0762      | 작업 유형 적합도(코딩, 검토, 계획, 분석, 디버깅, 문서화)                                                                                                                              |
-| `stability`           | 0.0476      | 지연 시간 표준 편차를 기반으로 한 안정성 — 응답 시간이 크게 변동하는 후보는 더 낮은 점수를 받음                                                                                       |
-| `tierPriority`        | 0.0476      | 계정 티어 우선순위 — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                     |
-| `tierAffinity`        | 0.0476      | 후보의 티어와 매니페스트가 권장하는 티어 간의 선호도                                                                                                                                  |
-| `specificityMatch`    | 0.0476      | 요청 구체성(매니페스트 힌트)과 모델 티어 간의 일치도                                                                                                                                  |
-| `contextAffinity`     | 0.0476      | 요청에 필요한 컨텍스트 창과 모델의 컨텍스트 창 간의 선호도                                                                                                                            |
-| `sessionAvailability` | 0.0476      | 이 세션에 대한 후보 연결의 OAuth 세션 가용성(`getOAuthSessionAvailability()`; OAuth가 아닌 연결은 1.0점을 받음)                                                                       |
-| `connectionDensity`   | 0.0476      | 동일한 제공자의 여러 연결에 부하를 분산함(집중 방지)                                                                                                                                  |
-| `cacheAffinity`       | 0.00        | 이 요청의 프롬프트 캐시 접두사를 이미 보유하고 있을 가능성이 가장 높은 연결에 대한 랑데부 해시 선호도(`open-sse/services/combo/promptCacheAffinity.ts`); 기본적으로 비활성화됨(#8008) |
-| `resetWindowAffinity` | 0.00        | 할당량 재설정 기간이 유리한 연결을 선호하도록 조정(기본적으로 비활성화됨)                                                                                                             |
-| `quality`             | 0.03        | 라우팅 이벤트 품질 추적기에서 제공하는 피드백 기반 출력 품질 신호. 관측값이 없는 후보는 중립 점수인 0.5를 받음                                                                        |
-| `reliability`         | 0.00        | 최소 10개 샘플 기준을 충족하는 24시간 사용 기록에서 계산된 관측 성공 비율 `1 - failureRate`(그 외에는 실시간 메트릭 사용). 관측값이 없는 후보는 1.0으로 처리됨. 기본적으로 비활성화됨 |
+| Factor                | Default Weight | Description                                                                                                                                                                                                |
+| :-------------------- | :------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota`               | 0.1429         | 남은 할당량 / rate-limit 여유 공간 [0..1]                                                                                                                                                                  |
+| `health`              | 0.1605         | 서킷 브레이커의 헬스 점수 (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                            |
+| `costInv`             | 0.1429         | 역 **혼합(blended)** 비용 (60% 입력 + 40% 출력 토큰 가격, 정규화됨) — 저렴할수록 = 더 높은 점수                                                                                                            |
+| `latencyInv`          | 0.1143         | 풀(pool)에 맞춰 정규화된 역 p95 지연 시간 — 빠를수록 = 더 높은 점수                                                                                                                                        |
+| `taskFit`             | 0.0762         | 작업 유형 적합성 (coding, review, planning, analysis, debugging, docs)                                                                                                                                     |
+| `stability`           | 0.0476         | 지연 시간 표준 편차 기반의 분산 기반 안정성 — 응답 시간 변동이 큰 후보일수록 더 낮은 점수 획득                                                                                                             |
+| `tierPriority`        | 0.0476         | 계정 티어 우선순위 — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                          |
+| `tierAffinity`        | 0.0476         | 후보의 티어와 매니페스트 권장 티어 간의 친화도(Affinity)                                                                                                                                                   |
+| `specificityMatch`    | 0.0476         | 요청 특이성(매니페스트 힌트)과 모델 티어 간의 일치도                                                                                                                                                       |
+| `contextAffinity`     | 0.0476         | 요청의 컨텍스트 창 요구치와 모델의 컨텍스트 창 간의 친화도                                                                                                                                                 |
+| `sessionAvailability` | 0.0476         | 이 세션에 대한 후보 연결의 OAuth 세션 가용성 (`getOAuthSessionAvailability()`; OAuth가 아닌 연결은 1.0 점수 부여)                                                                                          |
+| `connectionDensity`   | 0.0476         | 동일 제공자의 여러 연결에 걸쳐 부하를 분산 (집중 방지)                                                                                                                                                     |
+| `cacheAffinity`       | 0.00           | 해당 요청의 프롬프트 캐시 접두사를 이미 보유하고 있을 가능성이 가장 높은 연결에 대한 랑데부 해시(Rendezvous-hash) 친화도 (`open-sse/services/combo/promptCacheAffinity.ts`); 기본적으로 비활성화됨 (#8008) |
+| `resetWindowAffinity` | 0.00           | 할당량 초기화 윈도우가 유리한 연결에 대한 편향 (기본적으로 비활성화됨)                                                                                                                                     |
+| `quality`             | 0.03           | 라우팅 이벤트 품질 추적기의 피드백 기반 출력 품질 신호; 관측 데이터가 없는 후보는 중립적인 0.5를 받음                                                                                                      |
+| `reliability`         | 0.00           | 최소 10개 샘플 기준 하한선이 적용된 24시간 사용 기록 기반 관측된 성공 점유율, `1 - failureRate` (그 외의 경우 실시간 메트릭); 관측 데이터가 없는 후보는 1.0으로 읽힘. 기본적으로 비활성화됨                |
 
-**합계:** `DEFAULT_WEIGHTS`에 선언된 대로 `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0`이며, 사용자 구성 가중치는 점수를 계산하기 전에 `normalizeScoringWeights()`를 통해 분포로 다시 정규화됩니다.
+> **읽을 수 없는 할당량 (#15347).** 프로바이더에 할당량 fetcher가 있지만 읽을 수 있는 값을 반환하지 않는 경우(가져오기 실패, 자격 증명 누락, 메시지만 있는 사용량, 또는 파싱 가능한 `windows`가 없고 `percentUsed: null`을 포함하여 유한한 `percentUsed`가 없는 잘못된 형식의 스냅샷), 후보는 `quota` 축에서 `0`점을 받고 최종 점수에 `UNREADABLE_QUOTA_SOFT_DEPRIORITIZE_FACTOR`(0.5, `autoStrategy.ts`)가 곱해집니다. 이는 연결 상태 페널티와 동일한 소프트 페널티 패턴입니다. 사용량 읽기 실패는 프로바이더가 아닌 텔레메트리에 대한 증거이므로, 확인된 100% 사용을 포함한 모든 실제 측정값보다 엄격하게 낮게 순위가 매겨지지만, 절대 하드 차단되거나 축출(evict)되지는 않습니다. 한도가 없는 프로바이더는 `unlimited: true`를 보고하고 전체 할당량 점수를 받으며, 등록된 할당량 fetcher가 없는 프로바이더는 텔레메트리 소스가 전혀 없으므로 기본값인 `100`을 유지합니다.
+
+**합계:** `DEFAULT_WEIGHTS`에 선언된 대로 `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0`이며, 사용자가 구성한 가중치는 점수 산정 전에 `normalizeScoringWeights()`에 의해 분포로 재정규화됩니다.
 
 ## 모드 팩
 

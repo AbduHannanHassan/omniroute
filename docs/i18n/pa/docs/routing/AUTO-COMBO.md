@@ -181,34 +181,45 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 ਇੱਥੇ ਦਸਤਾਵੇਜ਼ਬੱਧ ਮੂਲ ਉਲਝਣ ਲਈ [#7992](https://github.com/diegosouzapw/OmniRoute/issues/7992) ਅਤੇ [#7111](https://github.com/diegosouzapw/OmniRoute/issues/7111) ਵੇਖੋ।
 
-## ਇਹ ਕਿਵੇਂ ਕੰਮ ਕਰਦਾ ਹੈ (ਸਥਾਈ Auto-Combos)
+## ਇਹ ਕਿਵੇਂ ਕੰਮ ਕਰਦਾ ਹੈ (Persisted Auto-Combos)
 
-Auto-Combo Engine ਇੱਕ **16-ਕਾਰਕ ਸਕੋਰਿੰਗ ਫੰਕਸ਼ਨ** (`open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS` ਵਿੱਚ ਪਰਿਭਾਸ਼ਿਤ) ਦੀ ਵਰਤੋਂ ਕਰਕੇ ਹਰ ਬੇਨਤੀ ਲਈ ਸਭ ਤੋਂ ਵਧੀਆ provider/model ਨੂੰ ਗਤੀਸ਼ੀਲ ਢੰਗ ਨਾਲ ਚੁਣਦਾ ਹੈ। ਡਿਫਾਲਟ ਭਾਰਾਂ ਦਾ ਜੋੜ `1.0` ਹੈ; ਕਸਟਮ ਭਾਰਾਂ ਨੂੰ `normalizeScoringWeights()` ਦੁਆਰਾ ਮੁੜ ਨਾਰਮਲਾਈਜ਼ ਕੀਤਾ ਜਾਂਦਾ ਹੈ। ਸੋਲ੍ਹਾਂ ਵਿੱਚੋਂ ਦੋ — `cacheAffinity` ਅਤੇ `resetWindowAffinity` — ਦਾ ਡਿਫਾਲਟ ਭਾਰ `0` ਹੈ; `reliability` ਦਾ `DEFAULT_WEIGHTS` ਵਿੱਚ ਭਾਰ `0` ਹੈ, ਪਰ ਆਮ ਪੈਕਾਂ ਵਿੱਚ `0.03` ਅਤੇ `reliability-first` ਵਿੱਚ `0.04` ਹੈ, ਅਤੇ `quality` ਦਾ ਪੈਕਾਂ ਵਿੱਚ ਭਾਰ `0.02` (`quality-first` ਵਿੱਚ `0.03`) ਹੈ: ਫਿਰ ਵੀ ਹਰ ਉਮੀਦਵਾਰ ਲਈ ਇਨ੍ਹਾਂ ਦੀ ਗਣਨਾ ਕੀਤੀ ਜਾਂਦੀ ਹੈ, ਅਤੇ `cacheAffinity` ਸਕੋਰ ਤੋਂ ਬਾਹਰ prompt-cache ਡੀਡੁਪਲੀਕੇਸ਼ਨ ਨੂੰ ਨਿਯੰਤਰਿਤ ਕਰਦਾ ਹੈ, ਇਸ ਲਈ ਸਿਫ਼ਰ-ਡਿਫਾਲਟ ਵਾਲੇ ਕਾਰਕ ਡਿਫਾਲਟ ਤੌਰ 'ਤੇ ਵੋਟ ਨਹੀਂ ਦਿੰਦੇ, ਜਦਕਿ ਪੈਕ ਦਿੰਦੇ ਹਨ।
+Auto-Combo Engine ਇੱਕ **16-factor scoring function** (`open-sse/services/autoCombo/scoring.ts` → `DEFAULT_WEIGHTS` ਵਿੱਚ ਪਰਿਭਾਸ਼ਿਤ) ਦੀ ਵਰਤੋਂ ਕਰਕੇ ਹਰੇਕ ਬੇਨਤੀ ਲਈ ਸਭ ਤੋਂ ਵਧੀਆ provider/model ਨੂੰ ਡਾਇਨਾਮਿਕ ਤੌਰ 'ਤੇ ਚੁਣਦਾ ਹੈ। ਡਿਫੌਲਟ ਵਜ਼ਨਾਂ ਦਾ ਜੋੜ `1.0` ਹੁੰਦਾ ਹੈ; ਕਸਟਮ ਵਜ਼ਨਾਂ ਨੂੰ `normalizeScoringWeights()` ਦੁਆਰਾ ਮੁੜ-ਸਧਾਰਣ (renormalized) ਕੀਤਾ ਜਾਂਦਾ ਹੈ। ਸੋਲਾਂ ਵਿੱਚੋਂ ਦੋ — `cacheAffinity` ਅਤੇ `resetWindowAffinity` — ਦਾ ਡਿਫੌਲਟ ਵਜ਼ਨ `0` ਹੁੰਦਾ ਹੈ; `reliability` ਦਾ ਵਜ਼ਨ `DEFAULT_WEIGHTS` ਵਿੱਚ `0` ਹੁੰਦਾ ਹੈ ਪਰ ਜੈਨਰਿਕ ਪੈਕਾਂ ਵਿੱਚ `0.03` ਅਤੇ `reliability-first` ਵਿੱਚ `0.04` ਹੁੰਦਾ ਹੈ, ਅਤੇ `quality` ਦਾ ਪੈਕਾਂ ਵਿੱਚ `0.02` ਹੁੰਦਾ ਹੈ (`quality-first` ਵਿੱਚ `0.03`): ਇਹਨਾਂ ਦੀ ਗਣਨਾ ਅਜੇ ਵੀ ਹਰੇਕ ਉਮੀਦਵਾਰ (candidate) ਲਈ ਕੀਤੀ ਜਾਂਦੀ ਹੈ, ਅਤੇ `cacheAffinity` ਸਕੋਰ ਤੋਂ ਬਾਹਰ prompt-cache ਡਿਡੁਪਲੀਕੇਸ਼ਨ ਨੂੰ ਨਿਯੰਤਰਿਤ ਕਰਦਾ ਹੈ, ਇਸ ਲਈ ਜ਼ੀਰੋ-ਡਿਫੌਲਟ ਕਾਰਕ ਸਿਰਫ਼ ਡਿਫੌਲਟ ਤੌਰ 'ਤੇ ਵੋਟ ਨਹੀਂ ਕਰਦੇ ਜਦਕਿ ਪੈਕ ਕਰਦੇ ਹਨ।
 
-![Auto-Combo ਦੀ 16-ਕਾਰਕ ਸਕੋਰਿੰਗ](../diagrams/exported/auto-combo-scoring.svg)
+![Auto-Combo 16-factor scoring](../diagrams/exported/auto-combo-scoring.svg)
 
-> ਸਰੋਤ: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (`npm run docs:render-diagrams` ਰਾਹੀਂ ਮੁੜ ਤਿਆਰ ਕਰੋ)। ਫ਼ਾਈਲ ਦਾ ਨਾਮ ਇਤਿਹਾਸਕ ਹੈ; ਸਰੋਤ ਅਤੇ ਰੈਂਡਰ ਕੀਤਾ ਡਾਇਗ੍ਰਾਮ `DEFAULT_WEIGHTS` ਵਿੱਚ ਘੋਸ਼ਿਤ ਸਾਰੇ 16 ਕਾਰਕ ਦਿਖਾਉਂਦੇ ਹਨ।
+> ਸਰੋਤ: [diagrams/auto-combo-scoring.mmd](../diagrams/auto-combo-scoring.mmd) (`npm run docs:render-diagrams` ਰਾਹੀਂ ਮੁੜ ਤਿਆਰ ਕਰੋ)। ਫਾਈਲ ਦਾ ਨਾਮ ਇਤਿਹਾਸਕ ਹੈ; ਸਰੋਤ ਅਤੇ ਰੈਂਡਰ ਕੀਤਾ ਡਾਇਗ੍ਰਾਮ `DEFAULT_WEIGHTS` ਵਿੱਚ ਘੋਸ਼ਿਤ ਸਾਰੇ 16 ਕਾਰਕਾਂ ਨੂੰ ਦਰਸਾਉਂਦਾ ਹੈ।
 
-| ਕਾਰਕ                  | ਡਿਫਾਲਟ ਭਾਰ | ਵੇਰਵਾ                                                                                                                                                                                                             |
-| :-------------------- | :--------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `quota`               | 0.1429     | ਬਾਕੀ quota / rate-limit ਸਮਰੱਥਾ [0..1]                                                                                                                                                                             |
-| `health`              | 0.1605     | circuit breaker ਤੋਂ ਸਿਹਤ ਸਕੋਰ (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                               |
-| `costInv`             | 0.1429     | ਉਲਟੀ **ਮਿਸ਼ਰਤ** ਲਾਗਤ (60% ਇਨਪੁੱਟ + 40% ਆਉਟਪੁੱਟ token ਕੀਮਤ, ਨਾਰਮਲਾਈਜ਼ ਕੀਤੀ) — ਘੱਟ ਲਾਗਤ = ਵੱਧ ਸਕੋਰ                                                                                                                  |
-| `latencyInv`          | 0.1143     | pool ਦੇ ਮੁਕਾਬਲੇ ਨਾਰਮਲਾਈਜ਼ ਕੀਤੀ ਉਲਟੀ p95 latency — ਵੱਧ ਤੇਜ਼ = ਵੱਧ ਸਕੋਰ                                                                                                                                             |
-| `taskFit`             | 0.0762     | ਕਾਰਜ-ਕਿਸਮ ਲਈ ਉਪਯੋਗਤਾ (ਕੋਡਿੰਗ, ਸਮੀਖਿਆ, ਯੋਜਨਾ, ਵਿਸ਼ਲੇਸ਼ਣ, ਡੀਬੱਗਿੰਗ, ਦਸਤਾਵੇਜ਼)                                                                                                                                       |
-| `stability`           | 0.0476     | latency ਦੇ ਮਿਆਰੀ ਵਿਸਥਾਪਨ ਤੋਂ variance-ਅਧਾਰਿਤ ਸਥਿਰਤਾ — ਜਿਸ ਉਮੀਦਵਾਰ ਦਾ ਜਵਾਬ ਸਮਾਂ ਵੱਧ ਉਤਰਾਅ-ਚੜ੍ਹਾਅ ਕਰਦਾ ਹੈ, ਉਸਨੂੰ ਘੱਟ ਸਕੋਰ ਮਿਲਦਾ ਹੈ                                                                                  |
-| `tierPriority`        | 0.0476     | ਖਾਤਾ-tier ਤਰਜੀਹ — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                                    |
-| `tierAffinity`        | 0.0476     | ਉਮੀਦਵਾਰ ਦੇ tier ਅਤੇ manifest ਦੁਆਰਾ ਸਿਫ਼ਾਰਸ਼ ਕੀਤੇ tier ਵਿਚਕਾਰ ਅਨੁਕੂਲਤਾ                                                                                                                                             |
-| `specificityMatch`    | 0.0476     | ਬੇਨਤੀ ਦੀ ਵਿਸ਼ੇਸ਼ਤਾ (manifest ਸੰਕੇਤ) ਅਤੇ model tier ਵਿਚਕਾਰ ਮੇਲ                                                                                                                                                     |
-| `contextAffinity`     | 0.0476     | ਬੇਨਤੀ ਦੀ context-window ਲੋੜ ਅਤੇ model ਦੀ context window ਵਿਚਕਾਰ ਅਨੁਕੂਲਤਾ                                                                                                                                           |
-| `sessionAvailability` | 0.0476     | ਇਸ session ਲਈ ਉਮੀਦਵਾਰ connection ਦੀ OAuth session ਉਪਲਬਧਤਾ (`getOAuthSessionAvailability()`; ਗੈਰ-OAuth connections ਨੂੰ 1.0 ਸਕੋਰ ਮਿਲਦਾ ਹੈ)                                                                          |
-| `connectionDensity`   | 0.0476     | ਇੱਕੋ provider ਦੇ connections ਵਿਚਕਾਰ ਲੋਡ ਵੰਡਦਾ ਹੈ (ਕੇਂਦਰੀਕਰਨ-ਵਿਰੋਧੀ)                                                                                                                                               |
-| `cacheAffinity`       | 0.00       | ਉਸ connection ਵੱਲ Rendezvous-hash ਅਨੁਕੂਲਤਾ, ਜਿਸ ਕੋਲ ਪਹਿਲਾਂ ਹੀ ਇਸ ਬੇਨਤੀ ਦਾ prompt-cache prefix ਹੋਣ ਦੀ ਸਭ ਤੋਂ ਵੱਧ ਸੰਭਾਵਨਾ ਹੈ (`open-sse/services/combo/promptCacheAffinity.ts`); ਡਿਫਾਲਟ ਤੌਰ 'ਤੇ ਅਸਮਰੱਥ (#8008)      |
-| `resetWindowAffinity` | 0.00       | ਉਨ੍ਹਾਂ connections ਵੱਲ ਝੁਕਾਅ, ਜਿਨ੍ਹਾਂ ਦੀ quota reset window ਅਨੁਕੂਲ ਹੈ (ਡਿਫਾਲਟ ਤੌਰ 'ਤੇ ਅਸਮਰੱਥ)                                                                                                                     |
-| `quality`             | 0.03       | routing-event ਗੁਣਵੱਤਾ tracker ਤੋਂ feedback-ਅਧਾਰਿਤ ਆਉਟਪੁੱਟ-ਗੁਣਵੱਤਾ ਸੰਕੇਤ; ਬਿਨਾਂ ਨਿਰੀਖਣਾਂ ਵਾਲੇ ਉਮੀਦਵਾਰਾਂ ਨੂੰ ਨਿਰਪੱਖ 0.5 ਮਿਲਦਾ ਹੈ                                                                                    |
-| `reliability`         | 0.00       | ਦਸ-sample ਦੀ ਘੱਟੋ-ਘੱਟ ਸੀਮਾ ਪਿੱਛੇ 24h ਦੇ ਵਰਤੋਂ ਇਤਿਹਾਸ ਤੋਂ ਦੇਖਿਆ ਗਿਆ ਸਫਲਤਾ ਅਨੁਪਾਤ, `1 - failureRate` (ਨਹੀਂ ਤਾਂ real-time metrics); ਬਿਨਾਂ ਨਿਰੀਖਣਾਂ ਵਾਲੇ ਉਮੀਦਵਾਰਾਂ ਲਈ ਇਸਨੂੰ 1.0 ਮੰਨਿਆ ਜਾਂਦਾ ਹੈ। ਡਿਫਾਲਟ ਤੌਰ 'ਤੇ ਅਸਮਰੱਥ |
+| Factor                | Default Weight | Description                                                                                                                                                                                             |
+| :-------------------- | :------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `quota`               | 0.1429         | ਬਾਕੀ ਬਚਿਆ quota / rate-limit headroom [0..1]                                                                                                                                                            |
+| `health`              | 0.1605         | Circuit breaker ਤੋਂ Health ਸਕੋਰ (CLOSED=1.0, HALF_OPEN=0.5, OPEN=0.0)                                                                                                                                   |
+| `costInv`             | 0.1429         | ਉਲਟ (Inverse) **ਮਿਸ਼ਰਤ** ਲਾਗਤ (60% input + 40% output token ਕੀਮਤ, ਸਧਾਰਣ ਕੀਤੀ ਗਈ) — ਸਸਤਾ = ਵੱਧ ਸਕੋਰ                                                                                                      |
+| `latencyInv`          | 0.1143         | ਪੂਲ ਲਈ ਸਧਾਰਣ ਕੀਤੀ ਗਈ ਉਲਟ p95 latency — ਤੇਜ਼ = ਵੱਧ ਸਕੋਰ                                                                                                                                                  |
+| `taskFit`             | 0.0762         | ਕਾਰਜ-ਕਿਸਮ ਦੀ ਅਨੁਕੂਲਤਾ (coding, review, planning, analysis, debugging, docs)                                                                                                                             |
+| `stability`           | 0.0476         | Latency standard deviation ਤੋਂ ਪਰਿਵਰਤਨ-ਅਧਾਰਤ (variance-based) ਸਥਿਰਤਾ — ਇੱਕ ਉਮੀਦਵਾਰ ਜਿਸਦਾ ਜਵਾਬ ਸਮਾਂ ਬਦਲਦਾ ਰਹਿੰਦਾ ਹੈ, ਘੱਟ ਸਕੋਰ ਪ੍ਰਾਪਤ ਕਰਦਾ ਹੈ                                                             |
+| `tierPriority`        | 0.0476         | ਖਾਤਾ-ਟੀਅਰ ਤਰਜੀਹ — Ultra=1.0, Pro=0.67, Standard=0.33, Free=0.0                                                                                                                                          |
+| `tierAffinity`        | 0.0476         | ਉਮੀਦਵਾਰ ਦੇ ਟੀਅਰ ਅਤੇ ਮੈਨੀਫੈਸਟ-ਸਿਫਾਰਸ਼ੀ ਟੀਅਰ ਵਿਚਕਾਰ ਸਾਂਝ (Affinity)                                                                                                                                       |
+| `specificityMatch`    | 0.0476         | ਬੇਨਤੀ ਦੀ ਵਿਸ਼ੇਸ਼ਤਾ (manifest hint) ਅਤੇ ਮਾਡਲ ਟੀਅਰ ਵਿਚਕਾਰ ਮੇਲ                                                                                                                                             |
+| `contextAffinity`     | 0.0476         | ਬੇਨਤੀ ਦੀ context-window ਲੋੜ ਅਤੇ ਮਾਡਲ ਦੀ context window ਵਿਚਕਾਰ ਸਾਂਝ                                                                                                                                      |
+| `sessionAvailability` | 0.0476         | ਇਸ ਸੈਸ਼ਨ ਲਈ ਉਮੀਦਵਾਰ ਕਨੈਕਸ਼ਨ ਦੀ OAuth ਸੈਸ਼ਨ ਉਪਲਬਧਤਾ (`getOAuthSessionAvailability()`; ਗੈਰ-OAuth ਕਨੈਕਸ਼ਨ 1.0 ਸਕੋਰ ਕਰਦੇ ਹਨ)                                                                                |
+| `connectionDensity`   | 0.0476         | ਇੱਕੋ ਪ੍ਰਦਾਤਾ ਦੇ ਕਨੈਕਸ਼ਨਾਂ ਵਿੱਚ ਲੋਡ ਨੂੰ ਵੰਡਦਾ ਹੈ (anti-concentration)                                                                                                                                    |
+| `cacheAffinity`       | 0.00           | ਉਸ ਕਨੈਕਸ਼ਨ ਵੱਲ Rendezvous-hash ਸਾਂਝ ਜਿਸ ਕੋਲ ਇਸ ਬੇਨਤੀ ਦਾ prompt-cache ਅਗੇਤਰ ਪਹਿਲਾਂ ਤੋਂ ਹੋਣ ਦੀ ਸਭ ਤੋਂ ਵੱਧ ਸੰਭਾਵਨਾ ਹੈ (`open-sse/services/combo/promptCacheAffinity.ts`); ਡਿਫੌਲਟ ਤੌਰ 'ਤੇ ਅਸਮਰੱਥ ਹੈ (#8008) |
+| `resetWindowAffinity` | 0.00           | ਉਹਨਾਂ ਕਨੈਕਸ਼ਨਾਂ ਵੱਲ ਝੁਕਾਅ ਜਿਨ੍ਹਾਂ ਦੀ ਕੋਟਾ ਰੀਸੈੱਟ ਵਿੰਡੋ ਅਨੁਕੂਲ ਹੈ (ਡਿਫੌਲਟ ਤੌਰ 'ਤੇ ਅਸਮਰੱਥ)                                                                                                                |
+| `quality`             | 0.03           | Routing-event ਕੁਆਲਿਟੀ ਟਰੈਕਰ ਤੋਂ ਫੀਡਬੈਕ-ਸੰਚਾਲਿਤ ਆਉਟਪੁੱਟ-ਕੁਆਲਿਟੀ ਸਿਗਨਲ; ਬਿਨਾਂ ਨਿਰੀਖਣ ਵਾਲੇ ਉਮੀਦਵਾਰ ਨਿਰਪੱਖ 0.5 ਪ੍ਰਾਪਤ ਕਰਦੇ ਹਨ                                                                               |
+| `reliability`         | 0.00           | ਦਸ-ਨਮੂਨੇ ਦੇ ਅਧਾਰ ਦੇ ਪਿੱਛੇ 24 ਘੰਟੇ ਦੇ ਵਰਤੋਂ ਇਤਿਹਾਸ ਤੋਂ ਦੇਖਿਆ ਗਿਆ ਸਫਲਤਾ ਹਿੱਸਾ, `1 - failureRate` (ਨਹੀਂ ਤਾਂ ਰੀਅਲ-ਟਾਈਮ ਮੈਟ੍ਰਿਕਸ); ਬਿਨਾਂ ਨਿਰੀਖਣ ਵਾਲੇ ਉਮੀਦਵਾਰ 1.0 ਵਜੋਂ ਪੜ੍ਹੇ ਜਾਂਦੇ ਹਨ। ਡਿਫੌਲਟ ਤੌਰ 'ਤੇ ਅਸਮਰੱਥ  |
 
-**ਜੋੜ:** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0`, ਜਿਵੇਂ `DEFAULT_WEIGHTS` ਵਿੱਚ ਘੋਸ਼ਿਤ ਹੈ; ਸਕੋਰਿੰਗ ਤੋਂ ਪਹਿਲਾਂ ਵਰਤੋਂਕਾਰ ਦੁਆਰਾ ਸੰਰਚਿਤ ਭਾਰਾਂ ਨੂੰ `normalizeScoringWeights()` ਦੁਆਰਾ ਮੁੜ ਨਾਰਮਲਾਈਜ਼ ਕਰਕੇ ਇੱਕ ਵੰਡ ਵਿੱਚ ਬਦਲਿਆ ਜਾਂਦਾ ਹੈ।
+> **ਅਣਪੜ੍ਹਨਯੋਗ ਕੋਟਾ (Unreadable quota) (#15347)।** ਜਦੋਂ ਕਿਸੇ ਪ੍ਰੋਵਾਈਡਰ ਕੋਲ ਕੋਟਾ ਫੈਚਰ (quota fetcher) ਹੁੰਦਾ ਹੈ ਪਰ ਇਹ ਕੁਝ ਵੀ
+> ਪੜ੍ਹਨਯੋਗ ਵਾਪਸ ਨਹੀਂ ਕਰਦਾ (ਅਸਫ਼ਲ ਫੈਚ, ਗੁੰਮ ਕ੍ਰੈਡੈਂਸ਼ੀਅਲ, ਸਿਰਫ਼-ਸੰਦੇਸ਼ ਵਾਲੀ ਵਰਤੋਂ, ਜਾਂ ਬਿਨਾਂ ਕਿਸੇ ਪਾਰਸ ਹੋਣ ਯੋਗ
+> `windows` ਅਤੇ ਬਿਨਾਂ ਕਿਸੇ ਸੀਮਤ `percentUsed`, ਜਿਸ ਵਿੱਚ `percentUsed: null` ਸ਼ਾਮਲ ਹੈ, ਵਾਲਾ ਖ਼ਰਾਬ ਸਨੈਪਸ਼ਾਟ), ਤਾਂ ਉਮੀਦਵਾਰ
+> `quota` ਧੁਰੇ 'ਤੇ `0` ਸਕੋਰ ਕਰਦਾ ਹੈ ਅਤੇ ਇਸਦੇ ਅੰਤਿਮ ਸਕੋਰ ਨੂੰ
+> `UNREADABLE_QUOTA_SOFT_DEPRIORITIZE_FACTOR` (0.5, `autoStrategy.ts`) ਨਾਲ ਗੁਣਾ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਜੋ ਕਿ ਕਨੈਕਸ਼ਨ-ਸਥਿਤੀ ਪੈਨਲਟੀ ਵਾਂਗ ਹੀ
+> ਸਾਫਟ-ਪੈਨਲਟੀ ਪੈਟਰਨ ਹੈ। ਇੱਕ ਅਸਫ਼ਲ ਵਰਤੋਂ ਰੀਡ ਟੈਲੀਮੈਟਰੀ ਬਾਰੇ ਸਬੂਤ ਹੈ,
+> ਨਾ ਕਿ ਪ੍ਰੋਵਾਈਡਰ ਬਾਰੇ, ਇਸ ਲਈ ਇਹ ਸਖ਼ਤੀ ਨਾਲ ਕਿਸੇ ਵੀ ਅਸਲ ਰੀਡਿੰਗ ਤੋਂ ਹੇਠਾਂ ਰੈਂਕ ਕਰਦਾ ਹੈ, ਜਿਸ ਵਿੱਚ ਇੱਕ ਪੁਸ਼ਟੀ ਕੀਤੀ 100%-ਵਰਤੀ ਹੋਈ ਰੀਡਿੰਗ
+> ਵੀ ਸ਼ਾਮਲ ਹੈ, ਪਰ ਇਸਨੂੰ ਕਦੇ ਵੀ ਹਾਰਡ-ਬਲਾਕ ਜਾਂ ਬੇਦਖ਼ਲ ਨਹੀਂ ਕੀਤਾ ਜਾਂਦਾ ਹੈ। ਬਿਨਾਂ ਕਿਸੇ ਕੈਪ ਵਾਲਾ ਪ੍ਰੋਵਾਈਡਰ `unlimited: true` ਰਿਪੋਰਟ ਕਰਦਾ ਹੈ ਅਤੇ
+> ਪੂਰੇ ਕੋਟੇ ਵਜੋਂ ਸਕੋਰ ਕਰਦਾ ਹੈ; ਬਿਨਾਂ ਕਿਸੇ ਰਜਿਸਟਰਡ ਕੋਟਾ ਫੈਚਰ ਵਾਲੇ ਪ੍ਰੋਵਾਈਡਰ ਕੋਲ ਕੋਈ ਟੈਲੀਮੈਟਰੀ ਸਰੋਤ ਨਹੀਂ ਹੁੰਦਾ ਹੈ
+> ਅਤੇ ਉਹ `100` ਦਾ ਡਿਫੌਲਟ ਰੱਖਦਾ ਹੈ।
+
+**ਜੋੜ:** `0.1429 + 0.1605 + 0.1429 + 0.1143 + 0.0762 + (7 × 0.0476) + 0.00 + 0.00 + 0.03 + 0.00 = 1.0` ਜਿਵੇਂ ਕਿ `DEFAULT_WEIGHTS` ਵਿੱਚ ਘੋਸ਼ਿਤ ਕੀਤਾ ਗਿਆ ਹੈ; ਉਪਭੋਗਤਾ ਦੁਆਰਾ ਕੌਂਫਿਗਰ ਕੀਤੇ ਵਜ਼ਨਾਂ ਨੂੰ ਸਕੋਰਿੰਗ ਤੋਂ ਪਹਿਲਾਂ `normalizeScoringWeights()` ਦੁਆਰਾ ਇੱਕ ਵੰਡ ਵਿੱਚ ਮੁੜ-ਸਧਾਰਣ (renormalized) ਕੀਤਾ ਜਾਂਦਾ ਹੈ।
 
 ## ਮੋਡ ਪੈਕ
 
