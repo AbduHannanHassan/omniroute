@@ -315,6 +315,8 @@ export function createStreamController({
     handleDisconnect: (reason = "client_closed") => {
       if (disconnected) return;
       if (clientTerminalSeen) {
+        // Transfer transport ownership before completion releases the callback.
+        completedToolHandoffDrain?.();
         controller.handleComplete();
         return;
       }
@@ -695,7 +697,9 @@ export function createDisconnectAwareStream(
   const drainCompletedToolHandoff = () =>
     drainAfterDisconnect("completed_tool_handoff_grace_expired");
   const drainTerminal = () => drainAfterDisconnect("terminal_stream_grace_expired");
-  streamController.registerCompletedToolHandoffDrain?.(drainCompletedToolHandoff);
+  streamController.registerCompletedToolHandoffDrain?.(() =>
+    clientTerminalSeen ? drainTerminal() : drainCompletedToolHandoff()
+  );
 
   const noteClientChunk = (chunk: unknown) => {
     if (!(chunk instanceof Uint8Array)) return;
