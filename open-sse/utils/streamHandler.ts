@@ -667,13 +667,12 @@ export function createDisconnectAwareStream(
   let terminalTail = "";
   let clientTerminalSeen = false;
   let bytesWereForwarded = false;
-  let completedToolHandoffDrainStarted = false;
+  let disconnectDrainStarted = false;
 
-  const drainCompletedToolHandoff = () => {
-    if (completedToolHandoffDrainStarted) return;
-    completedToolHandoffDrainStarted = true;
+  const drainAfterDisconnect = (timeoutReason: string) => {
+    if (disconnectDrainStarted) return;
+    disconnectDrainStarted = true;
     const gracePeriodMs = Math.max(0, Number(streamController.clientDisconnectGracePeriodMs) || 0);
-    const timeoutReason = "completed_tool_handoff_grace_expired";
     const timeout = setTimeout(() => {
       streamController.abort();
       void Promise.allSettled([reader.cancel(timeoutReason), writer.abort(timeoutReason)]);
@@ -693,6 +692,9 @@ export function createDisconnectAwareStream(
       }
     })();
   };
+  const drainCompletedToolHandoff = () =>
+    drainAfterDisconnect("completed_tool_handoff_grace_expired");
+  const drainTerminal = () => drainAfterDisconnect("terminal_stream_grace_expired");
   streamController.registerCompletedToolHandoffDrain?.(drainCompletedToolHandoff);
 
   const noteClientChunk = (chunk: unknown) => {
@@ -732,12 +734,11 @@ export function createDisconnectAwareStream(
         if (!streamController.isConnected()) {
           // Closing our side alone leaves the upstream body being pulled by the
           // transform pipe. Cancel it so the provider stops generating for a
-          // client that is gone. Not on a completed stream (clientTerminalSeen)
-          // nor while a completed tool handoff is still draining the reader.
-          if (
-            !clientTerminalSeen &&
-            streamController.shouldDeferCompletedToolHandoff?.() !== true
-          ) {
+          // client that is gone, but keep a completed terminal stream draining
+          // briefly so its parser can flush late usage before bounded cleanup.
+          if (clientTerminalSeen) {
+            drainTerminal();
+          } else if (streamController.shouldDeferCompletedToolHandoff?.() !== true) {
             const reason = "client_disconnected";
             void Promise.allSettled([reader.cancel(reason), writer.abort(reason)]);
           }
@@ -849,13 +850,14 @@ export function createDisconnectAwareStream(
       },
 
       async cancel(reason) {
-        const deferCompletedToolHandoff =
-          streamController.shouldDeferCompletedToolHandoff?.() === true;
         if (clientTerminalSeen) {
           streamController.handleComplete();
-        } else {
-          streamController.handleDisconnect(reason || "cancelled");
+          drainTerminal();
+          return;
         }
+        const deferCompletedToolHandoff =
+          streamController.shouldDeferCompletedToolHandoff?.() === true;
+        streamController.handleDisconnect(reason || "cancelled");
         if (deferCompletedToolHandoff) return;
         await Promise.allSettled([reader.cancel(reason), writer.abort(reason)]);
       },
