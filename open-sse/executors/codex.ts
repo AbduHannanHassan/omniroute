@@ -76,6 +76,7 @@ import { repairMissingCodexToolCallOutputs } from "./codex/toolCallRepair.ts";
 import {
   CODEX_REASONING_REPLAY_ERROR_CODE,
   readCodexReasoningReplayRejection,
+  stripCodexReplayedReasoning,
 } from "./codex/reasoningReplayRejection.ts";
 import { resolveAppServerConfig } from "./codex/appServerConfig.ts";
 import { getResponsesSubpath } from "./codex/responsesSubpath.ts";
@@ -822,25 +823,59 @@ export class CodexExecutor extends BaseExecutor {
     }
 
     if (!isCodexResponsesWebSocketRequired(nextInput.model, nextInput.credentials)) {
-      const httpResult = await super.execute(nextInput);
+      let httpResult = await super.execute(nextInput);
       if (codexDropNonstandardEvents()) {
         const resp = (httpResult as { response?: Response }).response;
         if (resp?.body) {
           (httpResult as { response: Response }).response = filterNonstandardCodexSse(resp);
         }
       }
-      const resp = (httpResult as { response?: Response }).response;
+      let resp = (httpResult as { response?: Response }).response;
       if (resp && !resp.ok) {
         const replayRejection = await readCodexReasoningReplayRejection(resp);
         if (replayRejection) {
-          input.log?.warn?.("CODEX", "upstream rejected a replayed reasoning item");
-          await resp.body?.cancel().catch(() => undefined);
-          (httpResult as { response: Response }).response = errorResponse(
-            HTTP_STATUS.BAD_REQUEST,
-            replayRejection.message,
-            { type: "invalid_request_error", code: CODEX_REASONING_REPLAY_ERROR_CODE }
-          );
-          return httpResult;
+          // If the request carries replayed reasoning items that were rejected upstream,
+          // strip the unverified/foreign reasoning items and retry once.
+          if (!nextInput.skipUpstreamRetry) {
+            const { body: recoveredBody, strippedCount } = stripCodexReplayedReasoning(
+              nextInput.body
+            );
+            if (strippedCount > 0) {
+              input.log?.info?.(
+                "CODEX",
+                `upstream rejected replayed reasoning (${strippedCount} item(s)); retrying once without foreign reasoning`
+              );
+              await resp.body?.cancel().catch(() => undefined);
+              const retryInput: ExecuteInput = {
+                ...nextInput,
+                body: recoveredBody,
+                skipUpstreamRetry: true,
+              };
+              httpResult = await super.execute(retryInput);
+              if (codexDropNonstandardEvents()) {
+                const retryResp = (httpResult as { response?: Response }).response;
+                if (retryResp?.body) {
+                  (httpResult as { response: Response }).response =
+                    filterNonstandardCodexSse(retryResp);
+                }
+              }
+              resp = (httpResult as { response?: Response }).response;
+            }
+          }
+
+          if (resp && !resp.ok && !replayRejection.isGenericBadRequest) {
+            const finalRejection = await readCodexReasoningReplayRejection(resp);
+            if (finalRejection && !finalRejection.isGenericBadRequest) {
+              input.log?.warn?.("CODEX", "upstream rejected a replayed reasoning item");
+              await resp.body?.cancel().catch(() => undefined);
+              (httpResult as { response: Response }).response = errorResponse(
+                HTTP_STATUS.BAD_REQUEST,
+                finalRejection.message,
+                { type: "invalid_request_error", code: CODEX_REASONING_REPLAY_ERROR_CODE }
+              );
+              return httpResult;
+            }
+          }
         }
       }
       if (resp) {

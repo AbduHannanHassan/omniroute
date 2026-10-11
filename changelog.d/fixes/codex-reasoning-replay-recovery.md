@@ -1,0 +1,1 @@
+- fix(sse): Codex now recovers from foreign or invalid replayed reasoning on model switch and cross-turn requests by stripping rejected reasoning items and retrying once.
