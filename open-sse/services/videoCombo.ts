@@ -17,6 +17,7 @@
  */
 import { getComboByName, getCombos } from "@/lib/db/combos";
 import { resolveComboTargets } from "@omniroute/open-sse/services/combo.ts";
+import { resolveRequestOrigin } from "@/shared/utils/resolveRequestOrigin";
 import { getVideoProvider } from "@omniroute/open-sse/config/videoRegistry.ts";
 import { resolveVideoCredentialProvider } from "@omniroute/open-sse/handlers/videoGeneration/googleFlow.ts";
 import {
@@ -198,6 +199,9 @@ export async function executeVideoCombo(
         body: { ...body, model: modelStr },
         credentials,
         log,
+        // Same origin the combo request arrived on, so a job-preset result is
+        // servable exactly like the fal targets' public URLs.
+        mediaOrigin: resolveRequestOrigin(auth.request),
         ...(isCustomModel && { resolvedProvider: targetProvider }),
       });
 

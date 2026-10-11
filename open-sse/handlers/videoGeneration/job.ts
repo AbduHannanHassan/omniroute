@@ -16,6 +16,8 @@ import {
 } from "@/shared/utils/fetchTimeout";
 import { sanitizeErrorMessage } from "../../utils/error.ts";
 import { sleep } from "../../utils/sleep.ts";
+import { ownerTagForApiKey, writeMediaFile } from "./mediaStore.ts";
+import { getCallLogApiKeyContext } from "@/lib/usage/callLogApiKeyContext";
 
 interface LogLike {
   info?: (tag: string, msg: string, meta?: unknown) => void;
@@ -100,6 +102,18 @@ export type VideoJobPreset = {
   statusFailed: string[];
   /** dot path into the poll response holding the finished video URL/array */
   resultPath: string;
+  /**
+   * When true, the finished artifact is fetched with the provider credential and
+   * stored locally, then reported as a URL on this gateway. Some providers publish
+   * results behind their own auth (OpenRouter's `unsigned_urls` point at
+   * `/api/v1/videos/{id}/content`, which 401s for anyone without the upstream key),
+   * so handing the raw URL back gives the caller something it cannot fetch.
+   * Persisting rather than inlining base64 keeps every provider's result the same
+   * shape, which combo failover depends on.
+   */
+  resultNeedsAuth?: boolean;
+  /** format reported alongside the downloaded artifact */
+  resultFormat?: string;
   maxPolls: number;
   pollIntervalMs: number;
 };
@@ -223,6 +237,40 @@ const VIDEO_JOB_PRESETS: Record<string, VideoJobPreset> = {
     maxPolls: 60,
     pollIntervalMs: 2000,
   },
+  // OpenRouter video is asynchronous and does not follow the OpenAI shape:
+  // POST /api/v1/videos answers 202 with { id, polling_url, status } and the
+  // finished clip arrives as unsigned_urls: ["https://…"]. cancelled is already
+  // terminal in isDoneStatus; expired is not, and would otherwise poll until
+  // maxPolls reports a misleading 504.
+  "openrouter-video-job": {
+    id: "openrouter-video-job",
+    displayName: "OpenRouter Video",
+    authHeaderName: "Authorization",
+    authScheme: "bearer",
+    baseUrlFallback: "https://openrouter.ai/api/v1",
+    submit: {
+      method: "POST",
+      path: "/videos",
+      buildBody: ({ model, prompt, duration, extras }) => ({
+        model,
+        prompt,
+        ...(typeof duration === "number" ? { duration } : {}),
+        ...extras,
+      }),
+    },
+    taskIdPath: "id",
+    poll: { pathTemplate: "/videos/{taskId}" },
+    statusPath: "status",
+    statusDone: ["completed"],
+    statusFailed: ["failed", "cancelled", "expired"],
+    resultPath: "unsigned_urls",
+    // The content endpoint is auth-gated by the OpenRouter key, so fetch it here
+    // and hand back the bytes.
+    resultNeedsAuth: true,
+    resultFormat: "mp4",
+    maxPolls: 180,
+    pollIntervalMs: 2000,
+  },
 };
 
 /** Resolve a configured job preset; null when the preset is unknown/none. */
@@ -244,6 +292,7 @@ export async function handleVideoJobGeneration({
   log,
   maxPolls: maxPollsOverride,
   pollIntervalMs: pollIntervalOverride,
+  mediaOrigin,
 }: {
   model: string;
   presetName: string;
@@ -255,6 +304,12 @@ export async function handleVideoJobGeneration({
   };
   maxPolls?: number;
   pollIntervalMs?: number;
+  /**
+   * Public origin of this gateway, used to build media URLs. Passed in by the
+   * route rather than read from env because BASE_URL is the internal container
+   * address (`http://omniroute:20128`), which the caller cannot fetch.
+   */
+  mediaOrigin: string;
 }) {
   const preset = getVideoJobPreset(presetName);
   if (!preset) {
@@ -349,6 +404,55 @@ export async function handleVideoJobGeneration({
         };
       }
       log?.info?.("VIDEO", `Job completed after ${attempt} poll(s)`);
+
+      // A result the caller cannot fetch is worse than no result: download it with
+      // the provider credential and serve it back from this gateway.
+      if (preset.resultNeedsAuth) {
+        const download = await fetchJson(url, {
+          method: "GET",
+          headers: buildJobHeaders(preset, credentials),
+          log,
+          raw: true,
+        });
+        if (download.ok === false) {
+          return { success: false, status: download.status, error: download.error };
+        }
+        if (!download.base64) {
+          return {
+            success: false,
+            status: 502,
+            error: `Video job produced an empty artifact (${presetName})`,
+          };
+        }
+        const bytes = Buffer.from(download.base64, "base64");
+        // Owner comes from the request-scoped call-log context, which the route
+        // establishes (see the video route's runWithCallLogApiKeyContext). Storing the
+        // digest in the id is what lets the serving route scope by key without a table.
+        const ownerTag = ownerTagForApiKey(getCallLogApiKeyContext()?.apiKeyId);
+        const mediaId = writeMediaFile(bytes, preset.resultFormat ?? "mp4", ownerTag);
+        if (!mediaId || !mediaOrigin) {
+          return {
+            success: false,
+            status: 502,
+            error: `Video job result could not be stored for serving (${presetName})`,
+          };
+        }
+        // Same { url, format } shape every other provider returns, so a combo's
+        // failover path and its happy path are indistinguishable to the caller.
+        return {
+          success: true,
+          data: {
+            created: Math.floor(Date.now() / 1000),
+            data: [
+              {
+                url: `${mediaOrigin.replace(/\/+$/, "")}/api/v1/media/${mediaId}`,
+                format: preset.resultFormat ?? "mp4",
+              },
+            ],
+          },
+        };
+      }
+
       return {
         success: true,
         data: {
@@ -417,13 +521,18 @@ async function fetchJson(
     headers,
     body,
     log,
+    raw,
   }: {
     method: string;
     headers: Record<string, string>;
     body?: string;
     log?: LogLike;
+    /** Return the response body base64-encoded instead of parsing JSON. */
+    raw?: boolean;
   }
-): Promise<{ ok: true; data: unknown } | { ok: false; status: number; error: string }> {
+): Promise<
+  { ok: true; data?: unknown; base64?: string } | { ok: false; status: number; error: string }
+> {
   try {
     const response = await fetchWithTimeout(url, {
       method,
@@ -435,6 +544,13 @@ async function fetchJson(
       const errorText = await response.text();
       log?.error?.("VIDEO", `Upstream ${response.status} for ${url}: ${errorText.slice(0, 200)}`);
       return { ok: false, status: response.status, error: errorText };
+    }
+    if (raw) {
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length === 0) {
+        return { ok: false, status: 502, error: `Empty media body from ${url}` };
+      }
+      return { ok: true, base64: buffer.toString("base64") };
     }
     const data = await response.json();
     return { ok: true, data };

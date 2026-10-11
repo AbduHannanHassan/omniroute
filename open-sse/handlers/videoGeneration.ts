@@ -137,11 +137,13 @@ function resolveVideoJobPollingOverrides(body: Record<string, unknown>): {
 /**
  * Handle video generation request
  */
-
-/**
- * Handle video generation request
- */
-export async function handleVideoGeneration({ body, credentials, log, resolvedProvider = null }) {
+export async function handleVideoGeneration({
+  body,
+  credentials,
+  log,
+  resolvedProvider = null,
+  mediaOrigin,
+}) {
   let { provider, model } = parseVideoModel(body.model);
   if (resolvedProvider) {
     provider = resolvedProvider;
@@ -188,6 +190,7 @@ export async function handleVideoGeneration({ body, credentials, log, resolvedPr
         body,
         credentials,
         log,
+        mediaOrigin,
         ...resolveVideoJobPollingOverrides(body),
       });
     }
@@ -227,6 +230,7 @@ export async function handleVideoGeneration({ body, credentials, log, resolvedPr
       body,
       credentials,
       log,
+      mediaOrigin,
       ...resolveVideoJobPollingOverrides(body),
     });
   }
