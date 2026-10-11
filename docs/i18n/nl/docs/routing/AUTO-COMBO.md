@@ -51,15 +51,15 @@ Elke geldige `auto/<category>[:<tier>]` wordt op aanvraag omgezet; een zorgvuldi
 **Gebruik:**
 
 ```bash
-# Elke IDE of CLI-tool die de OpenAI-indeling ondersteunt
-Basis-URL: http://localhost:20128/v1
-API-sleutel:  <uw-endpointsleutel>
+# Any IDE or CLI tool that supports OpenAI format
+Base URL: http://localhost:20128/v1
+API Key:  <your-endpoint-key>
 
-# Stel in uw code/configuratie het model in op:
-model: "auto"                 # gebalanceerde standaardinstelling
-model: "auto/coding"          # het meest geschikt voor programmeertaken
-model: "auto/fast"            # snelst beschikbare optie
-model: "auto/cheap"           # goedkoopst per token
+# In your code/config, set model to:
+model: "auto"                 # balanced default
+model: "auto/coding"          # best for coding tasks
+model: "auto/fast"            # fastest available
+model: "auto/cheap"           # cheapest per token
 ```
 
 **Wat er gebeurt:**
@@ -113,13 +113,13 @@ single-tenantmodel.
 ```txt
 Request: { model: "auto/coding" }
    ↓
-src/sse/handlers/chat.ts detecteert het voorvoegsel
+src/sse/handlers/chat.ts detects prefix
    ↓
-createVirtualAutoCombo('coding') → candidatePool uit actieve verbindingen
+createVirtualAutoCombo('coding') → candidatePool from active connections
    ↓
-handleComboChat (dezelfde engine als voor persistente combo's)
+handleComboChat (same engine as persisted combos)
    ↓
-Automatische scoring selecteert per request de beste provider/het beste model
+Auto-scoring selects best provider/model per request
 ```
 
 **Implementatiebestanden:**
@@ -153,13 +153,7 @@ Het maken of hernoemen van een combo naar een naam die een echte model-id oversc
 model-id:
 
 ```json
-{
-  "warning": {
-    "code": "COMBO_NAME_SHADOWS_MODEL",
-    "modelId": "gpt-5.5",
-    "providerId": "openai"
-  }
-}
+{ "warning": { "code": "COMBO_NAME_SHADOWS_MODEL", "modelId": "gpt-5.5", "providerId": "openai" } }
 ```
 
 Tijdens het opstarten registreert `scanComboModelNameCollisionsAtBoot()`
@@ -279,7 +273,7 @@ wanneer de header ontbreekt.
 | `X-OmniRoute-Effort`          | `auto` (andere waarden gereserveerd)                                                                                                                                                                           | Adaptief denkbudget: wanneer de aanvraag **geen enkel** redeneerveld bevat, in welke vorm dan ook (`reasoning_effort`, `reasoning`, `thinking`), zet de gateway `auto` op basis van deterministische signalen uit de aanvraagstructuur om naar `low`/`medium`/`high` (lengte van het laatste gebruikersbericht, contextgrootte tot en met het laatste gebruikersbericht, eerdere toolresultaten, diepte van de tool-lus). Signalen zijn beperkt tot de huidige beurt — alles na het laatste gebruikersbericht wordt genegeerd — zodat elke aanvraag in een tool-lus op hetzelfde niveau uitkomt (toewijzing per beurt zonder status, geen sessiestatus en geen opschaling halverwege de lus die bovenliggende prompt-cacheprefixen zou verstoren). Een expliciet redeneerveld van de client heeft altijd voorrang. Beperkt tot aanvragen waarvan de bovenliggende routering wordt omgezet naar de OpenAI Chat Completions-structuur (`targetFormat === FORMATS.OPENAI`) — `reasoning_effort` is een veld volgens de OpenAI-structuur, dus de header heeft geen effect op een aanvraag die op Claude of Gemini is gericht (zie `open-sse/handlers/chatCore/adaptiveEffortWiring.ts`). |
 
 ```bash
-# Dwing het snelste profiel af, beperk deze aanvraag tot $0.05 en blokkeer strikt in plaats van het budget te overschrijden
+# Force the fastest profile, cap this request at $0.05, and hard-block instead of overspending
 curl -sS http://localhost:20128/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-OmniRoute-Mode: fast" \
@@ -295,29 +289,30 @@ omgezette waarden worden doorgegeven aan de bestaande invoerwaarden `config.mode
 
 ## Alle routeringsstrategieën
 
-De combo-engine van OmniRoute ondersteunt **19 routeringsstrategieën** (gedeclareerd in `src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`). De Auto Combo-engine zelf is beschikbaar onder de `auto`-strategie; de overige strategieën zijn beschikbaar voor persistente combo's.
+De combo-engine van OmniRoute ondersteunt **20 routeringsstrategieën** (gedeclareerd in `src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`). De Auto Combo-engine zelf wordt blootgesteld onder de `auto`-strategie; de andere zijn beschikbaar voor persistente combo's.
 
-| Strategie           | Beschrijving                                                                                                                                                                                                                     |
-| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `priority`          | Geordende lijst op basis van het eerste doel met expliciete prioriteit                                                                                                                                                           |
-| `weighted`          | Gewogen willekeurige selectie op basis van het gewicht per doel                                                                                                                                                                  |
-| `round-robin`       | Doorloop doelen op volgorde (in batches; zie hieronder)                                                                                                                                                                          |
-| `context-relay`     | Draag context over tussen doelen (lange conversaties)                                                                                                                                                                            |
-| `fill-first`        | Vul het quotum van elk doel voordat wordt overgestapt naar het volgende                                                                                                                                                          |
-| `p2c`               | Power-of-2-choices willekeurige load balancing                                                                                                                                                                                   |
-| `random`            | Uniforme willekeurige selectie                                                                                                                                                                                                   |
-| `least-used`        | Kies het doel met de laagste huidige belasting                                                                                                                                                                                   |
-| `cost-optimized`    | Minimaliseer $ per verzoek op basis van catalogusprijzen                                                                                                                                                                         |
-| `reset-aware` ⭐    | Prioriteer op basis van quotumresettijd — korte resetvensters krijgen een hogere rangschikking                                                                                                                                   |
-| `reset-window`      | Geef de voorkeur aan doelen waarvan het quotumvenster het snelst reset                                                                                                                                                           |
-| `headroom`          | Kies het doel met de meeste resterende quotumruimte                                                                                                                                                                              |
-| `strict-random`     | Willekeurig zonder ontdubbeling van herhalingen                                                                                                                                                                                  |
-| `auto`              | Gebruik Auto Combo-scoring (16 factoren) — **aanbevolen**                                                                                                                                                                        |
-| `lkgp`              | Last-Known-Good Path (zet vast op de laatst succesvolle provider en valt daarna terug op regels)                                                                                                                                 |
-| `context-optimized` | Kies het doel dat het beste past bij de huidige contextgrootte                                                                                                                                                                   |
-| `cache-optimized`   | Rangschik doelen opnieuw op basis van prompt-cache-affiniteit — de verbinding die waarschijnlijk al het gecachete prefix van dit verzoek bevat, wordt eerst geprobeerd (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
-| `fusion` 🧬         | Waai parallel uit naar een panel van modellen en synthetiseer vervolgens één antwoord via een beoordelaar (zie hieronder)                                                                                                        |
-| `pipeline`          | Voer doelen sequentieel uit, waarbij de uitvoer van elke stap wordt doorgegeven als invoer voor de volgende stap; alleen het uiteindelijke antwoord wordt geretourneerd (#6396)                                                  |
+| Strategie           | Beschrijving                                                                                                                                                                                                               |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `priority`          | Geordende lijst met eerste doelwit en expliciete prioriteit                                                                                                                                                                |
+| `weighted`          | Gewogen willekeur op basis van gewicht per doelwit                                                                                                                                                                         |
+| `round-robin`       | Cyclus door doelwitten in volgorde (gebatcht; zie hieronder)                                                                                                                                                               |
+| `context-relay`     | Context overdragen tussen doelwitten (lange gesprekken)                                                                                                                                                                    |
+| `fill-first`        | Vul het quotum van elk doelwit voordat naar het volgende wordt gegaan                                                                                                                                                      |
+| `p2c`               | Power-of-2-choices willekeurige load balancing                                                                                                                                                                             |
+| `random`            | Uniforme willekeurige selectie                                                                                                                                                                                             |
+| `least-used`        | Kies doelwit met de laagste huidige belasting                                                                                                                                                                              |
+| `cost-optimized`    | Minimaliseer $ per verzoek op basis van catalogusprijzen                                                                                                                                                                   |
+| `reset-aware` ⭐    | Prioriteer op basis van quotum-reset-tijd — korte reset-vensters krijgen hogere rang                                                                                                                                       |
+| `reset-window`      | Geef de voorkeur aan doelwitten waarvan het quotum-venster het snelst reset                                                                                                                                                |
+| `headroom`          | Kies het doelwit met de meeste resterende quotum-ruimte                                                                                                                                                                    |
+| `quota-weighted`    | Sla uitgeputte accounts over, kies daarna uit de rest in verhouding tot het resterende quotum gedeeld door de actieve belasting; bestaande gesprekken blijven vastgepind                                                   |
+| `strict-random`     | Willekeurig zonder ontdubbeling van herhalingen                                                                                                                                                                            |
+| `auto`              | Gebruik Auto Combo-scoring (16-factor) — **aanbevolen**                                                                                                                                                                    |
+| `lkgp`              | Last-Known-Good Path (pint naar de laatst succesvolle provider, valt daarna terug op regels)                                                                                                                               |
+| `context-optimized` | Kies doelwit met de beste pasvorm voor de huidige contextgrootte                                                                                                                                                           |
+| `cache-optimized`   | Herschik doelwitten op prompt-cache-affiniteit — de verbinding die waarschijnlijk al het gecachte voorvoegsel van dit verzoek bevat, wordt als eerste geprobeerd (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
+| `fusion` 🧬         | Verspreid naar een panel van modellen in parallel, synthetiseer daarna één antwoord via een beoordelaar (zie hieronder)                                                                                                    |
+| `pipeline`          | Voer doelwitten sequentieel uit, waarbij de uitvoer van elke stap wordt doorgegeven aan de invoer van de volgende stap; alleen het uiteindelijke antwoord wordt geretourneerd (#6396)                                      |
 
 ⭐ = Nieuw in v3.8.0 · 🧬 = Nieuw in v3.8.36
 
@@ -326,31 +321,23 @@ De combo-engine van OmniRoute ondersteunt **19 routeringsstrategieën** (gedecla
 `weighted` is een **proportionele willekeurige trekking per verzoek**
 (`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`), geen equalizer:
 
-- Elk verzoek trekt **één** stap met de waarschijnlijkheid `weight / totalWeight`; de resterende stappen
-  worden gerangschikt op aflopend gewicht als de fallback-keten voor dat verzoek.
+- Elk verzoek trekt **één** stap met waarschijnlijkheid `weight / totalWeight`; de resterende stappen
+  worden geordend op aflopend gewicht als de fallback-keten voor dat verzoek.
 - Een stap waarvan het gewicht `0` is (of ontbreekt) wordt **nooit getrokken** zolang een andere stap een
-  gewicht > 0 heeft — deze kan alleen dienen als fallback nadat de getrokken stap mislukt. Alleen wanneer **alle**
+  gewicht > 0 heeft — deze kan alleen dienen als fallback nadat de getrokken stap faalt. Alleen wanneer **alle**
   gewichten 0 zijn, wordt de selectie uniform.
-- Stappen waarvan alle doelen niet beschikbaar zijn — provider circuit breaker `OPEN`, afkoelperiode van de verbinding,
-  model-lockout — worden uit de trekking verwijderd voordat deze plaatsvindt
-  (`open-sse/services/combo/targetResolution.ts`), zodat een enkele gezonde stap tijdelijk
-  elk verzoek kan winnen.
-- `stickyWeightedLimit` (combo-configuratie, standaard `1` = uit) zet de getrokken stap vast voor dat aantal
-  opeenvolgende successen voordat er opnieuw wordt getrokken.
+- Stappen waarvan de doelwitten allemaal onbeschikbaar zijn — provider circuit breaker `OPEN`, verbindings-cooldown, model-lockout — worden uit de trekking verwijderd voordat deze plaatsvindt
+  (`open-sse/services/combo/targetResolution.ts`), dus een enkele gezonde stap kan tijdelijk elk verzoek winnen.
+- `stickyWeightedLimit` (combo-configuratie, standaard `1` = uit) pint de getrokken stap voor dat aantal
+  opeenvolgende successen voordat opnieuw wordt getrokken.
 
-Gebruik `round-robin` voor strikte rotatie; gelijke gewichten bij `weighted` zorgen voor statistische — niet
-strikte — balans.
+Voor strikte rotatie gebruik `round-robin`; gelijke gewichten bij `weighted` zorgen voor statistische — niet strikte — balans.
 
 ### Agentic pipeline-modus
 
-Een tweestaps `pipeline`-combo kan kiezen voor planner/executor-routing met
-`config.agenticOrchestration.enabled`. Het eerste doel beheert de planning en definitieve antwoorden;
-het tweede doel verzendt client-native tool calls. OmniRoute detecteert tool-resultaat-voortzettingen
-vanuit het verzoekprotocol, vraagt de planner of er nog een tool-ronde nodig is
-en maakt dynamisch de executor of de planner de uiteindelijke stap richting de client.
+Een `pipeline`-combo met ten minste twee modellen kan kiezen voor planner/executor-routing met `config.agenticOrchestration.enabled`. Het eerste doel beheert de planning en definitieve antwoorden; het tweede doel verstuurt client-native tool-aanroepen. OmniRoute detecteert tool-resultaat-continuaties vanuit het request-protocol, vraagt de planner of er nog een tool-ronde nodig is, en maakt dynamisch ofwel de executor of de planner de client-facing laatste stap.
 
-Het optionele `config.agenticOrchestration.contextCompaction` past een afzonderlijk payload-budget
-toe vóór elke verzending naar de planner of executor. Schakel het expliciet in:
+De optionele `config.agenticOrchestration.contextCompaction` past een apart payload-budget toe vóór elke planner- of executor-dispatch. Schakel dit expliciet in:
 
 ```json
 {
@@ -362,16 +349,9 @@ toe vóór elke verzending naar de planner of executor. Schakel het expliciet in
 }
 ```
 
-Dit zijn door de beheerder geselecteerde tekenbudgetten voor geserialiseerde JSON, geen token-contextvensters
-of gegarandeerde upstream-limieten. Exacte model-ID's overschrijven de standaardwaarde.
-Boven de drempelwaarde verwijdert compactie identieke tool-definities, trimt het te grote
-tool-bewijslast met een samenvatting (digest) en verwijdert het oude volledige geschiedenisgroepen richting de
-doelratio. Het behoudt systeem-/ontwikkelaarsinstructies, het meest recente gebruikersverzoek, de laatste
-tool-ronde inclusief parallelle calls/resultaten, en Gemini's leidende routing-instructie.
-Instructies op het hoogste niveau en tool-instellingen blijven behouden. Een weglatingsmarkering registreert
-verwijderde geschiedenis; dit is deterministisch inkorten, geen semantische samenvatting. Als de vastgezette
-context het budget nog steeds overschrijdt, retourneert het verzoek 413 voordat er contact wordt opgenomen met het model.
-Wanneer compactie is uitgeschakeld of onder de drempelwaarde blijft, wordt het verzoek ongewijzigd doorgelaten.
+Dit zijn geserialiseerde JSON-karakterbudgetten geselecteerd door de operator, geen token-contextvensters of gegarandeerde upstream-limieten. Exacte model-ID's overschrijven de standaardinstelling. Boven de drempelwaarde verwijdert compactie identieke tool-definities, kort te grote tool-bewijslast in met een digest, en verwijdert oude volledige geschiedenisgroepen richting de doelratio. Het behoudt systeem/ontwikkelaarsinstructies, het laatste gebruikersverzoek, de laatste tool-ronde inclusief parallelle aanroepen/resultaten, en Gemini's leidende routing-instructie. Instructies op het hoogste niveau en tool-instellingen blijven behouden. Een weglatingsmarkering registreert verwijderde geschiedenis; dit is deterministische inkorting, geen semantische samenvatting. Als de vastgezette (pinned) context nog steeds het budget overschrijdt, retourneert het verzoek 413 voordat contact wordt opgenomen met het model. Als compactie is uitgeschakeld of onder de drempelwaarde ligt, wordt het verzoek ongewijzigd doorgestuurd.
+
+Extra modellen na het tweede doel zijn geordende executor-back-ups. Een mislukte HTTP-respons of transport-exceptie gaat door naar de volgende executor, met behoud van dezelfde planner-beslissing en native tools, maar met de eigen step-prompt en opgeloste verbinding van die executor. De eerste succesvolle respons wordt ongewijzigd geretourneerd, inclusief SSE-streaming; fouten nadat een succesvolle stream is gestart, kunnen hier niet opnieuw worden geprobeerd. Als alle executors falen, wordt de laatste fout geretourneerd. Client-afbrekingen stoppen de dispatch.
 
 ```json
 {
@@ -383,35 +363,17 @@ Wanneer compactie is uitgeschakeld of onder de drempelwaarde blijft, wordt het v
 }
 ```
 
-De executor kan meerdere onafhankelijke calls in één respons verzenden. Afhankelijke calls worden
-verwerkt in latere client tool-result-beurten, waarbij de planner elk resultaat beoordeelt.
-`maxToolRounds` heeft als standaardwaarde `8` en accepteert `1`–`32`; zodra dit is bereikt, moet de planner
-het best beschikbare definitieve antwoord produceren. Interne planner-beslissingen worden gebufferd, terwijl
-de geselecteerde clientgerichte respons de oorspronkelijke streaming-voorkeur behoudt.
+De executor kan meerdere onafhankelijke aanroepen in één respons versturen. Afhankelijke aanroepen worden afgehandeld in latere client-tool-resultaat-beurten, waarbij de planner elk resultaat beoordeelt. `maxToolRounds` staat standaard op `8` en accepteert `1`–`32`; zodra dit is bereikt, moet de planner het best beschikbare definitieve antwoord produceren. Interne planner-beslissingen worden gebufferd, terwijl de geselecteerde client-facing respons de oorspronkelijke streaming-voorkeur behoudt.
 
 ### `round-robin` sticky batch en account-expansie
 
-Round-robin werkt in batches, niet met één verzoek per stap:
+Round-robin is gebatcht, niet één-verzoek-per-stap:
 
-- `stickyRoundRobinLimit` (combo-configuratie, dan `comboStickyRoundRobinLimit`, dan
-  `settings.stickyRoundRobinLimit`, standaard **3**) behoudt hetzelfde doel voor dat aantal
-  opeenvolgende successen voordat er geroteerd wordt. Stel de combo-override in op `1` voor rotatie
-  per verzoek. De combo-editor toont de effectieve waarde en uit welke laag deze afkomstig is.
-- `connectionAwareExpansion` (combo-configuratie, dan instellingen, standaard **false**) breidt
-  elke stap op providerniveau uit naar doelen per account voorafgaand aan rotatie. Groep-B-strategieën
-  (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp,
-  fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion,
-  pipeline) behouden een weergave op providerniveau totdat dit is ingeschakeld. De combo-editor biedt
-  de opties inherit / on / off; inherit gebruikt de globale standaardwaarde (off).
-- Prompt-cache-lokaliteitsrouting (`promptCacheAffinityEnabled`, standaard **true**) herordent
-  vastgezette verbindingen zodat overeenkomende cache-sleutels op één account blijven. Dit heeft voorrang op
-  round-robin en gewogen rotatie over vastgezette stappen per account. Schakel dit uit onder
-  Settings → Combo defaults als u strikte rotatie nodig hebt. Er is geen override per combo.
+- `stickyRoundRobinLimit` (combo config, daarna `comboStickyRoundRobinLimit`, daarna `settings.stickyRoundRobinLimit`, standaard **3**) houdt hetzelfde doel vast voor dat aantal opeenvolgende successen voordat er wordt geroteerd. Stel de combo-override in op `1` voor rotatie per verzoek. De combo-editor toont de effectieve waarde en uit welke laag deze afkomstig is.
+- `connectionAwareExpansion` (combo config, daarna settings, standaard **false**) breidt elke stap op provider-niveau uit naar doelen per account vóór rotatie. Group-B-strategieën (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp, fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion, pipeline) behouden een weergave op provider-niveau totdat dit is ingeschakeld. De combo-editor stelt inherit / on / off bloot; inherit gebruikt de globale standaard (off).
+- Prompt-cache locality routing (`promptCacheAffinityEnabled`, standaard **true**) herschikt vastgezette verbindingen zodat overeenkomende cache-sleutels op één account blijven. Dit heeft voorrang op round-robin en weighted rotatie over vastgezette stappen per account. Schakel dit uit onder Settings → Combo defaults als je strikte rotatie nodig hebt. Er is geen per-combo override.
 
-Voor rotatie over meerdere accounts op één model heeft **één dynamische-accountstap** (lege
-`connectionId`, volledige pool) met sticky-limiet `1` de voorkeur boven drie vastgezette `connectionId`s.
-Vastgezette stappen plus affiniteit klappen samen op hetzelfde account, zelfs terwijl de RR-teller
-oploopt.
+Geef voor multi-account rotatie op één model de voorkeur aan **één dynamic-account stap** (lege `connectionId`, gehele pool) met sticky limit `1`, niet drie vastgezette `connectionId`s. Vastgezette stappen plus affinity vallen samen op hetzelfde account, zelfs terwijl de RR-teller vordert.
 
 ## Fusiestrategie
 
@@ -517,54 +479,53 @@ Dit betekent dat **het toevoegen van een nieuwe provider waarvoor `auto/*` is in
 
 ## API
 
-Er is **geen afzonderlijk `POST /api/combos/auto`-endpoint** — Auto-Combo wordt op twee manieren gebruikt:
+Er is **geen toegewezen `POST /api/combos/auto` endpoint** — Auto-Combo wordt op twee manieren gebruikt:
 
-1. **Zonder configuratie (aanbevolen):** Verstuur een willekeurige chatcompletion-aanvraag met `model: "auto"` of `model: "auto/<variant>"`. De virtuele factory bouwt de combo per aanvraag — geen persistentie en geen API-aanroepen nodig.
+1. **Zero-config (aanbevolen):** Stuur elk chat completion-verzoek met `model: "auto"` of `model: "auto/<variant>"`. De virtuele factory bouwt de combo per verzoek — geen persistentie, geen API-aanroepen nodig.
 
-2. **Opgeslagen combo met `strategy: "auto"`:** Maak via `POST /api/combos` een reguliere combo en stel `strategy: "auto"` in, samen met `config.auto.weights` / `config.auto.candidatePool`. Dezelfde scoring-engine wordt gebruikt; de combo wordt opgeslagen in `combos` en kan via de ID opnieuw worden gebruikt.
+2. **Persisted combo met `strategy: "auto"`:** Maak een reguliere combo via `POST /api/combos` en stel `strategy: "auto"` in, plus `config.auto.weights` / `config.auto.candidatePool`. Dezelfde scoring-engine wordt gebruikt; de combo wordt opgeslagen in `combos` en is herbruikbaar via ID.
 
-Voor detectie vermeldt `GET /api/combos/auto` elke variant met de opgeloste kandidatenpool plus `context_length` / `max_output_tokens` — de MAXIMUMWAARDE van de vensters in de kandidatenpool. Clients (bijvoorbeeld de opencode-plugin) moeten deze waarden in plaats van `0` bekendmaken: een context van nul schakelt de automatische compactie van opencode volledig uit, waardoor sessies blijven groeien totdat het opschonen van de geschiedenis door de gateway de context vernietigt. MAX kan veilig bekendgemaakt worden, omdat het contextvoorfilter van de auto-combo te grote aanvragen naar kandidaten met grote vensters routeert.
+Voor discovery vermeldt `GET /api/combos/auto` elke variant met zijn opgeloste candidate pool plus `context_length` / `max_output_tokens` — het MAX over de windows van de candidate pool. Clients (bijv. de opencode plugin) moeten deze waarden adverteren in plaats van `0`: een nul-context schakelt de auto-compaction van opencode volledig uit, waardoor sessies groeien totdat de history purge van de gateway de context vernietigt. MAX is veilig om te adverteren omdat de auto-combo context pre-filter verzoeken die te groot zijn doorstuurt naar candidates met grote windows.
 
 ```bash
-# Gebruik zonder configuratie (geen combo aanmaken)
+# Zero-config usage (no combo creation)
 curl -X POST http://localhost:20128/v1/chat/completions \
   -H "Authorization: Bearer <key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto/coding","messages":[{"role":"user","content":"Hello"}]}'
 
-# Opgeslagen auto-combo via het reguliere combo-endpoint
+# Persisted auto combo via the regular combos endpoint
 curl -X POST http://localhost:20128/api/combos \
   -H "Content-Type: application/json" \
   -d '{"id":"my-auto","name":"Auto Coder","strategy":"auto","config":{"auto":{"candidatePool":["anthropic","google","openai"],"weights":{"quota":0.15,"health":0.3,"costInv":0.05,"latencyInv":0.35,"taskFit":0.1,"stability":0,"tierPriority":0.05}}}}'
 ```
 
-### Auto-routerstrategieën
+### Auto router-strategieën
 
-Opgeslagen combo's met `strategy: "auto"` kunnen `config.routerStrategy` (of het verouderde
-`config.auto.routerStrategy`) instellen op een van de volgende opties:
+Persisted `strategy: "auto"` combo's kunnen `config.routerStrategy` (of legacy
+`config.auto.routerStrategy`) instellen op een van de volgende:
 
 - `rules` — standaard gewogen scoring
-- `score` — selecteert de hoogst geconfigureerde gewogen score. Bij exact gelijke scores blijft de geconfigureerde
-  volgorde van kandidaten behouden; de bestaande `explorationRate` neemt steekproeven uit de volledige gerangschikte pool.
+- `score` — selecteert de hoogste geconfigureerde gewogen score. Exacte gelijke standen behouden de geconfigureerde candidate-volgorde; de bestaande `explorationRate` samplet uit de volledige gerangschikte pool.
 - `cost` / `eco` — goedkoopste gezonde provider
-- `latency` / `fast` — laagste p95-latentie met betrouwbaarheidsstraf
-- `sla-aware` / `sla` — geeft de voorkeur aan kandidaten die voldoen aan SLO's voor p95-latentie, foutpercentage en optionele
-  kosten
+- `latency` / `fast` — laagste p95 latency met betrouwbaarheidsstraf
+- `sla-aware` / `sla` — prefereer candidates die voldoen aan p95 latency, error-rate en optionele kosten-SLO's
 - `lkgp` — laatst bekende goede provider eerst
+- `nadir` — vraag de beslissings-API van [Nadir](https://getnadir.com) welk model in de pool de prompt nodig heeft; opt-in, fail-open naar `rules`
 
-### Routerstrategieën in detail
+### Router-strategieën in detail
 
-De auto-combo-engine biedt 6 verwisselbare **RouterStrategy**-implementaties die
-u via `config.routerStrategy` (of het verouderde `config.auto.routerStrategy`) kunt selecteren.
-Elke strategie kiest één provider uit de kandidatenpool op basis van een `RoutingContext`
-(taaktype, hints voor tools/visie, tokenschatting, optioneel SLA-beleid, optionele
+De auto-combo engine stelt 7 pluggable **RouterStrategy**-implementaties bloot die
+je kunt wisselen via `config.routerStrategy` (of de legacy `config.auto.routerStrategy`).
+Elke strategie kiest één provider uit de candidate pool, gegeven een `RoutingContext`
+(taaktype, tool/vision hints, token-schatting, optioneel SLA-beleid, optionele
 laatst bekende goede provider).
 
-#### 1. `rules` (standaard) — gewogen scoring met 16 factoren
+#### 1. `rules` (standaard) — 16-factor gewogen scoring
 
-Omhult de bestaande scoring-engine. Filtert kandidaten met een `OPEN` circuit breaker
-uit en voert vervolgens `scorePool()` uit met het huidige taaktype en `getTaskFitness()`,
-waarna de provider met de hoogste score wordt gekozen.
+Wrapt de bestaande scoring-engine. Filtert `OPEN` circuit-breaker
+candidates eruit, voert vervolgens `scorePool()` uit met het huidige taaktype en `getTaskFitness()`,
+en kiest de provider met de hoogste score.
 
 ```ts
 class RulesStrategyImpl implements RouterStrategy {
@@ -584,7 +545,7 @@ class RulesStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Wanneer te gebruiken**: Standaard. Gebruik dit wanneer u een evenwichtige afweging tussen alle signalen wilt.
+**Wanneer te gebruiken**: Standaard. Gebruik dit wanneer je een gebalanceerde afweging wilt over alle signalen.
 
 **Alias**: `rules` (geen alias)
 
@@ -592,8 +553,8 @@ class RulesStrategyImpl implements RouterStrategy {
 
 #### 2. `cost` / `eco` — goedkoopste gezonde provider
 
-Sorteert de kandidatenpool op `costPer1MTokens` (oplopend) en kiest de goedkoopste.
-Filtert eerst `OPEN`-kandidaten uit.
+Sorteert de candidate pool op `costPer1MTokens` (oplopend) en kiest de goedkoopste.
+Filtert eerst `OPEN` candidates eruit.
 
 ```ts
 class CostStrategyImpl implements RouterStrategy {
@@ -610,14 +571,14 @@ class CostStrategyImpl implements RouterStrategy {
 
 **Wanneer te gebruiken**: Kostengevoelige workloads, batchverwerking of achtergrondtaken.
 
-**Aliassen**: `cost`, `eco`
+**Aliases**: `cost`, `eco`
 
 ---
 
-#### 3. `latency` / `fast` — laagste p95-latentie met betrouwbaarheidsstraf
+#### 3. `latency` / `fast` — laagste p95 latency met betrouwbaarheidsstraf
 
-Sorteert op `p95LatencyMs + (errorRate * 1000)`. De straf voor het foutpercentage zorgt ervoor dat
-onbetrouwbare providers lager worden gerangschikt, zelfs als hun nominale latentie laag is.
+Sorteert op `p95LatencyMs + (errorRate * 1000)`. De error-rate straf zorgt ervoor dat
+onbetrouwbare providers lager worden gerangschikt, zelfs als hun nominale latency laag is.
 
 ```ts
 class LatencyStrategyImpl implements RouterStrategy {
@@ -634,28 +595,28 @@ class LatencyStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Wanneer te gebruiken**: Latentiegevoelige workloads, zoals realtimechat, automatisch aanvullen of
-interactieve programmeerassistenten.
+**Wanneer te gebruiken**: Latency-gevoelige workloads zoals real-time chat, autocomplete of
+interactieve codeer-assistenten.
 
-**Aliassen**: `latency`, `fast`
+**Aliases**: `latency`, `fast`
 
 ---
 
-#### 4. `sla-aware` / `sla` — naleving van SLO's voor latentie/fouten/kosten
+#### 4. `sla-aware` / `sla` — latency/error/kosten SLO-compliance
 
-Geeft elke kandidaat een score op basis van hoe goed deze aan het geconfigureerde SLO-beleid voldoet:
+Scoort elke candidate op basis van hoe goed deze voldoet aan het geconfigureerde SLO-beleid:
 
-| Factor            | Gewicht | Formule                                                      |
-| ----------------- | ------- | ------------------------------------------------------------ |
-| Latentiescore     | 35%     | `threshold / max(value, ε)`                                  |
-| Foutscore         | 35%     | `threshold / max(value, ε)`                                  |
-| Gezondheidsscore  | 15%     | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)            |
-| Kostenscore       | 10%     | `threshold / max(value, ε)` of omgekeerd genormaliseerd      |
-| Stabiliteitsscore | 5%      | omgekeerd genormaliseerde standaardafwijking van de latentie |
+| Factor            | Gewicht | Formule                                                  |
+| ----------------- | ------- | -------------------------------------------------------- |
+| Latentiescore     | 35%     | `threshold / max(value, ε)`                              |
+| Foutscore         | 35%     | `threshold / max(value, ε)`                              |
+| Gezondheidsscore  | 15%     | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)        |
+| Kostenscore       | 10%     | `threshold / max(value, ε)` of omgekeerd genormaliseerd  |
+| Stabiliteitsscore | 5%      | omgekeerd genormaliseerde standaarddeviatie van latentie |
 
 Wanneer `hardConstraints: true` is, worden kandidaten primair gesorteerd op **overtredingsscore**
-(de mate waarin ze een SLO overschrijden) en vervolgens op samengestelde score. Anders wordt alleen
-de samengestelde score gebruikt.
+(hoe ver ze een SLO overschrijden), en daarna op samengestelde score. Anders is het enkel
+de samengestelde score.
 
 ```ts
 class SLAStrategyImpl implements RouterStrategy {
@@ -664,12 +625,12 @@ class SLAStrategyImpl implements RouterStrategy {
     "Selects the provider most likely to satisfy latency, error-rate, and cost SLOs";
 
   select(pool, context) {
-    // ... geeft elke kandidaat een score ten opzichte van het beleid: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
+    // ... scores each candidate against policy: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
   }
 }
 ```
 
-**SLA-velden** (ingesteld in de comboconfiguratie):
+**SLA-velden** (ingesteld in de combo-configuratie):
 
 ```json
 {
@@ -692,9 +653,9 @@ class SLAStrategyImpl implements RouterStrategy {
 
 #### 5. `lkgp` — laatst bekende goede provider eerst
 
-Probeert eerst de **laatst bekende goede provider** (indien ingesteld) en valt daarna terug op de
-`rules`-strategie. Nuttig voor sessie-affiniteit: dezelfde provider verwerkt
-vervolgverzoeken in een gesprek.
+Probeert eerst de **laatst bekende goede provider** (indien ingesteld), en valt daarna terug op de
+`rules`-strategie. Handig voor sessie-stickiness — dezelfde provider handelt
+vervolgverzoeken in een gesprek af.
 
 ```ts
 class LKGPStrategyImpl implements RouterStrategy {
@@ -715,22 +676,68 @@ class LKGPStrategyImpl implements RouterStrategy {
       }
     }
 
-    // Terugvallen op de rules-strategie
+    // Fallback to rules strategy
     return getStrategy("rules").select(pool, context);
   }
 }
 ```
 
-**Wanneer te gebruiken**: Gesprekken met meerdere beurten waarbij dezelfde provider
-vervolgverzoeken moet verwerken (bijvoorbeeld voor caching, contextcontinuïteit of consistente prijzen).
+**Wanneer te gebruiken**: Gesprekken met meerdere beurten waarbij je wilt dat dezelfde provider
+vervolgverzoeken afhandelt (bijv. voor caching, contextcontinuïteit of prijsconsistentie).
 
 **Alias**: `lkgp` (geen alias)
 
 ---
 
-### Aangepaste routerstrategieën
+#### 6. `nadir` — prompt-bewuste modelkeuze via Nadir
 
-U kunt uw eigen implementatie van `RouterStrategy` registreren via de openbare API:
+Elke bovenstaande strategie rangschikt de kandidaten op basis van hun eigen telemetrie; geen van hen leest
+het verzoek. `nadir` stuurt de laatste gebruikersbeurt plus de model-ids van de pool naar de
+beslissings-API van [Nadir](https://getnadir.com) (`POST /v1/bucket`) en routeert naar het model
+dat Nadir uit dat menu selecteert (`simple` → het goedkoopste capabele model, `complex` → het
+frontier-model). De verbinding die dat model bedient, wordt nog steeds gekozen door `rules`, dus quotum,
+gezondheid en kosten blijven bepalen welk account wordt gebruikt.
+
+```json
+{
+  "strategy": "auto",
+  "config": {
+    "routerStrategy": "nadir",
+    "nadir": {
+      "apiKey": "ndr_...",
+      "baseUrl": "https://api.getnadir.com",
+      "timeoutMs": 2000
+    }
+  }
+}
+```
+
+`OMNIROUTE_NADIR_API_KEY` en `OMNIROUTE_NADIR_BASE_URL` zijn omgevings-fallbacks voor de twee
+strings. `baseUrl` is alleen nodig voor een zelf-gehoste Nadir (een afsluitende `/v1` wordt getolereerd).
+Aanroepen zonder sleutel komen terecht op de anonieme laag van Nadir, die per IP wordt gelimiteerd (rate-limited).
+
+Wat de box verlaat: de tekst van het laatste gebruikersbericht (eerste 16k tekens), de
+kandidaat-model-ids en een `source: "omniroute"` kanaaltag. Geen systeemprompt, geschiedenis, tools of
+headers.
+
+Het faalgedrag is fail-open: een time-out (standaard 2000 ms), een niet-2xx, een onbereikbare
+host, een misvormd antwoord of een selectie buiten de pool resulteert in de `rules`-beslissing en de
+reden krijgt het voorvoegsel `NadirStrategy: fallback (…)`. Na een mislukte aanroep slaat de
+strategie het netwerk gedurende 30 s over, dus een storing kost één time-out per 30 s in plaats van
+één per verzoek. Routeringsevenementen rapporteren `strategy: "nadir"` alleen wanneer Nadir
+daadwerkelijk de keuze heeft gemaakt.
+
+**Wanneer te gebruiken**: verkeer met gemengde moeilijkheidsgraad op een pool die model-tiers
+omspant (een klein, een middelgroot en een frontier-model), waarbij altijd-frontier de kosten zijn
+die je wilt verlagen.
+
+**Alias**: `nadir` (geen alias)
+
+---
+
+### Aangepaste router-strategieën
+
+Je kunt je eigen `RouterStrategy`-implementatie registreren via de publieke API:
 
 ```ts
 import {
@@ -743,7 +750,7 @@ class MyCustomStrategy implements RouterStrategy {
   readonly description = "My custom routing strategy";
 
   select(pool, context) {
-    // Uw routeringslogica hier
+    // Your routing logic here
     return {
       provider: pool[0].provider,
       model: pool[0].model,
@@ -758,7 +765,7 @@ class MyCustomStrategy implements RouterStrategy {
 registerStrategy("my-custom", new MyCustomStrategy());
 ```
 
-Gebruik deze vervolgens:
+Gebruik het vervolgens:
 
 ```json
 {
@@ -771,15 +778,16 @@ Gebruik deze vervolgens:
 
 ---
 
-### Keuzehulp voor routerstrategieën
+### Gids voor selectie van router-strategieën
 
-| Gebruikssituatie          | Strategie   | Reden                                            |
-| ------------------------- | ----------- | ------------------------------------------------ |
-| Gebalanceerde workload    | `rules`     | Standaard — houdt rekening met alle factoren     |
-| Kosten minimaliseren      | `cost`      | Kiest altijd de goedkoopste                      |
-| Latentie minimaliseren    | `latency`   | Kiest de snelste betrouwbare provider            |
-| Strikte SLO's             | `sla-aware` | Filtert op drempelwaarden voor p95/fouten/kosten |
-| Chat met meerdere beurten | `lkgp`      | Sessie-affiniteit                                |
+| Gebruiksscenario            | Strategie   | Reden                                        |
+| --------------------------- | ----------- | -------------------------------------------- |
+| Gebalanceerde workload      | `rules`     | Standaard — houdt rekening met alle factoren |
+| Kosten minimaliseren        | `cost`      | Kiest altijd de goedkoopste                  |
+| Latentie minimaliseren      | `latency`   | Kiest de snelste betrouwbare provider        |
+| Strikte SLO's               | `sla-aware` | Filtert op p95/fout/kosten-drempelwaarden    |
+| Chat met meerdere beurten   | `lkgp`      | Sessie-stickiness                            |
+| Gemengde moeilijkheidsgraad | `nadir`     | Kiest de model-tier per prompt               |
 
 SLA-bewuste velden:
 
@@ -859,13 +867,13 @@ Deze rooktests testen het echte communicatiepad (combo → provider → voltooii
 
 | Bestand                                                   | Doel                                                                                                        |
 | :-------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
-| `open-sse/services/autoCombo/scoring.ts`                  | Scorefunctie met 16 factoren, `DEFAULT_WEIGHTS`, poolnormalisatie                                           |
-| `open-sse/services/autoCombo/taskFitness.ts`              | Opzoektabel voor geschiktheid van model × taak                                                              |
+| `open-sse/services/autoCombo/scoring.ts`                  | 16-factor scorefunctie, `DEFAULT_WEIGHTS`, poolnorm                                                         |
+| `open-sse/services/autoCombo/taskFitness.ts`              | Model × taak-fitness opzoeking                                                                              |
 | `open-sse/services/autoCombo/engine.ts`                   | Selectielogica, bandit, budgetlimiet                                                                        |
 | `open-sse/services/autoCombo/selfHealing.ts`              | Uitsluiting, probes, incidentmodus                                                                          |
 | `open-sse/services/autoCombo/modePacks.ts`                | 6 gewichtsprofielen (ship-fast, cost-saver, quality-first, offline-friendly, reliability-first, chaos-mode) |
-| `open-sse/services/autoCombo/autoPrefix.ts`               | Parser voor het voorvoegsel `auto/` + 6 varianten                                                           |
-| `open-sse/services/autoCombo/virtualFactory.ts`           | Bouwt een `AutoComboConfig` in het geheugen op basis van actieve verbindingen                               |
-| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Testhook voor het mocken van het providerregister                                                           |
-| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (19 strategieën)                                                                  |
-| `src/sse/handlers/chat.ts`                                | Integratie: kortsluiting voor auto-prefix                                                                   |
+| `open-sse/services/autoCombo/autoPrefix.ts`               | `auto/` prefix parser + 6 varianten                                                                         |
+| `open-sse/services/autoCombo/virtualFactory.ts`           | Bouwt in-memory `AutoComboConfig` op basis van live verbindingen                                            |
+| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Testhook voor het mocken van provider registry                                                              |
+| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (20 strategieën)                                                                  |
+| `src/sse/handlers/chat.ts`                                | Integratie: auto-prefix short-circuit                                                                       |

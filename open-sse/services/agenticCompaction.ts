@@ -28,6 +28,9 @@ function evidence(value: unknown, max: number): unknown {
 
 function trimResult(value: unknown, max: number): unknown {
   const item = record(value);
+  // Native computer outputs carry structured screenshots, not text evidence.
+  // Replacing them with a digest string corrupts both the payload and its schema.
+  if (item.type === "computer_call_output" && typeof item.output === "object") return item;
   if (item.role === "tool") return { ...item, content: evidence(item.content, max) };
   if (resultTypes.has(String(item.type))) {
     const key = "output" in item ? "output" : "content";
@@ -111,6 +114,47 @@ function groupHistory(trimmed: Body[]): Body[][] {
   return groups;
 }
 
+function compactionLedger(key: string, omitted: number): Body {
+  const text = `[Earlier history compacted: ${omitted} entries omitted. Do not infer missing evidence.]`;
+  return key === "contents"
+    ? { role: "user", parts: [{ text }] }
+    : { role: "system", content: text };
+}
+
+function pruneHistory(
+  body: Body,
+  key: string,
+  groups: Body[][],
+  pinned: Set<Body[]>,
+  target: number
+): void {
+  // Account for each entry once. JSON array size is the sum of serialized entries
+  // plus commas; the empty-array body already includes its brackets and field key.
+  const fixedChars = chars({ ...body, [key]: [] });
+  const groupChars = groups.map((group) => group.reduce((sum, item) => sum + chars(item), 0));
+  let retainedChars = groupChars.reduce((sum, size) => sum + size, 0);
+  let retainedEntries = groups.reduce((sum, group) => sum + group.length, 0);
+  let omitted = 0;
+  let ledger: Body | null = null;
+  const removed = new Set<Body[]>();
+  const size = () =>
+    fixedChars +
+    retainedChars +
+    (ledger ? chars(ledger) : 0) +
+    Math.max(0, retainedEntries + Number(Boolean(ledger)) - 1);
+  for (const [index, group] of groups.entries()) {
+    if (size() <= target) break;
+    if (pinned.has(group)) continue;
+    removed.add(group);
+    retainedChars -= groupChars[index];
+    retainedEntries -= group.length;
+    omitted += group.length;
+    ledger = compactionLedger(key, omitted);
+  }
+  const kept = groups.filter((group) => !removed.has(group)).flat();
+  body[key] = ledger ? [ledger, ...kept] : kept;
+}
+
 /** Character budgets are payload thresholds, not model token-window claims. */
 export function compactAgenticBody(
   source: Body,
@@ -147,33 +191,7 @@ export function compactAgenticBody(
         index === groups.length - 1
     )
   );
-  const kept = groups.slice();
-  let omitted = 0;
-  const render = () => {
-    const ledger =
-      key === "contents"
-        ? {
-            role: "user",
-            parts: [
-              {
-                text: `[Earlier history compacted: ${omitted} entries omitted. Do not infer missing evidence.]`,
-              },
-            ],
-          }
-        : {
-            role: "system",
-            content: `[Earlier history compacted: ${omitted} entries omitted. Do not infer missing evidence.]`,
-          };
-    body[key] = omitted ? [ledger, ...kept.flat()] : kept.flat();
-  };
-  render();
-  for (const group of groups) {
-    if (chars(body) <= target) break;
-    if (pinned.has(group)) continue;
-    kept.splice(kept.indexOf(group), 1);
-    omitted += group.length;
-    render();
-  }
+  pruneHistory(body, key, groups, pinned, target);
   const after = chars(body);
   return { body, compacted: after < before, before, after, limit, overLimit: after > limit };
 }
