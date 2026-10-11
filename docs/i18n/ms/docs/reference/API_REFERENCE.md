@@ -395,49 +395,57 @@ ditetapkan secara lalai kepada `us-central1`. Kedua-dua peleraian dilakukan dala
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Mengembalikan semua model sembang, pembenaman dan imej + gabungan dalam format OpenAI
+→ Mengembalikan semua model sembang, pembenaman dan imej + kombo dalam format OpenAI
 ```
 
-### Awalan ID model (`?prefix=`)
+### Awalan id model (`?prefix=`)
 
 Kebanyakan model dipaparkan di bawah **awalan penyedia**. Awalan yang anda peroleh dikawal oleh
-bendera ciri `MODELS_CATALOG_PREFIX_MODE` dan boleh ditindih **bagi setiap permintaan** dengan
-parameter pertanyaan — berguna untuk klien yang mahukan senarai yang kemas tanpa mengubah tetapan
+bendera ciri `MODELS_CATALOG_PREFIX_MODE`, dan boleh ditindih **bagi setiap permintaan** dengan
+parameter pertanyaan — berguna untuk klien yang mahukan senarai ringkas tanpa mengubah tetapan
 seluruh pelayan untuk pengguna lain:
 
 ```bash
-GET /v1/models?prefix=alias        # satu ID bagi setiap model — awalan alias pendek
+GET /v1/models?prefix=alias        # satu id bagi setiap model — awalan alias pendek
 GET /v1/models?prefix=dual         # kedua-dua bentuk (lalai pelayan)
-GET /v1/models?prefix=canonical    # hanya awalan ID penyedia penuh
+GET /v1/models?prefix=canonical    # hanya awalan id penyedia penuh
 ```
 
-| Mod         | Mengeluarkan                                              | Nota                                                                                                                                                                                                       |
+| Mod         | Menghasilkan                                              | Catatan                                                                                                                                                                                                    |
 | ----------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **dan** `claude/claude-sonnet-4-6` | **Lalai.** Kedua-dua ID menghala ke model yang sama; dikekalkan supaya konfigurasi klien yang mengekod keras mana-mana bentuk terus berfungsi. Saiz katalog menjadi kira-kira dua kali ganda.              |
-| `alias`     | `cc/claude-sonnet-4-6`                                    | Satu entri bagi setiap model. Penyedia tanpa alias berbeza masih mengeluarkan entri mereka, jadi tiada apa-apa yang hilang.                                                                                |
-| `canonical` | `claude/claude-sonnet-4-6`                                | Satu entri bagi setiap model di bawah awalan ID penyedia penuh. Penyedia tanpa alias berbeza (cth. `antigravity/…`, `agy/…`) turut mengeluarkan ID tunggal mereka di sini, jadi tiada apa-apa yang hilang. |
+| `dual`      | `cc/claude-sonnet-4-6` **dan** `claude/claude-sonnet-4-6` | **Lalai.** Kedua-dua id dihalakan kepada model yang sama; dikekalkan supaya konfigurasi klien yang mengekod keras mana-mana bentuk terus berfungsi. Lebih kurang menggandakan katalog.                     |
+| `alias`     | `cc/claude-sonnet-4-6`                                    | Satu entri bagi setiap model. Penyedia tanpa alias berbeza masih menghasilkan entri mereka, jadi tiada apa-apa yang hilang.                                                                                |
+| `canonical` | `claude/claude-sonnet-4-6`                                | Satu entri bagi setiap model di bawah awalan id penyedia penuh. Penyedia tanpa alias berbeza (cth. `antigravity/…`, `agy/…`) turut menghasilkan id tunggal mereka di sini, jadi tiada apa-apa yang hilang. |
 
-Cermin mod `dual` juga boleh dikenal pasti tanpa parameter pertanyaan: ia membawa medan `parent`
-yang menunjuk kepada ID utama.
+Cermin bermod `dual` juga boleh dikenal pasti tanpa parameter pertanyaan: ia mengandungi medan `parent`
+yang menunjuk kepada id utama.
 
-Klien yang memaparkan pemilih model hendaklah meminta `?prefix=alias` — inilah yang dilakukan oleh
+Klien yang memaparkan pemilih model harus meminta `?prefix=alias` — inilah yang dilakukan oleh
 [sambungan OmniCopilot VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Model sembang yang disembunyikan secara individu
 
-Model yang ditandakan **Tersembunyi** pada halaman pembekalnya dikecualikan daripada katalog dan ditolak dengan HTTP `404` / `model_not_found` apabila diminta secara eksplisit. Semakan menggunakan pembekal dan model yang telah ditentukan, termasuk alias pembekal, awalan nod pembekal yang serasi dan nilai lalai sambungan. Combo melangkau sasaran tersembunyi dan boleh menggunakan sasaran lain yang kelihatan; jika tiada sasaran yang boleh dilaksanakan, kod ralat yang sama dikembalikan. Menunjukkan semula model berkuat kuasa pada permintaan seterusnya. Penggantian tetapan keterlihatan khusus untuk imej tidak menyembunyikan model sembang dengan ID yang sama.
+Model yang ditandai sebagai **Tersembunyi** pada halaman penyedianya dikecualikan daripada katalog dan ditolak
+dengan HTTP `404` / `model_not_found` apabila diminta secara eksplisit. Semakan menggunakan
+penyedia dan model yang telah diselesaikan, termasuk alias penyedia, awalan nod penyedia serasi dan
+lalai sambungan. Kombo akan melangkau sasaran tersembunyi dan boleh menggunakan model setara yang kelihatan; apabila tiada
+sasaran boleh laksana yang tinggal, ia mengembalikan kod ralat yang sama. Tindakan menyahsembunyikan berkuat kuasa pada
+permintaan seterusnya. Tindihan keterlihatan imej sahaja tidak menyembunyikan model sembang dengan ID yang sama.
 
-Tetapan setiap model ini berasingan daripada [senarai benarkan dan sekat untuk pendedahan model](../routing/MODEL_EXPOSURE_LIST.md), yang menapis paparan katalog dan calon penghalaan automatik sambil mengekalkan penghantaran eksplisit. Kebenaran model bagi kunci API terus digunakan secara bebas. Mod awalan lalai katalog kekal `dual`.
+Tetapan model individu ini berasingan daripada
+[senarai benarkan/tolak pendedahan model](../routing/MODEL_EXPOSURE_LIST.md), yang menapis pengiklanan katalog
+dan calon penghalaan automatik sambil mengekalkan penghantaran eksplisit. Kebenaran model kunci API
+terus digunakan secara berasingan. Mod awalan katalog lalai kekal sebagai `dual`.
 
 ### Varian model tanpa pemikiran
 
-Bagi model Claude yang berkeupayaan berfikir, `/v1/models` turut memaparkan varian **tanpa pemikiran** yang ID-nya diawali dengan `claude-3-omniroute-no-thinking/`:
+Bagi model Claude berkeupayaan berfikir, `/v1/models` turut memaparkan varian **tanpa pemikiran** yang idnya diawali dengan `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Pemilihan ID ini (cth. dalam konfigurasi Claude Code yang sentiasa melampirkan blok `thinking`) akan mengembalikannya kepada `<provider>/<model>` sebenar dengan penaakulan dinyahdayakan — `thinking:{type:"disabled"}` pada laluan `/v1/messages`, atau medan `reasoning`/`reasoning_effort` digugurkan pada laluan `/v1/chat/completions`. Varian ini hanya disenaraikan untuk model keluarga Claude yang menyokong pemikiran **dan** mematuhi `disabled` (jadi, sebagai contoh, model adaptif sahaja yang menolak `disabled` dikecualikan). Pengendali boleh memaksa varian ini dihidupkan atau dimatikan bagi setiap model melalui `ModelSpec.noThinkingAlias`.
+Pemilihan id ini (cth. dalam konfigurasi Claude Code yang sentiasa melampirkan blok `thinking`) diselesaikan kembali kepada `<provider>/<model>` sebenar dengan penaakulan dinyahaktifkan — `thinking:{type:"disabled"}` pada laluan `/v1/messages`, atau medan `reasoning`/`reasoning_effort` digugurkan pada laluan `/v1/chat/completions`. Varian ini hanya disenaraikan untuk model keluarga Claude yang menyokong pemikiran **dan** mematuhi `disabled` (jadi, cth. model adaptif sahaja yang menolak `disabled` akan dikecualikan). Pengendali boleh menghidupkan atau mematikan varian secara paksa bagi setiap model melalui `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -739,8 +747,8 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Kunci tersebut mesti mengaktifkan **`allowUsageCommand`** (dimatikan secara lalai — pengurus kunci API
-papan pemuka menogolnya bagi setiap kunci). Tanpanya, titik akhir memberikan respons `403`.
+Kunci tersebut mesti mendayakan **`allowUsageCommand`** (dimatikan secara lalai — pengurus kunci API papan pemuka
+menogolnya bagi setiap kunci). Tanpanya, titik akhir akan memberikan respons `403`.
 
 `?format=json` mengembalikan bentuk terdiskriminasi supaya pemanggil tidak sekali-kali membaca medan data daripada
 respons penolakan. Apabila berjaya:
@@ -748,7 +756,7 @@ respons penolakan. Apabila berjaya:
 ```jsonc
 {
   "allowed": true,
-  // hadir hanya apabila kunci mengikut serta dalam had penggunaan setiap kunci (USD harian/mingguan):
+  // hadir hanya apabila kunci memilih had penggunaan bagi setiap kunci (USD harian/mingguan):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -774,11 +782,62 @@ respons penolakan. Apabila berjaya:
 
 Apabila ditolak (`401` kunci tidak sah / `403` tidak dibenarkan), laluan yang sama mengembalikan
 `{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` yang hadir tetapi kosong
-(kunci dibenarkan, tetapi belum memperoleh sebarang data) merupakan keadaan yang berbeza daripada penolakan, dan hanya bentuk JSON
+(kunci dibenarkan, tetapi belum ada apa-apa yang diketahui) ialah keadaan yang berbeza daripada penolakan, dan hanya bentuk JSON
 yang membezakannya.
 
 **Pengesahan:** kunci API Bearer milik pemanggil sendiri, disahkan dengan `isValidApiKey` — ini _bukan_
-antara muka pengurusan (`/api/keys/…`), yang kekal dilindungi oleh `requireManagementAuth`.
+permukaan pengurusan (`/api/keys/…`), yang kekal dilindungi oleh `requireManagementAuth`.
+
+### Peratusan Kuota Mentah berbanding yang Dilaraskan Mengikut Ambang
+
+Apabila menggunakan `/api/usage/om-usage`, pemanggil perlu mengambil perhatian tentang perbezaan antara
+peratusan yang dipaparkan oleh **output teks biasa** dengan **output JSON** berstruktur:
+
+| Aspek                 | Format teks biasa (`/api/usage/om-usage` / `@@om-usage`)                                          | Format JSON (`?format=json`)                                                      |
+| :-------------------- | :------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------- |
+| **Medan output**      | `NN% left` (cth., `20% left`)                                                                     | `provider.quotas` / `providers[].quotas`                                          |
+| **Pengukuran**        | **Elaun boleh guna yang dilaraskan mengikut ambang**: kapasiti berbaki melebihi ambang had        | **Kuota huluan mentah**: pengukuran penyedia yang tidak dilaraskan                |
+| **Penskalaan ambang** | Diskalakan melalui `effectiveRemainingPercent()` supaya rizab terlindung dibaca sebagai `0% left` | Tiada (nilai petikan mentah seperti yang dilaporkan oleh penyedia)                |
+| **Data ambang**       | Digabungkan ke dalam peratusan yang dipaparkan                                                    | Disimpan dalam `quotaWindowThresholds` bagi setiap sambungan (atau lalai pelayan) |
+| **Pengguna utama**    | CLI interaktif, gesaan terminal, pengendali manusia                                               | Penyepaduan berprogram, papan pemuka, analitis, penjejak pengebilan               |
+
+#### Formula Pelarasan Ambang
+
+OmniRoute menyokong ambang kuota proaktif untuk mencegah kehabisan sumber huluan (dikonfigurasikan melalui
+`quotaWindowThresholds` sambungan, lalai penyedia atau tetapan ketahanan global). Apabila ambang had
+(cth., `cutoff = 25%`) aktif pada tetingkap kuota, pemapar teks mengira elaun berbaki seperti berikut:
+
+- Jika `remaining <= cutoff`: mengembalikan `0%`.
+- Jika `remaining > cutoff`: mengembalikan `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Output teks berformat membundarkan nilai ini kepada integer terdekat (`Math.round(...)`).
+
+#### Contoh Ilustrasi
+
+Pertimbangkan tetingkap penyedia dengan **60% penggunaan mentah** (maka **40% kuota mentah berbaki**) dan ambang
+**25% had kuota berbaki** yang dikonfigurasikan:
+
+| Perwakilan                       | Pengiraan                                          | Berbaki |           Penggunaan Tersirat            |
+| :------------------------------- | :------------------------------------------------- | :-----: | :--------------------------------------: |
+| **JSON mentah (`?format=json`)** | Petikan huluan (`quotas[window]`)                  | **40%** |                 **60%**                  |
+| **Format teks (`NN% left`)**     | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (jika mengira `100 - remaining`) |
+
+- **Mengapa teks menunjukkan 20% berbaki:** Daripada 40% kuota fizikal yang berbaki pada akaun, 25% dirizabkan oleh
+  dasar ambang. Pemanggil hanya mempunyai 15% daripada 75% ruang boleh guna yang berbaki sebelum penghala berhenti
+  menghalakan ke sambungan ini. Penskalaan memastikan sambungan mengisyaratkan kehabisan (`0% left`) tepat ketika
+  penghalaan akan dihentikan.
+- **Mengapa JSON mengekalkan nilai mentah:** Muatan JSON mengembalikan petikan penyedia yang tepat (`UsageSnapshot`)
+  supaya alat luaran mempunyai akses kepada penggunaan huluan sebenar dan
+  `quotaWindowThresholds` peringkat sambungan tanpa penskalaan lossy pada pihak pelayan.
+
+#### Panduan Migrasi Pengguna
+
+Jika penyepaduan luaran (seperti pemalam editor atau sambungan ejen) sebelum ini mengekstrak data daripada titik akhir teks
+(`NN% left`) dan mengira peratusan yang digunakan sebagai `100 - NN`, migrasi kepada `?format=json` bermaksud:
+
+- Pembacaan nilai JSON mentah akan mencerminkan **penggunaan huluan sebenar** (60% digunakan dalam contoh di atas).
+- Jika penyepaduan mahu mengekalkan semantik elaun boleh guna titik akhir teks, ia boleh menilai
+  formula baki efektif pada pihak klien menggunakan `quotaWindowThresholds` untuk penggantian peringkat sambungan.
 
 ---
 

@@ -425,44 +425,55 @@ Authorization: Bearer your-api-key
 
 ### Mallitunnusten etuliitteet (`?prefix=`)
 
-Useimmat mallit julkaistaan **palveluntarjoajan etuliitteellä**. Käytettävää etuliitettä ohjaa
+Useimmat mallit ilmoitetaan **palveluntarjoajan etuliitteellä**. Käytettävää etuliitettä ohjaa
 `MODELS_CATALOG_PREFIX_MODE`-ominaisuuslippu, ja se voidaan ohittaa **pyyntökohtaisesti**
-kyselyparametrilla — tästä on hyötyä asiakkaalle, joka haluaa selkeän luettelon muuttamatta
-palvelimen laajuista asetusta kaikille muille:
+kyselyparametrilla — tämä on hyödyllistä asiakkaalle, joka haluaa selkeän luettelon muuttamatta
+palvelimen laajuista asetusta kaikkien muiden osalta:
 
 ```bash
-GET /v1/models?prefix=alias        # yksi tunnus mallia kohden — lyhyt alias-etuliite
+GET /v1/models?prefix=alias        # yksi tunnus mallia kohden — lyhyt aliasetuliite
 GET /v1/models?prefix=dual         # molemmat muodot (palvelimen oletus)
-GET /v1/models?prefix=canonical    # vain täydellinen palveluntarjoajatunnuksen etuliite
+GET /v1/models?prefix=canonical    # vain palveluntarjoajan täydellisen tunnuksen etuliite
 ```
 
-| Tila        | Tuottaa                                                  | Huomautukset                                                                                                                                                                                                                                  |
-| ----------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **ja** `claude/claude-sonnet-4-6` | **Oletus.** Molemmat tunnukset reititetään samaan malliin; ne säilytetään, jotta jommankumman muodon kiinteästi määrittäneet asiakaskokoonpanot toimivat edelleen. Luettelon koko kasvaa suunnilleen kaksinkertaiseksi.                       |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Yksi merkintä mallia kohden. Palveluntarjoajat, joilla ei ole erillistä aliasta, tuottavat silti merkintänsä, joten mitään ei menetetä.                                                                                                       |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Yksi merkintä mallia kohden täydellisellä palveluntarjoajatunnuksen etuliitteellä. Palveluntarjoajat, joilla ei ole erillistä aliasta (esim. `antigravity/…`, `agy/…`), tuottavat tässäkin yksittäisen tunnuksensa, joten mitään ei menetetä. |
+| Tila        | Tuottaa                                                  | Huomautukset                                                                                                                                                                                                                                    |
+| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **ja** `claude/claude-sonnet-4-6` | **Oletus.** Molemmat tunnukset reititetään samaan malliin; ne säilytetään, jotta jommankumman muodon kiinteästi määrittäneet asiakaskokoonpanot toimivat edelleen. Luettelon koko noin kaksinkertaistuu.                                        |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Yksi merkintä mallia kohden. Palveluntarjoajat, joilla ei ole erillistä aliasta, tuottavat silti oman merkintänsä, joten mitään ei menetetä.                                                                                                    |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Yksi merkintä mallia kohden palveluntarjoajan täydellisen tunnuksen etuliitteellä. Palveluntarjoajat, joilla ei ole erillistä aliasta (esim. `antigravity/…`, `agy/…`), tuottavat myös tässä yksittäisen tunnuksensa, joten mitään ei menetetä. |
 
-`dual`-tilassa toimivan peilin voi tunnistaa myös ilman kyselyparametria: se sisältää ensisijaiseen
-tunnukseen osoittavan `parent`-kentän.
+`dual`-tilan peilaus voidaan tunnistaa myös ilman kyselyparametria: siinä on ensisijaiseen
+tunnukseen osoittava `parent`-kenttä.
 
-Mallivalitsimen näyttävien asiakkaiden kannattaa pyytää `?prefix=alias` — näin toimii myös
+Mallinvalitsimen näyttävien asiakkaiden tulisi pyytää `?prefix=alias` — näin toimii myös
 [OmniCopilotin VS Code -laajennus](../guides/VSCODE-COPILOT.md).
 
-### Yksitellen piilotetut keskustelumallit
+### Yksittäin piilotetut keskustelumallit
 
-Palveluntarjoajansa sivulla **Piilotetuksi** merkitty malli poistetaan luettelosta, ja sen nimenomainen pyyntö hylätään vastauksella HTTP `404` / `model_not_found`. Tarkistus käyttää ratkaistua palveluntarjoajaa ja mallia sekä huomioi palveluntarjoajan aliakset, yhteensopivien palveluntarjoajasolmujen etuliitteet ja yhteyden oletusarvot. Combo ohittaa piilotetut kohteet ja voi käyttää toista näkyvää kohdetta; jos suoritettavia kohteita ei jää, se palauttaa saman virhekoodin. Mallin näyttäminen uudelleen tulee voimaan seuraavasta pyynnöstä. Vain kuvia koskevat näkyvyyden ohitukset eivät piilota samalla tunnuksella olevaa keskustelumallia.
+Palveluntarjoajan sivulla **Hidden**-merkityt mallit jätetään pois luettelosta, ja niiden
+nimenomainen pyytäminen hylätään HTTP `404` / `model_not_found` -virheellä. Tarkistus käyttää
+selvitettyä palveluntarjoajaa ja mallia, mukaan lukien palveluntarjoajan aliakset,
+yhteensopivien palveluntarjoajien solmujen etuliitteet ja yhteyden oletusasetukset. Yhdistelmä
+ohittaa piilotetut kohteet ja voi käyttää näkyvää rinnakkaismallia; jos suoritettavaa kohdetta
+ei jää jäljelle, se palauttaa saman virhekoodin. Piilotuksen poistaminen tulee voimaan
+seuraavassa pyynnössä. Vain kuvia koskevat näkyvyysohitukset eivät piilota samalla tunnuksella
+olevaa keskustelumallia.
 
-Tämä mallikohtainen asetus on erillinen [mallien julkaisun sallimis- ja estolistoista](../routing/MODEL_EXPOSURE_LIST.md), jotka suodattavat luettelossa esitettäviä malleja ja automaattisen reitityksen ehdokkaita mutta säilyttävät nimenomaisen kutsumisen. API-avaimen mallioikeuksia sovelletaan edelleen itsenäisesti. Luettelon etuliitteiden oletustila on yhä `dual`.
+Tämä yksittäisen mallin asetus on erillinen
+[mallien näkyvyyden sallittujen ja estettyjen luetteloista](../routing/MODEL_EXPOSURE_LIST.md),
+jotka suodattavat luettelossa ilmoittamista ja automaattisen reitityksen ehdokkaita mutta
+säilyttävät eksplisiittisen välityksen. API-avaimen mallioikeuksia sovelletaan edelleen
+itsenäisesti. Luettelon etuliitetilan oletuksena säilyy `dual`.
 
-### Ajatteluttomat mallivariantit
+### Mallivariantit ilman päättelyä
 
-Ajattelukykyisille Claude-malleille `/v1/models` julkaisee myös **ajatteluttoman** variantin, jonka tunnuksen etuliite on `claude-3-omniroute-no-thinking/`:
+Päättelyä tukeville Claude-malleille `/v1/models` ilmoittaa myös **ilman päättelyä** toimivan variantin, jonka tunnuksen alussa on `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Tämän tunnuksen valitseminen (esimerkiksi Claude Code -kokoonpanossa, joka lisää aina `thinking`-lohkon) muunnetaan takaisin todelliseksi `<provider>/<model>`-malliksi päättely poistettuna käytöstä — `/v1/messages`-reitillä käytetään `thinking:{type:"disabled"}`-määritystä, tai `/v1/chat/completions`-reitillä `reasoning`- ja `reasoning_effort`-kentät jätetään pois. Variantti luetellaan vain Claude-perheen malleille, jotka tukevat ajattelua **ja** noudattavat `disabled`-asetusta (joten esimerkiksi vain mukautuvaa tilaa tukevat mallit, jotka hylkäävät `disabled`-asetuksen, jätetään pois). Operaattorit voivat pakottaa variantin käyttöön tai pois käytöstä mallikohtaisesti `ModelSpec.noThinkingAlias`-asetuksella.
+Tämän tunnuksen valitseminen (esimerkiksi Claude Code -kokoonpanossa, joka liittää aina `thinking`-lohkon) selvitetään takaisin todelliseksi `<provider>/<model>`-malliksi siten, että päättely on estetty — `/v1/messages`-polulla käytetään `thinking:{type:"disabled"}`-määritystä, tai `/v1/chat/completions`-polulla `reasoning`/`reasoning_effort`-kentät jätetään pois. Variantti luetellaan vain Claude-perheen malleille, jotka tukevat päättelyä **ja** noudattavat `disabled`-asetusta (joten esimerkiksi vain mukautuvaa tilaa tukevat mallit, jotka hylkäävät `disabled`-asetuksen, jätetään pois). Operaattorit voivat pakottaa variantin käyttöön tai pois käytöstä mallikohtaisesti `ModelSpec.noThinkingAlias`-asetuksella.
 
 ---
 
@@ -755,17 +766,17 @@ Mikä tahansa API-avain voi lukea **oman** käyttönsä ja kiintiönsä — hall
 asiakas (CLI, OmniCopilot-paneeli) käyttää näyttääkseen avaimen haltijalle tämän kulutuksen.
 
 ```bash
-# Tekstimuoto (historiallinen sopimus — pelkkää tekstiä päätettä varten)
+# Tekstimuoto (historiallinen rajapintasopimus — raakatekstiä päätettä varten)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Rakenteinen muoto — käyttöliittymän käyttämä muoto
+# Rakenteinen muoto — tätä käyttöliittymä käyttää
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
 Avaimella on oltava **`allowUsageCommand`** käytössä (oletusarvoisesti pois käytöstä — hallintapaneelin API-avainten
-hallinta ottaa sen käyttöön tai poistaa sen käytöstä avainkohtaisesti). Ilman sitä päätepiste vastaa koodilla `403`.
+hallinnassa se otetaan käyttöön avainkohtaisesti). Muussa tapauksessa päätepiste vastaa tilakoodilla `403`.
 
 `?format=json` palauttaa erottelevan rakenteen, jotta kutsuja ei koskaan lue tietokenttää
 hylkäysvastauksesta. Onnistunut vastaus:
@@ -773,7 +784,7 @@ hylkäysvastauksesta. Onnistunut vastaus:
 ```jsonc
 {
   "allowed": true,
-  // mukana vain, kun avaimelle on otettu käyttöön avainkohtaiset käyttörajat (päivittäinen/viikoittainen USD):
+  // käytettävissä vain, kun avaimelle on otettu käyttöön avainkohtaiset käyttörajat (päivittäinen/viikoittainen USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -782,14 +793,14 @@ hylkäysvastauksesta. Onnistunut vastaus:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // valitun palveluntarjoajan kiintiön tilannevedos tai null, kun välimuistissa ei vielä ole mitään:
+  // valitun palveluntarjoajan kiintiötilannekuva tai null, jos mitään ei ole vielä välimuistissa:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // jokaisen yhteyden tilannevedos, jotta käyttöliittymä voi näyttää useita palveluntarjoajia rinnakkain:
+  // jokaisen yhteyden tilannekuva, jotta käyttöliittymä voi esittää useita palveluntarjoajia rinnakkain:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -800,10 +811,61 @@ hylkäysvastauksesta. Onnistunut vastaus:
 Hylkäystilanteessa (`401` virheellinen avain / `403` ei sallittu) sama reitti palauttaa
 `{ "allowed": false, "error": { "message": "…" } }` — olemassa oleva mutta tyhjä `personal`/`provider`
 (avain sallittu, mutta mitään ei ole vielä saatu selville) on eri tila kuin hylkäys, ja vain JSON-muoto
-erottaa ne toisistaan.
+erottaa nämä toisistaan.
 
-**Todennus:** kutsujan oma Bearer-API-avain, joka validoidaan `isValidApiKey`-funktiolla — tämä _ei_ ole
-hallintarajapinta (`/api/keys/…`), jonka suojauksena säilyy `requireManagementAuth`.
+**Todennus:** kutsujan oma Bearer-API-avain, joka validoidaan funktiolla `isValidApiKey` — tämä _ei_ ole
+hallintarajapinta (`/api/keys/…`), joka pysyy `requireManagementAuth`-suojauksen takana.
+
+### Raakaprosentit ja katkaisukynnyksen mukaan mukautetut kiintiöprosentit
+
+Kun kutsuja käyttää päätepistettä `/api/usage/om-usage`, sen tulee huomioida **raakatekstitulosteen** ja
+rakenteisen **JSON-tulosteen** esittämien prosenttiosuuksien välinen ero:
+
+| Ominaisuus                | Raakatekstimuoto (`/api/usage/om-usage` / `@@om-usage`)                                             | JSON-muoto (`?format=json`)                                                                            |
+| :------------------------ | :-------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **Tulostekenttä**         | `NN% left` (esim. `20% left`)                                                                       | `provider.quotas` / `providers[].quotas`                                                               |
+| **Mittaustapa**           | **Katkaisukynnyksen mukaan mukautettu käytettävissä oleva määrä**: kynnyksen ylittävä kapasiteetti  | **Raaka ylävirran kiintiö**: palveluntarjoajan mukauttamaton mittaustulos                              |
+| **Katkaisuskaalaus**      | Skaalataan funktiolla `effectiveRemainingPercent()`, jolloin suojattu varaus näkyy arvona `0% left` | Ei mitään (palveluntarjoajan ilmoittamat raakatilannekuvan arvot)                                      |
+| **Kynnystiedot**          | Sisällytetään näytettävään prosenttiosuuteen                                                        | Tallennetaan yhteyskohtaisesti kohteeseen `quotaWindowThresholds` (tai käytetään palvelimen oletuksia) |
+| **Ensisijainen käyttäjä** | Vuorovaikutteiset CLI:t, päätekehotteet, ihmisoperaattorit                                          | Ohjelmalliset integraatiot, hallintapaneelit, analytiikka, laskutusseuranta                            |
+
+#### Katkaisukynnyksen mukautuskaava
+
+OmniRoute tukee ennakoivia kiintiön katkaisukynnyksiä ylävirran kiintiön ehtymisen estämiseksi (määritetään yhteyden
+`quotaWindowThresholds`-asetuksissa, palveluntarjoajan oletuksissa tai yleisissä vikasietoisuusasetuksissa). Kun katkaisukynnys
+(esim. `cutoff = 25%`) on aktiivinen kiintiöikkunassa, tekstin muodostin laskee jäljellä olevan määrän seuraavasti:
+
+- Jos `remaining <= cutoff`: palauttaa `0%`.
+- Jos `remaining > cutoff`: palauttaa `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Muotoiltu tekstituloste pyöristää tämän lähimpään kokonaislukuun (`Math.round(...)`).
+
+#### Havainnollistava esimerkki
+
+Tarkastellaan palveluntarjoajan ikkunaa, jossa **raakakäyttö on 60 %** (joten **raakakiintiöstä on jäljellä 40 %**) ja määritetty
+**jäljellä olevan kiintiön katkaisukynnys on 25 %**:
+
+| Esitystapa                      | Laskenta                                           | Jäljellä |         Implisiittisesti käytetty          |
+| :------------------------------ | :------------------------------------------------- | :------: | :----------------------------------------: |
+| **Raaka-JSON (`?format=json`)** | Ylävirran tilannekuva (`quotas[window]`)           | **40 %** |                  **60 %**                  |
+| **Tekstimuoto (`NN% left`)**    | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20 %** | **80 %** (jos lasketaan `100 - remaining`) |
+
+- **Miksi tekstissä näkyy 20 % jäljellä:** Tilillä fyysisesti jäljellä olevasta 40 prosentin kiintiöstä 25 % on varattu
+  katkaisukäytännön mukaisesti. Kutsujalla on jäljellä vain 15 % kaikkiaan 75 prosentin käytettävissä olevasta liikkumavarasta, ennen kuin reititin lopettaa
+  pyyntöjen reitittämisen tähän yhteyteen. Skaalaus varmistaa, että yhteys ilmoittaa ehtymisestä (`0% left`) juuri silloin, kun
+  reititys päättyy.
+- **Miksi JSON säilyttää raaka-arvot:** JSON-hyötykuorma palauttaa palveluntarjoajan tarkan tilannekuvan (`UsageSnapshot`),
+  jotta ulkoiset työkalut saavat käyttöönsä ylävirran todellisen käyttöasteen ja yhteystason
+  `quotaWindowThresholds`-arvot ilman palvelinpuolen tietoja hävittävää skaalausta.
+
+#### Ohjeita käyttäjien siirtymiseen
+
+Jos ulkoinen integraatio (kuten editorin liitännäinen tai agenttilaajennus) on aiemmin poiminut tietoja tekstimuotoisesta
+päätepisteestä (`NN% left`) ja laskenut käytetyn prosenttiosuuden muodossa `100 - NN`, siirtyminen muotoon `?format=json` tarkoittaa seuraavaa:
+
+- JSON-raaka-arvojen lukeminen kuvastaa **todellista ylävirran kulutusta** (yllä olevassa esimerkissä käytetty 60 %).
+- Jos integraatio haluaa säilyttää tekstipäätepisteen käytettävissä olevan määrän semantiikan, se voi laskea
+  jäljellä olevan tehokkaan määrän kaavan asiakaspuolella käyttämällä yhteystason ohituksiin arvoa `quotaWindowThresholds`.
 
 ---
 

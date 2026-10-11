@@ -395,49 +395,57 @@ hutumia `us-central1` kama chaguo-msingi. Utatuzi wote wawili hufanyika katika `
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Hurejesha modeli zote za gumzo, embedding na picha pamoja na michanganyiko yake katika umbizo la OpenAI
+→ Hurejesha modeli zote za gumzo, upachikaji, na picha + michanganyiko katika umbizo la OpenAI
 ```
 
-### Viambishi awali vya id ya modeli (`?prefix=`)
+### Viambishi awali vya kitambulisho cha modeli (`?prefix=`)
 
 Modeli nyingi hutangazwa chini ya **kiambishi awali cha mtoa huduma**. Kiambishi awali unachopata hudhibitiwa na
-alama ya kipengele ya `MODELS_CATALOG_PREFIX_MODE`, na kinaweza kubatilishwa **kwa kila ombi** kwa kutumia
+alama ya kipengele ya `MODELS_CATALOG_PREFIX_MODE`, na kinaweza kubatilishwa **kwa kila ombi** kupitia
 kigezo cha hoja — jambo linalofaa kwa mteja anayetaka orodha safi bila kubadilisha mpangilio wa seva nzima
 kwa kila mtu mwingine:
 
 ```bash
-GET /v1/models?prefix=alias        # id moja kwa kila modeli — kiambishi awali kifupi cha jina mbadala
+GET /v1/models?prefix=alias        # kitambulisho kimoja kwa kila modeli — kiambishi awali kifupi cha jina mbadala
 GET /v1/models?prefix=dual         # miundo yote miwili (chaguo-msingi la seva)
-GET /v1/models?prefix=canonical    # kiambishi awali kamili cha id ya mtoa huduma pekee
+GET /v1/models?prefix=canonical    # kiambishi awali kamili cha kitambulisho cha mtoa huduma pekee
 ```
 
-| Hali        | Hutoa                                                    | Maelezo                                                                                                                                                                                                                       |
-| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **na** `claude/claude-sonnet-4-6` | **Chaguo-msingi.** id zote mbili huelekezwa kwenye modeli ileile; zimehifadhiwa ili usanidi wa wateja ulioweka mojawapo moja kwa moja uendelee kufanya kazi. Takribani huongeza ukubwa wa katalogi mara mbili.                |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Ingizo moja kwa kila modeli. Watoa huduma wasio na jina mbadala tofauti bado hutoa ingizo lao, kwa hivyo hakuna kinachopotea.                                                                                                 |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Ingizo moja kwa kila modeli chini ya kiambishi awali kamili cha id ya mtoa huduma. Watoa huduma wasio na jina mbadala tofauti (kwa mfano `antigravity/…`, `agy/…`) pia hutoa id yao moja hapa, kwa hivyo hakuna kinachopotea. |
+| Hali        | Hutoa                                                    | Maelezo                                                                                                                                                                                                                                          |
+| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dual`      | `cc/claude-sonnet-4-6` **na** `claude/claude-sonnet-4-6` | **Chaguo-msingi.** Vitambulisho vyote viwili huelekezwa kwa modeli ileile; vimehifadhiwa ili usanidi wa wateja ulioweka moja ya miundo hiyo moja kwa moja uendelee kufanya kazi. Takribani huongeza ukubwa wa katalogi mara mbili.               |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Ingizo moja kwa kila modeli. Watoa huduma wasio na jina mbadala tofauti bado hutoa ingizo lao, kwa hivyo hakuna kinachopotea.                                                                                                                    |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Ingizo moja kwa kila modeli chini ya kiambishi awali kamili cha kitambulisho cha mtoa huduma. Watoa huduma wasio na jina mbadala tofauti (k.m. `antigravity/…`, `agy/…`) pia hutoa kitambulisho chao kimoja hapa, kwa hivyo hakuna kinachopotea. |
 
-Kioo cha hali ya `dual` kinaweza pia kutambuliwa bila kigezo cha hoja: huwa na uga wa `parent`
-unaoelekeza kwenye id ya msingi.
+Kioo cha hali ya `dual` kinaweza pia kutambuliwa bila kigezo cha hoja: kina sehemu ya `parent`
+inayoelekeza kwenye kitambulisho msingi.
 
-Wateja wanaoonyesha kiteuzi cha modeli wanapaswa kuomba `?prefix=alias` — hivi ndivyo
-[kiendelezi cha OmniCopilot cha VS Code](../guides/VSCODE-COPILOT.md) hufanya.
+Wateja wanaoonyesha kiteua modeli wanapaswa kuomba `?prefix=alias` — hivi ndivyo
+[kiendelezi cha OmniCopilot cha VS Code](../guides/VSCODE-COPILOT.md) kinavyofanya.
 
-### Miundo ya mazungumzo iliyofichwa mmoja mmoja
+### Modeli za gumzo zilizofichwa moja moja
 
-Muundo uliowekwa alama ya **Imefichwa** kwenye ukurasa wa mtoa huduma wake huondolewa kwenye katalogi na kukataliwa kwa HTTP `404` / `model_not_found` unapoombwa moja kwa moja. Ukaguzi hutumia mtoa huduma na muundo waliobainishwa, ukizingatia majina mbadala ya mtoa huduma, viambishi awali vya nodi za watoa huduma wanaooana na thamani chaguomsingi za muunganisho. Combo huruka malengo yaliyofichwa na inaweza kutumia lengo jingine linaloonekana; ikiwa hakuna lengo linaloweza kutekelezwa linalobaki, hurudisha msimbo huohuo wa hitilafu. Kuonyesha muundo tena huanza kutumika kuanzia ombi linalofuata. Mipangilio maalumu ya mwonekano inayohusu picha pekee haifichi muundo wa mazungumzo wenye ID ileile.
+Modeli iliyowekwa alama ya **Imefichwa** kwenye ukurasa wa mtoa huduma wake huondolewa kwenye katalogi na kukataliwa
+kwa HTTP `404` / `model_not_found` inapoombwa moja kwa moja. Ukaguzi hutumia mtoa huduma na modeli
+zilizotambuliwa, ikijumuisha majina mbadala ya watoa huduma, viambishi awali vya nodi vya watoa huduma patanifu, na
+chaguo-msingi za muunganisho. Mchanganyiko huruka malengo yaliyofichwa na unaweza kutumia modeli nyingine inayoonekana; wakati hakuna
+lengo linaloweza kutekelezwa linalosalia, hurejesha msimbo uleule wa hitilafu. Kuondoa ufichaji huanza kutumika katika
+ombi linalofuata. Ubatilishaji wa mwonekano wa picha pekee haufichi modeli ya gumzo yenye kitambulisho kilekile.
 
-Mpangilio huu wa kila muundo ni tofauti na [orodha za kuruhusu na kuzuia uonyeshaji wa miundo](../routing/MODEL_EXPOSURE_LIST.md), ambazo huchuja uonyeshaji kwenye katalogi na wagombea wa uelekezaji otomatiki huku zikiendelea kuruhusu utumaji wa moja kwa moja. Ruhusa za miundo za ufunguo wa API zinaendelea kutumika kwa kujitegemea. Hali chaguomsingi ya viambishi awali vya katalogi inabaki `dual`.
+Mpangilio huu wa modeli mahususi ni tofauti na
+[orodha za kuruhusu/kuzuia uonyeshaji wa modeli](../routing/MODEL_EXPOSURE_LIST.md), ambazo huchuja utangazaji wa katalogi
+na wagombea wa uelekezaji otomatiki huku zikidumisha utumaji wa moja kwa moja. Ruhusa za modeli za ufunguo wa API
+zinaendelea kutumika kwa kujitegemea. Hali chaguo-msingi ya kiambishi awali cha katalogi inasalia `dual`.
 
-### Vibadala vya modeli visivyo na kufikiri
+### Vibadala vya modeli visivyo na thinking
 
-Kwa modeli za Claude zenye uwezo wa kufikiri, `/v1/models` pia hutangaza kibadala **kisicho na kufikiri** ambacho id yake huanza na `claude-3-omniroute-no-thinking/`:
+Kwa modeli za Claude zenye uwezo wa thinking, `/v1/models` pia hutangaza kibadala **kisicho na thinking** ambacho kitambulisho chake huanza na `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Kuchagua id hii (kwa mfano katika usanidi wa Claude Code ambao daima huambatisha kizuizi cha `thinking`) hurejea kwenye `<provider>/<model>` halisi huku utoaji wa hoja ukiwa umezimwa — `thinking:{type:"disabled"}` kwenye njia ya `/v1/messages`, au uga za `reasoning`/`reasoning_effort` huondolewa kwenye njia ya `/v1/chat/completions`. Kibadala huorodheshwa tu kwa modeli za familia ya Claude zinazotumia kufikiri **na** zinazoheshimu `disabled` (kwa hivyo, kwa mfano, modeli zinazotumia hali badilifu pekee na zinazokataa `disabled` hazijumuishwi). Waendeshaji wanaweza kulazimisha kibadala kuwashwa au kuzimwa kwa kila modeli kupitia `ModelSpec.noThinkingAlias`.
+Kuchagua kitambulisho hiki (k.m. katika usanidi wa Claude Code ambao daima huambatisha kizuizi cha `thinking`) hutatuliwa kurudi kwenye `<provider>/<model>` halisi huku reasoning ikiwa imezimwa — `thinking:{type:"disabled"}` kwenye njia ya `/v1/messages`, au sehemu za `reasoning`/`reasoning_effort` zikiondolewa kwenye njia ya `/v1/chat/completions`. Kibadala huorodheshwa tu kwa modeli za familia ya Claude zinazotumia thinking **na** zinazokubali `disabled` (kwa hivyo, k.m. modeli za adaptive pekee zinazokataa `disabled` hazijumuishwi). Waendeshaji wanaweza kulazimisha kibadala kuwashwa au kuzimwa kwa kila modeli kupitia `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -722,29 +730,26 @@ ukamilishaji.
 
 ## Matumizi ya kujihudumia (`/api/usage/om-usage`)
 
-Ufunguo wowote wa API unaweza kusoma matumizi na vikomo **vyake mwenyewe** — uthibitishaji wa usimamizi hauhitajiki. Hiki ndicho kituo ambacho
-kiteja (CLI, paneli ya OmniCopilot) hutumia kumwonyesha mmiliki wa ufunguo matumizi yake.
+Ufunguo wowote wa API unaweza kusoma matumizi na viwango vyake **wenyewe** — hakuna uthibitishaji wa usimamizi unaohitajika. Hiki ndicho kituo ambacho mteja (CLI, paneli ya OmniCopilot) hutumia kumwonyesha mmiliki wa ufunguo matumizi yake ya fedha.
 
 ```bash
-# Muundo wa maandishi (mkataba wa awali — maandishi yasiyo na uumbizaji kwa ajili ya terminali)
+# Muundo wa maandishi (mkataba wa awali — maandishi wazi kwa ajili ya terminali)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Muundo wenye mpangilio — unaotumiwa na UI
+# Muundo uliopangiliwa — ambao UI hutumia
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Ufunguo lazima uwe na **`allowUsageCommand`** iliyowezeshwa (imezimwa kwa chaguo-msingi — kidhibiti cha funguo za API cha dashibodi
-huiwasha au kuizima kwa kila ufunguo). Bila hiyo, kituo hujibu `403`.
+Ufunguo lazima uwe na **`allowUsageCommand`** iliyowezeshwa (imezimwa kwa chaguo-msingi — kidhibiti cha funguo za API cha dashibodi huiwasha au kuizima kwa kila ufunguo). Bila hiyo, kituo hujibu `403`.
 
-`?format=json` hurejesha muundo unaobainishwa ili mpigaji asiwahi kusoma uga wa data kutoka kwenye
-jibu la kukataliwa. Inapofaulu:
+`?format=json` hurejesha muundo unaobainishwa ili mpigaji asisome kamwe uga wa data kutoka kwenye jibu la kukataa. Inapofaulu:
 
 ```jsonc
 {
   "allowed": true,
-  // huwepo tu wakati ufunguo umechagua kutumia vikomo vya matumizi kwa kila ufunguo (USD kwa siku/wiki):
+  // ipo tu wakati ufunguo umechagua kutumia vikomo vya matumizi kwa kila ufunguo (USD kwa siku/wiki):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -753,7 +758,7 @@ jibu la kukataliwa. Inapofaulu:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // muhtasari wa kikomo cha mtoa huduma aliyechaguliwa, au null ikiwa bado hakuna kilichohifadhiwa:
+  // muhtasari wa kiwango cha mtoa huduma aliyechaguliwa, au null ikiwa bado hakuna kilichohifadhiwa kwenye akiba:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
@@ -768,13 +773,64 @@ jibu la kukataliwa. Inapofaulu:
 }
 ```
 
-Inapokataliwa (`401` ufunguo batili / `403` hairuhusiwi), njia hiyo hiyo hurejesha
+Inapokataa (`401` ufunguo mbaya / `403` hairuhusiwi), njia hiyo hiyo hurejesha
 `{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` iliyopo lakini tupu
-(ufunguo umeruhusiwa, lakini bado hakuna taarifa iliyopatikana) ni hali tofauti na kukataliwa, na ni muundo wa JSON pekee
+(ufunguo umeruhusiwa, lakini bado hakuna kilichopatikana) ni hali tofauti na kukataliwa, na ni muundo wa JSON pekee
 unaotofautisha hali hizo.
 
-**Uthibitishaji:** ufunguo binafsi wa API wa Bearer wa mpigaji, unaothibitishwa kwa `isValidApiKey` — hii _si_
+**Uthibitishaji:** ufunguo wa API wa Bearer wa mpigaji mwenyewe, unaothibitishwa kwa `isValidApiKey` — hii _si_
 sehemu ya usimamizi (`/api/keys/…`), ambayo inaendelea kulindwa na `requireManagementAuth`.
+
+### Asilimia Ghafi dhidi ya Asilimia za Kiwango Zilizorekebishwa kwa Kikomo
+
+Wakati wa kutumia `/api/usage/om-usage`, wapigaji wanapaswa kuzingatia tofauti kati ya
+asilimia zinazowasilishwa na **tokeo la maandishi wazi** na **tokeo la JSON** lililopangiliwa:
+
+| Kipengele                  | Muundo wa maandishi wazi (`/api/usage/om-usage` / `@@om-usage`)                                        | Muundo wa JSON (`?format=json`)                                                             |
+| :------------------------- | :----------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| **Uga wa tokeo**           | `NN% left` (k.m., `20% left`)                                                                          | `provider.quotas` / `providers[].quotas`                                                    |
+| **Kipimo**                 | **Kiasi kinachoweza kutumika kilichorekebishwa kwa kikomo**: uwezo uliosalia juu ya kiwango cha kikomo | **Kiwango ghafi cha chanzo**: kipimo cha mtoa huduma ambacho hakijarekebishwa               |
+| **Urekebishaji wa kikomo** | Hurekebishwa kupitia `effectiveRemainingPercent()` ili akiba inayolindwa ionekane kama `0% left`       | Hakuna (thamani ghafi za muhtasari kama zilivyoripotiwa na mtoa huduma)                     |
+| **Data ya kiwango**        | Imejumuishwa katika asilimia inayoonyeshwa                                                             | Imehifadhiwa katika `quotaWindowThresholds` kwa kila muunganisho (au chaguo-msingi za seva) |
+| **Mtumiaji mkuu**          | CLI shirikishi, vidokezo vya terminali, waendeshaji wa kibinadamu                                      | Miunganisho ya kiprogramu, dashibodi, uchanganuzi, vifuatiliaji vya malipo                  |
+
+#### Fomula ya Urekebishaji wa Kikomo
+
+OmniRoute hutumia vikomo vya kiwango kwa hatua za mapema ili kuzuia kuisha kwa kiwango cha chanzo (vinavyosanidiwa kupitia
+`quotaWindowThresholds` za muunganisho, chaguo-msingi za mtoa huduma, au mipangilio ya jumla ya ustahimilivu). Wakati kiwango cha kikomo
+(k.m., `cutoff = 25%`) kinatumika kwenye dirisha la kiwango, kiwasilishaji cha maandishi huhesabu kiasi kilichosalia kama ifuatavyo:
+
+- Ikiwa `remaining <= cutoff`: hurejesha `0%`.
+- Ikiwa `remaining > cutoff`: hurejesha `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Tokeo la maandishi lililoumbizwa huzungusha thamani hii hadi nambari kamili iliyo karibu zaidi (`Math.round(...)`).
+
+#### Mfano wa Ufafanuzi
+
+Fikiria dirisha la mtoa huduma lenye **matumizi ghafi ya 60%** (hivyo **kiwango ghafi kilichosalia cha 40%**) na kiwango cha kikomo kilichosanidiwa cha
+**25% ya kiwango kilichosalia**:
+
+| Uwakilishi                           | Hesabu                                             | Kilichosalia |               Matumizi Yanayodokezwa               |
+| :----------------------------------- | :------------------------------------------------- | :----------: | :------------------------------------------------: |
+| **JSON ghafi (`?format=json`)**      | Muhtasari wa chanzo (`quotas[window]`)             |   **40%**    |                      **60%**                       |
+| **Muundo wa maandishi (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |   **20%**    | **80%** (ikiwa inahesabiwa kama `100 - remaining`) |
+
+- **Kwa nini maandishi yanaonyesha 20% iliyosalia:** Kati ya kiwango halisi cha 40% kilichosalia kwenye akaunti, 25% imehifadhiwa na
+  sera ya kikomo. Mpigaji ana 15% pekee kati ya nafasi ya matumizi ya 75% iliyosalia kabla kipanga-njia hakijaacha
+  kuelekeza kwenye muunganisho huu. Urekebishaji huhakikisha muunganisho unaashiria kuisha (`0% left`) hasa wakati
+  uelekezaji utakaposimama.
+- **Kwa nini JSON huhifadhi thamani ghafi:** Data ya JSON hurejesha muhtasari halisi wa mtoa huduma (`UsageSnapshot`)
+  ili zana za nje ziweze kufikia matumizi halisi ya chanzo na
+  `quotaWindowThresholds` za kiwango cha muunganisho bila urekebishaji wenye upotevu unaofanywa upande wa seva.
+
+#### Mwongozo wa Uhamishaji kwa Watumiaji
+
+Ikiwa muunganisho wa nje (kama vile programu-jalizi ya kihariri au kiendelezi cha wakala) awali ulichota data kutoka kwenye kituo cha maandishi
+(`NN% left`) na kukokotoa asilimia iliyotumika kama `100 - NN`, kuhamia `?format=json` kunamaanisha:
+
+- Kusoma thamani ghafi za JSON kutaonyesha **matumizi halisi ya chanzo** (60% iliyotumika katika mfano ulio hapo juu).
+- Ikiwa muunganisho unataka kuhifadhi maana ya kiasi kinachoweza kutumika ya kituo cha maandishi, unaweza kukokotoa
+  fomula ya kiwango halisi kilichosalia upande wa mteja kwa kutumia `quotaWindowThresholds` kwa ajili ya ubatilishaji wa kiwango cha muunganisho.
 
 ---
 

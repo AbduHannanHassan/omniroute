@@ -395,12 +395,12 @@ mặc định là `us-central1`. Cả hai quá trình phân giải đều diễn
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Trả về tất cả mô hình trò chuyện, embedding và hình ảnh + các tổ hợp theo định dạng OpenAI
+→ Trả về tất cả mô hình trò chuyện, nhúng và hình ảnh + các tổ hợp theo định dạng OpenAI
 ```
 
 ### Tiền tố id mô hình (`?prefix=`)
 
-Hầu hết mô hình được công bố dưới một **tiền tố nhà cung cấp**. Tiền tố bạn nhận được do cờ tính năng `MODELS_CATALOG_PREFIX_MODE` kiểm soát và có thể được ghi đè **cho từng yêu cầu** bằng tham số truy vấn — hữu ích cho ứng dụng khách muốn có danh sách gọn gàng mà không thay đổi thiết lập trên toàn máy chủ cho những người khác:
+Hầu hết các mô hình được công bố dưới một **tiền tố nhà cung cấp**. Tiền tố bạn nhận được chịu sự kiểm soát của cờ tính năng `MODELS_CATALOG_PREFIX_MODE` và có thể được ghi đè **cho từng yêu cầu** bằng tham số truy vấn — hữu ích cho máy khách muốn có một danh sách gọn gàng mà không thay đổi thiết lập trên toàn máy chủ đối với những người khác:
 
 ```bash
 GET /v1/models?prefix=alias        # một id cho mỗi mô hình — tiền tố bí danh ngắn
@@ -408,21 +408,21 @@ GET /v1/models?prefix=dual         # cả hai dạng (mặc định của máy c
 GET /v1/models?prefix=canonical    # chỉ tiền tố id đầy đủ của nhà cung cấp
 ```
 
-| Chế độ      | Kết quả trả về                                           | Ghi chú                                                                                                                                                                                                          |
-| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **và** `claude/claude-sonnet-4-6` | **Mặc định.** Cả hai id đều định tuyến đến cùng một mô hình; được giữ lại để các cấu hình ứng dụng khách đã mã hóa cứng một trong hai dạng vẫn tiếp tục hoạt động. Kích thước danh mục tăng gần gấp đôi.         |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Một mục cho mỗi mô hình. Các nhà cung cấp không có bí danh riêng biệt vẫn trả về mục của họ, vì vậy không có nội dung nào bị mất.                                                                                |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Một mục cho mỗi mô hình dưới tiền tố id đầy đủ của nhà cung cấp. Các nhà cung cấp không có bí danh riêng biệt (ví dụ: `antigravity/…`, `agy/…`) cũng trả về id duy nhất của họ ở đây, vì vậy không có gì bị mất. |
+| Chế độ      | Xuất ra                                                  | Ghi chú                                                                                                                                                                                                       |
+| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **và** `claude/claude-sonnet-4-6` | **Mặc định.** Cả hai id đều định tuyến đến cùng một mô hình; được giữ lại để các cấu hình máy khách đã mã hóa cứng một trong hai dạng tiếp tục hoạt động. Gần như làm tăng gấp đôi danh mục.                  |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Một mục cho mỗi mô hình. Các nhà cung cấp không có bí danh riêng biệt vẫn xuất mục của họ, vì vậy không có gì bị mất.                                                                                         |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Một mục cho mỗi mô hình dưới tiền tố id đầy đủ của nhà cung cấp. Các nhà cung cấp không có bí danh riêng biệt (ví dụ: `antigravity/…`, `agy/…`) cũng xuất id duy nhất của họ tại đây, nên không có gì bị mất. |
 
-Một bản sao ở chế độ `dual` cũng có thể được nhận biết mà không cần tham số truy vấn: bản sao đó chứa trường `parent` trỏ đến id chính.
+Một bản sao ở chế độ `dual` cũng có thể được nhận diện mà không cần tham số truy vấn: nó chứa trường `parent` trỏ đến id chính.
 
-Các ứng dụng khách hiển thị trình chọn mô hình nên yêu cầu `?prefix=alias` — đây là cách [tiện ích mở rộng OmniCopilot cho VS Code](../guides/VSCODE-COPILOT.md) hoạt động.
+Các máy khách hiển thị trình chọn mô hình nên yêu cầu `?prefix=alias` — đây là cách [tiện ích mở rộng OmniCopilot cho VS Code](../guides/VSCODE-COPILOT.md) hoạt động.
 
-### Mô hình chat được ẩn riêng lẻ
+### Các mô hình trò chuyện bị ẩn riêng lẻ
 
-Mô hình được đánh dấu **Ẩn** trên trang nhà cung cấp sẽ bị loại khỏi danh mục và bị từ chối bằng HTTP `404` / `model_not_found` khi được yêu cầu đích danh. Việc kiểm tra sử dụng nhà cung cấp và mô hình đã được phân giải, có tính đến bí danh nhà cung cấp, tiền tố nút của nhà cung cấp tương thích và các giá trị mặc định của kết nối. Combo bỏ qua các đích bị ẩn và có thể dùng một đích khác đang hiển thị; nếu không còn đích nào có thể thực thi, nó trả về cùng mã lỗi. Việc bỏ ẩn có hiệu lực từ yêu cầu tiếp theo. Các thiết lập ghi đè khả năng hiển thị chỉ dành cho hình ảnh không ẩn mô hình chat có cùng ID.
+Một mô hình được đánh dấu **Ẩn** trên trang nhà cung cấp sẽ bị loại khỏi danh mục và bị từ chối với HTTP `404` / `model_not_found` khi được yêu cầu rõ ràng. Việc kiểm tra sử dụng nhà cung cấp và mô hình đã được phân giải, bao gồm bí danh nhà cung cấp, tiền tố nút của nhà cung cấp tương thích và giá trị mặc định của kết nối. Một tổ hợp sẽ bỏ qua các đích bị ẩn và có thể sử dụng một đích ngang hàng đang hiển thị; khi không còn đích nào có thể thực thi, nó trả về cùng mã lỗi. Việc bỏ ẩn có hiệu lực ở yêu cầu tiếp theo. Các ghi đè khả năng hiển thị chỉ dành cho hình ảnh không ẩn mô hình trò chuyện có cùng ID.
 
-Thiết lập riêng cho từng mô hình này tách biệt với [danh sách cho phép và chặn công bố mô hình](../routing/MODEL_EXPOSURE_LIST.md). Các danh sách đó lọc phần hiển thị trong danh mục và ứng viên định tuyến tự động nhưng vẫn giữ khả năng gửi yêu cầu đích danh. Quyền truy cập mô hình của khóa API tiếp tục được áp dụng độc lập. Chế độ tiền tố mặc định của danh mục vẫn là `dual`.
+Thiết lập mô hình riêng lẻ này tách biệt với [danh sách cho phép/từ chối hiển thị mô hình](../routing/MODEL_EXPOSURE_LIST.md), vốn lọc việc công bố trong danh mục và các ứng viên định tuyến tự động trong khi vẫn giữ lại khả năng điều phối rõ ràng. Các quyền mô hình của khóa API tiếp tục được áp dụng độc lập. Chế độ tiền tố danh mục mặc định vẫn là `dual`.
 
 ### Các biến thể mô hình không suy luận
 
@@ -432,7 +432,7 @@ Thiết lập riêng cho từng mô hình này tách biệt với [danh sách ch
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Việc chọn id này (ví dụ: trong cấu hình Claude Code luôn đính kèm khối `thinking`) sẽ phân giải trở lại `<provider>/<model>` thực với tính năng suy luận bị tắt — `thinking:{type:"disabled"}` trên đường dẫn `/v1/messages`, hoặc các trường `reasoning`/`reasoning_effort` bị loại bỏ trên đường dẫn `/v1/chat/completions`. Biến thể này chỉ được liệt kê cho các mô hình thuộc họ Claude có hỗ trợ suy luận **và** chấp nhận `disabled` (do đó, ví dụ như các mô hình chỉ hỗ trợ chế độ thích ứng và từ chối `disabled` sẽ bị loại trừ). Người vận hành có thể buộc bật hoặc tắt biến thể này cho từng mô hình thông qua `ModelSpec.noThinkingAlias`.
+Việc chọn id này (ví dụ: trong cấu hình Claude Code luôn đính kèm một khối `thinking`) sẽ phân giải trở lại `<provider>/<model>` thực với khả năng suy luận bị vô hiệu hóa — `thinking:{type:"disabled"}` trên đường dẫn `/v1/messages`, hoặc các trường `reasoning`/`reasoning_effort` bị loại bỏ trên đường dẫn `/v1/chat/completions`. Biến thể này chỉ được liệt kê cho các mô hình thuộc họ Claude hỗ trợ suy luận **và** chấp nhận `disabled` (vì vậy, ví dụ: các mô hình chỉ thích ứng nhưng từ chối `disabled` sẽ bị loại trừ). Người vận hành có thể buộc bật hoặc tắt biến thể này cho từng mô hình thông qua `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -718,31 +718,31 @@ phần hoàn thành.
 
 ---
 
-## Sử dụng tự phục vụ (`/api/usage/om-usage`)
+## Mức sử dụng tự phục vụ (`/api/usage/om-usage`)
 
-Bất kỳ khóa API nào cũng có thể đọc mức sử dụng và hạn mức **của chính nó** — không cần xác thực quản trị. Đây là endpoint mà
-client (CLI, bảng điều khiển OmniCopilot) sử dụng để hiển thị mức chi tiêu cho người giữ khóa.
+Bất kỳ khóa API nào cũng có thể đọc mức sử dụng và hạn ngạch **của chính nó** — không cần xác thực quản trị. Đây là endpoint mà
+client (CLI, bảng điều khiển OmniCopilot) sử dụng để hiển thị mức chi tiêu cho chủ sở hữu khóa.
 
 ```bash
-# Dạng văn bản (quy ước trước đây — văn bản thuần túy dành cho terminal)
+# Dạng văn bản (giao ước trước đây — văn bản thuần túy dành cho terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Dạng có cấu trúc — định dạng mà UI sử dụng
+# Dạng có cấu trúc — dạng mà UI sử dụng
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Khóa phải bật **`allowUsageCommand`** (mặc định tắt — trình quản lý khóa API của bảng điều khiển
-bật/tắt tùy theo từng khóa). Nếu không, endpoint sẽ trả về `403`.
+Khóa phải được bật **`allowUsageCommand`** (mặc định là tắt — trình quản lý khóa API của bảng điều khiển
+bật hoặc tắt tùy theo từng khóa). Nếu không, endpoint sẽ trả về `403`.
 
-`?format=json` trả về một cấu trúc phân biệt để bên gọi không bao giờ đọc trường dữ liệu từ một
+`?format=json` trả về một cấu trúc có trường phân biệt để bên gọi không bao giờ đọc trường dữ liệu từ một
 phản hồi từ chối. Khi thành công:
 
 ```jsonc
 {
   "allowed": true,
-  // chỉ xuất hiện khi khóa chọn sử dụng hạn mức theo từng khóa (USD hằng ngày/hằng tuần):
+  // chỉ xuất hiện khi khóa đã chọn áp dụng giới hạn mức sử dụng theo từng khóa (USD hằng ngày/hằng tuần):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -751,7 +751,7 @@ phản hồi từ chối. Khi thành công:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // ảnh chụp hạn mức của nhà cung cấp đã chọn, hoặc null khi chưa có dữ liệu nào được lưu vào bộ nhớ đệm:
+  // ảnh chụp hạn ngạch của nhà cung cấp đã chọn, hoặc null khi chưa có dữ liệu nào được lưu vào bộ nhớ đệm:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
@@ -766,13 +766,64 @@ phản hồi từ chối. Khi thành công:
 }
 ```
 
-Khi bị từ chối (`401` khóa không hợp lệ / `403` không được phép), cùng route đó trả về
-`{ "allowed": false, "error": { "message": "…" } }` — trạng thái có `personal`/`provider` nhưng rỗng
-(khóa được phép, nhưng chưa thu thập được dữ liệu) khác với trạng thái bị từ chối, và chỉ dạng JSON
-mới phân biệt được chúng.
+Khi bị từ chối (`401` khóa không hợp lệ / `403` không được phép), cùng route này sẽ trả về
+`{ "allowed": false, "error": { "message": "…" } }` — trạng thái `personal`/`provider` có mặt nhưng trống
+(khóa được cho phép nhưng chưa thu thập được dữ liệu) khác với trạng thái bị từ chối, và chỉ dạng JSON
+mới phân biệt được các trạng thái này.
 
 **Xác thực:** khóa API Bearer của chính bên gọi, được xác thực bằng `isValidApiKey` — đây _không phải_ là
 bề mặt quản trị (`/api/keys/…`), vốn vẫn được bảo vệ bởi `requireManagementAuth`.
+
+### Phần trăm hạn ngạch thô so với phần trăm đã điều chỉnh theo ngưỡng ngắt
+
+Khi sử dụng `/api/usage/om-usage`, bên gọi nên lưu ý sự khác biệt giữa các
+tỷ lệ phần trăm được trình bày trong **đầu ra văn bản thuần túy** và **đầu ra JSON** có cấu trúc:
+
+| Khía cạnh                       | Định dạng văn bản thuần túy (`/api/usage/om-usage` / `@@om-usage`)                                     | Định dạng JSON (`?format=json`)                                                                   |
+| :------------------------------ | :----------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| **Trường đầu ra**               | `NN% còn lại` (ví dụ: `20% còn lại`)                                                                   | `provider.quotas` / `providers[].quotas`                                                          |
+| **Phép đo**                     | **Mức khả dụng đã điều chỉnh theo ngưỡng ngắt**: dung lượng còn lại trên ngưỡng ngắt                   | **Hạn ngạch thô từ upstream**: phép đo chưa điều chỉnh của nhà cung cấp                           |
+| **Điều chỉnh theo ngưỡng ngắt** | Được điều chỉnh bằng `effectiveRemainingPercent()` để phần dự trữ được bảo vệ hiển thị là `0% còn lại` | Không có (các giá trị ảnh chụp thô do nhà cung cấp báo cáo)                                       |
+| **Dữ liệu ngưỡng**              | Được tính vào tỷ lệ phần trăm hiển thị                                                                 | Được lưu trong `quotaWindowThresholds` theo từng kết nối (hoặc dùng giá trị mặc định của máy chủ) |
+| **Đối tượng sử dụng chính**     | CLI tương tác, lời nhắc terminal, người vận hành                                                       | Tích hợp lập trình, bảng điều khiển, phân tích, trình theo dõi thanh toán                         |
+
+#### Công thức điều chỉnh theo ngưỡng ngắt
+
+OmniRoute hỗ trợ các ngưỡng ngắt hạn ngạch chủ động để ngăn cạn kiệt tài nguyên upstream (được cấu hình thông qua
+`quotaWindowThresholds` của kết nối, giá trị mặc định của nhà cung cấp hoặc cài đặt khả năng phục hồi toàn cục). Khi một ngưỡng ngắt
+(ví dụ: `cutoff = 25%`) đang hoạt động trên một cửa sổ hạn ngạch, trình kết xuất văn bản sẽ tính mức còn lại như sau:
+
+- Nếu `remaining <= cutoff`: trả về `0%`.
+- Nếu `remaining > cutoff`: trả về `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Đầu ra văn bản đã định dạng sẽ làm tròn giá trị này đến số nguyên gần nhất (`Math.round(...)`).
+
+#### Ví dụ minh họa
+
+Hãy xét một cửa sổ của nhà cung cấp có **60% mức sử dụng thô** (do đó **40% hạn ngạch thô còn lại**) và một ngưỡng
+**ngắt khi hạn ngạch còn lại ở mức 25%** đã được cấu hình:
+
+| Cách biểu diễn                        | Phép tính                                          | Còn lại |          Mức đã dùng suy ra          |
+| :------------------------------------ | :------------------------------------------------- | :-----: | :----------------------------------: |
+| **JSON thô (`?format=json`)**         | Ảnh chụp upstream (`quotas[window]`)               | **40%** |               **60%**                |
+| **Định dạng văn bản (`NN% còn lại`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (nếu tính `100 - remaining`) |
+
+- **Tại sao văn bản hiển thị còn lại 20%:** Trong số 40% hạn ngạch vật lý còn lại trên tài khoản, 25% được dành riêng theo
+  chính sách ngưỡng ngắt. Bên gọi chỉ còn 15% trong tổng 75% dư địa khả dụng trước khi bộ định tuyến ngừng
+  định tuyến đến kết nối này. Việc điều chỉnh bảo đảm kết nối báo hiệu cạn kiệt (`0% còn lại`) chính xác khi
+  quá trình định tuyến dừng lại.
+- **Tại sao JSON giữ nguyên các giá trị thô:** Payload JSON trả về ảnh chụp chính xác của nhà cung cấp (`UsageSnapshot`)
+  để các công cụ bên ngoài có quyền truy cập vào mức sử dụng upstream thực tế và
+  `quotaWindowThresholds` cấp kết nối mà không bị điều chỉnh mất mát ở phía máy chủ.
+
+#### Hướng dẫn chuyển đổi cho bên sử dụng
+
+Nếu một tích hợp bên ngoài (chẳng hạn như plugin trình soạn thảo hoặc tiện ích mở rộng agent) trước đây đã thu thập dữ liệu từ endpoint văn bản
+(`NN% còn lại`) và tính tỷ lệ phần trăm đã dùng là `100 - NN`, thì việc chuyển sang `?format=json` có nghĩa là:
+
+- Việc đọc các giá trị JSON thô sẽ phản ánh **mức tiêu thụ upstream thực tế** (đã dùng 60% trong ví dụ trên).
+- Nếu tích hợp muốn giữ nguyên ngữ nghĩa về mức khả dụng của endpoint văn bản, nó có thể đánh giá
+  công thức mức còn lại hiệu dụng ở phía client bằng cách sử dụng `quotaWindowThresholds` cho các giá trị ghi đè cấp kết nối.
 
 ---
 

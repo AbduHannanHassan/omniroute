@@ -376,27 +376,27 @@ secara default menggunakan `us-central1`. Kedua resolusi berlangsung di `open-ss
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Mengembalikan semua model chat, embedding, dan gambar + kombinasinya dalam format OpenAI
+→ Mengembalikan semua model percakapan, embedding, dan gambar + combo dalam format OpenAI
 ```
 
-### Awalan id model (`?prefix=`)
+### Prefiks id model (`?prefix=`)
 
-Sebagian besar model ditampilkan dengan **awalan penyedia**. Awalan yang Anda dapatkan dikendalikan oleh
-feature flag `MODELS_CATALOG_PREFIX_MODE`, dan dapat ditimpa **per permintaan** dengan
-parameter kueri — berguna bagi klien yang menginginkan daftar bersih tanpa mengubah pengaturan
+Sebagian besar model ditampilkan di bawah sebuah **prefiks penyedia**. Prefiks yang Anda dapatkan dikendalikan oleh
+feature flag `MODELS_CATALOG_PREFIX_MODE`, dan dapat ditimpa **per permintaan** dengan sebuah
+parameter kueri — berguna bagi klien yang menginginkan daftar ringkas tanpa mengubah pengaturan
 tingkat server untuk semua pengguna lainnya:
 
 ```bash
-GET /v1/models?prefix=alias        # satu id per model — awalan alias pendek
+GET /v1/models?prefix=alias        # satu id per model — prefiks alias pendek
 GET /v1/models?prefix=dual         # kedua bentuk (default server)
-GET /v1/models?prefix=canonical    # hanya awalan id penyedia lengkap
+GET /v1/models?prefix=canonical    # hanya prefiks id penyedia lengkap
 ```
 
-| Mode        | Menghasilkan                                              | Catatan                                                                                                                                                                                                   |
-| ----------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **dan** `claude/claude-sonnet-4-6` | **Default.** Kedua id diarahkan ke model yang sama; dipertahankan agar konfigurasi klien yang melakukan hardcode pada salah satu bentuk tetap berfungsi. Katalog menjadi kira-kira dua kali lipat.        |
-| `alias`     | `cc/claude-sonnet-4-6`                                    | Satu entri per model. Penyedia tanpa alias tersendiri tetap menghasilkan entrinya, sehingga tidak ada yang hilang.                                                                                        |
-| `canonical` | `claude/claude-sonnet-4-6`                                | Satu entri per model dengan awalan id penyedia lengkap. Penyedia tanpa alias tersendiri (mis. `antigravity/…`, `agy/…`) juga menghasilkan satu-satunya id mereka di sini, sehingga tidak ada yang hilang. |
+| Mode        | Menghasilkan                                              | Catatan                                                                                                                                                                                              |
+| ----------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **dan** `claude/claude-sonnet-4-6` | **Default.** Kedua id diarahkan ke model yang sama; dipertahankan agar konfigurasi klien yang menetapkan salah satu bentuk secara hardcode tetap berfungsi. Kira-kira menggandakan katalog.          |
+| `alias`     | `cc/claude-sonnet-4-6`                                    | Satu entri per model. Penyedia tanpa alias terpisah tetap menampilkan entrinya, sehingga tidak ada yang hilang.                                                                                      |
+| `canonical` | `claude/claude-sonnet-4-6`                                | Satu entri per model di bawah prefiks id penyedia lengkap. Penyedia tanpa alias terpisah (misalnya `antigravity/…`, `agy/…`) juga menampilkan id tunggalnya di sini, sehingga tidak ada yang hilang. |
 
 Mirror mode `dual` juga dapat dikenali tanpa parameter kueri: mirror tersebut memiliki field `parent`
 yang menunjuk ke id utama.
@@ -404,21 +404,29 @@ yang menunjuk ke id utama.
 Klien yang menampilkan pemilih model sebaiknya meminta `?prefix=alias` — inilah yang dilakukan oleh
 [ekstensi OmniCopilot VS Code](../guides/VSCODE-COPILOT.md).
 
-### Model chat yang disembunyikan satu per satu
+### Model percakapan yang disembunyikan secara individual
 
-Model yang ditandai **Tersembunyi** di halaman penyedianya dikeluarkan dari katalog dan ditolak dengan HTTP `404` / `model_not_found` saat diminta secara eksplisit. Pemeriksaan menggunakan penyedia dan model yang telah ditentukan, termasuk alias penyedia, prefiks node penyedia yang kompatibel, dan nilai bawaan koneksi. Combo melewati target tersembunyi dan dapat menggunakan target lain yang terlihat; jika tidak ada target yang dapat dijalankan, kode kesalahan yang sama dikembalikan. Menampilkan kembali model berlaku mulai permintaan berikutnya. Pengaturan visibilitas khusus gambar tidak menyembunyikan model chat dengan ID yang sama.
+Model yang ditandai **Tersembunyi** pada halaman penyedianya dikecualikan dari katalog dan ditolak
+dengan HTTP `404` / `model_not_found` ketika diminta secara eksplisit. Pemeriksaan menggunakan
+penyedia dan model yang telah di-resolve, termasuk alias penyedia, prefiks node penyedia yang kompatibel, serta
+default koneksi. Sebuah combo melewati target tersembunyi dan dapat menggunakan sibling yang terlihat; jika tidak ada
+target yang dapat dieksekusi, combo tersebut mengembalikan kode kesalahan yang sama. Membatalkan penyembunyian mulai berlaku pada
+permintaan berikutnya. Penimpaan visibilitas khusus gambar tidak menyembunyikan model percakapan dengan ID yang sama.
 
-Pengaturan per model ini terpisah dari [daftar izin dan larangan penayangan model](../routing/MODEL_EXPOSURE_LIST.md), yang menyaring penayangan di katalog dan kandidat perutean otomatis sambil tetap mengizinkan pengiriman eksplisit. Izin model pada kunci API tetap berlaku secara independen. Mode prefiks bawaan katalog tetap `dual`.
+Pengaturan model individual ini terpisah dari
+[daftar izin/tolak eksposur model](../routing/MODEL_EXPOSURE_LIST.md), yang memfilter penayangan katalog
+dan kandidat perutean otomatis sembari mempertahankan pengiriman eksplisit. Izin model
+kunci API tetap berlaku secara independen. Mode prefiks katalog default tetap `dual`.
 
 ### Varian model tanpa thinking
 
-Untuk model Claude yang mendukung thinking, `/v1/models` juga menampilkan varian **tanpa thinking** dengan id yang diawali `claude-3-omniroute-no-thinking/`:
+Untuk model Claude yang mendukung thinking, `/v1/models` juga menampilkan varian **tanpa thinking** yang id-nya diawali dengan `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Memilih id ini (mis. dalam konfigurasi Claude Code yang selalu menyertakan blok `thinking`) akan dipetakan kembali ke `<provider>/<model>` yang sebenarnya dengan penalaran dinonaktifkan — `thinking:{type:"disabled"}` pada jalur `/v1/messages`, atau field `reasoning`/`reasoning_effort` dihapus pada jalur `/v1/chat/completions`. Varian ini hanya dicantumkan untuk model keluarga Claude yang mendukung thinking **dan** mematuhi `disabled` (jadi, misalnya, model khusus adaptif yang menolak `disabled` tidak disertakan). Operator dapat memaksa pengaktifan atau penonaktifan varian tersebut per model melalui `ModelSpec.noThinkingAlias`.
+Memilih id ini (misalnya dalam konfigurasi Claude Code yang selalu menyertakan blok `thinking`) akan di-resolve kembali ke `<provider>/<model>` yang sebenarnya dengan penalaran dinonaktifkan — `thinking:{type:"disabled"}` pada jalur `/v1/messages`, atau field `reasoning`/`reasoning_effort` dihapus pada jalur `/v1/chat/completions`. Varian ini hanya dicantumkan untuk model keluarga Claude yang mendukung thinking **dan** mematuhi `disabled` (jadi, misalnya, model khusus adaptif yang menolak `disabled` dikecualikan). Operator dapat memaksa varian tersebut aktif atau nonaktif per model melalui `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -703,8 +711,8 @@ completion.
 
 ## Penggunaan mandiri (`/api/usage/om-usage`)
 
-Kunci API apa pun dapat membaca penggunaan dan kuotanya **sendiri** — tanpa autentikasi pengelolaan. Ini adalah endpoint yang digunakan
-klien (CLI, panel OmniCopilot) untuk menampilkan pengeluaran pemegang kunci.
+Setiap kunci API dapat membaca penggunaan dan kuotanya **sendiri** — tanpa autentikasi manajemen. Ini adalah endpoint yang digunakan
+klien (CLI, panel OmniCopilot) untuk menunjukkan pengeluaran kepada pemegang kunci.
 
 ```bash
 # Format teks (kontrak historis — teks biasa untuk terminal)
@@ -716,16 +724,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Kunci harus mengaktifkan **`allowUsageCommand`** (dinonaktifkan secara default — pengelola kunci API di dasbor
-mengaktifkan atau menonaktifkannya per kunci). Tanpa pengaturan tersebut, endpoint akan memberikan respons `403`.
+Kunci tersebut harus mengaktifkan **`allowUsageCommand`** (dinonaktifkan secara default — pengelola kunci API di dasbor
+mengaktifkan atau menonaktifkannya untuk setiap kunci). Tanpa itu, endpoint akan merespons dengan `403`.
 
-`?format=json` mengembalikan struktur terdiskriminasi sehingga pemanggil tidak pernah membaca bidang data dari
+`?format=json` mengembalikan struktur terdiskriminasi sehingga pemanggil tidak akan pernah membaca bidang data dari
 respons penolakan. Jika berhasil:
 
 ```jsonc
 {
   "allowed": true,
-  // hanya tersedia jika kunci mengaktifkan batas penggunaan per kunci (USD harian/mingguan):
+  // hanya tersedia ketika kunci memilih untuk menggunakan batas penggunaan per kunci (USD harian/mingguan):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -734,14 +742,14 @@ respons penolakan. Jika berhasil:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // snapshot kuota penyedia yang dipilih, atau null jika belum ada yang disimpan dalam cache:
+  // snapshot kuota penyedia yang dipilih, atau null jika belum ada yang di-cache:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // snapshot setiap koneksi, agar UI dapat menampilkan beberapa penyedia secara berdampingan:
+  // snapshot setiap koneksi, sehingga UI dapat merender beberapa penyedia secara berdampingan:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -750,12 +758,63 @@ respons penolakan. Jika berhasil:
 ```
 
 Jika ditolak (`401` kunci tidak valid / `403` tidak diizinkan), rute yang sama mengembalikan
-`{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` yang tersedia tetapi kosong
+`{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` yang ada tetapi kosong
 (kunci diizinkan, tetapi belum ada data yang diperoleh) merupakan status yang berbeda dari penolakan, dan hanya format JSON
-yang membedakannya.
+yang dapat membedakannya.
 
-**Autentikasi:** kunci API Bearer milik pemanggil sendiri, yang divalidasi dengan `isValidApiKey` — ini _bukan_
-antarmuka pengelolaan (`/api/keys/…`), yang tetap dilindungi oleh `requireManagementAuth`.
+**Autentikasi:** kunci API Bearer milik pemanggil sendiri, divalidasi dengan `isValidApiKey` — ini _bukan_
+permukaan manajemen (`/api/keys/…`), yang tetap dilindungi oleh `requireManagementAuth`.
+
+### Persentase Kuota Mentah vs. yang Disesuaikan dengan Batas Penghentian
+
+Saat menggunakan `/api/usage/om-usage`, pemanggil harus memperhatikan perbedaan antara
+persentase yang ditampilkan oleh **output teks biasa** dan **output JSON** terstruktur:
+
+| Aspek                            | Format teks biasa (`/api/usage/om-usage` / `@@om-usage`)                                                                        | Format JSON (`?format=json`)                                             |
+| :------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------- |
+| **Bidang output**                | `NN% left` (misalnya, `20% left`)                                                                                               | `provider.quotas` / `providers[].quotas`                                 |
+| **Pengukuran**                   | **Jatah yang dapat digunakan setelah disesuaikan dengan batas penghentian**: kapasitas tersisa di atas ambang batas penghentian | **Kuota upstream mentah**: pengukuran penyedia yang belum disesuaikan    |
+| **Penskalaan batas penghentian** | Diskalakan melalui `effectiveRemainingPercent()` sehingga cadangan yang dilindungi terbaca sebagai `0% left`                    | Tidak ada (nilai snapshot mentah sebagaimana dilaporkan oleh penyedia)   |
+| **Data ambang batas**            | Diperhitungkan dalam persentase yang ditampilkan                                                                                | Disimpan dalam `quotaWindowThresholds` per koneksi (atau default server) |
+| **Konsumen utama**               | CLI interaktif, prompt terminal, operator manusia                                                                               | Integrasi terprogram, dasbor, analitik, pelacak penagihan                |
+
+#### Rumus Penyesuaian Batas Penghentian
+
+OmniRoute mendukung batas penghentian kuota proaktif untuk mencegah habisnya kuota upstream (dikonfigurasi melalui
+`quotaWindowThresholds` koneksi, default penyedia, atau pengaturan ketahanan global). Ketika ambang batas penghentian
+(misalnya, `cutoff = 25%`) aktif pada jendela kuota, perender teks menghitung jatah tersisa sebagai berikut:
+
+- Jika `remaining <= cutoff`: mengembalikan `0%`.
+- Jika `remaining > cutoff`: mengembalikan `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Output teks yang diformat membulatkan hasil ini ke bilangan bulat terdekat (`Math.round(...)`).
+
+#### Contoh Ilustratif
+
+Pertimbangkan jendela penyedia dengan **penggunaan mentah 60%** (sehingga **kuota mentah tersisa 40%**) dan ambang batas
+**penghentian pada 25% kuota tersisa** yang dikonfigurasi:
+
+| Representasi                     | Perhitungan                                        | Tersisa |             Penggunaan Tersirat             |
+| :------------------------------- | :------------------------------------------------- | :-----: | :-----------------------------------------: |
+| **JSON mentah (`?format=json`)** | Snapshot upstream (`quotas[window]`)               | **40%** |                   **60%**                   |
+| **Format teks (`NN% left`)**     | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (jika menghitung `100 - remaining`) |
+
+- **Mengapa teks menampilkan 20% tersisa:** Dari 40% kuota fisik yang tersisa pada akun, 25% dicadangkan oleh
+  kebijakan batas penghentian. Pemanggil hanya memiliki 15% dari total ruang pemakaian 75% yang masih dapat digunakan sebelum router berhenti
+  merutekan ke koneksi ini. Penskalaan memastikan koneksi menandakan kehabisan kuota (`0% left`) tepat ketika
+  perutean akan dihentikan.
+- **Mengapa JSON mempertahankan nilai mentah:** Payload JSON mengembalikan snapshot penyedia secara persis (`UsageSnapshot`)
+  sehingga alat eksternal memiliki akses ke penggunaan upstream yang sebenarnya dan
+  `quotaWindowThresholds` tingkat koneksi tanpa penskalaan lossy di sisi server.
+
+#### Panduan Migrasi Konsumen
+
+Jika integrasi eksternal (seperti plugin editor atau ekstensi agen) sebelumnya mengambil data dari endpoint teks
+(`NN% left`) dan menghitung persentase penggunaan sebagai `100 - NN`, migrasi ke `?format=json` berarti:
+
+- Membaca nilai JSON mentah akan mencerminkan **konsumsi upstream yang sebenarnya** (60% digunakan dalam contoh di atas).
+- Jika integrasi ingin mempertahankan semantik jatah-yang-dapat-digunakan dari endpoint teks, integrasi tersebut dapat mengevaluasi
+  rumus sisa efektif di sisi klien menggunakan `quotaWindowThresholds` untuk penggantian tingkat koneksi.
 
 ---
 

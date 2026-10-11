@@ -395,44 +395,57 @@ are ca valoare implicită `us-central1`. Ambele rezolvări au loc în `open-sse/
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Returnează toate modelele de chat, embeddings și imagini + combinațiile, în format OpenAI
+→ Returnează toate modelele de chat, embeddings și imagini + combinațiile în format OpenAI
 ```
 
-### Prefixele id-urilor modelelor (`?prefix=`)
+### Prefixele ID-urilor modelelor (`?prefix=`)
 
-Majoritatea modelelor sunt prezentate sub un **prefix al furnizorului**. Prefixul pe care îl primiți este controlat de indicatorul de funcționalitate `MODELS_CATALOG_PREFIX_MODE` și poate fi suprascris **pentru fiecare cerere** cu un parametru de interogare — util pentru un client care dorește o listă simplificată fără a modifica setarea valabilă la nivelul întregului server pentru toți ceilalți:
+Majoritatea modelelor sunt afișate sub un **prefix al furnizorului**. Prefixul primit este controlat de
+indicatorul de funcționalitate `MODELS_CATALOG_PREFIX_MODE` și poate fi suprascris **pentru fiecare solicitare** cu un
+parametru de interogare — util pentru un client care dorește o listă curată fără a modifica setarea la nivelul întregului server
+pentru toți ceilalți:
 
 ```bash
-GET /v1/models?prefix=alias        # un id per model — prefixul scurt de alias
+GET /v1/models?prefix=alias        # un ID per model — prefixul scurt al aliasului
 GET /v1/models?prefix=dual         # ambele forme (valoarea implicită a serverului)
-GET /v1/models?prefix=canonical    # doar prefixul complet al id-ului furnizorului
+GET /v1/models?prefix=canonical    # doar prefixul complet al ID-ului furnizorului
 ```
 
 | Mod         | Emite                                                    | Note                                                                                                                                                                                                                             |
 | ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **și** `claude/claude-sonnet-4-6` | **Implicit.** Ambele id-uri sunt direcționate către același model; sunt păstrate astfel încât configurațiile clienților care au codificat fix oricare dintre forme să funcționeze în continuare. Aproximativ dublează catalogul. |
+| `dual`      | `cc/claude-sonnet-4-6` **și** `claude/claude-sonnet-4-6` | **Implicit.** Ambele ID-uri sunt direcționate către același model; sunt păstrate astfel încât configurațiile clienților care au codificat rigid oricare dintre forme să continue să funcționeze. Aproximativ dublează catalogul. |
 | `alias`     | `cc/claude-sonnet-4-6`                                   | O intrare per model. Furnizorii fără un alias distinct își emit în continuare intrarea, astfel încât nu se pierde nimic.                                                                                                         |
-| `canonical` | `claude/claude-sonnet-4-6`                               | O intrare per model sub prefixul complet al id-ului furnizorului. Furnizorii fără un alias distinct (de ex. `antigravity/…`, `agy/…`) își emit și aici unicul id, astfel încât nu se pierde nimic.                               |
+| `canonical` | `claude/claude-sonnet-4-6`                               | O intrare per model sub prefixul complet al ID-ului furnizorului. Furnizorii fără un alias distinct (de ex. `antigravity/…`, `agy/…`) își emit și aici unicul ID, astfel încât nu se pierde nimic.                               |
 
-O oglindă în modul `dual` poate fi recunoscută și fără parametrul de interogare: conține un câmp `parent` care indică id-ul principal.
+O oglindă în modul `dual` poate fi recunoscută și fără parametrul de interogare: aceasta conține un câmp `parent`
+care indică ID-ul principal.
 
-Clienții care afișează un selector de modele ar trebui să solicite `?prefix=alias` — aceasta este abordarea folosită de [extensia OmniCopilot pentru VS Code](../guides/VSCODE-COPILOT.md).
+Clienții care afișează un selector de modele ar trebui să solicite `?prefix=alias` — aceasta este abordarea utilizată de
+[extensia OmniCopilot pentru VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Modele de chat ascunse individual
 
-Un model marcat ca **Ascuns** pe pagina furnizorului său este exclus din catalog și respins cu HTTP `404` / `model_not_found` când este solicitat explicit. Verificarea folosește furnizorul și modelul determinate, ținând cont de aliasurile furnizorului, prefixele nodurilor furnizorilor compatibili și valorile implicite ale conexiunii. Un combo ignoră țintele ascunse și poate folosi o altă țintă vizibilă; dacă nu mai rămâne nicio țintă executabilă, returnează același cod de eroare. Reafișarea modelului intră în vigoare la următoarea cerere. Suprascrierile de vizibilitate valabile numai pentru imagini nu ascund modelul de chat cu același ID.
+Un model marcat ca **Ascuns** pe pagina furnizorului său este exclus din catalog, iar solicitarea sa
+explicită este respinsă cu HTTP `404` / `model_not_found`. Verificarea utilizează furnizorul și
+modelul rezolvate, inclusiv aliasurile furnizorilor, prefixele nodurilor furnizorilor compatibili și
+valorile implicite ale conexiunilor. O combinație omite destinațiile ascunse și poate utiliza una înrudită vizibilă; când nu
+mai rămâne nicio destinație executabilă, returnează același cod de eroare. Anularea ascunderii intră în vigoare la următoarea
+solicitare. Suprascrierile de vizibilitate valabile doar pentru imagini nu ascund modelul de chat cu același ID.
 
-Această setare individuală este separată de [listele de permitere și blocare a expunerii modelelor](../routing/MODEL_EXPOSURE_LIST.md), care filtrează prezentarea în catalog și candidații pentru rutarea automată, păstrând trimiterea explicită. Permisiunile pentru modele ale cheii API continuă să se aplice independent. Modul implicit al prefixelor din catalog rămâne `dual`.
+Această setare individuală a modelului este separată de
+[listele de permitere/interzicere pentru expunerea modelelor](../routing/MODEL_EXPOSURE_LIST.md), care filtrează
+afișarea în catalog și candidații pentru direcționarea automată, păstrând în același timp expedierea explicită. Permisiunile pentru modele
+ale cheilor API continuă să se aplice independent. Modul implicit pentru prefixele catalogului rămâne `dual`.
 
-### Variante de modele fără raționament
+### Variante de modele fără gândire
 
-Pentru modelele Claude capabile de raționament, `/v1/models` prezintă și o variantă **fără raționament**, al cărei id are prefixul `claude-3-omniroute-no-thinking/`:
+Pentru modelele Claude capabile de gândire, `/v1/models` afișează și o variantă **fără gândire**, al cărei ID este prefixat cu `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Selectarea acestui id (de ex. într-o configurație Claude Code care atașează întotdeauna un bloc `thinking`) se rezolvă înapoi la modelul real `<provider>/<model>`, cu raționamentul suprimat — `thinking:{type:"disabled"}` pe ruta `/v1/messages` sau cu câmpurile `reasoning`/`reasoning_effort` eliminate pe ruta `/v1/chat/completions`. Varianta este listată numai pentru modelele din familia Claude care acceptă raționamentul **și** respectă `disabled` (astfel, de ex., modelele exclusiv adaptive care resping `disabled` sunt excluse). Operatorii pot activa sau dezactiva forțat varianta pentru fiecare model prin `ModelSpec.noThinkingAlias`.
+Selectarea acestui ID (de ex. într-o configurație Claude Code care atașează întotdeauna un bloc `thinking`) este rezolvată înapoi la adevăratul `<provider>/<model>`, cu raționamentul suprimat — `thinking:{type:"disabled"}` pe ruta `/v1/messages` sau câmpurile `reasoning`/`reasoning_effort` eliminate pe ruta `/v1/chat/completions`. Varianta este listată numai pentru modelele din familia Claude care acceptă gândirea **și** respectă `disabled` (astfel, de ex., modelele exclusiv adaptive care resping `disabled` sunt excluse). Operatorii pot activa sau dezactiva forțat varianta pentru fiecare model prin `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -719,21 +732,21 @@ rezultatul.
 
 ## Utilizare în regim self-service (`/api/usage/om-usage`)
 
-Orice cheie API își poate citi **propriile** date de utilizare și cote — fără autentificare de administrare. Acesta este endpoint-ul pe care un
-client (CLI, panoul OmniCopilot) îl folosește pentru a-i afișa deținătorului unei chei consumul său.
+Orice cheie API își poate citi **propriile** date de utilizare și cote — fără autentificare de administrare. Acesta este endpoint-ul pe care îl utilizează un
+client (CLI, panoul OmniCopilot) pentru a-i afișa deținătorului unei chei consumul său.
 
 ```bash
 # Format text (contractul istoric — text simplu pentru un terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Format structurat — ceea ce utilizează o interfață
+# Format structurat — cel utilizat de o interfață
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Cheia trebuie să aibă activată opțiunea **`allowUsageCommand`** (dezactivată implicit — managerul de chei API al panoului de control
-o comută pentru fiecare cheie). Fără aceasta, endpoint-ul răspunde cu `403`.
+Cheia trebuie să aibă opțiunea **`allowUsageCommand`** activată (dezactivată implicit — managerul de chei API
+din panoul de control o comută pentru fiecare cheie). Fără aceasta, endpoint-ul răspunde cu `403`.
 
 `?format=json` returnează o structură discriminată, astfel încât apelantul să nu citească niciodată un câmp de date dintr-un
 refuz. La succes:
@@ -741,7 +754,7 @@ refuz. La succes:
 ```jsonc
 {
   "allowed": true,
-  // prezent numai când cheia a activat limite de utilizare per cheie (USD zilnic/săptămânal):
+  // prezent numai când cheia a optat pentru limite de utilizare per cheie (USD zilnic/săptămânal):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -750,14 +763,14 @@ refuz. La succes:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // instantaneul cotei furnizorului selectat sau null când nimic nu este încă în cache:
+  // instantaneul cotei furnizorului selectat sau null atunci când încă nu există nimic în cache:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // instantaneul fiecărei conexiuni, astfel încât o interfață să poată afișa alăturat mai mulți furnizori:
+  // instantaneul fiecărei conexiuni, astfel încât o interfață să poată afișa mai mulți furnizori alături:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -765,13 +778,64 @@ refuz. La succes:
 }
 ```
 
-În caz de refuz (`401` cheie incorectă / `403` nepermis), aceeași rută returnează
-`{ "allowed": false, "error": { "message": "…" } }` — un `personal`/`provider` prezent, dar gol
-(cheie permisă, încă nu s-a obținut nimic) reprezintă o stare diferită de un refuz și numai formatul JSON
+În caz de refuz (`401` cheie incorectă / `403` acces nepermis), aceeași rută returnează
+`{ "allowed": false, "error": { "message": "…" } }` — un câmp `personal`/`provider` prezent, dar gol
+(cheie permisă, încă nu s-a obținut nimic) reprezintă o stare diferită de un refuz, iar numai formatul JSON
 face distincția între acestea.
 
-**Autentificare:** propria cheie API Bearer a apelantului, validată cu `isValidApiKey` — aceasta _nu_ este
-interfața de administrare (`/api/keys/…`), care rămâne protejată de `requireManagementAuth`.
+**Autentificare:** cheia API Bearer proprie a apelantului, validată cu `isValidApiKey` — aceasta _nu_ este
+suprafața de administrare (`/api/keys/…`), care rămâne protejată de `requireManagementAuth`.
+
+### Procente de cotă brute comparativ cu cele ajustate în funcție de pragul de întrerupere
+
+Când utilizează `/api/usage/om-usage`, apelanții trebuie să țină cont de diferența dintre
+procentele prezentate de **ieșirea în text simplu** și **ieșirea JSON** structurată:
+
+| Aspect                   | Format text simplu (`/api/usage/om-usage` / `@@om-usage`)                                      | Format JSON (`?format=json`)                                                                        |
+| :----------------------- | :--------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------- |
+| **Câmp de ieșire**       | `NN% left` (de exemplu, `20% left`)                                                            | `provider.quotas` / `providers[].quotas`                                                            |
+| **Măsurare**             | **Alocare utilizabilă ajustată în funcție de prag**: capacitatea rămasă peste pragul limită    | **Cotă brută din amonte**: măsurătoarea neajustată a furnizorului                                   |
+| **Scalarea pragului**    | Scalată prin `effectiveRemainingPercent()`, astfel încât rezerva protejată să indice `0% left` | Niciuna (valorile brute ale instantaneului, așa cum sunt raportate de furnizor)                     |
+| **Date despre prag**     | Incluse în procentul afișat                                                                    | Stocate în `quotaWindowThresholds` pentru fiecare conexiune (sau valorile implicite ale serverului) |
+| **Consumator principal** | CLI-uri interactive, solicitări în terminal, operatori umani                                   | Integrări programatice, panouri de control, analiză, instrumente de urmărire a facturării           |
+
+#### Formula de ajustare în funcție de pragul de întrerupere
+
+OmniRoute acceptă praguri proactive de întrerupere a cotelor pentru a preveni epuizarea resurselor din amonte (configurate prin
+`quotaWindowThresholds` ale conexiunii, valorile implicite ale furnizorului sau setările globale de reziliență). Când un prag de întrerupere
+(de exemplu, `cutoff = 25%`) este activ într-o fereastră de cotă, procesul de randare a textului calculează alocarea rămasă astfel:
+
+- Dacă `remaining <= cutoff`: returnează `0%`.
+- Dacă `remaining > cutoff`: returnează `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Ieșirea text formatată rotunjește rezultatul la cel mai apropiat număr întreg (`Math.round(...)`).
+
+#### Exemplu ilustrativ
+
+Să luăm în considerare o fereastră a furnizorului cu **60% utilizare brută** (așadar, **40% cotă brută rămasă**) și un prag configurat de
+**25% cotă rămasă pentru întrerupere**:
+
+| Reprezentare                   | Calcul                                             |  Rămas  |              Utilizare implicită               |
+| :----------------------------- | :------------------------------------------------- | :-----: | :--------------------------------------------: |
+| **JSON brut (`?format=json`)** | Instantaneu din amonte (`quotas[window]`)          | **40%** |                    **60%**                     |
+| **Format text (`NN% left`)**   | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (dacă se calculează `100 - remaining`) |
+
+- **De ce textul afișează 20% rămas:** Din cota fizică de 40% rămasă în cont, 25% este rezervată prin
+  politica pragului de întrerupere. Apelantului îi mai rămân doar 15% din marja utilizabilă de 75% înainte ca routerul să oprească
+  rutarea către această conexiune. Scalarea asigură faptul că respectiva conexiune semnalează epuizarea (`0% left`) exact atunci când
+  rutarea va înceta.
+- **De ce JSON păstrează valorile brute:** Sarcina utilă JSON returnează instantaneul exact al furnizorului (`UsageSnapshot`),
+  astfel încât instrumentele externe să aibă acces la utilizarea reală din amonte și la
+  `quotaWindowThresholds` la nivel de conexiune, fără scalare cu pierderi pe server.
+
+#### Recomandări pentru migrarea consumatorilor
+
+Dacă o integrare externă (cum ar fi un plugin de editor sau o extensie de agent) analiza anterior endpoint-ul text
+(`NN% left`) și calcula procentul utilizat ca `100 - NN`, migrarea la `?format=json` înseamnă:
+
+- Citirea valorilor JSON brute va reflecta **consumul real din amonte** (60% utilizat în exemplul de mai sus).
+- Dacă integrarea dorește să păstreze semantica alocării utilizabile a endpoint-ului text, poate evalua
+  formula efectivă a cotei rămase pe partea clientului, folosind `quotaWindowThresholds` pentru suprascrierile la nivel de conexiune.
 
 ---
 

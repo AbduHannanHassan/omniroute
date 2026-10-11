@@ -400,44 +400,52 @@ Authorization: Bearer your-api-key
 
 ### Model-id-præfikser (`?prefix=`)
 
-De fleste modeller vises under et **udbyderpræfiks**. Hvilket præfiks du får, styres af
-feature-flaget `MODELS_CATALOG_PREFIX_MODE` og kan tilsidesættes **for hver anmodning** med en
-forespørgselsparameter — nyttigt for en klient, der ønsker en enkel liste uden at ændre den
-serveromspændende indstilling for alle andre:
+De fleste modeller annonceres under et **udbyderpræfiks**. Hvilket præfiks du får, styres af
+funktionsflaget `MODELS_CATALOG_PREFIX_MODE` og kan tilsidesættes **for hver anmodning** med en
+forespørgselsparameter — nyttigt for en klient, der ønsker en overskuelig liste uden at ændre
+indstillingen på serverniveau for alle andre:
 
 ```bash
 GET /v1/models?prefix=alias        # ét id pr. model — det korte aliaspræfiks
-GET /v1/models?prefix=dual         # begge former (serverens standardindstilling)
+GET /v1/models?prefix=dual         # begge former (serverens standard)
 GET /v1/models?prefix=canonical    # kun det fulde udbyder-id-præfiks
 ```
 
-| Tilstand    | Returnerer                                               | Bemærkninger                                                                                                                                                                          |
-| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **og** `claude/claude-sonnet-4-6` | **Standard.** Begge id'er dirigeres til den samme model. Dette er bevaret, så klientkonfigurationer, der har hardkodet en af formerne, fortsat fungerer. Fordobler omtrent kataloget. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Én post pr. model. Udbydere uden et særskilt alias returnerer stadig deres post, så intet går tabt.                                                                                   |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Én post pr. model under det fulde udbyder-id-præfiks. Udbydere uden et særskilt alias (f.eks. `antigravity/…`, `agy/…`) returnerer også deres enkelte id her, så intet går tabt.      |
+| Tilstand    | Udsender                                                 | Bemærkninger                                                                                                                                                                       |
+| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **og** `claude/claude-sonnet-4-6` | **Standard.** Begge id'er dirigeres til den samme model. Dette bevares, så klientkonfigurationer, der har hardkodet en af formerne, fortsat fungerer. Fordobler omtrent kataloget. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Én post pr. model. Udbydere uden et særskilt alias udsender stadig deres post, så intet går tabt.                                                                                  |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Én post pr. model under det fulde udbyder-id-præfiks. Udbydere uden et særskilt alias (f.eks. `antigravity/…`, `agy/…`) udsender også deres eneste id her, så intet går tabt.      |
 
-Et spejl i `dual`-tilstand kan også genkendes uden forespørgselsparameteren: Det indeholder et
-`parent`-felt, der peger på det primære id.
+Et spejl i `dual`-tilstand kan også genkendes uden forespørgselsparameteren: Det indeholder et `parent`-felt,
+der peger på det primære id.
 
 Klienter, der viser en modelvælger, bør anmode om `?prefix=alias` — det er det, som
 [OmniCopilot VS Code-udvidelsen](../guides/VSCODE-COPILOT.md) gør.
 
 ### Individuelt skjulte chatmodeller
 
-En model, der er markeret som **Skjult** på sin udbyders side, fjernes fra kataloget og afvises med HTTP `404` / `model_not_found`, når den efterspørges eksplicit. Kontrollen bruger den udbyder og model, der er fundet efter opløsning af udbyderaliaser, præfikser for kompatible udbydernoder og forbindelsens standardværdier. En combo springer skjulte mål over og kan bruge et andet synligt mål; hvis der ikke er nogen eksekverbare mål tilbage, returneres samme fejlkode. Når modellen vises igen, gælder det fra næste anmodning. Tilsidesættelser af synlighed, der kun gælder billeder, skjuler ikke chatmodellen med samme ID.
+En model, der er markeret som **Skjult** på sin udbyderside, udelades fra kataloget og afvises
+med HTTP `404` / `model_not_found`, når der udtrykkeligt anmodes om den. Kontrollen bruger den fundne
+udbyder og model, herunder udbyderaliasser, nodepræfikser for kompatible udbydere og
+standardværdier for forbindelser. En kombination springer skjulte mål over og kan bruge en synlig søstermodel. Når der ikke
+er noget eksekverbart mål tilbage, returnerer den samme fejlkode. En model bliver synlig igen fra og med den næste
+anmodning. Synlighedstilsidesættelser, der kun gælder billeder, skjuler ikke chatmodellen med samme id.
 
-Denne indstilling for den enkelte model er adskilt fra [tilladelses- og blokeringslisterne for modelvisning](../routing/MODEL_EXPOSURE_LIST.md), som filtrerer katalogets udbud og kandidater til automatisk routing, men bevarer eksplicit afsendelse. API-nøglens modeltilladelser gælder fortsat uafhængigt. Katalogets standardtilstand for præfikser er fortsat `dual`.
+Denne individuelle modelindstilling er adskilt fra
+[tilladelses-/afvisningslisterne for modeleksponering](../routing/MODEL_EXPOSURE_LIST.md), som filtrerer katalogets
+annoncering og kandidater til automatisk dirigering, samtidig med at eksplicit videresendelse bevares. Modeltilladelser
+for API-nøgler gælder fortsat uafhængigt. Katalogets standardpræfikstilstand er fortsat `dual`.
 
 ### Modelvarianter uden tænkning
 
-For Claude-modeller med tænkeevne viser `/v1/models` også en **variant uden tænkning**, hvis id har præfikset `claude-3-omniroute-no-thinking/`:
+For Claude-modeller med understøttelse af tænkning annoncerer `/v1/models` også en variant **uden tænkning**, hvis id har præfikset `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Hvis dette id vælges (f.eks. i en Claude Code-konfiguration, der altid vedhæfter en `thinking`-blok), fortolkes det som den faktiske `<provider>/<model>` med ræsonnering deaktiveret — `thinking:{type:"disabled"}` på `/v1/messages`-stien, eller med felterne `reasoning`/`reasoning_effort` udeladt på `/v1/chat/completions`-stien. Varianten vises kun for modeller i Claude-familien, som understøtter tænkning **og** respekterer `disabled` (så f.eks. modeller, der kun understøtter adaptiv tænkning og afviser `disabled`, er udeladt). Operatører kan gennemtvinge, at varianten aktiveres eller deaktiveres for hver model via `ModelSpec.noThinkingAlias`.
+Når dette id vælges (f.eks. i en Claude Code-konfiguration, der altid vedhæfter en `thinking`-blok), føres det tilbage til den faktiske `<provider>/<model>` med ræsonnering deaktiveret — `thinking:{type:"disabled"}` på `/v1/messages`-stien, eller med felterne `reasoning`/`reasoning_effort` fjernet på `/v1/chat/completions`-stien. Varianten vises kun for modeller i Claude-familien, som understøtter tænkning **og** respekterer `disabled` (så f.eks. modeller, der kun er adaptive og afviser `disabled`, udelades). Operatører kan gennemtvinge, at varianten er slået til eller fra for hver model via `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -723,9 +731,9 @@ fuldførelsen.
 
 ---
 
-## Selvbetjent forbrug (`/api/usage/om-usage`)
+## Selvbetjeningsforbrug (`/api/usage/om-usage`)
 
-Enhver API-nøgle kan aflæse **sit eget** forbrug og sine egne kvoter — ingen administrationsgodkendelse. Dette er det slutpunkt, som en
+Enhver API-nøgle kan læse **sit eget** forbrug og sine egne kvoter — uden administrationsgodkendelse. Dette er slutpunktet, som en
 klient (CLI, OmniCopilot-panelet) bruger til at vise en nøgleindehaver vedkommendes forbrug.
 
 ```bash
@@ -747,7 +755,7 @@ afslag. Ved succes:
 ```jsonc
 {
   "allowed": true,
-  // findes kun, når nøglen har tilvalgt forbrugsgrænser pr. nøgle (daglige/ugentlige USD):
+  // findes kun, når nøglen har tilvalgt forbrugsgrænser pr. nøgle (dagligt/ugentligt i USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -756,14 +764,14 @@ afslag. Ved succes:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // det valgte snapshot af udbyderkvoten eller null, når intet endnu er cachelagret:
+  // det valgte øjebliksbillede af udbyderkvoten eller null, når intet endnu er cachelagret:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // snapshots for alle forbindelser, så en brugergrænseflade kan vise flere udbydere side om side:
+  // øjebliksbilledet for hver forbindelse, så en brugergrænseflade kan vise flere udbydere side om side:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -772,12 +780,63 @@ afslag. Ved succes:
 ```
 
 Ved afslag (`401` ugyldig nøgle / `403` ikke tilladt) returnerer den samme rute
-`{ "allowed": false, "error": { "message": "…" } }` — en tilstedeværende, men tom `personal`/`provider`
-(nøglen er tilladt, men der er endnu ikke registreret noget) er en anden tilstand end et afslag, og kun JSON-formatet
+`{ "allowed": false, "error": { "message": "…" } }` — et tilstedeværende, men tomt `personal`/`provider`
+(nøglen er tilladt, men intet er endnu registreret) er en anden tilstand end et afslag, og kun JSON-formatet
 skelner mellem dem.
 
-**Godkendelse:** kalderens egen Bearer-API-nøgle, valideret med `isValidApiKey` — dette er _ikke_
+**Godkendelse:** kalderens egen Bearer API-nøgle, valideret med `isValidApiKey` — dette er _ikke_
 administrationsgrænsefladen (`/api/keys/…`), som fortsat er beskyttet af `requireManagementAuth`.
+
+### Rå kontra cutoff-justerede kvoteprocenter
+
+Ved brug af `/api/usage/om-usage` bør kaldere være opmærksomme på forskellen mellem de
+procenter, der vises i **output i almindelig tekst**, og det strukturerede **JSON-output**:
+
+| Aspekt               | Format i almindelig tekst (`/api/usage/om-usage` / `@@om-usage`)                          | JSON-format (`?format=json`)                                            |
+| :------------------- | :---------------------------------------------------------------------------------------- | :---------------------------------------------------------------------- |
+| **Outputfelt**       | `NN% left` (f.eks. `20% left`)                                                            | `provider.quotas` / `providers[].quotas`                                |
+| **Måling**           | **Cutoff-justeret anvendelig kvote**: resterende kapacitet over cutoff-grænsen            | **Rå upstream-kvote**: ujusteret måling fra udbyderen                   |
+| **Cutoff-skalering** | Skaleret via `effectiveRemainingPercent()`, så den beskyttede reserve vises som `0% left` | Ingen (rå øjebliksbilledværdier som rapporteret af udbyderen)           |
+| **Grænsedata**       | Indarbejdet i den viste procent                                                           | Gemt i `quotaWindowThresholds` pr. forbindelse (eller serverstandarder) |
+| **Primær forbruger** | Interaktive CLI'er, terminalprompter, menneskelige operatører                             | Programmatiske integrationer, dashboards, analyse, faktureringssporere  |
+
+#### Formlen for cutoff-justering
+
+OmniRoute understøtter proaktive kvote-cutoffs for at forhindre udtømning hos upstream-udbyderen (konfigureret via forbindelsens
+`quotaWindowThresholds`, udbyderstandarder eller globale robusthedsindstillinger). Når en cutoff-grænse
+(f.eks. `cutoff = 25%`) er aktiv for et kvotevindue, beregner tekst-rendereren den resterende kvote således:
+
+- Hvis `remaining <= cutoff`: returneres `0%`.
+- Hvis `remaining > cutoff`: returneres `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Det formaterede tekstoutput afrunder dette til nærmeste heltal (`Math.round(...)`).
+
+#### Illustrativt eksempel
+
+Betragt et udbydervindue med **60% råt forbrug** (og dermed **40% rå resterende kvote**) og en konfigureret
+**cutoff-grænse på 25% resterende kvote**:
+
+| Repræsentation               | Beregning                                          | Resterende |               Implicit forbrugt               |
+| :--------------------------- | :------------------------------------------------- | :--------: | :-------------------------------------------: |
+| **Rå JSON (`?format=json`)** | Upstream-øjebliksbillede (`quotas[window]`)        |  **40%**   |                    **60%**                    |
+| **Tekstformat (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**   | **80%** (hvis beregnet som `100 - remaining`) |
+
+- **Hvorfor teksten viser 20% tilbage:** Af de 40% fysiske kvote, der er tilbage på kontoen, reserveres 25% af
+  cutoff-politikken. Kalderen har kun 15% ud af 75% anvendeligt råderum tilbage, før routeren stopper med at
+  dirigere trafik til denne forbindelse. Skaleringen sikrer, at forbindelsen signalerer udtømning (`0% left`), præcis når
+  dirigeringen ophører.
+- **Hvorfor JSON bevarer rå værdier:** JSON-nyttelasten returnerer det nøjagtige øjebliksbillede fra udbyderen (`UsageSnapshot`),
+  så eksterne værktøjer har adgang til den faktiske upstream-udnyttelse og `quotaWindowThresholds`
+  på forbindelsesniveau uden serverbaseret tabsgivende skalering.
+
+#### Vejledning til migrering for forbrugere
+
+Hvis en ekstern integration (f.eks. et editor-plugin eller en agentudvidelse) tidligere udtrak data fra tekstslutpunktet
+(`NN% left`) og beregnede den forbrugte procent som `100 - NN`, betyder en migrering til `?format=json`:
+
+- Aflæsning af rå JSON-værdier afspejler **det faktiske upstream-forbrug** (60% forbrugt i eksemplet ovenfor).
+- Hvis integrationen ønsker at bevare tekstslutpunktets semantik for anvendelig kvote, kan den evaluere
+  formlen for effektiv resterende kvote på klientsiden ved hjælp af `quotaWindowThresholds` til tilsidesættelser på forbindelsesniveau.
 
 ---
 

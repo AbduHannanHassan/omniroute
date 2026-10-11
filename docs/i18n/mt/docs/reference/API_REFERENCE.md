@@ -389,18 +389,18 @@ jieħu l-valur predefinit `us-central1`. Iż-żewġ riżoluzzjonijiet iseħħu f
 
 ---
 
-## Elenka tal-Mudelli
+## Elenka l-Mudelli
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Jirritorna l-mudelli kollha taċ-chat, tal-inkorporazzjoni u tal-immaġnijiet + il-kombinazzjonijiet fil-format ta’ OpenAI
+→ Jirritorna l-mudelli kollha taċ-chat, tal-embedding u tal-immaġnijiet + il-kombinazzjonijiet fil-format ta’ OpenAI
 ```
 
-### Prefissi tal-id tal-mudell (`?prefix=`)
+### Prefissi tal-id tal-mudelli (`?prefix=`)
 
-Il-biċċa l-kbira tal-mudelli jiġu ppubblikati taħt **prefiss tal-fornitur**. Il-prefiss li tikseb huwa kkontrollat mill-feature flag `MODELS_CATALOG_PREFIX_MODE`, u jista’ jiġi sostitwit **għal kull talba** permezz ta’ parametru tal-query — utli għal klijent li jrid lista nadifa mingħajr ma jibdel l-issettjar ġenerali tas-server għal kulħadd:
+Il-biċċa l-kbira tal-mudelli jiġu ppubblikati taħt **prefiss tal-fornitur**. Il-prefiss li tikseb huwa kkontrollat mill-feature flag `MODELS_CATALOG_PREFIX_MODE`, u jista’ jiġi sostitwit **għal kull talba** permezz ta’ parametru tal-query — utli għal klijent li jixtieq lista nadifa mingħajr ma jibdel l-issettjar tas-server kollu għall-oħrajn kollha:
 
 ```bash
 GET /v1/models?prefix=alias        # id wieħed għal kull mudell — il-prefiss qasir tal-alias
@@ -408,31 +408,31 @@ GET /v1/models?prefix=dual         # iż-żewġ forom (il-valur predefinit tas-s
 GET /v1/models?prefix=canonical    # il-prefiss sħiħ tal-id tal-fornitur biss
 ```
 
-| Modalità    | Joħroġ                                                  | Noti                                                                                                                                                                                                                                 |
-| ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dual`      | `cc/claude-sonnet-4-6` **u** `claude/claude-sonnet-4-6` | **Predefinita.** Iż-żewġ ids jiġu diretti lejn l-istess mudell; dan jinżamm sabiex il-konfigurazzjonijiet tal-klijenti li għandhom waħda miż-żewġ forom miktuba direttament jibqgħu jaħdmu. Bejn wieħed u ieħor jirdoppja l-katalgu. |
-| `alias`     | `cc/claude-sonnet-4-6`                                  | Entrata waħda għal kull mudell. Il-fornituri mingħajr alias distint xorta joħorġu l-entrata tagħhom, għalhekk ma jintilef xejn.                                                                                                      |
-| `canonical` | `claude/claude-sonnet-4-6`                              | Entrata waħda għal kull mudell taħt il-prefiss sħiħ tal-id tal-fornitur. Il-fornituri mingħajr alias distint (eż. `antigravity/…`, `agy/…`) joħorġu l-id uniku tagħhom hawn ukoll, għalhekk ma jintilef xejn.                        |
+| Modalità    | Joħroġ                                                  | Noti                                                                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **u** `claude/claude-sonnet-4-6` | **Predefinita.** Iż-żewġ ids jiġu diretti lejn l-istess mudell; inżammu sabiex il-konfigurazzjonijiet tal-klijenti li kkodifikaw direttament xi waħda mill-forom jibqgħu jaħdmu. Bejn wieħed u ieħor tirdoppja l-katalgu. |
+| `alias`     | `cc/claude-sonnet-4-6`                                  | Entrata waħda għal kull mudell. Il-fornituri mingħajr alias distint xorta joħorġu l-entrata tagħhom, għalhekk ma jintilef xejn.                                                                                           |
+| `canonical` | `claude/claude-sonnet-4-6`                              | Entrata waħda għal kull mudell taħt il-prefiss sħiħ tal-id tal-fornitur. Il-fornituri mingħajr alias distint (eż. `antigravity/…`, `agy/…`) joħorġu l-id uniku tagħhom hawnhekk ukoll, għalhekk ma jintilef xejn.         |
 
-Mera fil-modalità `dual` tista’ tiġi rikonoxxuta wkoll mingħajr il-parametru tal-query: ikollha field `parent` li jindika l-id primarju.
+Mirror fil-modalità `dual` jista’ jiġi rikonoxxut ukoll mingħajr il-parametru tal-query: ikollu field `parent` li jipponta lejn l-id primarju.
 
 Il-klijenti li jirrendu selettur tal-mudelli għandhom jitolbu `?prefix=alias` — dan huwa dak li tagħmel l-[estensjoni OmniCopilot għal VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Mudelli taċ-chat moħbija individwalment
 
-Mudell immarkat bħala **Moħbi** fil-paġna tal-fornitur tiegħu jitneħħa mill-katalgu u jiġi miċħud b’HTTP `404` / `model_not_found` meta jintalab b’mod espliċitu. Il-verifika tuża l-fornitur u l-mudell identifikati, billi tqis l-ismijiet alternattivi tal-fornitur, il-prefissi tan-nodi ta’ fornituri kompatibbli u l-valuri prestabbiliti tal-konnessjoni. Combo jaqbeż il-miri moħbija u jista’ juża mira oħra viżibbli; jekk ma tibqa’ ebda mira li tista’ titħaddem, jirritorna l-istess kodiċi tal-iżball. Meta l-mudell jerġa’ jintwera, il-bidla tidħol fis-seħħ mit-talba li jmiss. Is-settings ta’ viżibbiltà speċifiċi għall-immaġnijiet biss ma jaħbux il-mudell taċ-chat bl-istess ID.
+Mudell immarkat bħala **Moħbi** fil-paġna tal-fornitur tiegħu jiġi eskluż mill-katalgu u miċħud b’HTTP `404` / `model_not_found` meta jintalab espliċitament. Il-verifika tuża l-fornitur u l-mudell riżolti, inklużi l-aliases tal-fornituri, il-prefissi tan-nodi ta’ fornituri kompatibbli, u l-valuri predefiniti tal-konnessjoni. Kombinazzjoni taqbeż il-miri moħbija u tista’ tuża mudell aħwa viżibbli; meta ma jibqa’ ebda mira eżegwibbli, tirritorna l-istess kodiċi ta’ żball. It-tneħħija tal-ħabi tidħol fis-seħħ mat-talba li jmiss. Is-sostituzzjonijiet tal-viżibbiltà għall-immaġnijiet biss ma jaħbux il-mudell taċ-chat bl-istess ID.
 
-Dan is-setting għal kull mudell huwa separat mil-[listi ta’ permess u ta’ ċaħda għall-espożizzjoni tal-mudelli](../routing/MODEL_EXPOSURE_LIST.md), li jiffiltraw il-wiri fil-katalgu u l-kandidati għar-routing awtomatiku filwaqt li jżommu t-trażmissjoni espliċita. Il-permessi tal-mudelli taċ-ċavetta API jibqgħu japplikaw b’mod indipendenti. Il-modalità prestabbilita tal-prefissi tal-katalgu tibqa’ `dual`.
+Dan l-issettjar individwali tal-mudell huwa separat mil-[listi ta’ permess/projbizzjoni għall-esponiment tal-mudelli](../routing/MODEL_EXPOSURE_LIST.md), li jiffiltraw ir-reklamar fil-katalgu u l-kandidati għad-direzzjonar awtomatiku filwaqt li jżommu d-dispaċċ espliċitu. Il-permessi tal-mudelli skont l-API key jibqgħu japplikaw b’mod indipendenti. Il-modalità predefinita tal-prefiss tal-katalgu tibqa’ `dual`.
 
 ### Varjanti tal-mudelli mingħajr ħsieb
 
-Għall-mudelli Claude li għandhom il-kapaċità tal-ħsieb, `/v1/models` jirreklama wkoll varjant **mingħajr ħsieb** li l-id tiegħu jkollu l-prefiss `claude-3-omniroute-no-thinking/`:
+Għall-mudelli Claude li kapaċi jaħsbu, `/v1/models` jirreklama wkoll varjant **mingħajr ħsieb** li l-id tiegħu jkollu l-prefiss `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Meta jintgħażel dan l-id (eż. f’konfigurazzjoni ta’ Claude Code li dejjem tehmeż blokk `thinking`), dan jiġi riżolt lura għall-`<provider>/<model>` reali bir-raġunament imrażżan — `thinking:{type:"disabled"}` fuq il-passaġġ `/v1/messages`, jew bil-fields `reasoning`/`reasoning_effort` imneħħija fuq il-passaġġ `/v1/chat/completions`. Il-varjant jiġi elenkat biss għal mudelli tal-familja Claude li jappoġġjaw il-ħsieb **u** jirrispettaw `disabled` (għalhekk, eż., mudelli adaptive-only li jirrifjutaw `disabled` huma esklużi). L-operaturi jistgħu jimponu li l-varjant ikun attivat jew diżattivat għal kull mudell permezz ta’ `ModelSpec.noThinkingAlias`.
+L-għażla ta’ dan l-id (eż. f’konfigurazzjoni ta’ Claude Code li dejjem tehmeż blokka `thinking`) terġa’ tirriżolvi għall-`<provider>/<model>` reali bir-raġunament imrażżan — `thinking:{type:"disabled"}` fuq il-path `/v1/messages`, jew bil-fields `reasoning`/`reasoning_effort` imneħħija fuq il-path `/v1/chat/completions`. Il-varjant jiġi elenkat biss għal mudelli tal-familja Claude li jappoġġjaw il-ħsieb **u** jirrispettaw `disabled` (għalhekk, eż., mudelli adaptive-only li jirrifjutaw `disabled` jiġu esklużi). L-operaturi jistgħu jisfurzaw il-varjant mixgħul jew mitfi għal kull mudell permezz ta’ `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -721,21 +721,21 @@ il-kompletament.
 
 ## Użu self-service (`/api/usage/om-usage`)
 
-Kwalunkwe ċavetta API tista’ taqra l-użu u l-kwoti **tagħha stess** — mingħajr awtentikazzjoni tal-ġestjoni. Dan huwa l-endpoint li
+Kwalunkwe ċavetta API tista’ taqra l-użu u l-kwoti **tagħha stess** — mingħajr awtentikazzjoni ta’ ġestjoni. Dan huwa l-endpoint li
 klijent (CLI, il-pannell OmniCopilot) juża biex juri lid-detentur taċ-ċavetta l-infiq tiegħu.
 
 ```bash
-# Format ta’ test (il-kuntratt storiku — test sempliċi għal terminal)
+# Forma testwali (il-kuntratt storiku — test sempliċi għal terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Format strutturat — dak li tuża UI
+# Forma strutturata — dik li tikkonsma UI
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
 Iċ-ċavetta jrid ikollha **`allowUsageCommand`** attivat (diżattivat b’mod awtomatiku — il-maniġer taċ-ċwievet API
-tad-dashboard jaqilbu għal kull ċavetta). Mingħajru, l-endpoint iwieġeb `403`.
+tad-dashboard jaqilbu għal kull ċavetta). Mingħajru, l-endpoint iwieġeb b’`403`.
 
 `?format=json` jirritorna struttura diskriminata sabiex min isejjaħ qatt ma jaqra kamp tad-data minn
 rifjut. F’każ ta’ suċċess:
@@ -752,14 +752,14 @@ rifjut. F’każ ta’ suċċess:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // stampa tal-kwota tal-fornitur magħżul, jew null meta għad m’hemm xejn fil-cache:
+  // snapshot tal-kwota tal-provider magħżul, jew null meta jkun għadu ma ġie cachejat xejn:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // stampa ta’ kull konnessjoni, sabiex UI tkun tista’ tirrendi diversi fornituri maġenb xulxin:
+  // is-snapshot ta’ kull konnessjoni, sabiex UI tkun tista’ tirrendi diversi providers maġenb xulxin:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -767,13 +767,64 @@ rifjut. F’każ ta’ suċċess:
 }
 ```
 
-F’każ ta’ rifjut (`401` ċavetta ħażina / `403` mhux permess), l-istess rotta tirritorna
+F’każ ta’ rifjut (`401` ċavetta ħażina / `403` mhux permess), l-istess route jirritorna
 `{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` preżenti iżda vojt
-(iċ-ċavetta permessa, iżda għadu ma nkiseb xejn) huwa stat differenti minn rifjut, u l-format JSON biss
-jiddistingwihom.
+(iċ-ċavetta permessa, iżda għadu ma nkiseb xejn) huwa stat differenti minn rifjut, u l-forma JSON biss
+tiddistingwi bejniethom.
 
-**Awtentikazzjoni:** iċ-ċavetta API Bearer ta’ min isejjaħ stess, ivvalidata b’`isValidApiKey` — din _mhijiex_ l-interfaċċa
-tal-ġestjoni (`/api/keys/…`), li tibqa’ protetta minn `requireManagementAuth`.
+**Awtentikazzjoni:** iċ-ċavetta API Bearer ta’ min isejjaħ stess, ivvalidata b’`isValidApiKey` — din _mhijiex_
+l-interfaċċa ta’ ġestjoni (`/api/keys/…`), li tibqa’ protetta minn `requireManagementAuth`.
+
+### Perċentwali tal-Kwoti Mhux Aġġustati vs. Aġġustati skont il-Limitu
+
+Meta jikkonsmaw `/api/usage/om-usage`, dawk li jsejħu għandhom jinnotaw id-distinzjoni bejn il-
+perċentwali ppreżentati mill-**output b’test sempliċi** u mill-**output JSON** strutturat:
+
+| Aspett                  | Format b’test sempliċi (`/api/usage/om-usage` / `@@om-usage`)                                           | Format JSON (`?format=json`)                                                               |
+| :---------------------- | :------------------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------------- |
+| **Kamp tal-output**     | `NN% left` (eż., `20% left`)                                                                            | `provider.quotas` / `providers[].quotas`                                                   |
+| **Kejl**                | **Allokazzjoni utilizzabbli aġġustata skont il-limitu**: kapaċità li fadal ’il fuq mil-limitu ta’ qtugħ | **Kwota mhux aġġustata upstream**: kejl tal-provider mhux aġġustat                         |
+| **Skalar tal-limitu**   | Skalata permezz ta’ `effectiveRemainingPercent()` sabiex ir-riżerva protetta tidher bħala `0% left`     | L-ebda wieħed (valuri tas-snapshot mhux aġġustati kif irrappurtati mill-provider)          |
+| **Data tal-limitu**     | Inkorporata fil-perċentwal muri                                                                         | Maħżuna f’`quotaWindowThresholds` għal kull konnessjoni (jew valuri awtomatiċi tas-server) |
+| **Konsumatur primarju** | CLIs interattivi, prompts tat-terminal, operaturi umani                                                 | Integrazzjonijiet programmatiċi, dashboards, analitika, trackers tal-kontijiet             |
+
+#### Il-Formula tal-Aġġustament skont il-Limitu
+
+OmniRoute jappoġġja qtugħ proattiv tal-kwoti biex jipprevjeni l-eżawriment upstream (ikkonfigurat permezz ta’
+`quotaWindowThresholds` tal-konnessjoni, valuri awtomatiċi tal-provider, jew settings globali tar-reżiljenza). Meta limitu ta’ qtugħ
+(eż., `cutoff = 25%`) ikun attiv fuq tieqa tal-kwota, ir-renderer tat-test jikkalkula l-allokazzjoni li fadal hekk:
+
+- Jekk `remaining <= cutoff`: jirritorna `0%`.
+- Jekk `remaining > cutoff`: jirritorna `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+L-output testwali fformattjat jarrotonda dan għall-eqreb numru sħiħ (`Math.round(...)`).
+
+#### Eżempju Illustrattiv
+
+Ikkunsidra tieqa ta’ provider b’**60% użu mhux aġġustat** (għalhekk **40% tal-kwota mhux aġġustata għadha disponibbli**) u limitu kkonfigurat
+ta’ **qtugħ meta jkun fadal 25% tal-kwota**:
+
+| Rappreżentazzjoni                       | Kalkolu                                            | Li Fadal |                  Użu Impliċitu                  |
+| :-------------------------------------- | :------------------------------------------------- | :------: | :---------------------------------------------: |
+| **JSON mhux aġġustat (`?format=json`)** | Snapshot upstream (`quotas[window]`)               | **40%**  |                     **60%**                     |
+| **Format testwali (`NN% left`)**        | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%**  | **80%** (jekk jiġi kkalkulat `100 - remaining`) |
+
+- **Għaliex it-test juri 20% li fadal:** Mill-40% tal-kwota fiżika li fadal fil-kont, 25% hija riżervata mill-
+  politika tal-qtugħ. Min isejjaħ għandu biss 15% minn 75% ta’ marġni utilizzabbli disponibbli qabel ma r-router jieqaf
+  jidderieġi lejn din il-konnessjoni. L-iskalar jiżgura li l-konnessjoni tindika eżawriment (`0% left`) eżattament meta
+  d-direzzjonar jieqaf.
+- **Għaliex JSON iżomm il-valuri mhux aġġustati:** Il-payload JSON jirritorna s-snapshot eżatt tal-provider (`UsageSnapshot`)
+  sabiex għodod esterni jkollhom aċċess għall-utilizzazzjoni upstream reali u għal
+  `quotaWindowThresholds` fil-livell tal-konnessjoni mingħajr skalar b’telf min-naħa tas-server.
+
+#### Gwida għall-Migrazzjoni tal-Konsumaturi
+
+Jekk integrazzjoni esterna (bħal plugin ta’ editur jew estensjoni ta’ aġent) qabel kienet testratta d-data mill-endpoint
+testwali (`NN% left`) u tikkalkula l-perċentwal użat bħala `100 - NN`, il-migrazzjoni għal `?format=json` tfisser:
+
+- Il-qari tal-valuri JSON mhux aġġustati jirrifletti l-**konsum upstream reali** (60% użat fl-eżempju ta’ hawn fuq).
+- Jekk l-integrazzjoni tixtieq iżżomm is-semantika tal-allokazzjoni utilizzabbli tal-endpoint testwali, tista’ tevalwa
+  l-formula effettiva ta’ dak li fadal fuq in-naħa tal-klijent billi tuża `quotaWindowThresholds` għal overrides fil-livell tal-konnessjoni.
 
 ---
 

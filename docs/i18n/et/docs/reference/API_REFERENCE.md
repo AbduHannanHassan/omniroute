@@ -395,49 +395,57 @@ vaikimisi on `us-central1`. Mõlemad lahendused toimuvad failis `open-sse/handle
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Tagastab kõik vestlus-, embeddingu- ja pildimudelid ning kombinatsioonid OpenAI formaadis
+→ Tagastab kõik vestlus-, manus- ja pildimudelid ning kombinatsioonid OpenAI vormingus
 ```
 
-### Mudeli id eesliited (`?prefix=`)
+### Mudeli ID prefiksid (`?prefix=`)
 
-Enamik mudeleid on reklaamitud **teenusepakkuja eesliite** all. Millist eesliidet saad, määrab
-`MODELS_CATALOG_PREFIX_MODE` funktsioonilipp, ja seda saab **päringu kaupa** üle kirjutada
-päringuparameetriga — kasulik kliendile, kes soovib puhast loendit, muutmata serveripoolset
-seadistust kõigi teiste jaoks:
+Enamik mudeleid avaldatakse **pakkuja prefiksiga**. Kasutatavat prefiksit juhib
+funktsioonilipp `MODELS_CATALOG_PREFIX_MODE` ning selle saab alistada **iga päringu puhul eraldi**
+päringuparameetriga — see on kasulik kliendile, mis soovib puhast loendit, muutmata kõigi teiste
+jaoks kogu serverit hõlmavat seadistust:
 
 ```bash
-GET /v1/models?prefix=alias        # üks id mudeli kohta — lühike aliase eesliide
-GET /v1/models?prefix=dual         # mõlemad vormid (serveri vaikeseadistus)
-GET /v1/models?prefix=canonical    # ainult täielik teenusepakkuja-id eesliide
+GET /v1/models?prefix=alias        # üks ID mudeli kohta — lühike pseudonüümi prefiks
+GET /v1/models?prefix=dual         # mõlemad vormid (serveri vaikeväärtus)
+GET /v1/models?prefix=canonical    # ainult täielik pakkuja ID prefiks
 ```
 
-| Režiim      | Väljastab                                                | Märkused                                                                                                                                                                                                             |
-| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **ja** `claude/claude-sonnet-4-6` | **Vaikimisi.** Mõlemad id-d suunavad samale mudelile; säilitatud, et kliendikonfiguratsioonid, mis kasutasid kõvakoodituna ükskõik kumba vormi, jätkaksid toimimist. Suurendab kataloogi mahtu peaaegu kahekordseks. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Üks kirje mudeli kohta. Teenusepakkujad, kellel puudub eraldi alias, väljastavad ikkagi oma kirje, nii et midagi ei jää kaduma.                                                                                      |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Üks kirje mudeli kohta täieliku teenusepakkuja-id eesliite all. Teenusepakkujad, kellel puudub eraldi alias (nt `antigravity/…`, `agy/…`), väljastavad siin oma ainsa id, nii et midagi ei jää kaduma.               |
+| Režiim      | Väljastab                                                | Märkused                                                                                                                                                                                        |
+| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **ja** `claude/claude-sonnet-4-6` | **Vaikeväärtus.** Mõlemad ID-d suunatakse samale mudelile; see on säilitatud, et kummagi vormi püsikodeerinud kliendikonfiguratsioonid töötaksid edasi. Kataloogi maht ligikaudu kahekordistub. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Üks kirje mudeli kohta. Eraldi pseudonüümita pakkujad väljastavad endiselt oma kirje, seega ei lähe midagi kaotsi.                                                                              |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Üks kirje mudeli kohta täieliku pakkuja ID prefiksiga. Eraldi pseudonüümita pakkujad (nt `antigravity/…`, `agy/…`) väljastavad ka siin oma ainsa ID, seega ei lähe midagi kaotsi.               |
 
-`dual`-režiimi peegeldust saab tuvastada ka ilma päringuparameetrita: sellel on `parent`
-väli, mis viitab peamisele id-le.
+`dual`-režiimis peegli saab tuvastada ka ilma päringuparameetrita: sellel on esmasele ID-le
+osutav väli `parent`.
 
-Kliendid, mis kuvavad mudeli valija, peaksid päringu tegema `?prefix=alias` — see on see, mida
-[OmniCopilot VS Code laiendus](../guides/VSCODE-COPILOT.md) teeb.
+Mudeli valikut kuvavad kliendid peaksid pärima `?prefix=alias` — nii teeb
+[OmniCopiloti VS Code'i laiendus](../guides/VSCODE-COPILOT.md).
 
-### Eraldi peidetud vestlusmudelid
+### Üksikult peidetud vestlusmudelid
 
-Mudel, mis on pakkuja lehel märgitud **Peidetuks**, jäetakse kataloogist välja ning selle otsene päring lükatakse tagasi vastusega HTTP `404` / `model_not_found`. Kontroll kasutab lahendatud pakkujat ja mudelit, arvestades pakkuja aliaseid, ühilduvate pakkujate sõlmede eesliiteid ning ühenduse vaikeväärtusi. Combo jätab peidetud sihtmärgid vahele ja võib kasutada mõnda teist nähtavat sihtmärki; kui ühtegi käivitatavat sihtmärki ei jää, tagastab see sama veakoodi. Mudeli taasnähtavaks tegemine jõustub järgmisest päringust. Ainult piltidele kehtivad nähtavuse ülekirjutused ei peida sama ID-ga vestlusmudelit.
+Pakkuja lehel olekuga **Peidetud** märgitud mudel jäetakse kataloogist välja ja selle otsesel
+pärimisel tagastatakse HTTP `404` / `model_not_found`. Kontroll kasutab lahendatud
+pakkujat ja mudelit, sealhulgas pakkuja pseudonüüme, ühilduva pakkuja sõlme prefikseid ning
+ühenduse vaikeväärtusi. Kombinatsioon jätab peidetud sihtmärgid vahele ja võib kasutada nähtavat samaväärset mudelit; kui
+ühtegi käivitatavat sihtmärki ei jää, tagastab see sama veakoodi. Peitmise tühistamine jõustub järgmise
+päringuga. Ainult piltidele rakenduvad nähtavuse alistused ei peida sama ID-ga vestlusmudelit.
 
-See mudelipõhine säte on eraldi [mudelite avaldamise lubamis- ja keelamisloenditest](../routing/MODEL_EXPOSURE_LIST.md), mis filtreerivad kataloogis esitatavaid mudeleid ja automaatse marsruutimise kandidaate, säilitades otsese väljakutsumise. API-võtme mudeliõigused kehtivad endiselt sõltumatult. Kataloogi eesliidete vaikerežiim jääb `dual`.
+See individuaalne mudelisäte on eraldiseisev
+[mudelite nähtavaks tegemise lubamis-/keelamisloenditest](../routing/MODEL_EXPOSURE_LIST.md), mis filtreerivad kataloogis
+avaldatavaid mudeleid ja automaatse marsruutimise kandidaate, säilitades samal ajal otsese suunamise. API-võtme mudeliload
+rakenduvad endiselt sõltumatult. Kataloogi prefiksirežiimi vaikeväärtus on jätkuvalt `dual`.
 
-### Mittemõtlevad mudelivariandid
+### Mõtlemiseta mudelivariandid
 
-Mõtlemisvõimeliste Claude mudelite jaoks reklaamib `/v1/models` ka **mittemõtlemise** varianti, mille id-le on lisatud eesliide `claude-3-omniroute-no-thinking/`:
+Mõtlemisvõimeliste Claude'i mudelite jaoks avaldab `/v1/models` ka **mõtlemiseta** variandi, mille ID eesliide on `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Selle id valimine (nt Claude Code konfiguratsioonis, mis lisab alati `thinking` bloki) lahendub tagasi tegeliku `<provider>/<model>` peale, kusjuures põhjendamine (reasoning) on maha surutud — `thinking:{type:"disabled"}` `/v1/messages` teel, või `reasoning`/`reasoning_effort` väljad jäetakse `/v1/chat/completions` teel välja. Variant on loetletud ainult Claude-perekonna mudelite jaoks, mis toetavad mõtlemist **ja** aktsepteerivad `disabled` väärtust (nii et nt ainult-adaptiivsed mudelid, mis lükkavad `disabled` tagasi, on välja jäetud). Operaatorid saavad varianti mudeli kaupa sundlubada või -keelata `ModelSpec.noThinkingAlias` kaudu.
+Selle ID valimine (nt Claude Code'i konfiguratsioonis, mis lisab alati ploki `thinking`) lahendatakse tagasi tegelikuks `<provider>/<model>` mudeliks, mille arutluskäik on maha surutud — `/v1/messages` teel kasutatakse `thinking:{type:"disabled"}`, või `/v1/chat/completions` teel jäetakse väljad `reasoning`/`reasoning_effort` välja. Variant kuvatakse ainult Claude'i perekonna mudelite puhul, mis toetavad mõtlemist **ja** arvestavad väärtusega `disabled` (seega jäetakse välja nt ainult adaptiivset režiimi toetavad mudelid, mis lükkavad väärtuse `disabled` tagasi). Operaatorid saavad variandi iga mudeli puhul sundkorras sisse või välja lülitada atribuudi `ModelSpec.noThinkingAlias` kaudu.
 
 ---
 
@@ -720,32 +728,31 @@ lõpetamise.
 
 ---
 
-## Isikliku kasutuse aruandlus (`/api/usage/om-usage`)
+## Iseteeninduslik kasutus (`/api/usage/om-usage`)
 
-Iga API võti saab lugeda **enda** kasutust ja kvoote — haldusautentimist ei vajata. See on
-lõpp-punkt, mida klient (CLI, OmniCopiloti paneel) kasutab, et näidata võtme omanikule tema kulutusi.
+Iga API-võti saab lugeda **enda** kasutust ja kvoote — haldusautentimist pole vaja. Seda lõpp-punkti kasutab
+klient (CLI, OmniCopiloti paneel), et näidata võtme omanikule tema kulutusi.
 
 ```bash
-# Tekstivorming (ajalooline lepe — lihttekst terminalile)
+# Tekstivorming (ajalooline leping — lihttekst terminali jaoks)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Struktureeritud vorming — mida kasutajaliides tarbib
+# Struktureeritud vorming — see, mida kasutajaliides tarbib
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Võtmel peab olema lubatud **`allowUsageCommand`** (vaikimisi väljas — armatuurlaua
-API-võtmete haldur lülitab selle sisse võtmehaaval). Selle puudumisel vastab lõpp-punkt
-`403`-ga.
+Võtmel peab olema lubatud **`allowUsageCommand`** (vaikimisi välja lülitatud — juhtpaneeli API-võtmete
+haldur lülitab selle sisse iga võtme kohta eraldi). Ilma selleta vastab lõpp-punkt koodiga `403`.
 
-`?format=json` tagastab eristatava kuju, nii et helistaja ei loeks andmevälja tagasilükkamisest.
-Õnnestumisel:
+`?format=json` tagastab eristatava struktuuri, et kutsuja ei loeks kunagi keeldumisvastusest andmevälja.
+Eduka päringu korral:
 
 ```jsonc
 {
   "allowed": true,
-  // esineb vaid siis, kui võti kasutab võtmepõhiseid kasutuspiiranguid (päevane/nädalane USD):
+  // olemas ainult siis, kui võtme jaoks on lubatud võtmepõhised kasutuspiirangud (päevane/nädalane USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -754,14 +761,14 @@ API-võtmete haldur lülitab selle sisse võtmehaaval). Selle puudumisel vastab 
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // valitud teenusepakkuja kvoodi hetkeseis, või null kui midagi veel puudub vahemällu salvestatuna:
+  // valitud teenusepakkuja kvoodi hetktõmmis või null, kui vahemällu pole veel midagi salvestatud:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // iga ühenduse hetkeseis, et kasutajaliides saaks kuvada mitu teenusepakkujat kõrvuti:
+  // iga ühenduse hetktõmmis, et kasutajaliides saaks kuvada mitut teenusepakkujat kõrvuti:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -769,13 +776,64 @@ API-võtmete haldur lülitab selle sisse võtmehaaval). Selle puudumisel vastab 
 }
 ```
 
-Tagasilükkamisel (`401` vale võti / `403` ei lubatud) tagastab samas rajas
+Keeldumise korral (`401` vigane võti / `403` pole lubatud) tagastab sama marsruut
 `{ "allowed": false, "error": { "message": "…" } }` — olemasolev, kuid tühi `personal`/`provider`
-(võti lubatud, veel midagi õpitud pole) on erinev olek kui tagasilükkamine, ja vaid JSON-vorming
-neid eristab.
+(võti on lubatud, kuid midagi pole veel tuvastatud) on keeldumisest erinev olek ning neid eristab ainult
+JSON-vorming.
 
-**Autentimine:** helistaja enda Bearer API võti, valideeritud `isValidApiKey`-ga — see **ei ole**
-haldusliides (`/api/keys/…`), mis jääb `requireManagementAuth` taha.
+**Autentimine:** kutsuja enda Beareri API-võti, mida valideeritakse funktsiooniga `isValidApiKey` — see _ei ole_
+haldusliides (`/api/keys/…`), mis jääb funktsiooni `requireManagementAuth` kaitse alla.
+
+### Töötlemata ja katkestusläve järgi kohandatud kvoodiprotsendid
+
+Lõpp-punkti `/api/usage/om-usage` kasutamisel peaksid kutsujad arvestama **lihttekstiväljundis** ja
+struktureeritud **JSON-väljundis** esitatud protsentide erinevusega:
+
+| Aspekt                         | Lihttekstivorming (`/api/usage/om-usage` / `@@om-usage`)                                                | JSON-vorming (`?format=json`)                                                          |
+| :----------------------------- | :------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------- |
+| **Väljundväli**                | `NN% left` (nt `20% left`)                                                                              | `provider.quotas` / `providers[].quotas`                                               |
+| **Mõõdetav väärtus**           | **Katkestusläve järgi kohandatud kasutatav maht**: lävest üle jääv maht                                 | **Töötlemata ülesvoolukvoot**: teenusepakkuja kohandamata mõõtetulemus                 |
+| **Katkestusläve skaleerimine** | Skaleeritud funktsiooniga `effectiveRemainingPercent()`, nii et kaitstud reserv kuvatakse kui `0% left` | Puudub (töötlemata hetktõmmise väärtused teenusepakkuja esitatud kujul)                |
+| **Läveandmed**                 | Arvestatud kuvatud protsendi sisse                                                                      | Salvestatud iga ühenduse väljal `quotaWindowThresholds` (või serveri vaikeväärtustena) |
+| **Peamine tarbija**            | Interaktiivsed CLI-d, terminaliviibad, inimoperaatorid                                                  | Programmilised integratsioonid, juhtpaneelid, analüütika, arveldusjälgijad             |
+
+#### Katkestusläve järgi kohandamise valem
+
+OmniRoute toetab ennetavaid kvoodi katkestuslävesid, et vältida ülesvooluressursi ammendumist (seadistatav ühenduse
+`quotaWindowThresholds`, teenusepakkuja vaikeväärtuste või globaalsete töökindluse sätete kaudu). Kui kvoodiaknas
+on aktiivne katkestuslävi (nt `cutoff = 25%`), arvutab tekstirenderdaja allesjäänud mahu järgmiselt:
+
+- Kui `remaining <= cutoff`: tagastab `0%`.
+- Kui `remaining > cutoff`: tagastab `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Vormindatud tekstiväljund ümardab selle lähima täisarvuni (`Math.round(...)`).
+
+#### Illustreeriv näide
+
+Vaatleme teenusepakkuja akent, kus **töötlemata kasutus on 60%** (seega **töötlemata allesjäänud kvoot on 40%**) ja seadistatud
+**allesjäänud kvoodi katkestuslävi on 25%**:
+
+| Esitus                               | Arvutus                                            |  Alles  |            Tuletatud kasutus             |
+| :----------------------------------- | :------------------------------------------------- | :-----: | :--------------------------------------: |
+| **Töötlemata JSON (`?format=json`)** | Ülesvoolu hetktõmmis (`quotas[window]`)            | **40%** |                 **60%**                  |
+| **Tekstivorming (`NN% left`)**       | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (kui arvutada `100 - remaining`) |
+
+- **Miks tekst näitab, et alles on 20%:** kontole füüsiliselt alles jäänud 40% kvoodist reserveerib
+  katkestusläve reegel 25%. Kutsujal on kasutada ainult 15% 75% suurusest kasutatavast varust, enne kui ruuter lõpetab
+  päringute sellele ühendusele suunamise. Skaleerimine tagab, et ühendus annab ammendumisest märku (`0% left`) täpselt siis,
+  kui marsruutimine lõpetatakse.
+- **Miks JSON säilitab töötlemata väärtused:** JSON-andmekogum tagastab teenusepakkuja täpse hetktõmmise (`UsageSnapshot`),
+  et välistel tööriistadel oleks juurdepääs ülesvooluressursi tegelikule kasutusele ja ühenduse taseme
+  `quotaWindowThresholds` väärtustele ilma serveripoolse kadudega skaleerimiseta.
+
+#### Juhised tarbijate migreerimiseks
+
+Kui väline integratsioon (näiteks redaktoriplugin või agendilaiendus) sõelus varem tekstipõhist
+lõpp-punkti (`NN% left`) ja arvutas kasutatud protsendi valemiga `100 - NN`, tähendab üleminek vormingule `?format=json` järgmist:
+
+- Töötlemata JSON-väärtuste lugemine kajastab **tegelikku ülesvoolutarbimist** (ülaltoodud näites on kasutatud 60%).
+- Kui integratsioon soovib säilitada tekstipõhise lõpp-punkti kasutatava mahu semantika, saab ta arvutada
+  efektiivse allesjäänud mahu valemi kliendi poolel, kasutades ühenduse taseme alistusteks välja `quotaWindowThresholds`.
 
 ---
 

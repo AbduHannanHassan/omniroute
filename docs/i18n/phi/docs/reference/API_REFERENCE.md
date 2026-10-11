@@ -386,21 +386,21 @@ ang default na region ay `us-central1`. Isinasagawa ang parehong resolution sa `
 
 ---
 
-## Ilista ang mga Modelo
+## Ilista ang Mga Modelo
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Ibinabalik ang lahat ng chat, embedding, at image model + mga combo sa format ng OpenAI
+→ Ibinabalik ang lahat ng chat, embedding, at image model + combo sa format ng OpenAI
 ```
 
 ### Mga prefix ng model id (`?prefix=`)
 
 Karamihan sa mga modelo ay inilalathala sa ilalim ng isang **provider prefix**. Ang prefix na makukuha mo ay kinokontrol ng
-`MODELS_CATALOG_PREFIX_MODE` feature flag, at maaaring i-override **sa bawat request** gamit ang isang
+feature flag na `MODELS_CATALOG_PREFIX_MODE`, at maaaring i-override **sa bawat request** gamit ang isang
 query parameter — kapaki-pakinabang para sa client na nais ng malinis na listahan nang hindi binabago ang setting
-sa buong server para sa lahat:
+sa buong server para sa iba:
 
 ```bash
 GET /v1/models?prefix=alias        # isang id bawat modelo — ang maikling alias prefix
@@ -408,33 +408,41 @@ GET /v1/models?prefix=dual         # parehong anyo (default ng server)
 GET /v1/models?prefix=canonical    # ang buong provider-id prefix lamang
 ```
 
-| Mode        | Inilalabas                                               | Mga Tala                                                                                                                                                                                                          |
-| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **at** `claude/claude-sonnet-4-6` | **Default.** Parehong nagru-route ang dalawang id sa iisang modelo; pinanatili ito upang patuloy na gumana ang mga configuration ng client na naka-hardcode sa alinmang anyo. Halos dinodoble nito ang catalog.   |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Isang entry bawat modelo. Inilalabas pa rin ng mga provider na walang natatanging alias ang kanilang entry, kaya walang nawawala.                                                                                 |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Isang entry bawat modelo sa ilalim ng buong provider-id prefix. Inilalabas din dito ng mga provider na walang natatanging alias (hal. `antigravity/…`, `agy/…`) ang kanilang nag-iisang id, kaya walang nawawala. |
+| Mode        | Inilalabas                                               | Mga Tala                                                                                                                                                                                                         |
+| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **at** `claude/claude-sonnet-4-6` | **Default.** Parehong nagra-route ang dalawang id sa iisang modelo; pinanatili upang patuloy na gumana ang mga config ng client na nag-hardcode ng alinmang anyo. Halos dinodoble nito ang catalog.              |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Isang entry bawat modelo. Inilalabas pa rin ng mga provider na walang hiwalay na alias ang kanilang entry, kaya walang nawawala.                                                                                 |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Isang entry bawat modelo sa ilalim ng buong provider-id prefix. Inilalabas din dito ng mga provider na walang hiwalay na alias (hal. `antigravity/…`, `agy/…`) ang kanilang nag-iisang id, kaya walang nawawala. |
 
-Makikilala rin ang isang mirror na nasa `dual` mode kahit wala ang query parameter: mayroon itong `parent`
-field na tumuturo sa pangunahing id.
+Maaari ring matukoy ang isang mirror na nasa `dual` mode kahit wala ang query parameter: mayroon itong field na `parent`
+na tumutukoy sa pangunahing id.
 
-Ang mga client na nagre-render ng model picker ay dapat humiling ng `?prefix=alias` — ito ang ginagawa ng
+Dapat humiling ang mga client na nagre-render ng model picker ng `?prefix=alias` — ito ang ginagawa ng
 [OmniCopilot VS Code extension](../guides/VSCODE-COPILOT.md).
 
-### Mga chat model na indibidwal na nakatago
+### Mga indibidwal na nakatagong chat model
 
-Ang modelong minarkahang **Nakatago** sa pahina ng provider nito ay hindi isinasama sa katalogo at tinatanggihan gamit ang HTTP `404` / `model_not_found` kapag tahasang hinihiling. Ginagamit ng pagsusuri ang natukoy na provider at modelo, kasama ang mga alias ng provider, mga prefix ng node ng katugmang provider, at mga default ng koneksyon. Nilalaktawan ng combo ang mga nakatagong target at maaari itong gumamit ng ibang nakikitang target; kung walang natitirang target na maaaring patakbuhin, ibinabalik nito ang parehong error code. Magkakabisa ang muling pagpapakita sa susunod na request. Ang mga override ng visibility para lamang sa mga larawan ay hindi nagtatago ng chat model na may parehong ID.
+Ang modelong minarkahang **Hidden** sa pahina ng provider nito ay hindi isinasama sa catalog at tinatanggihan
+gamit ang HTTP `404` / `model_not_found` kapag tahasang hiniling. Ginagamit ng pagsusuri ang natukoy na
+provider at modelo, kabilang ang mga provider alias, compatible-provider node prefix, at
+mga default ng koneksyon. Nilalampasan ng combo ang mga nakatagong target at maaari itong gumamit ng nakikitang kaparehong opsyon; kapag walang
+natitirang target na maaaring patakbuhin, ibinabalik nito ang parehong error code. Magkakabisa ang pag-aalis ng pagkakatago sa susunod na
+request. Hindi itinatago ng mga visibility override na para lamang sa image ang chat model na may parehong ID.
 
-Hiwalay ang setting na ito ng bawat modelo sa [mga listahan ng pinapayagan at ipinagbabawal na paglalantad ng modelo](../routing/MODEL_EXPOSURE_LIST.md). Sinasala ng mga listahang iyon ang pagpapakita sa katalogo at mga kandidato para sa awtomatikong routing habang pinapanatili ang tahasang pagpapadala. Patuloy na hiwalay na ipinapatupad ang mga pahintulot sa modelo ng API key. Nananatiling `dual` ang default na prefix mode ng katalogo.
+Hiwalay ang indibidwal na setting ng modelong ito sa
+[mga allow/deny list para sa paglalantad ng modelo](../routing/MODEL_EXPOSURE_LIST.md), na nagsasala sa paglalathala
+ng catalog at sa mga kandidato para sa auto-routing habang pinananatili ang tahasang dispatch. Patuloy na nalalapat nang
+hiwalay ang mga pahintulot sa modelo ng API key. Nananatiling `dual` ang default na prefix mode ng catalog.
 
-### Mga variant ng modelo na walang thinking
+### Mga variant ng modelong walang thinking
 
-Para sa mga Claude model na may kakayahang mag-thinking, naglalathala rin ang `/v1/models` ng isang **no-thinking** variant na ang id ay may prefix na `claude-3-omniroute-no-thinking/`:
+Para sa mga Claude model na may kakayahang mag-thinking, naglalathala rin ang `/v1/models` ng isang variant na **walang thinking** na ang id ay may prefix na `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Kapag pinili ang id na ito (hal. sa isang Claude Code config na palaging naglalakip ng `thinking` block), ibinabalik ito sa tunay na `<provider>/<model>` nang naka-suppress ang reasoning — `thinking:{type:"disabled"}` sa `/v1/messages` path, o inaalis ang mga `reasoning`/`reasoning_effort` field sa `/v1/chat/completions` path. Inililista lamang ang variant para sa mga Claude-family model na sumusuporta sa thinking **at** sumusunod sa `disabled` (kaya hindi kasama, halimbawa, ang mga adaptive-only model na tumatanggi sa `disabled`). Maaaring sapilitang i-on o i-off ng mga operator ang variant para sa bawat modelo sa pamamagitan ng `ModelSpec.noThinkingAlias`.
+Kapag pinili ang id na ito (hal. sa isang Claude Code config na palaging naglalakip ng `thinking` block), ibinabalik ang resolusyon nito sa tunay na `<provider>/<model>` nang naka-suppress ang reasoning — `thinking:{type:"disabled"}` sa path na `/v1/messages`, o inaalis ang mga field na `reasoning`/`reasoning_effort` sa path na `/v1/chat/completions`. Inililista lamang ang variant para sa mga modelong kabilang sa Claude family na sumusuporta sa thinking **at** sumusunod sa `disabled` (kaya hindi kasama, halimbawa, ang mga adaptive-only model na tumatanggi sa `disabled`). Maaaring puwersahang i-on o i-off ng mga operator ang variant para sa bawat modelo sa pamamagitan ng `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -725,13 +733,13 @@ completion.
 
 ---
 
-## Pansariling paggamit (`/api/usage/om-usage`)
+## Self-service na paggamit (`/api/usage/om-usage`)
 
-Maaaring basahin ng anumang API key ang **sarili nitong** paggamit at mga quota — walang management auth. Ito ang endpoint na ginagamit ng isang
-client (CLI, ang OmniCopilot panel) upang ipakita sa may-ari ng key ang kanyang gastos.
+Mababasa ng anumang API key ang **sarili nitong** paggamit at mga quota — hindi kailangan ang management auth. Ito ang endpoint na ginagamit ng isang
+client (CLI, ang OmniCopilot panel) upang ipakita sa may hawak ng key ang kanyang gastos.
 
 ```bash
-# Text na anyo (ang makasaysayang kontrata — plain text para sa isang terminal)
+# Anyong text (ang makasaysayang kontrata — plain text para sa terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
@@ -740,16 +748,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Dapat naka-enable ang **`allowUsageCommand`** sa key (naka-off bilang default — itinatakda ito ng API-key
+Dapat naka-enable ang **`allowUsageCommand`** ng key (naka-off bilang default — itinatakda ito ng API-key
 manager ng dashboard para sa bawat key). Kung wala ito, sasagot ang endpoint ng `403`.
 
-Nagbabalik ang `?format=json` ng isang natatanging hugis upang hindi kailanman magbasa ang tumatawag ng isang field ng data mula sa isang
+Nagbabalik ang `?format=json` ng anyong may malinaw na pagkakakilanlan upang hindi kailanman magbasa ang tumatawag ng field ng data mula sa isang
 pagtanggi. Kapag matagumpay:
 
 ```jsonc
 {
   "allowed": true,
-  // naroroon lamang kapag pinili ng key ang mga limitasyon sa paggamit kada key (araw-araw/lingguhang USD):
+  // naroroon lamang kapag nag-opt in ang key sa mga limitasyon sa paggamit bawat key (araw-araw/lingguhang USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -758,14 +766,14 @@ pagtanggi. Kapag matagumpay:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // ang snapshot ng napiling quota ng provider, o null kapag wala pang naka-cache:
+  // snapshot ng quota ng napiling provider, o null kapag wala pang naka-cache:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // snapshot ng bawat koneksyon, upang ma-render ng isang UI ang ilang provider nang magkatabi:
+  // snapshot ng bawat koneksyon, upang ma-render ng isang UI ang ilang provider nang magkakatabi:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -774,12 +782,63 @@ pagtanggi. Kapag matagumpay:
 ```
 
 Kapag tinanggihan (`401` maling key / `403` hindi pinapayagan), ibinabalik ng parehong route ang
-`{ "allowed": false, "error": { "message": "…" } }` — ang umiiral ngunit walang laman na `personal`/`provider`
-(pinapayagan ang key, wala pang nakuhang impormasyon) ay ibang estado mula sa pagtanggi, at ang JSON na anyo lamang
-ang nakapaghihiwalay sa mga ito.
+`{ "allowed": false, "error": { "message": "…" } }` — ang naroroon ngunit walang lamang `personal`/`provider`
+(pinapayagan ang key, wala pang nakukuhang impormasyon) ay ibang estado mula sa pagtanggi, at ang JSON na anyo lamang
+ang nagbibigay-linaw sa pagkakaiba ng mga ito.
 
-**Auth:** sariling Bearer API key ng tumatawag, na bina-validate gamit ang `isValidApiKey` — _hindi_ ito ang
-management surface (`/api/keys/…`), na nananatiling protektado ng `requireManagementAuth`.
+**Auth:** ang sariling Bearer API key ng tumatawag, na bina-validate gamit ang `isValidApiKey` — _hindi_ ito ang
+management surface (`/api/keys/…`), na nananatili sa likod ng `requireManagementAuth`.
+
+### Mga Raw kumpara sa Cutoff-Adjusted na Porsiyento ng Quota
+
+Kapag ginagamit ang `/api/usage/om-usage`, dapat tandaan ng mga tumatawag ang pagkakaiba sa pagitan ng mga
+porsiyentong ipinapakita ng **plain-text na output** at ng nakabalangkas na **JSON output**:
+
+| Aspeto                    | Plain-text na format (`/api/usage/om-usage` / `@@om-usage`)                                                      | JSON format (`?format=json`)                                                    |
+| :------------------------ | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------ |
+| **Field ng output**       | `NN% left` (hal., `20% left`)                                                                                    | `provider.quotas` / `providers[].quotas`                                        |
+| **Pagsukat**              | **Cutoff-adjusted na magagamit na allowance**: natitirang kapasidad sa itaas ng cutoff threshold                 | **Raw na upstream quota**: hindi inayos na pagsukat ng provider                 |
+| **Cutoff scaling**        | Ini-scale sa pamamagitan ng `effectiveRemainingPercent()` upang mabasa bilang `0% left` ang protektadong reserba | Wala (mga raw na value ng snapshot gaya ng iniulat ng provider)                 |
+| **Data ng threshold**     | Isinasama sa ipinapakitang porsiyento                                                                            | Naka-store sa `quotaWindowThresholds` bawat koneksyon (o mga default ng server) |
+| **Pangunahing gumagamit** | Mga interactive CLI, terminal prompt, mga taong operator                                                         | Mga programmatic integration, dashboard, analytics, at billing tracker          |
+
+#### Ang Formula ng Cutoff Adjustment
+
+Sinusuportahan ng OmniRoute ang mga proactive na cutoff ng quota upang maiwasan ang pagkaubos ng upstream (kino-configure sa pamamagitan ng
+`quotaWindowThresholds` ng koneksyon, mga default ng provider, o mga pandaigdigang setting ng resilience). Kapag aktibo ang isang cutoff threshold
+(hal., `cutoff = 25%`) sa isang quota window, kinakalkula ng text renderer ang natitirang allowance bilang:
+
+- Kung `remaining <= cutoff`: nagbabalik ng `0%`.
+- Kung `remaining > cutoff`: nagbabalik ng `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Nire-round ng naka-format na text output ito sa pinakamalapit na integer (`Math.round(...)`).
+
+#### Halimbawang Naglalarawan
+
+Isaalang-alang ang isang provider window na may **60% raw na paggamit** (kaya **40% raw na natitirang quota**) at naka-configure na
+threshold na **25% cutoff ng natitirang quota**:
+
+| Representasyon                | Pagkalkula                                         | Natitira |            Ipinahihiwatig na Nagamit             |
+| :---------------------------- | :------------------------------------------------- | :------: | :----------------------------------------------: |
+| **Raw JSON (`?format=json`)** | Upstream snapshot (`quotas[window]`)               | **40%**  |                     **60%**                      |
+| **Text format (`NN% left`)**  | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%**  | **80%** (kung kinakalkula ang `100 - remaining`) |
+
+- **Bakit 20% left ang ipinapakita ng text:** Sa 40% pisikal na quota na natitira sa account, 25% ang inilalaan ng
+  cutoff policy. Mayroon lamang 15% sa 75% na magagamit na headroom ang tumatawag bago huminto ang router sa
+  pagruruta sa koneksyong ito. Tinitiyak ng scaling na magpapahiwatig ang koneksyon ng pagkaubos (`0% left`) sa mismong sandaling
+  hihinto ang pagruruta.
+- **Bakit pinapanatili ng JSON ang mga raw na value:** Ibinabalik ng JSON payload ang eksaktong provider snapshot (`UsageSnapshot`)
+  upang magkaroon ang mga panlabas na tool ng access sa tunay na upstream utilization at antas-koneksyong
+  `quotaWindowThresholds` nang walang lossy scaling sa panig ng server.
+
+#### Gabay sa Migration ng Consumer
+
+Kung dati ay nag-scrape ang isang panlabas na integration (gaya ng editor plugin o agent extension) ng text
+endpoint (`NN% left`) at kinakalkula ang nagamit na porsiyento bilang `100 - NN`, ang pag-migrate sa `?format=json` ay nangangahulugang:
+
+- Ang pagbabasa ng mga raw na JSON value ay magpapakita ng **aktuwal na upstream consumption** (60% ang nagamit sa halimbawa sa itaas).
+- Kung nais ng integration na panatilihin ang usable-allowance semantics ng text endpoint, maaari nitong suriin
+  sa panig ng client ang formula ng effective remaining gamit ang `quotaWindowThresholds` para sa mga override sa antas ng koneksyon.
 
 ---
 

@@ -386,50 +386,63 @@ konsumowane przez `src/app/api/v1/ocr/route.ts` przed przekazaniem do `handleOcr
 
 ---
 
-## Wyświetl modele
+## Lista modeli
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Zwraca wszystkie modele czatu, osadzania i obrazów + kombinacje w formacie OpenAI
+→ Zwraca wszystkie modele czatu, osadzania i generowania obrazów oraz kombinacje w formacie OpenAI
 ```
 
 ### Prefiksy identyfikatorów modeli (`?prefix=`)
 
-Większość modeli jest reklamowana pod **prefikiem dostawcy**. To, który prefiks otrzymasz, jest kontrolowane przez flagę funkcji `MODELS_CATALOG_PREFIX_MODE` i może być nadpisane **na każde żądanie** za pomocą parametru zapytania — przydatne dla klienta, który chce uzyskać czystą listę bez zmiany ustawień serwera dla wszystkich innych:
+Większość modeli jest udostępniana z **prefiksem dostawcy**. O tym, który prefiks zostanie użyty, decyduje
+flaga funkcji `MODELS_CATALOG_PREFIX_MODE`, którą można nadpisać **dla każdego żądania** za pomocą
+parametru zapytania — jest to przydatne dla klienta, który potrzebuje przejrzystej listy bez zmieniania
+ustawienia obowiązującego na całym serwerze dla wszystkich pozostałych użytkowników:
 
 ```bash
-GET /v1/models?prefix=alias        # one id per model — the short alias prefix
-GET /v1/models?prefix=dual         # both forms (server default)
-GET /v1/models?prefix=canonical    # only the full provider-id prefix
+GET /v1/models?prefix=alias        # jeden identyfikator na model — krótki prefiks aliasu
+GET /v1/models?prefix=dual         # obie formy (domyślne ustawienie serwera)
+GET /v1/models?prefix=canonical    # tylko pełny prefiks identyfikatora dostawcy
 ```
 
-| Tryb        | Emituje                                                 | Uwagi                                                                                                                                                                                                          |
-| ----------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **i** `claude/claude-sonnet-4-6` | **Domyślny.** Oba identyfikatory kierują do tego samego modelu; zachowane, aby konfiguracje klienta, które zakodowały na stałe jedną z form, nadal działały. Z grubsza podwaja katalog.                        |
-| `alias`     | `cc/claude-sonnet-4-6`                                  | Jeden wpis na model. Dostawcy bez wyraźnego aliasu nadal emitują swój wpis, więc nic nie jest tracone.                                                                                                         |
-| `canonical` | `claude/claude-sonnet-4-6`                              | Jeden wpis na model pod pełnym prefiksem identyfikatora dostawcy. Dostawcy bez wyraźnego aliasu (np. `antigravity/…`, `agy/…`) również emitują tutaj swój pojedynczy identyfikator, więc nic nie jest tracone. |
+| Tryb        | Zwraca                                                     | Uwagi                                                                                                                                                                                                                |
+| ----------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **oraz** `claude/claude-sonnet-4-6` | **Domyślny.** Oba identyfikatory kierują do tego samego modelu; zachowano je, aby konfiguracje klientów, w których zakodowano na stałe którąkolwiek z form, nadal działały. W przybliżeniu podwaja rozmiar katalogu. |
+| `alias`     | `cc/claude-sonnet-4-6`                                     | Jeden wpis na model. Dostawcy bez odrębnego aliasu nadal zwracają swój wpis, więc nic nie zostaje pominięte.                                                                                                         |
+| `canonical` | `claude/claude-sonnet-4-6`                                 | Jeden wpis na model z pełnym prefiksem identyfikatora dostawcy. Dostawcy bez odrębnego aliasu (np. `antigravity/…`, `agy/…`) również zwracają tutaj swój pojedynczy identyfikator, więc nic nie zostaje pominięte.   |
 
-Lustro w trybie `dual` może być również rozpoznane bez parametru zapytania: zawiera pole `parent` wskazujące na główny identyfikator.
+Odbicie w trybie `dual` można również rozpoznać bez parametru zapytania: zawiera ono pole `parent`
+wskazujące główny identyfikator.
 
-Klienci, którzy renderują selektor modeli, powinni żądać `?prefix=alias` — tak właśnie robi [rozszerzenie OmniCopilot VS Code](../guides/VSCODE-COPILOT.md).
+Klienci wyświetlający selektor modeli powinni wysyłać żądanie z `?prefix=alias` — tak działa
+[rozszerzenie OmniCopilot dla VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Indywidualnie ukryte modele czatu
 
-Model oznaczony jako **Ukryty** na stronie swojego dostawcy jest wykluczany z katalogu, a jawne żądanie tego modelu jest odrzucane z HTTP `404` / `model_not_found`. Kontrola używa ustalonego dostawcy i modelu, uwzględniając aliasy dostawcy, prefiksy węzłów zgodnych dostawców oraz domyślne wartości połączenia. Combo pomija ukryte cele i może użyć innego widocznego celu; jeśli nie pozostanie żaden cel możliwy do wykonania, zwraca ten sam kod błędu. Ponowne pokazanie modelu działa od następnego żądania. Nadpisania widoczności dotyczące tylko obrazów nie ukrywają modelu czatu o tym samym ID.
+Model oznaczony jako **Ukryty** na stronie swojego dostawcy jest wykluczany z katalogu, a próba
+jawnego wywołania go jest odrzucana za pomocą HTTP `404` / `model_not_found`. Sprawdzenie wykorzystuje
+rozpoznanego dostawcę i model, uwzględniając aliasy dostawców, prefiksy węzłów zgodnych dostawców oraz
+domyślne ustawienia połączeń. Kombinacja pomija ukryte cele i może użyć widocznego modelu równorzędnego; jeśli nie
+pozostanie żaden możliwy do wykonania cel, zwracany jest ten sam kod błędu. Odkrycie modelu zaczyna obowiązywać przy następnym
+żądaniu. Nadpisania widoczności dotyczące wyłącznie obrazów nie ukrywają modelu czatu o tym samym identyfikatorze.
 
-To ustawienie pojedynczego modelu jest niezależne od [list dozwolonej i zablokowanej ekspozycji modeli](../routing/MODEL_EXPOSURE_LIST.md), które filtrują ofertę katalogu i kandydatów automatycznego routingu, zachowując jawne kierowanie żądań. Uprawnienia do modeli przypisane do klucza API nadal obowiązują niezależnie. Domyślny tryb prefiksów katalogu pozostaje `dual`.
+To indywidualne ustawienie modelu jest niezależne od
+[list dozwolonych/zabronionych modeli](../routing/MODEL_EXPOSURE_LIST.md), które filtrują
+modele ogłaszane w katalogu i kandydatów do automatycznego routingu, zachowując jednocześnie możliwość jawnego kierowania żądań. Uprawnienia
+klucza API do modeli nadal obowiązują niezależnie. Domyślnym trybem prefiksów katalogu pozostaje `dual`.
 
 ### Warianty modeli bez myślenia
 
-Dla modeli Claude zdolnych do myślenia, `/v1/models` reklamuje również wariant **bez myślenia**, którego identyfikator jest poprzedzony prefiksem `claude-3-omniroute-no-thinking/`:
+W przypadku modeli Claude obsługujących myślenie `/v1/models` udostępnia również wariant **bez myślenia**, którego identyfikator ma prefiks `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Wybranie tego identyfikatora (np. w konfiguracji Claude Code, która zawsze dołącza blok `thinking`) przekierowuje z powrotem do prawdziwego `<provider>/<model>` z pominięciem rozumowania — `thinking:{type:"disabled"}` na ścieżce `/v1/messages`, lub pola `reasoning`/`reasoning_effort` są pomijane na ścieżce `/v1/chat/completions`. Wariant jest wymieniony tylko dla modeli z rodziny Claude, które obsługują myślenie **i** honorują `disabled` (więc np. modele tylko adaptacyjne, które odrzucają `disabled`, są wykluczone). Operatorzy mogą wymusić włączenie lub wyłączenie wariantu dla każdego modelu za pomocą `ModelSpec.noThinkingAlias`.
+Wybranie tego identyfikatora (np. w konfiguracji Claude Code, która zawsze dołącza blok `thinking`) powoduje ponowne rozpoznanie rzeczywistego modelu `<provider>/<model>` z wyłączonym rozumowaniem — `thinking:{type:"disabled"}` dla ścieżki `/v1/messages` albo z pominięciem pól `reasoning`/`reasoning_effort` dla ścieżki `/v1/chat/completions`. Wariant jest wyświetlany wyłącznie dla modeli z rodziny Claude, które obsługują myślenie **i** respektują wartość `disabled` (dlatego wykluczone są np. modele wyłącznie adaptacyjne, które odrzucają `disabled`). Operatorzy mogą wymusić włączenie lub wyłączenie wariantu dla każdego modelu za pomocą `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -702,28 +715,31 @@ ukończenie.
 
 ---
 
-## Użycie samoobsługowe (`/api/usage/om-usage`)
+## Samoobsługowe użycie (`/api/usage/om-usage`)
 
-Dowolny klucz API może odczytać **własne** użycie i limity — bez autoryzacji zarządzania. Jest to punkt końcowy, którego klient (CLI, panel OmniCopilot) używa do pokazania posiadaczowi klucza jego wydatków.
+Każdy klucz API może odczytać **własne** użycie i limity — bez uwierzytelniania administracyjnego. Jest to punkt końcowy używany przez
+klienta (CLI, panel OmniCopilot) do wyświetlania posiadaczowi klucza jego wydatków.
 
 ```bash
-# Forma tekstowa (historyczna umowa — zwykły tekst dla terminala)
-curl -H "Authorization: Bearer <twój-klucz-api>" \
+# Format tekstowy (historyczny kontrakt — zwykły tekst przeznaczony dla terminala)
+curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Forma strukturalna — to, co konsumuje interfejs użytkownika
-curl -H "Authorization: Bearer <twój-klucz-api>" \
+# Format ustrukturyzowany — używany przez interfejs użytkownika
+curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Klucz musi mieć włączoną opcję **`allowUsageCommand`** (domyślnie wyłączona — menedżer kluczy API w panelu sterowania przełącza ją dla każdego klucza). Bez niej punkt końcowy odpowiada `403`.
+Klucz musi mieć włączoną opcję **`allowUsageCommand`** (domyślnie jest wyłączona — menedżer kluczy API
+w panelu przełącza ją osobno dla każdego klucza). Bez niej punkt końcowy zwraca `403`.
 
-`?format=json` zwraca rozróżniony kształt, dzięki czemu wywołujący nigdy nie odczytuje pola danych z odmowy. W przypadku sukcesu:
+`?format=json` zwraca rozróżnialną strukturę, dzięki czemu klient nigdy nie odczyta pola danych z
+odpowiedzi odmownej. W przypadku powodzenia:
 
 ```jsonc
 {
   "allowed": true,
-  // obecne tylko, gdy klucz wybrał limity użycia na klucz (dzienne/tygodniowe USD):
+  // obecne tylko wtedy, gdy dla klucza włączono indywidualne limity użycia (dzienne/tygodniowe w USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -732,14 +748,14 @@ Klucz musi mieć włączoną opcję **`allowUsageCommand`** (domyślnie wyłącz
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // migawka limitu wybranego dostawcy, lub null, gdy nic nie jest jeszcze buforowane:
+  // migawka limitów wybranego dostawcy lub null, jeśli nic nie zostało jeszcze zapisane w pamięci podręcznej:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // migawka każdego połączenia, dzięki czemu interfejs użytkownika może renderować kilku dostawców obok siebie:
+  // migawki wszystkich połączeń, aby interfejs mógł wyświetlać kilku dostawców obok siebie:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -747,13 +763,64 @@ Klucz musi mieć włączoną opcję **`allowUsageCommand`** (domyślnie wyłącz
 }
 ```
 
-W przypadku odmowy (`401` zły klucz / `403` niedozwolone) ta sama trasa zwraca
-`{ "allowed": false, "error": { "message": "…" } }` — obecne, ale puste `personal`/`provider`
-(klucz dozwolony, nic jeszcze nie wiadomo) to inny stan niż odmowa, i tylko forma JSON
-je rozróżnia.
+W przypadku odmowy (`401` — nieprawidłowy klucz / `403` — brak uprawnienia) ta sama trasa zwraca
+`{ "allowed": false, "error": { "message": "…" } }` — obecne, ale puste pole `personal`/`provider`
+(klucz jest dozwolony, lecz nie pozyskano jeszcze żadnych danych) oznacza inny stan niż odmowa, a rozróżnia je
+wyłącznie format JSON.
 
-**Autoryzacja:** własny klucz API Bearer wywołującego, walidowany za pomocą `isValidApiKey` — to _nie_ jest
-powierzchnia zarządzania (`/api/keys/…`), która pozostaje za `requireManagementAuth`.
+**Uwierzytelnianie:** własny klucz API Bearer wywołującego, weryfikowany za pomocą `isValidApiKey` — _nie_ jest to
+interfejs administracyjny (`/api/keys/…`), który nadal jest chroniony przez `requireManagementAuth`.
+
+### Surowe a skorygowane o próg odcięcia wartości procentowe limitów
+
+Podczas korzystania z `/api/usage/om-usage` należy zwrócić uwagę na różnicę między wartościami
+procentowymi prezentowanymi w **wyniku w zwykłym tekście** a ustrukturyzowanym **wynikiem JSON**:
+
+| Aspekt                  | Format zwykłego tekstu (`/api/usage/om-usage` / `@@om-usage`)                                 | Format JSON (`?format=json`)                                                                   |
+| :---------------------- | :-------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------- |
+| **Pole wyjściowe**      | `NN% left` (np. `20% left`)                                                                   | `provider.quotas` / `providers[].quotas`                                                       |
+| **Pomiar**              | **Użyteczny limit skorygowany o próg odcięcia**: pozostała pojemność powyżej progu odcięcia   | **Surowy limit źródłowy**: nieskorygowany pomiar dostawcy                                      |
+| **Skalowanie odcięcia** | Skalowane przez `effectiveRemainingPercent()`, tak aby chroniona rezerwa wskazywała `0% left` | Brak (surowe wartości migawki zgodnie z danymi dostawcy)                                       |
+| **Dane progowe**        | Uwzględnione w wyświetlanej wartości procentowej                                              | Przechowywane w `quotaWindowThresholds` dla każdego połączenia (lub domyślne wartości serwera) |
+| **Główny odbiorca**     | Interaktywne CLI, monity terminala, operatorzy                                                | Integracje programistyczne, panele, analityka, narzędzia do śledzenia rozliczeń                |
+
+#### Wzór korekty o próg odcięcia
+
+OmniRoute obsługuje proaktywne progi odcięcia limitów, aby zapobiegać wyczerpaniu zasobów dostawcy (konfigurowane przez
+`quotaWindowThresholds` połączenia, wartości domyślne dostawcy lub globalne ustawienia odporności). Gdy próg odcięcia
+(np. `cutoff = 25%`) jest aktywny dla okna limitu, mechanizm renderujący tekst oblicza pozostały limit następująco:
+
+- Jeśli `remaining <= cutoff`: zwraca `0%`.
+- Jeśli `remaining > cutoff`: zwraca `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Sformatowany wynik tekstowy jest zaokrąglany do najbliższej liczby całkowitej (`Math.round(...)`).
+
+#### Przykład poglądowy
+
+Rozważmy okno dostawcy z **60% surowego użycia** (a zatem **40% pozostałego surowego limitu**) oraz skonfigurowanym
+progiem odcięcia wynoszącym **25% pozostałego limitu**:
+
+| Reprezentacja                    | Obliczenie                                         | Pozostało |              Domniemane użycie              |
+| :------------------------------- | :------------------------------------------------- | :-------: | :-----------------------------------------: |
+| **Surowy JSON (`?format=json`)** | Migawka źródłowa (`quotas[window]`)                |  **40%**  |                   **60%**                   |
+| **Format tekstowy (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**  | **80%** (przy obliczeniu `100 - remaining`) |
+
+- **Dlaczego tekst wskazuje 20% pozostałego limitu:** Spośród 40% fizycznego limitu pozostałego na koncie 25% jest zarezerwowane przez
+  politykę odcięcia. Wywołującemu pozostaje jedynie 15% z 75% użytecznego zapasu, zanim router przestanie
+  kierować ruch do tego połączenia. Skalowanie zapewnia, że połączenie zasygnalizuje wyczerpanie (`0% left`) dokładnie wtedy, gdy
+  kierowanie ruchu zostanie zakończone.
+- **Dlaczego JSON zachowuje surowe wartości:** Ładunek JSON zwraca dokładną migawkę dostawcy (`UsageSnapshot`),
+  dzięki czemu narzędzia zewnętrzne mają dostęp do rzeczywistego źródłowego wykorzystania oraz ustawień
+  `quotaWindowThresholds` na poziomie połączenia bez stratnego skalowania po stronie serwera.
+
+#### Wskazówki dotyczące migracji klientów
+
+Jeśli zewnętrzna integracja (np. wtyczka edytora lub rozszerzenie agenta) wcześniej pozyskiwała dane z tekstowego
+punktu końcowego (`NN% left`) i obliczała procent użycia jako `100 - NN`, migracja do `?format=json` oznacza, że:
+
+- Odczytywanie surowych wartości JSON będzie odzwierciedlać **rzeczywiste zużycie u dostawcy** (60% użycia w powyższym przykładzie).
+- Jeśli integracja ma zachować semantykę użytecznego limitu z tekstowego punktu końcowego, może obliczać
+  efektywną pozostałą wartość po stronie klienta, używając `quotaWindowThresholds` dla nadpisań na poziomie połączenia.
 
 ---
 

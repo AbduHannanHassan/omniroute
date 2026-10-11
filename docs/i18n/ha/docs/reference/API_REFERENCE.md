@@ -378,55 +378,63 @@ yana komawa `us-central1` a matsayin tsoho. Dukkan waɗannan ƙayyadewoyin suna 
 
 ---
 
-## Jerin Samfura
+## Jera Samfura
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Yana mayar da duk samfuran hira, embedding, da hotuna + haɗe-haɗe a tsarin OpenAI
+→ Yana dawo da duk samfuran taɗi, embedding, da hotuna + haɗe-haɗe a tsarin OpenAI
 ```
 
-### Farkon id na samfura (`?prefix=`)
+### Prefix ɗin id na samfuri (`?prefix=`)
 
-Yawancin samfura ana tallata su ne ƙarƙashin **farkon mai samarwa**. Farkon da za ka samu yana ƙarƙashin ikon
-tutar fasalin `MODELS_CATALOG_PREFIX_MODE`, kuma ana iya maye gurbinsa **ga kowace buƙata** ta hanyar
-ma'aunin query — yana da amfani ga abokin hulɗa da ke son jeri mai tsabta ba tare da canza saitin dukkan
-uwar garken ga kowa ba:
+Yawancin samfura ana tallata su ƙarƙashin **prefix na mai samarwa**. Prefix ɗin da za ka samu yana ƙarƙashin ikon
+tutar fasalin `MODELS_CATALOG_PREFIX_MODE`, kuma ana iya maye gurbinsa **ga kowace buƙata** ta amfani da
+query parameter — wannan yana da amfani ga client da ke son jeri mai tsabta ba tare da canza saitin
+uwar garken gaba ɗaya ga kowa ba:
 
 ```bash
-GET /v1/models?prefix=alias        # id ɗaya ga kowane samfuri — gajeren farkon laƙabi
-GET /v1/models?prefix=dual         # duka siffofin biyu (tsohon saitin uwar garke)
-GET /v1/models?prefix=canonical    # cikakken farkon provider-id kawai
+GET /v1/models?prefix=alias        # id guda ga kowane samfuri — gajeren prefix na alias
+GET /v1/models?prefix=dual         # dukkan siffofin biyu (tsohon zaɓin uwar garke)
+GET /v1/models?prefix=canonical    # cikakken prefix na provider-id kawai
 ```
 
-| Yanayi      | Abin da yake fitarwa                                     | Bayanan kula                                                                                                                                                                                                                          |
-| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **da** `claude/claude-sonnet-4-6` | **Tsohon saiti.** Duk id ɗin biyu suna kaiwa ga samfuri ɗaya; an riƙe su domin saitunan abokan hulɗa da suka tsayar da ɗaya daga cikin siffofin su ci gaba da aiki. Kusan yana ninka kundin sau biyu.                                 |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Shigarwa ɗaya ga kowane samfuri. Masu samarwa da ba su da wani laƙabi na daban har yanzu suna fitar da shigarwarsu, don haka babu abin da ke ɓacewa.                                                                                  |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Shigarwa ɗaya ga kowane samfuri ƙarƙashin cikakken farkon provider-id. Masu samarwa da ba su da wani laƙabi na daban (misali `antigravity/…`, `agy/…`) su ma suna fitar da id ɗinsu guda ɗaya a nan, don haka babu abin da ke ɓacewa. |
+| Yanayi      | Abin da yake fitarwa                                     | Bayanan kula                                                                                                                                                                                                                  |
+| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **da** `claude/claude-sonnet-4-6` | **Tsohon zaɓi.** Dukkan id biyun suna turawa zuwa samfuri ɗaya; an bar su ne domin saitunan client da suka hardcode ɗaya daga cikinsu su ci gaba da aiki. Kusan yana ninka catalog sau biyu.                                  |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Shigarwa guda ga kowane samfuri. Masu samarwa da ba su da alias na daban har yanzu suna fitar da shigarwarsu, don haka babu abin da ke ɓacewa.                                                                                |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Shigarwa guda ga kowane samfuri ƙarƙashin cikakken prefix na provider-id. Masu samarwa da ba su da alias na daban (misali `antigravity/…`, `agy/…`) su ma suna fitar da id ɗinsu guda a nan, don haka babu abin da ke ɓacewa. |
 
-Ana kuma iya gane madubin yanayin `dual` ba tare da ma'aunin query ba: yana ɗauke da filin `parent`
-wanda ke nuna id na farko.
+Hakanan ana iya gane madubi mai yanayin `dual` ba tare da query parameter ba: yana ɗauke da filin `parent`
+wanda ke nuna babban id.
 
-Abokan hulɗa da ke nuna na'urar zaɓen samfuri ya kamata su nemi `?prefix=alias` — wannan ne abin da
+Clients da ke nuna mai zaɓar samfuri ya kamata su nemi `?prefix=alias` — wannan shi ne abin da
 [ƙarin OmniCopilot na VS Code](../guides/VSCODE-COPILOT.md) yake yi.
 
-### Samfuran hira da aka ɓoye ɗaya bayan ɗaya
+### Samfuran taɗi da aka ɓoye ɗaya-ɗaya
 
-Samfurin da aka yi wa alamar **A ɓoye** a shafin mai samar da shi ana cire shi daga kundin, kuma ana ƙin buƙatarsa kai tsaye da HTTP `404` / `model_not_found`. Binciken yana amfani da mai samarwa da samfurin da aka tantance, yana la’akari da sunayen madadin mai samarwa, kari na farkon sunayen nodes na masu samarwa masu dacewa, da ƙimomin asali na haɗin. Combo yana tsallake maƙasudan da aka ɓoye kuma zai iya amfani da wani maƙasudi da ake gani; idan babu maƙasudin da za a iya aiwatarwa, yana mayar da lambar kuskure iri ɗaya. Sake nuna samfurin yana aiki daga buƙata ta gaba. Saitunan ganuwa na musamman ga hotuna kawai ba sa ɓoye samfurin hira mai ID iri ɗaya.
+Samfurin da aka yi wa alamar **Hidden** a shafin mai samar da shi ba a haɗa shi cikin catalog kuma ana ƙin
+buƙatarsa kai tsaye da HTTP `404` / `model_not_found`. Binciken yana amfani da mai samarwa da samfurin da aka warware,
+ciki har da aliases na mai samarwa, prefixes na node na compatible-provider, da tsoffin saitunan haɗi.
+Combo yana tsallake targets da aka ɓoye kuma zai iya amfani da sibling da ake iya gani; idan babu
+target mai iya aiwatarwa da ya rage, yana dawo da error code ɗin nan ɗaya. Cire ɓoyewa yana fara aiki a
+buƙata ta gaba. Sauye-sauyen ganin samfuran hoto kawai ba sa ɓoye samfurin taɗi mai ID iri ɗaya.
 
-Wannan saitin kowane samfurin ya bambanta da [jerin izini da hana bayyana samfura](../routing/MODEL_EXPOSURE_LIST.md), waɗanda ke tace abin da ake nunawa a kundin da zaɓuɓɓukan karkatarwa ta atomatik, amma suna ci gaba da ba da damar aikawa kai tsaye. Izinin samfura na maɓallin API yana ci gaba da aiki dabam. Yanayin asali na kari na farkon sunaye a kundin yana nan `dual`.
+Wannan saitin kowane samfuri dabam yake da
+[jeren allow/deny na bayyanar samfuri](../routing/MODEL_EXPOSURE_LIST.md), waɗanda ke tace tallan catalog
+da candidates na auto-routing yayin da suke ci gaba da riƙe explicit dispatch. Izinin samfura na API-key
+suna ci gaba da aiki da kansu. Tsohon yanayin prefix na catalog ya kasance `dual`.
 
-### Bambance-bambancen samfuri marasa tunani
+### Nau'ikan samfuri marasa thinking
 
-Ga samfuran Claude masu iya tunani, `/v1/models` yana kuma tallata bambancin **mara tunani** wanda id ɗinsa yake da farkon `claude-3-omniroute-no-thinking/`:
+Ga samfuran Claude masu ikon thinking, `/v1/models` kuma yana tallata nau'in **no-thinking** wanda aka sanya wa id ɗinsa prefix na `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Zaɓen wannan id (misali, a cikin saitin Claude Code wanda koyaushe yake haɗa tubalin `thinking`) yana mayar da shi zuwa ainihin `<provider>/<model>` tare da dakile yin dalilai — `thinking:{type:"disabled"}` a kan hanyar `/v1/messages`, ko kuma a cire filayen `reasoning`/`reasoning_effort` a kan hanyar `/v1/chat/completions`. Ana jera wannan bambancin ne kawai ga samfuran dangin Claude waɗanda ke goyon bayan tunani **kuma** suke mutunta `disabled` (don haka, misali, ana cire samfuran adaptive-only waɗanda ke ƙin `disabled`). Masu gudanarwa za su iya tilasta kunna ko kashe bambancin ga kowane samfuri ta hanyar `ModelSpec.noThinkingAlias`.
+Zaɓin wannan id (misali, a cikin saitin Claude Code da kullum yake haɗa block na `thinking`) yana warwarewa zuwa ainihin `<provider>/<model>` tare da hana reasoning — `thinking:{type:"disabled"}` a kan hanyar `/v1/messages`, ko kuma a cire filayen `reasoning`/`reasoning_effort` a kan hanyar `/v1/chat/completions`. Ana jera wannan nau'in ne kawai ga samfuran dangin Claude waɗanda ke goyon bayan thinking **kuma** suke mutunta `disabled` (don haka, misali, ba a haɗa samfuran adaptive-only da ke ƙin `disabled` ba). Masu gudanarwa za su iya tilasta kunna ko kashe wannan nau'in ga kowane samfuri ta hanyar `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -711,31 +719,31 @@ completion.
 
 ---
 
-## Amfani na kai-tsaye (`/api/usage/om-usage`)
+## Amfani da kai (`/api/usage/om-usage`)
 
-Kowane maɓallin API zai iya karanta amfaninsa da iyakokinsa **na kansa** — ba a buƙatar izinin gudanarwa. Wannan shi ne endpoint da
-client (CLI, panel ɗin OmniCopilot) ke amfani da shi don nuna wa mai riƙe da maɓalli kuɗin da ya kashe.
+Kowane API key na iya karanta amfani da ƙa’idojin iyakarsa **na kansa** — ba a buƙatar izinin gudanarwa. Wannan shi ne endpoint ɗin da
+abokin hulɗa (CLI, panel ɗin OmniCopilot) ke amfani da shi don nuna wa mai riƙe da key kuɗin da ya kashe.
 
 ```bash
-# Tsarin rubutu (yarjejeniyar tarihi — rubutu tsantsa don terminal)
+# Tsarin rubutu (tsohuwar yarjejeniya — rubutu tsantsa don terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Tsari mai tsarawa — abin da UI ke amfani da shi
+# Tsarin da aka tsara — wanda UI ke amfani da shi
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Dole ne maɓallin ya kunna **`allowUsageCommand`** (a kashe yake ta tsohuwa — manajan maɓallin API na dashboard
-yana kunna ko kashe shi ga kowane maɓalli). Idan babu shi endpoint ɗin zai amsa da `403`.
+Dole ne a kunna **`allowUsageCommand`** ga key ɗin (a kashe yake ta tsohuwa — manajan API-key na dashboard
+yana kunna ko kashe shi ga kowane key). Idan babu shi, endpoint ɗin zai amsa da `403`.
 
-`?format=json` yana mayar da tsari mai nuna bambanci domin mai kira kada ya taɓa karanta filin bayanai daga
-amsar ƙin yarda. Idan an yi nasara:
+`?format=json` yana mayar da tsari mai bambance yanayi domin mai kira kada ya taɓa karanta filin bayanai daga
+amsar ƙin izini. Idan an yi nasara:
 
 ```jsonc
 {
   "allowed": true,
-  // yana nan ne kawai idan maɓallin ya zaɓi amfani da iyakokin amfani na kowane maɓalli (USD na yau da kullum/mako-mako):
+  // yana nan ne kawai idan an zaɓi iyakokin amfani na kowane key (USD na yau da kullum/mako-mako):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -744,14 +752,14 @@ amsar ƙin yarda. Idan an yi nasara:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // hoton halin iyakar provider da aka zaɓa, ko null idan ba a adana komai a cache ba tukuna:
+  // hoton ƙayyadadden quota na provider da aka zaɓa, ko null idan har yanzu ba a adana komai a cache ba:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // hoton halin kowane connection, domin UI ya iya nuna providers da yawa gefe da gefe:
+  // hoton kowace connection, domin UI ya iya nuna providers da dama gefe da gefe:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -759,13 +767,64 @@ amsar ƙin yarda. Idan an yi nasara:
 }
 ```
 
-Idan aka ƙi (`401` maɓalli mara inganci / `403` ba a yarda ba), route ɗin yana mayar da
-`{ "allowed": false, "error": { "message": "…" } }` — kasancewar `personal`/`provider` mara komai
-(an yarda da maɓallin, amma ba a gano komai ba tukuna) wani yanayi ne daban da ƙin yarda, kuma tsarin JSON ne kawai
-ke bambanta su.
+Idan an ƙi izini (`401` key mara inganci / `403` ba a ba da izini ba), wannan route ɗin zai mayar da
+`{ "allowed": false, "error": { "message": "…" } }` — kasancewar `personal`/`provider` amma babu komai a ciki
+(an ba key izini, amma har yanzu ba a samu wani bayani ba) wani yanayi ne dabam da ƙin izini, kuma tsarin JSON
+kaɗai ne ke bambance su.
 
-**Tabbatar da izini:** maɓallin Bearer API na mai kiran kansa, wanda aka tantance da `isValidApiKey` — wannan _ba_ hanyar
-gudanarwa ba ce (`/api/keys/…`), wadda take ci gaba da kasancewa a bayan `requireManagementAuth`.
+**Auth:** API key na Bearer na mai kiran da kansa, wanda aka tantance da `isValidApiKey` — wannan _ba_ shi ne
+fagen gudanarwa (`/api/keys/…`) ba, wanda har yanzu yake ƙarƙashin kariyar `requireManagementAuth`.
+
+### Kaso na Quota na Asali da Wanda Aka Daidaita da Cutoff
+
+Lokacin amfani da `/api/usage/om-usage`, ya kamata masu kira su lura da bambanci tsakanin
+kason da ake gabatarwa ta **fitowar rubutu tsantsa** da kuma **fitowar JSON** mai tsari:
+
+| Bangare                | Tsarin rubutu tsantsa (`/api/usage/om-usage` / `@@om-usage`)                                 | Tsarin JSON (`?format=json`)                                                               |
+| :--------------------- | :------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------- |
+| **Filin fitarwa**      | `NN% left` (misali, `20% left`)                                                              | `provider.quotas` / `providers[].quotas`                                                   |
+| **Ma’auni**            | **Izinin amfani da aka daidaita da cutoff**: ƙarfin da ya rage sama da matakin cutoff        | **Quota na asali daga upstream**: ma’aunin provider da ba a daidaita ba                    |
+| **Daidaitawar cutoff** | Ana daidaita shi ta `effectiveRemainingPercent()` domin ajiyar da aka kare ta nuna `0% left` | Babu (ƙimomin hoton asali kamar yadda provider ya bayar)                                   |
+| **Bayanan mataki**     | An haɗa su cikin kason da aka nuna                                                           | Ana adana su a `quotaWindowThresholds` ga kowace connection (ko ƙa’idojin tsoho na server) |
+| **Babban mai amfani**  | CLIs masu hulɗa, saƙonnin terminal, masu gudanarwa na ɗan Adam                               | Haɗin shirye-shirye, dashboards, nazari, masu bibiyar lissafin kuɗi                        |
+
+#### Tsarin Lissafin Daidaitawar Cutoff
+
+OmniRoute yana tallafa wa yanke quota tun da wuri domin hana ƙarewar upstream (ana saita shi ta
+`quotaWindowThresholds` na connection, ƙa’idojin tsoho na provider, ko saitunan juriya na gaba ɗaya). Lokacin da matakin cutoff
+(misali, `cutoff = 25%`) ke aiki a kan taga ta quota, mai samar da rubutu yana lissafa ragowar izini kamar haka:
+
+- Idan `remaining <= cutoff`: yana mayar da `0%`.
+- Idan `remaining > cutoff`: yana mayar da `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Fitowar rubutun da aka tsara tana zagaye wannan zuwa lamba cikakkiya mafi kusa (`Math.round(...)`).
+
+#### Misali na Bayani
+
+Yi la’akari da tagar provider mai **60% raw usage** (wato **40% raw remaining quota**) da kuma
+matakin **25% remaining-quota cutoff** da aka saita:
+
+| Wakilci                            | Lissafi                                            | Ragowa  |            Amfanin da Ake Fahimta            |
+| :--------------------------------- | :------------------------------------------------- | :-----: | :------------------------------------------: |
+| **JSON na asali (`?format=json`)** | Hoton upstream (`quotas[window]`)                  | **40%** |                   **60%**                    |
+| **Tsarin rubutu (`NN% left`)**     | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (idan ana lissafa `100 - remaining`) |
+
+- **Dalilin da ya sa rubutu ke nuna ragowar 20%:** Daga cikin 40% na quota na zahiri da ya rage a asusun, manufofin
+  cutoff sun keɓe 25%. Mai kiran yana da 15% kawai daga cikin 75% na sararin amfani da ya rage kafin router ya daina
+  aika zirga-zirga zuwa wannan connection. Daidaitawar tana tabbatar da cewa connection ɗin ya nuna ƙarewa (`0% left`) daidai lokacin da
+  aika zirga-zirga zai tsaya.
+- **Dalilin da ya sa JSON ke kiyaye ƙimomin asali:** JSON payload yana mayar da ainihin hoton provider (`UsageSnapshot`)
+  domin kayan aikin waje su sami damar ganin ainihin amfani na upstream da kuma
+  `quotaWindowThresholds` na matakin connection ba tare da daidaitawar server mai haddasa asarar bayanai ba.
+
+#### Jagorar Ƙaura ga Masu Amfani
+
+Idan wani haɗin waje (kamar plugin na editor ko extension na agent) ya kasance yana tsinto bayanai daga endpoint ɗin rubutu
+(`NN% left`) sannan ya lissafa kason da aka yi amfani da shi a matsayin `100 - NN`, ƙaura zuwa `?format=json` na nufin:
+
+- Karanta ƙimomin JSON na asali zai nuna **ainihin amfani na upstream** (60% aka yi amfani da shi a misalin da ke sama).
+- Idan haɗin yana son kiyaye ma’anar izinin amfani ta endpoint ɗin rubutu, zai iya aiwatar da
+  tsarin lissafin ragowa mai inganci a gefen abokin hulɗa ta amfani da `quotaWindowThresholds` don sauye-sauyen matakin connection.
 
 ---
 

@@ -410,54 +410,65 @@ standart olaraq `us-central1` istifadə olunur. Hər iki müəyyənləşdirmə `
 
 ---
 
-## Modelləri sadalayın
+## Modellərin siyahısı
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Bütün çat, embedding və şəkil modellərini + kombinasiyaları OpenAI formatında qaytarır
+→ Bütün söhbət, embedding və şəkil modellərini + kombinasiyaları OpenAI formatında qaytarır
 ```
 
-### Model id prefiksləri (`?prefix=`)
+### Model ID prefiksləri (`?prefix=`)
 
 Əksər modellər **provayder prefiksi** altında təqdim olunur. Hansı prefiksin əldə ediləcəyi
 `MODELS_CATALOG_PREFIX_MODE` funksiya bayrağı ilə idarə olunur və sorğu parametri vasitəsilə
-**hər sorğu üçün ayrıca** dəyişdirilə bilər — bu, server miqyasındakı parametri digər istifadəçilər
-üçün dəyişmədən təmiz siyahı əldə etmək istəyən klient üçün faydalıdır:
+**hər sorğu üçün** dəyişdirilə bilər — bu, server səviyyəsindəki parametri başqaları üçün
+dəyişmədən təmiz siyahı istəyən klient üçün faydalıdır:
 
 ```bash
-GET /v1/models?prefix=alias        # hər model üçün bir id — qısa alias prefiksi
-GET /v1/models?prefix=dual         # hər iki forma (serverin standart dəyəri)
-GET /v1/models?prefix=canonical    # yalnız tam provayder id-si prefiksi
+GET /v1/models?prefix=alias        # hər model üçün bir ID — qısa alias prefiksi
+GET /v1/models?prefix=dual         # hər iki forma (serverin standartı)
+GET /v1/models?prefix=canonical    # yalnız tam provayder ID-si prefiksi
 ```
 
-| Rejim       | Təqdim edir                                              | Qeydlər                                                                                                                                                                                                         |
+| Rejim       | Qaytarır                                                 | Qeydlər                                                                                                                                                                                                         |
 | ----------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **və** `claude/claude-sonnet-4-6` | **Standart.** Hər iki id eyni modelə yönləndirilir; formalardan hər hansı birini sərt şəkildə kodlaşdırmış klient konfiqurasiyalarının işləməyə davam etməsi üçün saxlanılıb. Kataloqu təxminən ikiqat böyüdür. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Hər model üçün bir qeyd. Fərqli alias-ı olmayan provayderlər yenə də öz qeydlərini təqdim edir, buna görə heç nə itirilmir.                                                                                     |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Tam provayder id-si prefiksi altında hər model üçün bir qeyd. Fərqli alias-ı olmayan provayderlər (məsələn, `antigravity/…`, `agy/…`) burada da öz yeganə id-sini təqdim edir, buna görə heç nə itirilmir.      |
+| `dual`      | `cc/claude-sonnet-4-6` **və** `claude/claude-sonnet-4-6` | **Standart.** Hər iki ID eyni modelə yönləndirilir; formalardan hər hansı birini sabit şəkildə təyin etmiş klient konfiqurasiyalarının işləməyə davam etməsi üçün saxlanılıb. Kataloqu təxminən ikiqat artırır. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Hər model üçün bir qeyd. Fərqli aliası olmayan provayderlər də öz qeydlərini qaytarır, buna görə heç nə itirilmir.                                                                                              |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Tam provayder ID-si prefiksi altında hər model üçün bir qeyd. Fərqli aliası olmayan provayderlər (məsələn, `antigravity/…`, `agy/…`) burada da yeganə ID-lərini qaytarır, buna görə heç nə itirilmir.           |
 
-`dual` rejimli güzgü sorğu parametri olmadan da müəyyən edilə bilər: o, əsas id-yə işarə edən
-`parent` sahəsini ehtiva edir.
+`dual` rejimli güzgü sorğu parametri olmadan da müəyyən edilə bilər: o, əsas ID-ni göstərən
+`parent` sahəsini daşıyır.
 
-Model seçicisini göstərən klientlər `?prefix=alias` sorğulamalıdır — [OmniCopilot VS Code genişləndirməsi](../guides/VSCODE-COPILOT.md) də məhz bunu edir.
+Model seçicisini göstərən klientlər `?prefix=alias` sorğulamalıdır —
+[OmniCopilot VS Code genişlənməsi](../guides/VSCODE-COPILOT.md) də məhz bunu edir.
 
-### Ayrı-ayrılıqda gizlədilən söhbət modelləri
+### Fərdi şəkildə gizlədilmiş söhbət modelləri
 
-Provayder səhifəsində **Gizli** kimi işarələnən model kataloqdan çıxarılır və açıq şəkildə istənildikdə HTTP `404` / `model_not_found` ilə rədd edilir. Yoxlama provayder ləqəbləri, uyğun provayder qovşaqlarının prefiksləri və bağlantının standart dəyərləri nəzərə alınaraq müəyyənləşdirilmiş provayder və modeldən istifadə edir. Combo gizli hədəfləri ötürür və başqa görünən hədəfdən istifadə edə bilər; icra edilə bilən hədəf qalmadıqda eyni xəta kodunu qaytarır. Modelin yenidən göstərilməsi növbəti sorğudan qüvvəyə minir. Yalnız şəkillər üçün görünmə tənzimləmələri eyni ID-li söhbət modelini gizlətmir.
+Provayder səhifəsində **Hidden** kimi işarələnmiş model kataloqdan çıxarılır və açıq şəkildə
+sorğulandıqda HTTP `404` / `model_not_found` xətası ilə rədd edilir. Yoxlama provayder
+aliasları, uyğun provayder qovşağı prefiksləri və bağlantının standartları daxil olmaqla,
+müəyyən edilmiş provayder və modeldən istifadə edir. Kombinasiya gizli hədəfləri ötürür və
+görünən bənzər modeldən istifadə edə bilər; icra edilə bilən heç bir hədəf qalmadıqda eyni xəta
+kodunu qaytarır. Gizliliyin ləğvi növbəti sorğuda qüvvəyə minir. Yalnız şəkillərə aid görünmə
+əvəzləmələri eyni ID-yə malik söhbət modelini gizlətmir.
 
-Bu fərdi model ayarı [model nümayişi üçün icazə və qadağa siyahılarından](../routing/MODEL_EXPOSURE_LIST.md) ayrıdır. Həmin siyahılar birbaşa göndərişi saxlayaraq kataloqda təqdim olunan modelləri və avtomatik yönləndirmə namizədlərini süzgəcdən keçirir. API açarının model icazələri müstəqil şəkildə tətbiq olunmağa davam edir. Kataloqun standart prefiks rejimi `dual` olaraq qalır.
+Bu fərdi model parametri kataloqda göstərilən modelləri və avtomatik yönləndirmə namizədlərini
+filtrləyən, lakin açıq dispetçerləşdirməni saxlayan
+[model ekspozisiyasının icazə/qadağa siyahılarından](../routing/MODEL_EXPOSURE_LIST.md) ayrıdır.
+API açarının model icazələri müstəqil şəkildə tətbiq olunmağa davam edir. Kataloq prefiksinin
+standart rejimi `dual` olaraq qalır.
 
 ### Düşünməsiz model variantları
 
-Düşünmə qabiliyyətli Claude modelləri üçün `/v1/models`, id-si `claude-3-omniroute-no-thinking/` prefiksi ilə başlayan **düşünməsiz** variantı da təqdim edir:
+Düşünmə qabiliyyətli Claude modelləri üçün `/v1/models`, ID-si `claude-3-omniroute-no-thinking/` ilə prefikslənmiş **düşünməsiz** variantı da təqdim edir:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Bu id-nin seçilməsi (məsələn, həmişə `thinking` bloku əlavə edən Claude Code konfiqurasiyasında) düşünmə prosesi söndürülməklə yenidən həqiqi `<provider>/<model>` modelinə yönləndirilir — `/v1/messages` yolunda `thinking:{type:"disabled"}` tətbiq edilir və ya `/v1/chat/completions` yolunda `reasoning`/`reasoning_effort` sahələri silinir. Variant yalnız düşünməni dəstəkləyən **və** `disabled` dəyərini qəbul edən Claude ailəsi modelləri üçün siyahıya daxil edilir (beləliklə, məsələn, `disabled` dəyərini rədd edən yalnız adaptiv modellər istisna olunur). Operatorlar `ModelSpec.noThinkingAlias` vasitəsilə hər model üçün variantı məcburi şəkildə aktivləşdirə və ya deaktivləşdirə bilərlər.
+Bu ID-nin seçilməsi (məsələn, həmişə `thinking` bloku əlavə edən Claude Code konfiqurasiyasında) düşünmə prosesi deaktiv edilərək yenidən həqiqi `<provider>/<model>` modelinə yönləndirilir — `/v1/messages` yolunda `thinking:{type:"disabled"}`, yaxud `/v1/chat/completions` yolunda `reasoning`/`reasoning_effort` sahələri silinir. Variant yalnız düşünməni dəstəkləyən **və** `disabled` parametrini nəzərə alan Claude ailəsi modelləri üçün siyahıya alınır (beləliklə, məsələn, `disabled` parametrini rədd edən yalnız adaptiv modellər istisna edilir). Operatorlar `ModelSpec.noThinkingAlias` vasitəsilə hər model üçün variantı məcburi şəkildə aktivləşdirə və ya deaktiv edə bilərlər.
 
 ---
 
@@ -740,29 +751,26 @@ ChatGPT `codex.rate_limits` + `response.created` qaytarır və tamamlamanı axı
 
 ## Özünəxidmət istifadəsi (`/api/usage/om-usage`)
 
-İstənilən API açarı idarəetmə autentifikasiyası olmadan **öz** istifadəsini və kvotalarını oxuya bilər. Bu, müştərinin
-(CLI, OmniCopilot paneli) açar sahibinə xərclərini göstərmək üçün istifadə etdiyi son nöqtədir.
+İstənilən API açarı idarəetmə autentifikasiyası olmadan **öz** istifadəsini və kvotalarını oxuya bilər. Bu, müştərinin (CLI, OmniCopilot paneli) açar sahibinə xərclərini göstərmək üçün istifadə etdiyi endpoint-dir.
 
 ```bash
 # Mətn formatı (tarixi müqavilə — terminal üçün adi mətn)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Strukturlaşdırılmış format — UI tərəfindən istifadə olunan format
+# Strukturlaşdırılmış format — UI-nin istifadə etdiyi
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Açarda **`allowUsageCommand`** aktiv olmalıdır (standart olaraq deaktivdir — idarəetmə panelinin API açarı
-meneceri bunu hər açar üçün ayrıca dəyişir). Bu parametr olmadan son nöqtə `403` cavabı qaytarır.
+Açarda **`allowUsageCommand`** aktivləşdirilməlidir (standart olaraq söndürülüb — idarəetmə panelinin API açarı meneceri bunu hər açar üçün ayrıca dəyişir). Bu aktiv olmadıqda endpoint `403` cavabını qaytarır.
 
-`?format=json` diskriminasiya edilmiş struktur qaytarır ki, çağıran tərəf imtina cavabından heç vaxt məlumat sahəsi oxumasın.
-Uğurlu olduqda:
+`?format=json` ayrı-seçkili struktur qaytarır ki, çağıran tərəf imtina cavabından heç vaxt məlumat sahəsi oxumasın. Uğurlu olduqda:
 
 ```jsonc
 {
   "allowed": true,
-  // yalnız açar hər açar üzrə istifadə limitlərini (gündəlik/həftəlik USD) aktiv etdikdə mövcuddur:
+  // yalnız açar hər açar üzrə istifadə limitlərini (gündəlik/həftəlik USD) aktivləşdirdikdə mövcuddur:
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -771,14 +779,14 @@ Uğurlu olduqda:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // seçilmiş provayderin kvota anlıq görüntüsü və ya hələ heç nə keşlənməyibsə null:
+  // seçilmiş provayderin kvota görüntüsü və ya hələ heç nə keşlənməyibsə null:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // UI-nin bir neçə provayderi yan-yana göstərə bilməsi üçün hər bağlantının anlıq görüntüsü:
+  // UI-nin bir neçə provayderi yanaşı göstərə bilməsi üçün hər bağlantının görüntüsü:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -786,13 +794,51 @@ Uğurlu olduqda:
 }
 ```
 
-İmtina zamanı (`401` etibarsız açar / `403` icazə verilməyib) eyni marşrut
+İmtina halında (`401` etibarsız açar / `403` icazə verilməyib) eyni marşrut
 `{ "allowed": false, "error": { "message": "…" } }` qaytarır — mövcud, lakin boş `personal`/`provider`
-(açara icazə verilib, lakin hələ heç nə əldə edilməyib) imtinadan fərqli vəziyyətdir və onları yalnız JSON formatı
-fərqləndirir.
+(açara icazə verilib, lakin hələ heç bir məlumat əldə edilməyib) imtinadan fərqli vəziyyətdir və yalnız JSON formatı bunları fərqləndirir.
 
-**Autentifikasiya:** çağıran tərəfin `isValidApiKey` ilə yoxlanılan öz Bearer API açarı — bu, `requireManagementAuth`
-ilə qorunan idarəetmə interfeysi (`/api/keys/…`) _deyil_.
+**Autentifikasiya:** çağıran tərəfin `isValidApiKey` ilə yoxlanılan öz Bearer API açarı — bu, `requireManagementAuth` arxasında qalan idarəetmə səthi (`/api/keys/…`) _deyil_.
+
+### Xam və kəsilmə həddinə uyğunlaşdırılmış kvota faizləri
+
+`/api/usage/om-usage` istifadə edilərkən çağıran tərəflər **adi mətn çıxışında** və strukturlaşdırılmış **JSON çıxışında** təqdim olunan faizlər arasındakı fərqi nəzərə almalıdır:
+
+| Aspekt                       | Adi mətn formatı (`/api/usage/om-usage` / `@@om-usage`)                                                  | JSON formatı (`?format=json`)                                                                         |
+| :--------------------------- | :------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| **Çıxış sahəsi**             | `NN% left` (məsələn, `20% left`)                                                                         | `provider.quotas` / `providers[].quotas`                                                              |
+| **Ölçmə**                    | **Kəsilmə həddinə uyğunlaşdırılmış istifadə edilə bilən limit**: kəsilmə həddindən yuxarı qalan tutum    | **Xam yuxarı axın kvotası**: provayderin uyğunlaşdırılmamış ölçməsi                                   |
+| **Kəsilmə miqyaslandırması** | `effectiveRemainingPercent()` vasitəsilə miqyaslandırılır ki, qorunan ehtiyat `0% left` kimi göstərilsin | Yoxdur (provayderin bildirdiyi xam görüntü dəyərləri)                                                 |
+| **Hədd məlumatları**         | Göstərilən faizə daxil edilir                                                                            | Hər bağlantı üzrə `quotaWindowThresholds` daxilində (və ya serverin standart dəyərlərində) saxlanılır |
+| **Əsas istehlakçı**          | İnteraktiv CLI-lər, terminal sorğuları, insan operatorları                                               | Proqram inteqrasiyaları, idarəetmə panelləri, analitika, ödəniş izləyiciləri                          |
+
+#### Kəsilmə həddinə uyğunlaşdırma düsturu
+
+OmniRoute yuxarı axın resurslarının tükənməsinin qarşısını almaq üçün proaktiv kvota kəsilmə hədlərini dəstəkləyir (bağlantının `quotaWindowThresholds` parametrləri, provayderin standart dəyərləri və ya qlobal dayanıqlılıq parametrləri vasitəsilə konfiqurasiya edilir). Kvota pəncərəsində kəsilmə həddi (məsələn, `cutoff = 25%`) aktiv olduqda mətn rendereri qalan limiti belə hesablayır:
+
+- Əgər `remaining <= cutoff`: `0%` qaytarır.
+- Əgər `remaining > cutoff`: `((remaining - cutoff) / (100 - cutoff)) * 100` qaytarır.
+
+Formatlanmış mətn çıxışı bunu ən yaxın tam ədədə yuvarlaqlaşdırır (`Math.round(...)`).
+
+#### İllüstrativ nümunə
+
+**60% xam istifadəsi** (deməli, **40% xam qalan kvotası**) və konfiqurasiya edilmiş **25% qalan kvota kəsilmə həddi** olan provayder pəncərəsini nəzərdən keçirək:
+
+| Təqdimat                      | Hesablama                                          |  Qalan  |         Nəzərdə tutulan istifadə         |
+| :---------------------------- | :------------------------------------------------- | :-----: | :--------------------------------------: |
+| **Xam JSON (`?format=json`)** | Yuxarı axın görüntüsü (`quotas[window]`)           | **40%** |                 **60%**                  |
+| **Mətn formatı (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (`100 - remaining` hesablanarsa) |
+
+- **Mətnin niyə 20% qaldığını göstərməsi:** Hesabda fiziki olaraq qalan 40% kvotanın 25%-i kəsilmə siyasəti ilə ehtiyatda saxlanılır. Router bu bağlantıya yönləndirməni dayandırmazdan əvvəl çağıran tərəfin istifadə edilə bilən 75%-lik boşluğundan yalnız 15%-i qalır. Miqyaslandırma bağlantının məhz yönləndirmə dayandırıldığı anda tükənmə siqnalı (`0% left`) verməsini təmin edir.
+- **JSON-un xam dəyərləri niyə saxlaması:** JSON faydalı yükü dəqiq provayder görüntüsünü (`UsageSnapshot`) qaytarır ki, xarici alətlər server tərəfində itki yaradan miqyaslandırma olmadan yuxarı axın istifadəsinin real dəyərlərinə və bağlantı səviyyəli `quotaWindowThresholds` məlumatlarına çıxış əldə etsin.
+
+#### İstehlakçıların miqrasiyası üçün təlimat
+
+Əgər xarici inteqrasiya (məsələn, redaktor plagini və ya agent genişləndirməsi) əvvəllər mətn endpoint-indən (`NN% left`) məlumat çıxarır və istifadə faizini `100 - NN` kimi hesablayırdısa, `?format=json` formatına keçid aşağıdakıları ifadə edir:
+
+- Xam JSON dəyərlərinin oxunması **faktiki yuxarı axın istehlakını** əks etdirəcək (yuxarıdakı nümunədə 60% istifadə olunub).
+- Əgər inteqrasiya mətn endpoint-inin istifadə edilə bilən limit semantikasını qorumaq istəyirsə, bağlantı səviyyəli əvəzləmələr üçün `quotaWindowThresholds` istifadə edərək effektiv qalan faiz düsturunu müştəri tərəfində hesablaya bilər.
 
 ---
 

@@ -410,41 +410,54 @@ Authorization: Bearer your-api-key
 → Devuelve todos los modelos de chat, embeddings e imágenes, además de las combinaciones, en formato OpenAI
 ```
 
-### Prefijos de id de modelo (`?prefix=`)
+### Prefijos de ID de modelo (`?prefix=`)
 
-La mayoría de los modelos se anuncian con un **prefijo de proveedor**. El prefijo que se obtiene está controlado por la marca de funcionalidad `MODELS_CATALOG_PREFIX_MODE` y puede sobrescribirse **para cada solicitud** mediante un parámetro de consulta, lo que resulta útil para clientes que desean una lista limpia sin cambiar la configuración global del servidor para todos los demás:
+La mayoría de los modelos se anuncian bajo un **prefijo de proveedor**. El prefijo que se obtiene está controlado por
+la marca de funcionalidad `MODELS_CATALOG_PREFIX_MODE` y puede sobrescribirse **por solicitud** mediante un
+parámetro de consulta, lo que resulta útil para un cliente que desea una lista limpia sin cambiar la configuración
+global del servidor para todos los demás:
 
 ```bash
-GET /v1/models?prefix=alias        # un id por modelo: el prefijo de alias corto
+GET /v1/models?prefix=alias        # un ID por modelo: el prefijo de alias corto
 GET /v1/models?prefix=dual         # ambas formas (valor predeterminado del servidor)
-GET /v1/models?prefix=canonical    # solo el prefijo completo del id del proveedor
+GET /v1/models?prefix=canonical    # solo el prefijo completo del ID del proveedor
 ```
 
-| Modo        | Emite                                                   | Notas                                                                                                                                                                                                                                      |
-| ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dual`      | `cc/claude-sonnet-4-6` **y** `claude/claude-sonnet-4-6` | **Predeterminado.** Ambos ids se enrutan al mismo modelo; se mantienen para que sigan funcionando las configuraciones de clientes que hayan codificado de forma fija cualquiera de las dos variantes. Aproximadamente duplica el catálogo. |
-| `alias`     | `cc/claude-sonnet-4-6`                                  | Una entrada por modelo. Los proveedores sin un alias distinto siguen emitiendo su entrada, por lo que no se pierde nada.                                                                                                                   |
-| `canonical` | `claude/claude-sonnet-4-6`                              | Una entrada por modelo con el prefijo completo del id del proveedor. Los proveedores sin un alias distinto (p. ej., `antigravity/…`, `agy/…`) también emiten aquí su único id, por lo que no se pierde nada.                               |
+| Modo        | Emite                                                   | Notas                                                                                                                                                                                                                  |
+| ----------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **y** `claude/claude-sonnet-4-6` | **Predeterminado.** Ambos ID se enrutan al mismo modelo; se mantienen para que las configuraciones de clientes que hayan codificado cualquiera de las dos formas sigan funcionando. Prácticamente duplica el catálogo. |
+| `alias`     | `cc/claude-sonnet-4-6`                                  | Una entrada por modelo. Los proveedores sin un alias distinto siguen emitiendo su entrada, por lo que no se pierde nada.                                                                                               |
+| `canonical` | `claude/claude-sonnet-4-6`                              | Una entrada por modelo bajo el prefijo completo del ID del proveedor. Los proveedores sin un alias distinto (p. ej., `antigravity/…`, `agy/…`) también emiten aquí su único ID, por lo que no se pierde nada.          |
 
-Un reflejo en modo `dual` también puede reconocerse sin el parámetro de consulta: incluye un campo `parent` que apunta al id principal.
+También se puede reconocer un espejo en modo `dual` sin el parámetro de consulta: incluye un campo `parent`
+que apunta al ID principal.
 
-Los clientes que muestran un selector de modelos deben solicitar `?prefix=alias`; esto es lo que hace la [extensión OmniCopilot para VS Code](../guides/VSCODE-COPILOT.md).
+Los clientes que muestran un selector de modelos deben solicitar `?prefix=alias`; esto es lo que hace la
+[extensión OmniCopilot para VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Modelos de chat ocultos individualmente
 
-Un modelo marcado como **Oculto** en la página de su proveedor se excluye del catálogo y se rechaza con HTTP `404` / `model_not_found` cuando se solicita explícitamente. La comprobación utiliza el proveedor y el modelo resueltos, teniendo en cuenta los alias del proveedor, los prefijos de nodos de proveedores compatibles y los valores predeterminados de la conexión. Un combo omite los destinos ocultos y puede utilizar otro destino visible; si no queda ningún destino ejecutable, devuelve el mismo código de error. Volver a mostrar el modelo surte efecto en la siguiente solicitud. Las excepciones de visibilidad exclusivas de imágenes no ocultan el modelo de chat con el mismo ID.
+Un modelo marcado como **Oculto** en la página de su proveedor se excluye del catálogo y se rechaza
+con HTTP `404` / `model_not_found` cuando se solicita explícitamente. La comprobación utiliza el
+proveedor y el modelo resueltos, incluidos los alias de proveedores, los prefijos de nodo de proveedores
+compatibles y los valores predeterminados de conexión. Una combinación omite los destinos ocultos y puede usar otro visible; cuando no
+queda ningún destino ejecutable, devuelve el mismo código de error. Al dejar de ocultarlo, el cambio entra en vigor en la siguiente
+solicitud. Las anulaciones de visibilidad exclusivas para imágenes no ocultan el modelo de chat con el mismo ID.
 
-Esta configuración individual es independiente de las [listas de inclusión y exclusión para la exposición de modelos](../routing/MODEL_EXPOSURE_LIST.md), que filtran la publicación en el catálogo y los candidatos del enrutamiento automático, pero conservan el envío explícito. Los permisos de modelos de la clave API siguen aplicándose de forma independiente. El modo predeterminado de prefijos del catálogo sigue siendo `dual`.
+Esta configuración individual del modelo es independiente de las
+[listas de permitidos/denegados para la exposición de modelos](../routing/MODEL_EXPOSURE_LIST.md), que filtran la publicación
+en el catálogo y los candidatos de enrutamiento automático, a la vez que conservan el envío explícito. Los permisos de modelos
+de las claves de API siguen aplicándose de manera independiente. El modo predeterminado de prefijo del catálogo sigue siendo `dual`.
 
 ### Variantes de modelos sin razonamiento
 
-Para los modelos Claude con capacidad de razonamiento, `/v1/models` también anuncia una variante **sin razonamiento** cuyo id lleva el prefijo `claude-3-omniroute-no-thinking/`:
+Para los modelos Claude con capacidad de razonamiento, `/v1/models` también anuncia una variante **sin razonamiento** cuyo ID lleva el prefijo `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Al seleccionar este id (p. ej., en una configuración de Claude Code que siempre adjunta un bloque `thinking`), se vuelve a resolver al `<provider>/<model>` real con el razonamiento suprimido: `thinking:{type:"disabled"}` en la ruta `/v1/messages`, o se omiten los campos `reasoning`/`reasoning_effort` en la ruta `/v1/chat/completions`. La variante solo aparece para los modelos de la familia Claude que admiten razonamiento **y** respetan `disabled` (por lo que, p. ej., se excluyen los modelos exclusivamente adaptativos que rechazan `disabled`). Los operadores pueden forzar la activación o desactivación de la variante para cada modelo mediante `ModelSpec.noThinkingAlias`.
+Al seleccionar este ID (p. ej., en una configuración de Claude Code que siempre adjunta un bloque `thinking`), se vuelve a resolver al `<provider>/<model>` real con el razonamiento deshabilitado: `thinking:{type:"disabled"}` en la ruta `/v1/messages`, o se eliminan los campos `reasoning`/`reasoning_effort` en la ruta `/v1/chat/completions`. La variante solo aparece para los modelos de la familia Claude que admiten el razonamiento **y** respetan `disabled` (por lo que, p. ej., se excluyen los modelos exclusivamente adaptativos que rechazan `disabled`). Los operadores pueden forzar la activación o desactivación de la variante por modelo mediante `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -731,11 +744,11 @@ finalización.
 
 ## Uso de autoservicio (`/api/usage/om-usage`)
 
-Cualquier clave de API puede consultar **su propio** uso y sus cuotas, sin autenticación de administración. Este es el endpoint que un
-cliente (CLI, el panel de OmniCopilot) utiliza para mostrar sus gastos al titular de una clave.
+Cualquier clave de API puede consultar **su propio** uso y sus cuotas, sin autenticación de administración. Este es el endpoint que utiliza un
+cliente (CLI, el panel de OmniCopilot) para mostrar al titular de una clave su gasto.
 
 ```bash
-# Formato de texto (el contrato histórico: texto sin formato para un terminal)
+# Formato de texto (el contrato histórico: texto sin formato para una terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
@@ -744,16 +757,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-La clave debe tener **`allowUsageCommand`** habilitado (está deshabilitado de forma predeterminada; el administrador de claves de API
-del panel lo activa o desactiva para cada clave). Sin esta opción, el endpoint responde con `403`.
+La clave debe tener **`allowUsageCommand`** habilitado (está deshabilitado de forma predeterminada; el administrador de claves de API del panel
+lo activa individualmente para cada clave). Sin esta opción, el endpoint responde con `403`.
 
 `?format=json` devuelve una estructura discriminada para que quien realiza la llamada nunca lea un campo de datos de una
-denegación. En caso de éxito:
+respuesta de rechazo. En caso de éxito:
 
 ```jsonc
 {
   "allowed": true,
-  // solo está presente cuando la clave ha habilitado límites de uso por clave (USD diarios/semanales):
+  // presente solo cuando la clave ha habilitado límites de uso por clave (USD diarios/semanales):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -762,14 +775,14 @@ denegación. En caso de éxito:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // la instantánea de cuota del proveedor seleccionado, o null cuando aún no hay nada almacenado en caché:
+  // instantánea de cuota del proveedor seleccionado, o null cuando todavía no hay nada en caché:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // la instantánea de cada conexión, para que una interfaz pueda mostrar varios proveedores en paralelo:
+  // instantánea de cada conexión, para que una interfaz pueda mostrar varios proveedores en paralelo:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -777,13 +790,64 @@ denegación. En caso de éxito:
 }
 ```
 
-En caso de denegación (`401` por clave incorrecta / `403` por falta de permiso), la misma ruta devuelve
+En caso de rechazo (`401` por clave incorrecta / `403` por falta de permiso), la misma ruta devuelve
 `{ "allowed": false, "error": { "message": "…" } }`: un campo `personal`/`provider` presente pero vacío
-(clave permitida, todavía no se ha obtenido información) representa un estado distinto de una denegación, y solo el formato JSON
+(clave autorizada, pero todavía no se ha obtenido información) es un estado distinto de un rechazo, y solo el formato JSON
 permite distinguirlos.
 
 **Autenticación:** la propia clave de API Bearer de quien realiza la llamada, validada con `isValidApiKey`; esta _no_ es la
-interfaz de administración (`/api/keys/…`), que continúa protegida por `requireManagementAuth`.
+interfaz de administración (`/api/keys/…`), que permanece protegida mediante `requireManagementAuth`.
+
+### Porcentajes de cuota sin procesar frente a porcentajes ajustados por el umbral de corte
+
+Al consumir `/api/usage/om-usage`, se debe tener en cuenta la diferencia entre los
+porcentajes presentados por la **salida de texto sin formato** y la **salida JSON** estructurada:
+
+| Aspecto                  | Formato de texto sin formato (`/api/usage/om-usage` / `@@om-usage`)                                 | Formato JSON (`?format=json`)                                                                |
+| :----------------------- | :-------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------- |
+| **Campo de salida**      | `NN% left` (p. ej., `20% left`)                                                                     | `provider.quotas` / `providers[].quotas`                                                     |
+| **Medición**             | **Asignación utilizable ajustada por el umbral de corte**: capacidad restante por encima del umbral | **Cuota original del proveedor**: medición sin ajustar proporcionada por este                |
+| **Escalado del corte**   | Escalado mediante `effectiveRemainingPercent()` para que la reserva protegida indique `0% left`     | Ninguno (valores originales de la instantánea notificados por el proveedor)                  |
+| **Datos del umbral**     | Incorporados en el porcentaje mostrado                                                              | Almacenados en `quotaWindowThresholds` por conexión (o valores predeterminados del servidor) |
+| **Consumidor principal** | CLI interactivas, solicitudes de terminal, operadores humanos                                       | Integraciones programáticas, paneles, análisis, sistemas de seguimiento de facturación       |
+
+#### Fórmula de ajuste del umbral de corte
+
+OmniRoute admite umbrales de corte de cuota proactivos para evitar agotar la capacidad del proveedor (configurados mediante
+`quotaWindowThresholds` de la conexión, valores predeterminados del proveedor o ajustes globales de resiliencia). Cuando hay un umbral de corte
+(p. ej., `cutoff = 25%`) activo en una ventana de cuota, el generador de texto calcula la asignación restante de la siguiente manera:
+
+- Si `remaining <= cutoff`: devuelve `0%`.
+- Si `remaining > cutoff`: devuelve `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+La salida de texto con formato redondea este valor al entero más cercano (`Math.round(...)`).
+
+#### Ejemplo ilustrativo
+
+Considere una ventana de proveedor con un **60% de uso original** (por tanto, un **40% de cuota original restante**) y un umbral de corte
+configurado del **25% de cuota restante**:
+
+| Representación                     | Cálculo                                            | Restante |               Uso implícito               |
+| :--------------------------------- | :------------------------------------------------- | :------: | :---------------------------------------: |
+| **JSON original (`?format=json`)** | Instantánea del proveedor (`quotas[window]`)       | **40%**  |                  **60%**                  |
+| **Formato de texto (`NN% left`)**  | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%**  | **80%** (si se calcula `100 - remaining`) |
+
+- **Por qué el texto muestra un 20% restante:** Del 40% de cuota física restante en la cuenta, el 25% está reservado por la
+  política de corte. Quien realiza la llamada solo dispone de un 15% de los 75 puntos porcentuales de margen utilizable antes de que el router deje de
+  dirigir solicitudes a esta conexión. El escalado garantiza que la conexión indique agotamiento (`0% left`) exactamente cuando
+  deje de utilizarse para el enrutamiento.
+- **Por qué JSON conserva los valores originales:** La carga útil JSON devuelve la instantánea exacta del proveedor (`UsageSnapshot`)
+  para que las herramientas externas tengan acceso al uso real proporcionado por el proveedor y a los
+  `quotaWindowThresholds` de cada conexión sin un escalado con pérdida aplicado por el servidor.
+
+#### Guía de migración para consumidores
+
+Si una integración externa (como un complemento de editor o una extensión de agente) analizaba anteriormente el endpoint de texto
+(`NN% left`) y calculaba el porcentaje utilizado como `100 - NN`, migrar a `?format=json` implica lo siguiente:
+
+- La lectura de los valores JSON originales reflejará el **consumo real del proveedor** (un 60% utilizado en el ejemplo anterior).
+- Si la integración desea conservar la semántica de asignación utilizable del endpoint de texto, puede evaluar
+  la fórmula de capacidad restante efectiva en el lado del cliente utilizando `quotaWindowThresholds` para las anulaciones específicas de cada conexión.
 
 ---
 

@@ -398,46 +398,54 @@ Authorization: Bearer your-api-key
 → Seoltar ar ais gach samhail comhrá, leabaithe agus íomhá + teaglamaí i bhformáid OpenAI
 ```
 
-### Réimí aitheantais samhla (`?prefix=`)
+### Réimíreanna aitheantais samhla (`?prefix=`)
 
-Fógraítear formhór na samhlacha faoi **réim soláthraí**. Is í an bhratach gné
-`MODELS_CATALOG_PREFIX_MODE` a rialaíonn cén réim a gheobhaidh tú, agus is féidir í a shárú **do gach iarratas ar leith** le
-paraiméadar iarratais — rud atá úsáideach do chliant atá ag iarraidh liosta glan gan an socrú ar fud an fhreastalaí
-a athrú do gach duine eile:
+Fógraítear formhór na samhlacha faoi **réimír soláthraí**. Is í an bhratach ghné
+`MODELS_CATALOG_PREFIX_MODE` a rialaíonn cén réimír a fhaigheann tú, agus is féidir í a shárú **do gach iarratas ar leith** le
+paraiméadar iarratais — rud atá úsáideach do chliant ar mian leis liosta glan a fháil gan an socrú
+ar fud an fhreastalaí a athrú do gach duine eile:
 
 ```bash
-GET /v1/models?prefix=alias        # aitheantas amháin in aghaidh na samhla — an réim ghearr ailias
+GET /v1/models?prefix=alias        # aitheantas amháin in aghaidh na samhla — an réimír ghearr ailias
 GET /v1/models?prefix=dual         # an dá fhoirm (réamhshocrú an fhreastalaí)
-GET /v1/models?prefix=canonical    # réim iomlán aitheantas an tsoláthraí amháin
+GET /v1/models?prefix=canonical    # an réimír iomlán aitheantais soláthraí amháin
 ```
 
-| Mód         | Astaíonn                                                   | Nótaí                                                                                                                                                                                                                                   |
-| ----------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **agus** `claude/claude-sonnet-4-6` | **Réamhshocrú.** Treoraítear an dá aitheantas chuig an tsamhail chéanna; coinnítear iad ionas go leanfaidh cumraíochtaí cliant ina bhfuil ceachtar foirm crua-chódaithe ag obair. Déantar an chatalóg a dhúbailt, a bheag nó a mhór.    |
-| `alias`     | `cc/claude-sonnet-4-6`                                     | Iontráil amháin in aghaidh na samhla. Astaíonn soláthraithe nach bhfuil ailias ar leith acu a n-iontráil fós, mar sin ní chailltear aon rud.                                                                                            |
-| `canonical` | `claude/claude-sonnet-4-6`                                 | Iontráil amháin in aghaidh na samhla faoi réim iomlán aitheantas an tsoláthraí. Astaíonn soláthraithe nach bhfuil ailias ar leith acu (m.sh. `antigravity/…`, `agy/…`) a n-aon aitheantas anseo freisin, mar sin ní chailltear aon rud. |
+| Mód         | Aschuir                                                    | Nótaí                                                                                                                                                                                                                                        |
+| ----------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **agus** `claude/claude-sonnet-4-6` | **Réamhshocrú.** Seoltar an dá aitheantas chuig an tsamhail chéanna; coinnítear iad ionas go leanfaidh cumraíochtaí cliant ina bhfuil ceachtar foirm códaithe go docht ag obair. Méadaíonn sé méid na catalóige faoi dhó, a bheag nó a mhór. |
+| `alias`     | `cc/claude-sonnet-4-6`                                     | Iontráil amháin in aghaidh na samhla. Eisíonn soláthraithe nach bhfuil ailias ar leith acu a n-iontráil fós, mar sin ní chailltear aon rud.                                                                                                  |
+| `canonical` | `claude/claude-sonnet-4-6`                                 | Iontráil amháin in aghaidh na samhla faoin réimír iomlán aitheantais soláthraí. Eisíonn soláthraithe nach bhfuil ailias ar leith acu (m.sh. `antigravity/…`, `agy/…`) a n-aon aitheantas anseo freisin, mar sin ní chailltear aon rud.       |
 
-Is féidir scáthán i mód `dual` a aithint gan an paraiméadar iarratais freisin: bíonn réimse `parent`
-ann a dhíríonn ar an bpríomhaitheantas.
+Is féidir scáthán sa mhód `dual` a aithint gan an paraiméadar iarratais freisin: bíonn réimse `parent`
+aige a dhíríonn ar an bpríomhaitheantas.
 
 Ba cheart do chliaint a thaispeánann roghnóir samhla `?prefix=alias` a iarraidh — is é seo a dhéanann an
 [síneadh OmniCopilot do VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Samhlacha comhrá atá folaithe ina n-aonar
 
-Má tá samhail marcáilte mar **Folaithe** ar leathanach a soláthraí, fágtar amach as an gcatalóg í agus diúltaítear d’iarratas sainráite uirthi le HTTP `404` / `model_not_found`. Úsáideann an tseiceáil an soláthraí agus an tsamhail a aithníodh, agus ailiasanna soláthraí, réimíreanna nóid soláthraithe comhoiriúnacha agus réamhshocruithe an naisc á gcur san áireamh. Scipeálann combo spriocanna folaithe agus féadann sé sprioc infheicthe eile a úsáid; mura mbíonn aon sprioc inrite fágtha, tugann sé an cód earráide céanna ar ais. Bíonn éifeacht le hath-thaispeáint na samhla ón gcéad iarratas eile. Ní fholaíonn socruithe infheictheachta a sháraíonn na gnáthshocruithe d’íomhánna amháin samhail chomhrá a bhfuil an ID céanna aici.
+Déantar samhail atá marcáilte **Folaithe** ar leathanach a soláthraí a eisiamh ón gcatalóg agus diúltaítear di
+le HTTP `404` / `model_not_found` nuair a iarrtar go sainráite í. Úsáideann an tseiceáil an
+soláthraí agus an tsamhail réitithe, lena n-áirítear ailiasanna soláthraithe, réimíreanna nód soláthraithe chomhoiriúnacha, agus
+réamhshocruithe ceangail. Fágann teaglama spriocanna folaithe ar lár agus is féidir leis samhail ghaolmhar infheicthe a úsáid; nuair nach mbíonn aon
+sprioc inrite fágtha, seolann sé an cód earráide céanna ar ais. Tagann deireadh leis an bhfolach i bhfeidhm ar an gcéad
+iarratas eile. Ní fholaíonn sáruithe infheictheachta d’íomhánna amháin an tsamhail chomhrá leis an aitheantas céanna.
 
-Tá an socrú seo do gach samhail ar leithligh ó na [liostaí ceadaithe agus blocála maidir le nochtadh samhlacha](../routing/MODEL_EXPOSURE_LIST.md). Scagann na liostaí sin taispeáint sa chatalóg agus iarrthóirí don ródú uathoibríoch, ach coinníonn siad seoladh sainráite ar fáil. Leanann ceadanna samhlacha na heochrach API de bheith i bhfeidhm go neamhspleách. Fanann mód réamhshocraithe réimíreanna na catalóige mar `dual`.
+Tá an socrú seo do shamhail aonair ar leithligh ó na
+[liostaí ceadaithe/diúltaithe maidir le nochtadh samhlacha](../routing/MODEL_EXPOSURE_LIST.md), a dhéanann fógraíocht sa chatalóg
+agus iarrthóirí uathródaithe a scagadh, agus seoladh sainráite á choinneáil acu. Leanann ceadanna samhlacha
+na n-eochracha API de bheith i bhfeidhm go neamhspleách. Is é `dual` fós mód réamhshocraithe réimír na catalóige.
 
 ### Leaganacha samhla gan smaointeoireacht
 
-I gcás samhlacha Claude atá in ann smaointeoireacht a dhéanamh, fógraíonn `/v1/models` leagan **gan smaointeoireacht** freisin a bhfuil `claude-3-omniroute-no-thinking/` mar réim ar a aitheantas:
+I gcás samhlacha Claude atá in ann smaointeoireacht a dhéanamh, fógraíonn `/v1/models` leagan **gan smaointeoireacht** freisin, a bhfuil `claude-3-omniroute-no-thinking/` mar réimír ar a aitheantas:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Má roghnaítear an t-aitheantas seo (m.sh. i gcumraíocht Claude Code a cheanglaíonn bloc `thinking` i gcónaí), réitítear ar ais é chuig an bhfíor-`<provider>/<model>` agus an réasúnaíocht faoi chois — `thinking:{type:"disabled"}` ar chonair `/v1/messages`, nó baintear na réimsí `reasoning`/`reasoning_effort` ar chonair `/v1/chat/completions`. Ní liostaítear an leagan ach amháin do shamhlacha de theaghlach Claude a thacaíonn le smaointeoireacht **agus** a urramaíonn `disabled` (mar sin, mar shampla, fágtar samhlacha oiriúnaitheacha amháin a dhiúltaíonn do `disabled` as an áireamh). Is féidir le hoibreoirí an leagan a chur i bhfeidhm nó a dhíchumasú do gach samhail ar leith trí `ModelSpec.noThinkingAlias`.
+Má roghnaítear an t-aitheantas seo (m.sh. i gcumraíocht Claude Code a cheanglaíonn bloc `thinking` i gcónaí), réitítear é ar ais chuig an bhfíor-`<provider>/<model>` agus réasúnú faoi chois — `thinking:{type:"disabled"}` ar chonair `/v1/messages`, nó baintear na réimsí `reasoning`/`reasoning_effort` ar chonair `/v1/chat/completions`. Ní liostaítear an leagan ach amháin i gcás samhlacha de theaghlach Claude a thacaíonn le smaointeoireacht **agus** a urramaíonn `disabled` (mar sin, mar shampla, eisítear samhlacha oiriúnaitheacha amháin a dhiúltaíonn do `disabled`). Is féidir le hoibreoirí an leagan a chur ar siúl nó as go héigeantach do gach samhail ar leith trí `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -722,31 +730,31 @@ críochnú.
 
 ---
 
-## Úsáid féinseirbhíse (`/api/usage/om-usage`)
+## Úsáid féinfhreastail (`/api/usage/om-usage`)
 
-Is féidir le haon eochair API **a húsáid féin** agus a cuótaí féin a léamh — níl fíordheimhniú bainistíochta ag teastáil. Seo é an críochphointe a
+Is féidir le haon eochair API a húsáid agus a cuótaí **féin** a léamh — níl fíordheimhniú bainistíochta ag teastáil. Seo é an críochphointe a
 úsáideann cliant (CLI, painéal OmniCopilot) chun caiteachas sealbhóra eochrach a thaispeáint dó.
 
 ```bash
-# Foirm téacs (an conradh stairiúil — gnáth-théacs do theirminéal)
+# Foirm téacs (an conradh stairiúil — gnáth-théacs le haghaidh teirminéil)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Foirm struchtúrtha — an méid a úsáideann UI
+# Foirm struchtúrtha — an méid a úsáideann comhéadan úsáideora
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Ní mór **`allowUsageCommand`** a bheith cumasaithe don eochair (díchumasaithe de réir réamhshocraithe — déanann bainisteoir
-eochracha API an deais é a scoránú do gach eochair). Gan é, freagraíonn an críochphointe le `403`.
+Ní mór **`allowUsageCommand`** a bheith cumasaithe don eochair (díchumasaithe de réir réamhshocraithe — scoránaíonn
+bainisteoir eochracha API an deais é do gach eochair). Gan é, freagraíonn an críochphointe le `403`.
 
-Filleann `?format=json` cruth idirdhealaithe ionas nach léann glaoiteoir réimse sonraí ó
-dhiúltú riamh. Ar rath:
+Tugann `?format=json` cruth idirdhealaithe ar ais ionas nach léann glaoiteoir réimse sonraí ó
+dhiúltú choíche. Ar rath:
 
 ```jsonc
 {
   "allowed": true,
-  // i láthair nuair a roghnaigh an eochair teorainneacha úsáide in aghaidh na heochrach amháin (USD laethúil/seachtainiúil):
+  // i láthair ach amháin nuair a roghnaigh an eochair teorainneacha úsáide in aghaidh na heochrach (USD laethúil/seachtainiúil):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -755,14 +763,14 @@ dhiúltú riamh. Ar rath:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // léargas ar chuóta an tsoláthraí roghnaithe, nó null nuair nach bhfuil aon rud i dtaisce fós:
+  // léargas cuóta an tsoláthraí roghnaithe, nó null nuair nach bhfuil aon rud sa taisce fós:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // léargas gach ceangail, ionas gur féidir le UI roinnt soláthraithe a rindreáil taobh le taobh:
+  // léargas gach naisc, ionas gur féidir le comhéadan úsáideora roinnt soláthraithe a léiriú taobh le taobh:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -770,13 +778,64 @@ dhiúltú riamh. Ar rath:
 }
 ```
 
-Ar dhiúltú (`401` droch-eochair / `403` gan chead), filleann an bealach céanna
-`{ "allowed": false, "error": { "message": "…" } }` — is staid éagsúil ó dhiúltú é `personal`/`provider`
-atá i láthair ach folamh (eochair ceadaithe, gan aon rud foghlamtha fós), agus is í an fhoirm JSON amháin
-a dhéanann idirdhealú eatarthu.
+Ar dhiúltú (`401` drocheochair / `403` gan chead), tugann an bealach céanna
+`{ "allowed": false, "error": { "message": "…" } }` ar ais — is staid éagsúil é `personal`/`provider`
+atá i láthair ach folamh (eochair ceadaithe, gan aon rud foghlamtha fós) ó dhiúltú, agus ní dhéanann ach an fhoirm JSON
+idirdhealú eatarthu.
 
-**Fíordheimhniú:** eochair API Bearer an ghlaoiteora féin, bailíochtaithe le `isValidApiKey` — ní hé seo
-an dromchla bainistíochta (`/api/keys/…`), a fhanann faoi chosaint `requireManagementAuth`.
+**Fíordheimhniú:** eochair API Bearer an ghlaoiteora féin, bailíochtaithe le `isValidApiKey` — ní hé seo an
+comhéadan bainistíochta (`/api/keys/…`), a fhanann faoi chosaint `requireManagementAuth`.
+
+### Céatadáin Chuóta Amha vs. Céatadáin Chuóta Coigeartaithe de réir Scoithphointe
+
+Agus `/api/usage/om-usage` á úsáid, ba cheart do ghlaoiteoirí an t-idirdhealú idir na
+céatadáin a chuirtear i láthair san **aschur gnáth-théacs** agus san **aschur struchtúrtha JSON** a thabhairt faoi deara:
+
+| Gné                     | Formáid gnáth-théacs (`/api/usage/om-usage` / `@@om-usage`)                                                         | Formáid JSON (`?format=json`)                                                          |
+| :---------------------- | :------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------- |
+| **Réimse aschuir**      | `NN% left` (m.sh., `20% left`)                                                                                      | `provider.quotas` / `providers[].quotas`                                               |
+| **Tomhas**              | **Liúntas inúsáidte coigeartaithe de réir scoithphointe**: acmhainn atá fágtha os cionn thairseach an scoithphointe | **Cuóta amh réamhtheachtach**: tomhas soláthraí neamhchoigeartaithe                    |
+| **Scálú scoithphointe** | Scálaithe trí `effectiveRemainingPercent()` ionas go léitear an cúlchiste cosanta mar `0% left`                     | Dada (luachanna léargais amha mar a thuairiscíonn an soláthraí iad)                    |
+| **Sonraí tairsí**       | Ionchorpraithe sa chéatadán a thaispeántar                                                                          | Stóráilte in `quotaWindowThresholds` de réir naisc (nó réamhshocruithe an fhreastalaí) |
+| **Príomhúsáideoir**     | CLIanna idirghníomhacha, leideanna teirminéil, oibreoirí daonna                                                     | Comhtháthuithe ríomhchláraithe, deaiseanna, anailísíocht, rianairí billeála            |
+
+#### Foirmle an Choigeartaithe Scoithphointe
+
+Tacaíonn OmniRoute le scoithphointí réamhghníomhacha cuóta chun ídiú réamhtheachtach a chosc (cumraithe trí
+`quotaWindowThresholds` an naisc, réamhshocruithe an tsoláthraí, nó socruithe domhanda athléimneachta). Nuair atá tairseach scoithphointe
+(m.sh., `cutoff = 25%`) gníomhach ar fhuinneog chuóta, ríomhann an rindreálaí téacs an liúntas atá fágtha mar seo:
+
+- Má tá `remaining <= cutoff`: tugtar `0%` ar ais.
+- Má tá `remaining > cutoff`: tugtar `((remaining - cutoff) / (100 - cutoff)) * 100` ar ais.
+
+Slánaíonn an t-aschur téacs formáidithe é seo go dtí an tslánuimhir is gaire (`Math.round(...)`).
+
+#### Sampla Léiritheach
+
+Samhlaigh fuinneog soláthraí ina bhfuil **60% d'úsáid amh** (agus dá bhrí sin **40% de chuóta amh fágtha**) agus
+tairseach chumraithe **25% mar scoithphointe don chuóta atá fágtha**:
+
+| Léiriú                         | Ríomh                                              | Fágtha  |             Úsáid Intuigthe             |
+| :----------------------------- | :------------------------------------------------- | :-----: | :-------------------------------------: |
+| **JSON amh (`?format=json`)**  | Léargas réamhtheachtach (`quotas[window]`)         | **40%** |                 **60%**                 |
+| **Formáid téacs (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (má ríomhtar `100 - remaining`) |
+
+- **Cén fáth a léiríonn an téacs 20% fágtha:** As an 40% den chuóta fisiciúil atá fágtha sa chuntas, tá 25% curtha in áirithe ag an
+  bpolasaí scoithphointe. Níl fágtha ag an nglaoiteoir ach 15% as 75% den spás inúsáidte sula stopann an ródaire
+  den trácht a ródú chuig an nasc seo. Cinntíonn an scálú go gcomharthaíonn an nasc ídiú (`0% left`) go díreach nuair a
+  scoirfear den ródú.
+- **Cén fáth a gcaomhnaíonn JSON luachanna amha:** Tugann an pálasta JSON léargas beacht an tsoláthraí (`UsageSnapshot`) ar ais
+  ionas go mbeidh rochtain ag uirlisí seachtracha ar fhíorúsáid réamhtheachtach agus ar
+  `quotaWindowThresholds` ar leibhéal an naisc gan scálú caillteach ar thaobh an fhreastalaí.
+
+#### Treoir d'Aistriú Tomhaltóirí
+
+Má scríob comhtháthú seachtrach (amhail breiseán eagarthóra nó eisínteacht gníomhaire) an críochphointe téacs
+(`NN% left`) roimhe seo agus má ríomh sé an céatadán úsáidte mar `100 - NN`, ciallaíonn aistriú go `?format=json`:
+
+- Léireoidh léamh luachanna amha JSON an **tomhaltas réamhtheachtach iarbhír** (60% úsáidte sa sampla thuas).
+- Más mian leis an gcomhtháthú séimeantaic liúntais inúsáidte an chríochphointe téacs a chaomhnú, is féidir leis
+  foirmle éifeachtach an mhéid atá fágtha a mheas ar thaobh an chliaint trí `quotaWindowThresholds` a úsáid le haghaidh sáruithe ar leibhéal an naisc.
 
 ---
 

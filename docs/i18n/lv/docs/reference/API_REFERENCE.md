@@ -400,44 +400,57 @@ Azure Document Intelligence `analyze` API ir asinhrone: sākotnējais pieprasīj
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Atgriež visus tērzēšanas, iegulstēšanas un attēlu modeļus + kombinācijas OpenAI formātā
+→ Atgriež visus tērzēšanas, iegulšanas un attēlu modeļus, kā arī kombinācijas OpenAI formātā
 ```
 
 ### Modeļu ID prefiksi (`?prefix=`)
 
-Lielākā daļa modeļu tiek reklamēti ar **piegādātāja prefiksu**. Kuru prefiksu saņemat, nosaka karodziņš `MODELS_CATALOG_PREFIX_MODE`, un to var pārrakstīt **katram pieprasījumam** ar vaicājuma parametru — tas ir noderīgi klientam, kuram vajadzīgs tīrs saraksts, nemainot servera globālos iestatījumus visiem lietotājiem:
+Lielākā daļa modeļu tiek publicēti ar **nodrošinātāja prefiksu**. To, kuru prefiksu saņemsiet, nosaka
+funkcionalitātes karogs `MODELS_CATALOG_PREFIX_MODE`, un to var pārrakstīt **katram pieprasījumam atsevišķi** ar
+vaicājuma parametru — tas ir noderīgi klientam, kas vēlas tīru sarakstu, nemainot servera mēroga
+iestatījumu visiem pārējiem:
 
 ```bash
-GET /v1/models?prefix=alias        # viens ID uz modeli — īsais aizstājvārda prefikss
+GET /v1/models?prefix=alias        # viens ID katram modelim — īsais aizstājvārda prefikss
 GET /v1/models?prefix=dual         # abas formas (servera noklusējums)
-GET /v1/models?prefix=canonical    # tikai pilnais piegādātāja-ID prefikss
+GET /v1/models?prefix=canonical    # tikai pilnais nodrošinātāja ID prefikss
 ```
 
-| Režīms      | Izdod                                                    | Piezīdes                                                                                                                                                                                      |
-| ----------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **un** `claude/claude-sonnet-4-6` | **Noklusējums.** Abi ID vada uz to pašu modeli; saglabāti, lai klienta konfigurācijām, kas ir iekodētas jebkurā formā, turpinātu darboties. Apmēram divkāršo katalogu.                        |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Viena ieraksta uz modeli. Piegādātājiem bez atsevišķa aizstāvārda joprojām tiek izdots savs ieraksts, tāpēk nekas nav zaudēts.                                                                |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Viena ieraksta uz modeli zem pilnā piegādātāja-ID prefiksa. Piegādātājiem bez atsevišķa aizstāvārda (piem., `antigravity/…`, `agy/…`) tiek izdots arī šeit viens ID, tāpēk nekas nav zaudēts. |
+| Režīms      | Atgriež                                                  | Piezīmes                                                                                                                                                                                                                 |
+| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dual`      | `cc/claude-sonnet-4-6` **un** `claude/claude-sonnet-4-6` | **Noklusējums.** Abi ID tiek novirzīti uz vienu un to pašu modeli; tie ir saglabāti, lai klientu konfigurācijas, kurās ir stingri norādīta kāda no formām, turpinātu darboties. Katalogs kļūst aptuveni divreiz lielāks. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Viens ieraksts katram modelim. Nodrošinātāji bez atsevišķa aizstājvārda joprojām publicē savu ierakstu, tāpēc nekas netiek zaudēts.                                                                                      |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Viens ieraksts katram modelim ar pilno nodrošinātāja ID prefiksu. Nodrošinātāji bez atsevišķa aizstājvārda (piem., `antigravity/…`, `agy/…`) arī šeit publicē savu vienīgo ID, tāpēc nekas netiek zaudēts.               |
 
-`dual` režīma atspoguli var atpazīt arī bez vaicājuma parametra: tam ir `parent` lauks, kas norāda uz primāro ID.
+`dual` režīma spoguli var atpazīt arī bez vaicājuma parametra: tam ir `parent`
+lauks, kas norāda uz primāro ID.
 
-Klienti, kas izveido modeļu izvēlni, vajadzētu pieprasīt `?prefix=alias` — to dara [OmniCopilot VS Code paplašinājums](../guides/VSCODE-COPILOT.md).
+Klientiem, kas attēlo modeļu izvēlni, jāpieprasa `?prefix=alias` — tieši tā rīkojas
+[OmniCopilot VS Code paplašinājums](../guides/VSCODE-COPILOT.md).
 
 ### Atsevišķi paslēpti tērzēšanas modeļi
 
-Modelis, kas pakalpojuma sniedzēja lapā atzīmēts kā **Paslēpts**, tiek izslēgts no kataloga, un tiešs pieprasījums tam tiek noraidīts ar HTTP `404` / `model_not_found`. Pārbaude izmanto noteikto pakalpojuma sniedzēju un modeli, ņemot vērā sniedzēja aizstājvārdus, saderīgu sniedzēju mezglu prefiksus un savienojuma noklusējuma vērtības. Combo izlaiž paslēptos mērķus un var izmantot citu redzamu mērķi; ja nepaliek neviens izpildāms mērķis, tas atgriež to pašu kļūdas kodu. Atkārtota parādīšana stājas spēkā ar nākamo pieprasījumu. Redzamības pārrakstījumi, kas attiecas tikai uz attēliem, nepaslēpj tērzēšanas modeli ar to pašu ID.
+Modelis, kas tā nodrošinātāja lapā atzīmēts kā **Paslēpts**, tiek izslēgts no kataloga, un, to
+pieprasot tieši, pieprasījums tiek noraidīts ar HTTP `404` / `model_not_found`. Pārbaudē tiek izmantots atrisinātais
+nodrošinātājs un modelis, tostarp nodrošinātāju aizstājvārdi, saderīgu nodrošinātāju mezglu prefiksi un
+savienojuma noklusējuma vērtības. Kombinācija izlaiž paslēptos mērķus un var izmantot redzamu alternatīvu; ja
+nepaliek neviens izpildāms mērķis, tā atgriež to pašu kļūdas kodu. Paslēpšanas atcelšana stājas spēkā nākamajā
+pieprasījumā. Tikai attēliem paredzēti redzamības pārrakstījumi nepaslēpj tērzēšanas modeli ar tādu pašu ID.
 
-Šis atsevišķā modeļa iestatījums ir nodalīts no [modeļu publiskošanas atļaušanas un aizliegšanas sarakstiem](../routing/MODEL_EXPOSURE_LIST.md), kuri filtrē kataloga piedāvājumu un automātiskās maršrutēšanas kandidātus, saglabājot tiešu izsaukšanu. API atslēgas modeļu atļaujas joprojām tiek piemērotas neatkarīgi. Kataloga prefiksu noklusējuma režīms paliek `dual`.
+Šis atsevišķā modeļa iestatījums ir nodalīts no
+[modeļu publicēšanas atļaušanas/aizliegšanas sarakstiem](../routing/MODEL_EXPOSURE_LIST.md), kas filtrē kataloga
+ierakstus un automātiskās maršrutēšanas kandidātus, vienlaikus saglabājot tiešo nosūtīšanu. API atslēgu modeļu
+atļaujas joprojām tiek piemērotas neatkarīgi. Kataloga noklusējuma prefiksu režīms joprojām ir `dual`.
 
-### Domāšanas variants bez domāšanas
+### Modeļu varianti bez domāšanas
 
-Domāšanas spējīgiem Claude modeļiem `/v1/models` arī reklamē **domāšanas variantu bez domāšanas**, kura ID ir ar prefiksu `claude-3-omniroute-no-thinking/`:
+Claude modeļiem, kas atbalsta domāšanu, `/v1/models` publicē arī **bezdomāšanas** variantu, kura ID sākas ar `claude-3-omniroute-no-thinking/`:
 
 ```
-claude-3-omniroute-no-thinking/<piegādātājs>/<modelis>
+claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Šo ID izvēloties (piem., Claude Code konfigurācijā, kas vienmēr pievieno `thinking` bloku), tas tiek atpakaļ novirzīts uz reālo `<piegādātājs>/<modelis>` ar aizspriedumu nomākts — `thinking:{type:"disabled"}` ceļā `/v1/messages`, vai `reasoning`/`reasoning_effort` laukiem izņemti ceļā `/v1/chat/completions`. variants tiek uzskaitīts tikai Claude modeļu saimei, kas atbalsta domāšanu **un** ievēro `disabled` (tātad, piem., tikai adaptīvie modeļi, kas noraida `disabled`, tiek izslēgti). Operatori variants var piespēst ieslēgt vai atslēgt katram modelim izmantojot `ModelSpec.noThinkingAlias`.
+Atlasot šo ID (piem., Claude Code konfigurācijā, kas vienmēr pievieno `thinking` bloku), tas tiek atrisināts atpakaļ uz īsto `<provider>/<model>`, nomācot spriešanu — ceļā `/v1/messages` tiek izmantots `thinking:{type:"disabled"}`, savukārt ceļā `/v1/chat/completions` lauki `reasoning`/`reasoning_effort` tiek atmesti. Variants tiek uzrādīts tikai tiem Claude saimes modeļiem, kas atbalsta domāšanu **un** ievēro `disabled` (tādēļ, piem., tikai adaptīvie modeļi, kas noraida `disabled`, netiek iekļauti). Operatori var katram modelim piespiedu kārtā ieslēgt vai izslēgt šo variantu, izmantojot `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -718,31 +731,31 @@ pabeigšanu.
 
 ---
 
-## Pašapkalpošanās lietošana (`/api/usage/om-usage`)
+## Pašapkalpošanās lietojums (`/api/usage/om-usage`)
 
-Jebkura API atslēga var lasīt **sava** izmantošanu un kvotas — bez pārvaldības autentifikācijas. Šis ir galapunkts, ko
-klients (CLI, OmniCopilot panelis) izmanto, lai parādītu atslēgas turētājam viņa tēriņus.
+Jebkura API atslēga var nolasīt **savu** lietojumu un kvotas — pārvaldības autentifikācija nav nepieciešama. Šo galapunktu
+klients (CLI, OmniCopilot panelis) izmanto, lai parādītu atslēgas turētājam tā izdevumus.
 
 ```bash
-# Teksta forma (vēsturiskais līgums — vienkāršs tekstam terminalī)
+# Teksta formāts (vēsturiskais līgums — vienkāršs teksts terminālim)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Strukturēta forma — ko UI izmanto
+# Strukturēts formāts — paredzēts lietotāja saskarnei
 curl -H "Authorization: Bearer <your-api-key>" \
-  "http://localhost:20128/api/usage/om-aste?format=json"
+  "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Atslēgai jābūt ar **`allowCommandUsage`** iespējotu (pēc noklusējuma izslēgts — dashboard API atslēgu
-pārvaldītājs to pārslēdz katrai atslēgai atsevišķi). Bez tā galapunkts atbild ar `403`.
+Atslēgai jābūt iespējotam iestatījumam **`allowUsageCommand`** (pēc noklusējuma tas ir izslēgts — informācijas paneļa API atslēgu
+pārvaldnieks to ieslēdz katrai atslēgai atsevišķi). Bez tā galapunkts atbild ar `403`.
 
-`?format=json` atgriež diskriminējošu formu, lai izsaucošais nekad nelasītu datu lauku no
-noraidījuma. Veiksmīgā gadījumā:
+`?format=json` atgriež diskriminētu struktūru, lai izsaucējs nekad nemēģinātu nolasīt datu lauku no
+atteikuma. Veiksmīgas atbildes gadījumā:
 
 ```jsonc
 {
   "allowed": true,
-  // atrodas tikai tad, ja atslēga ir pievienojusies atslēgu lietošanas ierobežojumiem (dienas/nedēļas USD):
+  // pieejams tikai tad, ja atslēgai ir iespējoti katras atslēgas lietojuma ierobežojumi (dienas/nedēļas USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -751,14 +764,14 @@ noraidījuma. Veiksmīgā gadījumā:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // izvēlētā pakalpojumu sniedzēja kvotas kopija, vai null, kad vēl nav nekas kešots:
+  // atlasītā pakalpojumu sniedzēja kvotas momentuzņēmums vai null, ja nekas vēl nav saglabāts kešatmiņā:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // katras savienojuma kopija, lai UI varētu parādīt vairākus pakalpojumu sniedzējus blakus:
+  // visu savienojumu momentuzņēmumi, lai lietotāja saskarne varētu attēlot vairākus pakalpojumu sniedzējus līdzās:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -766,12 +779,63 @@ noraidījuma. Veiksmīgā gadījumā:
 }
 ```
 
-Noraidījuma gadījumā (`401` nepareiza atslēga / `403` nav atļauts) tas pats maršruts atgriež
-`{ "allowed": false, "error": { "message": "…" } }` — klāt esošs, bet tukšs `personal`/`provider`
-(atslēga atļauta, vēl nekas nav noskaidrots) ir atšķirīgs stāvoklis no noraidījuma, un to atšķir tikai JSON forma.
+Atteikuma gadījumā (`401` nederīga atslēga / `403` nav atļauts) tas pats maršruts atgriež
+`{ "allowed": false, "error": { "message": "…" } }` — esošs, bet tukšs `personal`/`provider`
+(atslēga ir atļauta, taču vēl nekas nav noskaidrots) ir cits stāvoklis nekā atteikums, un tos atšķir tikai JSON formāts.
 
-**Autentifikācija:** izsaucošā sava Bearer API atslēga, validēta ar `isValidApiKey` — tā _nav_
-pārvaldības virsmas (`/api/keys/…`), kas paliek aiz `requireManagementAuth`.
+**Autentifikācija:** izsaucēja paša Bearer API atslēga, kas validēta ar `isValidApiKey` — šī _nav_
+pārvaldības saskarne (`/api/keys/…`), kuru joprojām aizsargā `requireManagementAuth`.
+
+### Neapstrādātas un robežvērtībai pielāgotas kvotu procentuālās vērtības
+
+Izmantojot `/api/usage/om-usage`, izsaucējiem jāņem vērā atšķirība starp procentuālajām vērtībām,
+kas tiek rādītas **vienkārša teksta izvadē**, un strukturēto **JSON izvadi**:
+
+| Aspekts                      | Vienkārša teksta formāts (`/api/usage/om-usage` / `@@om-usage`)                             | JSON formāts (`?format=json`)                                                            |
+| :--------------------------- | :------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------- |
+| **Izvades lauks**            | `NN% left` (piemēram, `20% left`)                                                           | `provider.quotas` / `providers[].quotas`                                                 |
+| **Mērījums**                 | **Robežvērtībai pielāgots izmantojamais apjoms**: atlikusī kapacitāte virs robežvērtības    | **Neapstrādāta augšupējā kvota**: nepielāgots pakalpojumu sniedzēja mērījums             |
+| **Robežvērtības mērogošana** | Mērogots ar `effectiveRemainingPercent()`, lai aizsargātā rezerve tiktu rādīta kā `0% left` | Nav (neapstrādātas momentuzņēmuma vērtības, kā tās ziņojis pakalpojumu sniedzējs)        |
+| **Robežvērtības dati**       | Iekļauti parādītajā procentuālajā vērtībā                                                   | Glabāti katra savienojuma `quotaWindowThresholds` (vai servera noklusējuma iestatījumos) |
+| **Galvenais patērētājs**     | Interaktīvi CLI, termināļa uzvednes, operatori                                              | Programmatiskas integrācijas, informācijas paneļi, analītika, norēķinu uzskaites rīki    |
+
+#### Robežvērtības pielāgošanas formula
+
+OmniRoute atbalsta proaktīvas kvotu robežvērtības, lai novērstu augšupējo resursu izsmelšanu (tās konfigurē, izmantojot savienojuma
+`quotaWindowThresholds`, pakalpojumu sniedzēja noklusējuma iestatījumus vai globālos noturības iestatījumus). Ja kvotas logam
+ir aktīva robežvērtība (piemēram, `cutoff = 25%`), teksta atveidotājs aprēķina atlikušo apjomu šādi:
+
+- Ja `remaining <= cutoff`: atgriež `0%`.
+- Ja `remaining > cutoff`: atgriež `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Formatētajā teksta izvadē šī vērtība tiek noapaļota līdz tuvākajam veselajam skaitlim (`Math.round(...)`).
+
+#### Ilustratīvs piemērs
+
+Aplūkosim pakalpojumu sniedzēja logu ar **60% neapstrādātu lietojumu** (tātad **40% neapstrādātas atlikušās kvotas**) un konfigurētu
+**25% atlikušās kvotas robežvērtību**:
+
+| Attēlojums                             | Aprēķins                                           | Atlikums |         Netieši izsecinātais lietojums         |
+| :------------------------------------- | :------------------------------------------------- | :------: | :--------------------------------------------: |
+| **Neapstrādāts JSON (`?format=json`)** | Augšupējais momentuzņēmums (`quotas[window]`)      | **40%**  |                    **60%**                     |
+| **Teksta formāts (`NN% left`)**        | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%**  | **80%** (ja tiek aprēķināts `100 - remaining`) |
+
+- **Kāpēc tekstā tiek rādīts atlikums 20%:** No kontā fiziski atlikušajiem 40% kvotas robežvērtības
+  politika rezervē 25%. Izsaucējam pirms maršrutētāja veiktās maršrutēšanas pārtraukšanas uz šo savienojumu ir atlikuši
+  tikai 15% no 75% izmantojamās rezerves. Mērogošana nodrošina, ka savienojums norāda uz izsmelšanu (`0% left`) tieši tad,
+  kad maršrutēšana tiks pārtraukta.
+- **Kāpēc JSON saglabā neapstrādātās vērtības:** JSON lietderīgā slodze atgriež precīzu pakalpojumu sniedzēja momentuzņēmumu (`UsageSnapshot`),
+  lai ārējiem rīkiem būtu pieejami patiesie augšupējā lietojuma dati un savienojuma līmeņa
+  `quotaWindowThresholds` bez zudumus izraisošas mērogošanas servera pusē.
+
+#### Norādījumi patērētāju migrācijai
+
+Ja ārēja integrācija (piemēram, redaktora spraudnis vai aģenta paplašinājums) iepriekš ieguva datus no teksta
+galapunkta (`NN% left`) un aprēķināja izmantoto procentuālo daļu kā `100 - NN`, migrācija uz `?format=json` nozīmē:
+
+- Neapstrādāto JSON vērtību nolasīšana atspoguļos **faktisko augšupējo patēriņu** (iepriekš minētajā piemērā izmantoti 60%).
+- Ja integrācija vēlas saglabāt teksta galapunkta izmantojamā apjoma semantiku, tā var klienta pusē aprēķināt
+  efektīvā atlikuma formulu, savienojuma līmeņa pārrakstīšanai izmantojot `quotaWindowThresholds`.
 
 ---
 

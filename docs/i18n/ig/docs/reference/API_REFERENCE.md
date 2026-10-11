@@ -388,51 +388,63 @@ na-eji `us-central1` dịka ndabara. Mkpebi abụọ ahụ na-eme na `open-sse/h
 
 ---
 
-## Depụta Ụdịdị
+## Depụta Model Ndị Dị
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Ọ na-eweghachi ụdịdị nkata, embedding, na onyonyo niile + ngwakọta ha n'ụdị OpenAI
+→ Na-eweghachi model nkata, embedding, na onyonyo niile + ngwakọta ha n'ụdị OpenAI
 ```
 
-### Nganiihu id ụdịdị (`?prefix=`)
+### Prefix id model (`?prefix=`)
 
-A na-egosipụta ọtụtụ ụdịdị n'okpuru **nganiihu onye na-eweta ọrụ**. Ọkọlọtọ atụmatụ `MODELS_CATALOG_PREFIX_MODE` na-achịkwa nganiihu ị ga-enweta, ma enwere ike iji query parameter dochie ya **maka arịrịọ ọ bụla** — nke a bara uru maka client chọrọ ndepụta dị ọcha n'agbanweghị ntọala sava niile maka ndị ọzọ:
+A na-egosipụta ọtụtụ model n'okpuru **prefix onye na-enye ọrụ**. Ọ bụ feature flag
+`MODELS_CATALOG_PREFIX_MODE` na-achịkwa prefix ị ga-enweta, a pụkwara iji query parameter
+gbanwee ya **maka request ọ bụla** — nke a bara uru maka client chọrọ ndepụta dị ọcha n'ebughị
+ntọala server niile maka onye ọ bụla ọzọ:
 
 ```bash
-GET /v1/models?prefix=alias        # otu id maka ụdịdị ọ bụla — nganiihu alias dị mkpụmkpụ
-GET /v1/models?prefix=dual         # ụdị abụọ ahụ (ndabara sava)
-GET /v1/models?prefix=canonical    # naanị nganiihu provider-id zuru ezu
+GET /v1/models?prefix=alias        # otu id maka model ọ bụla — prefix alias dị mkpụmkpụ
+GET /v1/models?prefix=dual         # ụdị abụọ ahụ (ndabara server)
+GET /v1/models?prefix=canonical    # naanị prefix provider-id zuru ezu
 ```
 
-| Ọnọdụ       | Ihe ọ na-ewepụta                                         | Nkọwa                                                                                                                                                                                                         |
-| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **na** `claude/claude-sonnet-4-6` | **Ndabara.** id abụọ ahụ na-eduga n'otu ụdịdị ahụ; e debere ha ka nhazi client ndị tinyere otu n'ime ụdị abụọ ahụ kpọmkwem nọgide na-arụ ọrụ. Ọ fọrọ nke nta ka ọ mụbaa katalọgụ ahụ okpukpu abụọ.            |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Otu ntinye maka ụdịdị ọ bụla. Ndị na-eweta ọrụ na-enweghị alias pụrụ iche ka na-ewepụta ntinye ha, ya mere ọ dịghị ihe na-efu.                                                                                |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Otu ntinye maka ụdịdị ọ bụla n'okpuru nganiihu provider-id zuru ezu. Ndị na-eweta ọrụ na-enweghị alias pụrụ iche (dịka `antigravity/…`, `agy/…`) na-ewepụtakwa naanị id ha ebe a, ya mere ọ dịghị ihe na-efu. |
+| Ọnọdụ       | Ihe ọ na-ewepụta                                         | Nkọwa                                                                                                                                                                                                      |
+| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **na** `claude/claude-sonnet-4-6` | **Ndabara.** Id abụọ ahụ na-eduga n'otu model ahụ; e debere ha ka nhazi client ndị tinyere otu n'ime ụdị ndị ahụ ozugbo nọgide na-arụ ọrụ. Ọ fọrọ nke nta ka ọ mụbaa katalọgụ okpukpu abụọ.                |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Otu ntinye maka model ọ bụla. Ndị na-enye ọrụ na-enweghị alias pụrụ iche ka na-ewepụta ntinye ha, ya mere ọ dịghị ihe na-efu.                                                                              |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Otu ntinye maka model ọ bụla n'okpuru prefix provider-id zuru ezu. Ndị na-enye ọrụ na-enweghị alias pụrụ iche (dịka `antigravity/…`, `agy/…`) na-ewepụtakwa naanị id ha ebe a, ya mere ọ dịghị ihe na-efu. |
 
-A pụkwara ịmata mirror nọ n'ọnọdụ `dual` na-enweghị query parameter: ọ nwere field `parent` nke na-atụ aka na id bụ isi.
+A pụkwara ịmata mirror nọ n'ọnọdụ `dual` na-enweghị query parameter: ọ nwere field `parent`
+na-arụtụ aka na id bụ isi.
 
-Client ndị na-egosipụta ihe nhọpụta ụdịdị kwesịrị ịrịọ `?prefix=alias` — nke a bụ ihe
+Client ndị na-egosi ebe ịhọrọ model kwesịrị ịrịọ `?prefix=alias` — nke a bụ ihe
 [OmniCopilot VS Code extension](../guides/VSCODE-COPILOT.md) na-eme.
 
-### Ụdị nkata e zoro n’otu n’otu
+### Model nkata zoro ezo n'otu n'otu
 
-Ụdị a kara **Ezoro ezo** na peeji nke onye na-eweta ya anaghịzi apụta na katalọgụ, a na-ajụkwa arịrịọ kpọmkwem maka ya na HTTP `404` / `model_not_found`. Nnyocha ahụ na-eji onye na-eweta na ụdị a chọpụtala, na-eburu aha ọzọ nke onye na-eweta, nganiihu node nke ndị na-eweta dakọtara, na ụkpụrụ ndabara njikọ n’uche. Combo na-amafere ebe e zoro ezo ma nwee ike iji ebe ọzọ a na-ahụ anya; ọ bụrụ na enweghị ebe fọdụrụ a pụrụ ịrụ ọrụ na ya, ọ na-eweghachi otu koodu njehie ahụ. Ime ka ụdị ahụ pụta ọzọ na-amalite ịdị irè site na arịrịọ na-esote. Ntọala pụrụ iche maka ngosi ihe onyonyo naanị anaghị ezo ụdị nkata nwere otu ID ahụ.
+A na-ewepụ model e nyere akara **Hidden** na peeji onye na-enye ya na katalọgụ, a ga-ajụkwa ya
+site na HTTP `404` / `model_not_found` mgbe a rịọrọ ya kpọmkwem. Nlele ahụ na-eji onye na-enye ọrụ
+na model e kpebisiri ike, gụnyere alias ndị na-enye ọrụ, prefix node nke compatible-provider, na
+ndabara njikọ. Ngwakọta na-amafe target ndị zoro ezo ma nwee ike iji sibling a na-ahụ anya; mgbe ọ dịghị
+target enwere ike imezu fọdụrụ, ọ na-eweghachi otu error code ahụ. Iwepụ izo ya na-amalite ịrụ ọrụ na
+request na-esote. Mgbanwe visibility maka naanị onyonyo anaghị ezobe model nkata nwere otu ID ahụ.
 
-Ntọala a maka ụdị ọ bụla dị iche na [ndepụta ikwe na igbochi ngosi ụdị](../routing/MODEL_EXPOSURE_LIST.md), nke na-enyocha ihe katalọgụ na-egosi na nhọrọ maka iduzi arịrịọ na-akpaghị aka, ma na-ahapụ iziga arịrịọ kpọmkwem. Ikike ụdị nke igodo API ka na-arụ ọrụ n’onwe ha. Ụdị ndabara nke nganiihu katalọgụ ka bụ `dual`.
+Ntọala model nke otu a dị iche na
+[ndepụta model exposure nke ikwe/gbochie](../routing/MODEL_EXPOSURE_LIST.md), nke na-enyocha mgbasa ozi
+katalọgụ na ndị ga-ahọpụta maka auto-routing ma na-edobe iziga kpọmkwem. Ikikere model nke API-key
+na-aga n'ihu ịrụ ọrụ n'onwe ya. Ọnọdụ prefix katalọgụ ndabara ka bụ `dual`.
 
-### Ụdịdị dị iche iche na-enweghị echiche
+### Ụdị model na-enweghị thinking
 
-Maka ụdịdị Claude nwere ikike iche echiche, `/v1/models` na-egosipụtakwa ụdị **na-enweghị echiche** nke id ya nwere nganiihu `claude-3-omniroute-no-thinking/`:
+Maka model Claude nwere ikike thinking, `/v1/models` na-egosikwa ụdị **no-thinking** nke id ya ji `claude-3-omniroute-no-thinking/` malite:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Ịhọrọ id a (dịka ọmụmaatụ, na nhazi Claude Code nke na-etinye block `thinking` mgbe niile) na-eme ka ọ laghachi na ezigbo `<provider>/<model>` ma gbanyụọ ịtụgharị uche — `thinking:{type:"disabled"}` n'ụzọ `/v1/messages`, ma ọ bụ iwepụ field `reasoning`/`reasoning_effort` n'ụzọ `/v1/chat/completions`. A na-edepụta ụdị a naanị maka ụdịdị ezinụlọ Claude ndị na-akwado iche echiche **ma** na-asọpụrụ `disabled` (ya mere, dịka ọmụmaatụ, a naghị etinye ụdịdị adaptive-only ndị na-ajụ `disabled`). Ndị na-ahụ maka sistemụ nwere ike ịmanye ụdị a ka ọ dị ma ọ bụ ghara ịdị maka ụdịdị ọ bụla site na `ModelSpec.noThinkingAlias`.
+Ịhọrọ id a (dịka ọmụmaatụ, na nhazi Claude Code nke na-etinye block `thinking` mgbe niile) na-edughachi na ezigbo `<provider>/<model>` ebe a kwụsịrị reasoning — `thinking:{type:"disabled"}` n'ụzọ `/v1/messages`, ma ọ bụ wepụ field `reasoning`/`reasoning_effort` n'ụzọ `/v1/chat/completions`. A na-edepụta ụdị a naanị maka model ezinụlọ Claude ndị na-akwado thinking **ma** na-asọpụrụ `disabled` (ya mere, dịka ọmụmaatụ, a na-ewepụ model adaptive-only ndị na-ajụ `disabled`). Ndị na-ahụ maka sistemụ nwere ike iji `ModelSpec.noThinkingAlias` manye ụdị a ka ọ dị ọkụ ma ọ bụ gbanyụọ maka model ọ bụla.
 
 ---
 
@@ -716,13 +728,13 @@ mmecha ahụ.
 
 ---
 
-## Ojiji nke onye nwe ya (`/api/usage/om-usage`)
+## Ojiji nke onwe (`/api/usage/om-usage`)
 
-Igodo API ọ bụla nwere ike ịgụ ojiji na oke ojiji **nke ya** — ọ chọghị ikike njikwa. Nke a bụ endpoint nke
+Igodo API ọ bụla nwere ike ịgụ ojiji na oke **nke ya** — enweghị njirimara njikwa. Nke a bụ endpoint nke
 client (CLI, panel OmniCopilot) na-eji egosi onye ji igodo ego ole o mefuru.
 
 ```bash
-# Ụdị ederede (nkwekọrịta ochie — ederede nkịtị maka terminal)
+# Ụdị ederede (nkwekọrịta mbụ — ederede nkịtị maka terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
@@ -731,16 +743,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-A ga-agbanyerịrị **`allowUsageCommand`** maka igodo ahụ (a na-agbanyụ ya na ndabara — onye njikwa igodo API
-nke dashboard na-agbanye ma ọ bụ gbanyụọ ya maka igodo ọ bụla). Na-enweghị ya, endpoint ahụ na-aza `403`.
+Igodo ahụ ga-enwerịrị **`allowUsageCommand`** agbanyere (a na-agbanyụ ya na ndabara — onye njikwa
+igodo API nke dashboard na-agbanye ma ọ bụ gbanyụọ ya maka igodo ọ bụla). Na-enweghị ya, endpoint ahụ na-aza `403`.
 
-`?format=json` na-eweghachi nhazi nwere akara ọdịiche ka onye na-akpọ ghara ịgụ mpaghara data sitere na
+`?format=json` na-eweghachi ụdị e ji ihe dị iche mara ka onye kpọrọ ya ghara ịgụ field data n'ime
 ọjụjụ. Mgbe ọ gara nke ọma:
 
 ```jsonc
 {
   "allowed": true,
-  // dị naanị mgbe igodo ahụ họọrọ oke ojiji nke otu igodo (USD kwa ụbọchị/kwa izu):
+  // ọ na-adị naanị mgbe igodo ahụ họọrọ oke ojiji kwa igodo (USD kwa ụbọchị/izu):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -749,14 +761,14 @@ nke dashboard na-agbanye ma ọ bụ gbanyụọ ya maka igodo ọ bụla). Na-e
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // snapshot oke ojiji provider ahọpụtara, ma ọ bụ null mgbe ọ nweghị ihe echekwara:
+  // snapshot oke provider ahọpụtara, ma ọ bụ null mgbe ọ dịghị ihe echekwara na cache:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // snapshot njikọ niile, ka UI nwee ike igosi ọtụtụ provider n'akụkụ ibe ha:
+  // snapshot nke connection ọ bụla, ka UI nwee ike igosi ọtụtụ provider n'akụkụ ibe ha:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -764,13 +776,64 @@ nke dashboard na-agbanye ma ọ bụ gbanyụọ ya maka igodo ọ bụla). Na-e
 }
 ```
 
-Mgbe a jụrụ (`401` igodo na-adịghị mma / `403` anaghị ekwe) otu route ahụ na-eweghachi
-`{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` dị ma tọgbọ chakoo
-(ekwere igodo ahụ, mana amụtabeghị ihe ọ bụla) bụ ọnọdụ dị iche na ọjụjụ, naanị ụdị JSON
-na-egosi ọdịiche dị n'etiti ha.
+Mgbe a jụrụ ya (`401` igodo na-adịghị mma / `403` enyeghị ikike), route ahụ na-eweghachi
+`{ "allowed": false, "error": { "message": "…" } }` — `personal`/`provider` dị ma bụrụ ihe efu
+(enyere igodo ikike, mana ọ mụtabeghị ihe ọ bụla) bụ ọnọdụ dị iche na ọjụjụ, naanị ụdị JSON
+na-amata ọdịiche ha.
 
-**Nyocha ikike:** igodo API Bearer nke onye na-akpọ, nke `isValidApiKey` nyochara — nke a _abụghị_
-akụkụ njikwa (`/api/keys/…`), nke ka nọ n'azụ `requireManagementAuth`.
+**Auth:** igodo Bearer API nke onye kpọrọ ya n'onwe ya, nke `isValidApiKey` kwadoro — nke a _abụghị_
+ebe njikwa (`/api/keys/…`), nke `requireManagementAuth` ka na-echebe.
+
+### Pasent Oke Raw na Nke E Doziri Site na Cutoff
+
+Mgbe ha na-eji `/api/usage/om-usage`, ndị na-akpọ ya kwesịrị ịma ọdịiche dị n'etiti pasent ndị
+**mmepụta plain-text** na **mmepụta JSON** ahaziri ahazi na-egosi:
+
+| Akụkụ                  | Ụdị plain-text (`/api/usage/om-usage` / `@@om-usage`)                                   | Ụdị JSON (`?format=json`)                                                                |
+| :--------------------- | :-------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Field mmepụta**      | `NN% left` (dịka ọmụmaatụ, `20% left`)                                                  | `provider.quotas` / `providers[].quotas`                                                 |
+| **Ntụle**              | **Oke ojiji e doziri site na cutoff**: ikike fọdụrụ n'elu akara cutoff                  | **Oke upstream raw**: ntụle provider a na-edozighị                                       |
+| **Mgbakọ cutoff**      | E ji `effectiveRemainingPercent()` mee mgbakọ ka mpaghara echekwara gụọ dị ka `0% left` | Ọ dịghị (ụkpụrụ snapshot raw dịka provider siri kọọ ha)                                  |
+| **Data akara oke**     | E tinyere ya na pasent egosiri                                                          | E chekwara ya na `quotaWindowThresholds` maka connection ọ bụla (ma ọ bụ ndabara server) |
+| **Onye isi na-eji ya** | CLI mmekọrịta, prompt terminal, ndị ọrụ mmadụ                                           | Njikọ mmemme, dashboard, nyocha data, ndị na-esochi ịkwụ ụgwọ                            |
+
+#### Usoro Mgbakọ Ndozi Cutoff
+
+OmniRoute na-akwado cutoff oke a na-eme tupu oge eruo iji gbochie oke upstream ịgwụ (a na-ahazi ya site na
+`quotaWindowThresholds` nke connection, ndabara provider, ma ọ bụ ntọala resilience zuru ụwa ọnụ). Mgbe akara cutoff
+(dịka ọmụmaatụ, `cutoff = 25%`) na-arụ ọrụ na windo oke, onye na-emepụta ederede na-agbakọ ikike fọdụrụ dịka:
+
+- Ọ bụrụ na `remaining <= cutoff`: ọ na-eweghachi `0%`.
+- Ọ bụrụ na `remaining > cutoff`: ọ na-eweghachi `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Mpụpụta ederede a haziri na-eme ka nke a ruo n'ọnụọgụ zuru ezu kacha nso (`Math.round(...)`).
+
+#### Ihe Nlereanya
+
+Tụlee windo provider nwere **ojiji raw 60%** (ya mere **oke raw fọdụrụ 40%**) yana akara
+**cutoff nke oke fọdụrụ 25%** ahaziri:
+
+| Ngosipụta                     | Mgbakọ                                             | Nke Fọdụrụ |               Ojiji A Na-atụ Aka Ya               |
+| :---------------------------- | :------------------------------------------------- | :--------: | :-----------------------------------------------: |
+| **JSON raw (`?format=json`)** | Snapshot upstream (`quotas[window]`)               |  **40%**   |                      **60%**                      |
+| **Ụdị ederede (`NN% left`)**  | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**   | **80%** (ọ bụrụ na a na-agbakọ `100 - remaining`) |
+
+- **Ihe mere ederede ji egosi 20% fọdụrụ:** N'ime oke physical 40% fọdụrụ n'akaụntụ ahụ, iwu
+  cutoff debere 25%. Onye kpọrọ ya nwere naanị 15% n'ime 75% ohere eji eme ihe fọdụrụ tupu router ahụ akwụsị
+  iziga arịrịọ na connection a. Mgbakọ ahụ na-eme ka connection gosi na oke agwụla (`0% left`) kpọmkwem mgbe
+  routing ga-akwụsị.
+- **Ihe mere JSON ji echekwa ụkpụrụ raw:** Payload JSON na-eweghachi snapshot provider kpọmkwem (`UsageSnapshot`)
+  ka ngwaọrụ mpụga nwee ike ịhụ ojiji upstream bụ eziokwu na
+  `quotaWindowThresholds` nke ọkwa connection na-enweghị mgbakọ server na-ebelata izi ezi.
+
+#### Nduzi Maka Mbugharị Ndị Na-eji Ya
+
+Ọ bụrụ na njikọ mpụga (dịka plugin editor ma ọ bụ extension agent) na mbụ na-anakọta data site na endpoint
+ederede (`NN% left`) ma gbakọọ pasent e jiri dị ka `100 - NN`, ịkwaga na `?format=json` pụtara:
+
+- Ịgụ ụkpụrụ JSON raw ga-egosi **ojiji upstream n'ezie** (60% e jiri mee ihe n'ihe nlereanya dị n'elu).
+- Ọ bụrụ na njikọ ahụ chọrọ idowe nkọwa ikike eji eme ihe nke endpoint ederede, ọ nwere ike ịgbakọ
+  usoro effective remaining n'akụkụ client site n'iji `quotaWindowThresholds` maka mgbanwe nke ọkwa connection.
 
 ---
 

@@ -380,13 +380,13 @@ Azure Document Intelligence 的 `analyze` API 是非同步的：初始請求會�
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ 以 OpenAI 格式傳回所有聊天、嵌入與圖片模型及其組合
+→ 以 OpenAI 格式傳回所有聊天、嵌入與圖片模型及組合
 ```
 
 ### 模型 ID 前綴（`?prefix=`）
 
-大多數模型會以**提供者前綴**呈現。所使用的前綴由
-`MODELS_CATALOG_PREFIX_MODE` 功能旗標控制，也可透過查詢參數針對**每個請求**覆寫——這對於希望取得簡潔清單、但不想變更整個伺服器設定而影響其他所有使用者的用戶端很有用：
+大多數模型會以**提供者前綴**顯示。使用哪種前綴由
+`MODELS_CATALOG_PREFIX_MODE` 功能旗標控制，也可透過查詢參數針對**每個請求**覆寫——這對於希望取得簡潔清單，但不想變更所有其他使用者之伺服器全域設定的用戶端而言很有用：
 
 ```bash
 GET /v1/models?prefix=alias        # 每個模型一個 ID——簡短的別名前綴
@@ -394,13 +394,13 @@ GET /v1/models?prefix=dual         # 兩種形式（伺服器預設值）
 GET /v1/models?prefix=canonical    # 僅使用完整的提供者 ID 前綴
 ```
 
-| 模式        | 輸出                                                     | 備註                                                                                                                                               |
-| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **與** `claude/claude-sonnet-4-6` | **預設值。** 兩個 ID 都會路由至相同模型；保留此模式是為了讓硬編碼任一形式的用戶端設定能繼續運作。模型目錄大小約會加倍。                            |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | 每個模型一個項目。沒有獨立別名的提供者仍會輸出其項目，因此不會遺漏任何內容。                                                                       |
-| `canonical` | `claude/claude-sonnet-4-6`                               | 每個模型在完整的提供者 ID 前綴下各有一個項目。沒有獨立別名的提供者（例如 `antigravity/…`、`agy/…`）也會在此輸出其唯一的 ID，因此不會遺漏任何內容。 |
+| 模式        | 輸出                                                     | 備註                                                                                                                                           |
+| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **與** `claude/claude-sonnet-4-6` | **預設值。** 兩個 ID 都會路由至同一模型；保留這兩種形式，可讓硬編碼任一形式的用戶端設定繼續運作。目錄大小約會加倍。                            |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | 每個模型一個項目。沒有不同別名的提供者仍會輸出其項目，因此不會遺漏任何內容。                                                                   |
+| `canonical` | `claude/claude-sonnet-4-6`                               | 每個模型一個項目，使用完整的提供者 ID 前綴。沒有不同別名的提供者（例如 `antigravity/…`、`agy/…`）也會在此輸出其唯一 ID，因此不會遺漏任何內容。 |
 
-即使沒有查詢參數，也能識別 `dual` 模式的鏡像：它會帶有指向主要 ID 的 `parent`
+即使不使用查詢參數，也能辨識出 `dual` 模式的鏡像項目：它會帶有指向主要 ID 的 `parent`
 欄位。
 
 呈現模型選擇器的用戶端應請求 `?prefix=alias`——
@@ -408,19 +408,24 @@ GET /v1/models?prefix=canonical    # 僅使用完整的提供者 ID 前綴
 
 ### 個別隱藏的聊天模型
 
-在供應商頁面上標記為**隱藏**的模型會從目錄中排除；即使明確要求該模型，也會以 HTTP `404` / `model_not_found` 拒絕。檢查使用解析後的供應商與模型，並考量供應商別名、相容供應商節點的前綴及連線預設值。combo 會略過隱藏的目標，並可使用其他可見目標；若沒有可執行的目標，則傳回相同的錯誤碼。取消隱藏從下一次請求起生效。僅針對影像的可見性覆寫設定不會隱藏具有相同 ID 的聊天模型。
+在提供者頁面上標記為**隱藏**的模型會從目錄中排除；若明確請求該模型，則會遭到拒絕，
+並傳回 HTTP `404` / `model_not_found`。檢查會使用解析後的提供者與模型，包括提供者別名、相容提供者的節點前綴，以及
+連線預設值。組合會略過隱藏的目標，並可使用同組中可見的模型；若沒有任何可執行的目標，
+則會傳回相同的錯誤碼。取消隱藏會在下一個請求時生效。僅限圖片的可見性覆寫不會隱藏具有相同 ID 的聊天模型。
 
-這項個別模型設定與[模型公開的允許／拒絕清單](../routing/MODEL_EXPOSURE_LIST.md)不同。後者篩選目錄展示及自動路由候選項，同時保留明確呼叫。API 金鑰的模型權限仍獨立生效。目錄的預設前綴模式仍為 `dual`。
+此個別模型設定與
+[模型公開允許/拒絕清單](../routing/MODEL_EXPOSURE_LIST.md)彼此獨立；後者會篩選目錄中顯示的模型與自動路由候選項目，但仍保留明確指定的分派能力。API 金鑰的模型
+權限仍會獨立套用。預設的目錄前綴模式仍為 `dual`。
 
 ### 無思考模型變體
 
-對於支援思考的 Claude 模型，`/v1/models` 也會提供一個 ID 以 `claude-3-omniroute-no-thinking/` 為前綴的**無思考**變體：
+對於支援思考的 Claude 模型，`/v1/models` 也會顯示一個 ID 以 `claude-3-omniroute-no-thinking/` 為前綴的**無思考**變體：
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-選取此 ID（例如在一律附加 `thinking` 區塊的 Claude Code 設定中）後，會解析回實際的 `<provider>/<model>`，但停用推理——在 `/v1/messages` 路徑上使用 `thinking:{type:"disabled"}`，或在 `/v1/chat/completions` 路徑上移除 `reasoning`/`reasoning_effort` 欄位。此變體只會針對支援思考**且**接受 `disabled` 的 Claude 系列模型列出（因此，例如會拒絕 `disabled`、僅支援自適應模式的模型將被排除）。運算子可透過 `ModelSpec.noThinkingAlias`，針對每個模型強制啟用或停用此變體。
+選取此 ID（例如在總是附加 `thinking` 區塊的 Claude Code 設定中）時，會解析回實際的 `<provider>/<model>`，並抑制推理——在 `/v1/messages` 路徑上使用 `thinking:{type:"disabled"}`，或在 `/v1/chat/completions` 路徑上移除 `reasoning`/`reasoning_effort` 欄位。此變體只會針對支援思考**且**接受 `disabled` 的 Claude 系列模型列出（因此，例如拒絕 `disabled`、僅支援自適應模式的模型會被排除）。操作人員可透過 `ModelSpec.noThinkingAlias`，針對每個模型強制啟用或停用此變體。
 
 ---
 
@@ -705,26 +710,26 @@ CLI 會將 `base_url + /responses` 升級為 WebSocket，而 OmniRoute 會將其
 
 ## 自助式用量查詢（`/api/usage/om-usage`）
 
-任何 API 金鑰都能讀取**自己的**用量與配額，無須管理驗證。這是用戶端（CLI、OmniCopilot 面板）用來向金鑰持有者顯示其支出的端點。
+任何 API 金鑰都能讀取**自身的**用量與配額，無需管理驗證。這是用戶端（CLI、OmniCopilot 面板）用來向金鑰持有者顯示其支出的端點。
 
 ```bash
-# 文字格式（歷史既有介面契約——供終端機使用的純文字）
+# 文字形式（歷史沿用的介面契約——供終端機使用的純文字）
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# 結構化格式——供 UI 使用
+# 結構化形式——供 UI 使用
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-金鑰必須啟用 **`allowUsageCommand`**（預設停用——儀表板的 API 金鑰管理器可針對每把金鑰切換此設定）。若未啟用，端點會回傳 `403`。
+金鑰必須啟用 **`allowUsageCommand`**（預設關閉——儀表板的 API 金鑰管理器會針對每把金鑰切換此設定）。若未啟用，端點會回應 `403`。
 
-`?format=json` 會回傳可辨識聯集的資料結構，確保呼叫端不會從拒絕回應中讀取資料欄位。成功時：
+`?format=json` 會傳回具有辨別欄位的資料結構，因此呼叫端絕不會在遭拒時讀取資料欄位。成功時：
 
 ```jsonc
 {
   "allowed": true,
-  // 僅當金鑰選擇啟用個別金鑰用量限制（每日／每週 USD）時才會出現：
+  // 僅在金鑰選擇啟用各金鑰用量限制（每日／每週美元）時才會出現：
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -733,14 +738,14 @@ curl -H "Authorization: Bearer <your-api-key>" \
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // 所選提供者的配額快照；若尚未快取任何資料，則為 null：
+  // 所選提供者的配額快照；若尚未快取任何資料則為 null：
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // 每個連線的快照，讓 UI 能並列呈現多個提供者：
+  // 每個連線的快照，讓 UI 能並排呈現多個提供者：
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -748,9 +753,50 @@ curl -H "Authorization: Bearer <your-api-key>" \
 }
 ```
 
-拒絕時（`401` 金鑰無效／`403` 不允許），同一路由會回傳 `{ "allowed": false, "error": { "message": "…" } }`——存在但為空的 `personal`／`provider`（金鑰已獲允許，但尚未取得任何資料）與拒絕是不同的狀態，而且只有 JSON 格式能區分兩者。
+遭拒時（`401` 金鑰無效／`403` 不允許），同一路由會傳回
+`{ "allowed": false, "error": { "message": "…" } }`——存在但為空的 `personal`／`provider`（金鑰獲准，但尚未取得任何資料）與遭拒是不同的狀態，而且只有 JSON 形式能區分兩者。
 
-**驗證：** 呼叫端自己的 Bearer API 金鑰，使用 `isValidApiKey` 驗證——這_不是_管理介面（`/api/keys/…`）；後者仍受 `requireManagementAuth` 保護。
+**驗證：**使用呼叫端自己的 Bearer API 金鑰，並透過 `isValidApiKey` 驗證——這_不是_管理介面（`/api/keys/…`）；管理介面仍由 `requireManagementAuth` 保護。
+
+### 原始與經截止值調整的配額百分比
+
+使用 `/api/usage/om-usage` 時，呼叫端應注意**純文字輸出**與結構化 **JSON 輸出**所呈現百分比之間的差異：
+
+| 面向           | 純文字格式（`/api/usage/om-usage`／`@@om-usage`）                         | JSON 格式（`?format=json`）                              |
+| :------------- | :------------------------------------------------------------------------ | :------------------------------------------------------- |
+| **輸出欄位**   | `NN% left`（例如 `20% left`）                                             | `provider.quotas`／`providers[].quotas`                  |
+| **測量方式**   | **經截止值調整的可用額度**：高於截止閾值的剩餘容量                        | **原始上游配額**：未經調整的提供者測量值                 |
+| **截止值縮放** | 透過 `effectiveRemainingPercent()` 縮放，使受保護的保留額顯示為 `0% left` | 無（提供者所回報的原始快照值）                           |
+| **閾值資料**   | 已納入顯示的百分比                                                        | 儲存於各連線的 `quotaWindowThresholds`（或伺服器預設值） |
+| **主要使用者** | 互動式 CLI、終端機提示、人工作業人員                                      | 程式化整合、儀表板、分析工具、帳務追蹤工具               |
+
+#### 截止值調整公式
+
+OmniRoute 支援主動配額截止機制，以避免耗盡上游資源（可透過連線的 `quotaWindowThresholds`、提供者預設值或全域韌性設定進行配置）。當某個配額期間啟用了截止閾值（例如 `cutoff = 25%`）時，文字呈現器會按以下方式計算剩餘額度：
+
+- 若 `remaining <= cutoff`：傳回 `0%`。
+- 若 `remaining > cutoff`：傳回 `((remaining - cutoff) / (100 - cutoff)) * 100`。
+
+格式化文字輸出會將結果四捨五入至最接近的整數（`Math.round(...)`）。
+
+#### 說明範例
+
+假設某個提供者期間的**原始用量為 60%**（因此**原始剩餘配額為 40%**），且設定了 **25% 剩餘配額截止**閾值：
+
+| 表示方式                        | 計算                                               |  剩餘   |              推算的已用量              |
+| :------------------------------ | :------------------------------------------------- | :-----: | :------------------------------------: |
+| **原始 JSON（`?format=json`）** | 上游快照（`quotas[window]`）                       | **40%** |                **60%**                 |
+| **文字格式（`NN% left`）**      | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%**（若以 `100 - remaining` 計算） |
+
+- **為何文字顯示剩餘 20%：**帳戶實際剩餘的 40% 配額中，有 25% 由截止政策保留。在路由器停止將流量路由至此連線之前，呼叫端於 75% 的可用空間中僅剩 15%。經過縮放後，連線會在路由確實停止時恰好顯示已耗盡（`0% left`）。
+- **為何 JSON 保留原始值：**JSON 承載資料會傳回提供者的精確快照（`UsageSnapshot`），讓外部工具能取得真實的上游使用率以及連線層級的 `quotaWindowThresholds`，避免伺服器端有損縮放。
+
+#### 使用端移轉指南
+
+若外部整合（例如編輯器外掛程式或代理程式擴充功能）先前會擷取文字端點（`NN% left`），並以 `100 - NN` 計算已用百分比，則移轉至 `?format=json` 意味著：
+
+- 讀取原始 JSON 值會反映**實際上游用量**（上述範例中為已使用 60%）。
+- 若整合希望保留文字端點的可用額度語意，可在用戶端使用 `quotaWindowThresholds` 的連線層級覆寫設定來計算有效剩餘百分比公式。
 
 ---
 
@@ -1282,7 +1328,7 @@ Content-Type: application/json
 }
 ```
 
-> **結構描述附註** (`setBudgetSchema`)：`apiKeyId` 為必填；`dailyLimitUsd`、`weeklyLimitUsd` 或 `monthlyLimitUsd` 中至少一項必須大於零。選填欄位：`warningThreshold`（0–1）、`resetInterval`（`daily` | `weekly` | `monthly`）、`resetTime`（`HH:MM`）。舊版的 `{keyId, limit, period}` 格式會傳回 `400 Bad Request`。
+> **結構描述注意事項** (`setBudgetSchema`)：`apiKeyId` 為必填；`dailyLimitUsd`、`weeklyLimitUsd` 或 `monthlyLimitUsd` 中至少一項必須大於零。選填欄位：`warningThreshold`（0–1）、`resetInterval`（`daily` | `weekly` | `monthly`）、`resetTime`（`HH:MM`）。舊版的 `{keyId, limit, period}` 格式會傳回 `400 Bad Request`。
 
 ## Token 限制
 

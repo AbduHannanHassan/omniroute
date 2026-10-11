@@ -395,27 +395,27 @@ je privzeto nastavljena na `us-central1`. Obe razrešitvi se izvedeta v `open-ss
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Vrne vse modele za klepet, vdelave in slike ter njihove kombinacije v obliki OpenAI
+→ Vrne vse modele za klepet, vdelave in slike ter kombinacije v obliki OpenAI
 ```
 
 ### Predpone ID-jev modelov (`?prefix=`)
 
-Večina modelov je objavljena s **predpono ponudnika**. Uporabljeno predpono določa
-funkcijska zastavica `MODELS_CATALOG_PREFIX_MODE`, vendar jo je mogoče preglasiti **za posamezno zahtevo**
-s parametrom poizvedbe — uporabno za odjemalca, ki želi pregleden seznam, ne da bi spremenil
-nastavitev za celoten strežnik in vse druge uporabnike:
+Večina modelov je objavljena s **predpono ponudnika**. Katero predpono dobite, določa
+funkcijska zastavica `MODELS_CATALOG_PREFIX_MODE`, vendar jo je mogoče preglasiti **za posamezno zahtevo** s
+parametrom poizvedbe — uporabno za odjemalca, ki želi čist seznam, ne da bi spremenil nastavitev
+za celoten strežnik in vse druge uporabnike:
 
 ```bash
-GET /v1/models?prefix=alias        # en ID na model — kratka predpona vzdevka
+GET /v1/models?prefix=alias        # en ID na model — kratka vzdevna predpona
 GET /v1/models?prefix=dual         # obe obliki (privzeta nastavitev strežnika)
 GET /v1/models?prefix=canonical    # samo polna predpona ID-ja ponudnika
 ```
 
-| Način       | Odda                                                     | Opombe                                                                                                                                                                                      |
-| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **in** `claude/claude-sonnet-4-6` | **Privzeto.** Oba ID-ja usmerjata na isti model; ohranjena sta zato, da konfiguracije odjemalcev, ki imajo eno od oblik zapisano neposredno, še naprej delujejo. Približno podvoji katalog. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | En vnos na model. Ponudniki brez ločenega vzdevka še vedno oddajo svoj vnos, zato se nič ne izgubi.                                                                                         |
-| `canonical` | `claude/claude-sonnet-4-6`                               | En vnos na model s polno predpono ID-ja ponudnika. Ponudniki brez ločenega vzdevka (npr. `antigravity/…`, `agy/…`) tudi tukaj oddajo svoj edini ID, zato se nič ne izgubi.                  |
+| Način       | Vrne                                                     | Opombe                                                                                                                                                                                 |
+| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **in** `claude/claude-sonnet-4-6` | **Privzeto.** Oba ID-ja usmerjata na isti model; ohranjena sta, da konfiguracije odjemalcev, ki imajo trdo kodirano katero koli obliko, še naprej delujejo. Približno podvoji katalog. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | En vnos na model. Ponudniki brez ločenega vzdevka še vedno vrnejo svoj vnos, zato se nič ne izgubi.                                                                                    |
+| `canonical` | `claude/claude-sonnet-4-6`                               | En vnos na model s polno predpono ID-ja ponudnika. Ponudniki brez ločenega vzdevka (npr. `antigravity/…`, `agy/…`) tudi tukaj vrnejo svoj edini ID, zato se nič ne izgubi.             |
 
 Zrcalni vnos v načinu `dual` je mogoče prepoznati tudi brez parametra poizvedbe: vsebuje polje `parent`,
 ki kaže na primarni ID.
@@ -425,9 +425,17 @@ Odjemalci, ki prikazujejo izbirnik modelov, naj zahtevajo `?prefix=alias` — ta
 
 ### Posamično skriti modeli za klepet
 
-Model, ki je na strani svojega ponudnika označen kot **Skrit**, je izključen iz kataloga, izrecna zahteva zanj pa je zavrnjena s HTTP `404` / `model_not_found`. Preverjanje uporablja razrešenega ponudnika in model ter upošteva vzdevke ponudnika, predpone vozlišč združljivih ponudnikov in privzete vrednosti povezave. Combo preskoči skrite cilje in lahko uporabi drug viden cilj; če ne ostane noben izvedljiv cilj, vrne isto kodo napake. Ponovni prikaz začne veljati pri naslednji zahtevi. Preglasitve vidnosti, ki veljajo samo za slike, ne skrijejo modela za klepet z istim ID-jem.
+Model, ki je na strani svojega ponudnika označen kot **Hidden**, je izključen iz kataloga in ob
+izrecni zahtevi zavrnjen z napako HTTP `404` / `model_not_found`. Preverjanje uporablja razrešenega
+ponudnika in model, vključno z vzdevki ponudnikov, predponami vozlišč združljivih ponudnikov in
+privzetimi nastavitvami povezave. Kombinacija preskoči skrite cilje in lahko uporabi vidni sorodni model; če ne
+ostane noben izvedljiv cilj, vrne isto kodo napake. Razkritje modela začne veljati pri naslednji
+zahtevi. Preglasitve vidnosti, ki veljajo samo za slike, ne skrijejo modela za klepet z istim ID-jem.
 
-Ta nastavitev posameznega modela je ločena od [seznamov dovoljenega in prepovedanega izpostavljanja modelov](../routing/MODEL_EXPOSURE_LIST.md), ki filtrirajo ponudbo kataloga in kandidate za samodejno usmerjanje, pri tem pa ohranijo izrecno pošiljanje. Dovoljenja za modele ključa API se še naprej uporabljajo neodvisno. Privzeti način predpon kataloga ostaja `dual`.
+Ta nastavitev posameznega modela je ločena od
+[seznamov dovoljenih/prepovedanih izpostavitev modelov](../routing/MODEL_EXPOSURE_LIST.md), ki filtrirajo
+objavo v katalogu in kandidate za samodejno usmerjanje, hkrati pa ohranijo izrecno posredovanje. Dovoljenja modelov
+za ključe API še naprej veljajo neodvisno. Privzeti način predpon kataloga ostaja `dual`.
 
 ### Različice modelov brez razmišljanja
 
@@ -437,7 +445,7 @@ Za modele Claude, ki podpirajo razmišljanje, `/v1/models` objavi tudi različic
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Izbira tega ID-ja (npr. v konfiguraciji Claude Code, ki vedno doda blok `thinking`) se razreši nazaj v dejanski `<provider>/<model>` z onemogočenim sklepanjem — `thinking:{type:"disabled"}` na poti `/v1/messages` oziroma z opuščenimi polji `reasoning`/`reasoning_effort` na poti `/v1/chat/completions`. Različica je navedena samo za modele družine Claude, ki podpirajo razmišljanje **in** upoštevajo `disabled` (zato so npr. izključeni modeli, ki podpirajo samo prilagodljivi način in zavrnejo `disabled`). Upravljavci lahko različico za posamezen model prisilno omogočijo ali onemogočijo prek `ModelSpec.noThinkingAlias`.
+Izbira tega ID-ja (npr. v konfiguraciji Claude Code, ki vedno doda blok `thinking`) se razreši nazaj na dejanski `<provider>/<model>` z onemogočenim sklepanjem — `thinking:{type:"disabled"}` na poti `/v1/messages` oziroma brez polj `reasoning`/`reasoning_effort` na poti `/v1/chat/completions`. Različica je navedena samo za modele družine Claude, ki podpirajo razmišljanje **in** upoštevajo `disabled` (zato so npr. izključeni modeli, ki podpirajo samo prilagodljivi način in zavrnejo `disabled`). Upravljavci lahko različico za posamezen model prisilno vklopijo ali izklopijo prek `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -720,9 +728,9 @@ dokončanje.
 
 ---
 
-## Samopostrežni pregled porabe (`/api/usage/om-usage`)
+## Samopostrežna uporaba (`/api/usage/om-usage`)
 
-Vsak API-ključ lahko bere **svojo lastno** porabo in kvote — brez upravljavske avtentikacije. To je končna točka, ki jo
+Vsak ključ API lahko bere **lastno** porabo in kvote — brez skrbniškega preverjanja pristnosti. To je končna točka, ki jo
 odjemalec (CLI, plošča OmniCopilot) uporablja, da imetniku ključa prikaže njegovo porabo.
 
 ```bash
@@ -735,16 +743,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Ključ mora imeti omogočeno možnost **`allowUsageCommand`** (privzeto je izklopljena — upravljavec API-ključev
-na nadzorni plošči jo preklaplja za vsak ključ posebej). Brez nje končna točka odgovori s `403`.
+Ključ mora imeti omogočeno možnost **`allowUsageCommand`** (privzeto je izklopljena — upravljalnik ključev API na
+nadzorni plošči jo preklaplja za vsak ključ posebej). Brez nje končna točka odgovori s `403`.
 
-`?format=json` vrne razločljivo strukturo, tako da klicatelj nikoli ne prebere podatkovnega polja iz
+`?format=json` vrne razločljivo strukturo, tako da klicatelj nikoli ne bere podatkovnega polja iz
 zavrnitve. Ob uspehu:
 
 ```jsonc
 {
   "allowed": true,
-  // prisotno samo, ko so za ključ omogojene omejitve porabe po ključu (dnevne/tedenske v USD):
+  // prisotno samo, ko so bile za ključ omogočene omejitve porabe po ključu (dnevne/tedenske v USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -753,14 +761,14 @@ zavrnitve. Ob uspehu:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // posnetek kvote izbranega ponudnika ali null, če v predpomnilniku še ni ničesar:
+  // posnetek kvote izbranega ponudnika ali null, kadar še ni nič v predpomnilniku:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // posnetek vsake povezave, da lahko uporabniški vmesnik prikaže več ponudnikov drugega ob drugem:
+  // posnetek vsake povezave, da lahko uporabniški vmesnik prikaže več ponudnikov enega ob drugem:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -768,13 +776,64 @@ zavrnitve. Ob uspehu:
 }
 ```
 
-Ob zavrnitvi (`401` napačen ključ / `403` ni dovoljeno) ista pot vrne
-`{ "allowed": false, "error": { "message": "…" } }` — prisoten, vendar prazen `personal`/`provider`
-(ključ je dovoljen, vendar še ni bilo pridobljenih podatkov) predstavlja drugačno stanje kot zavrnitev, razlikuje pa ju
-samo oblika JSON.
+Ob zavrnitvi (`401` neveljaven ključ / `403` ni dovoljeno) ista pot vrne
+`{ "allowed": false, "error": { "message": "…" } }` — prisotno, vendar prazno polje `personal`/`provider`
+(ključ je dovoljen, vendar še ni bilo pridobljenih podatkov) predstavlja drugačno stanje od zavrnitve, razlikovati pa ju je mogoče samo
+v obliki JSON.
 
-**Avtentikacija:** klicateljev lastni API-ključ Bearer, preverjen z `isValidApiKey` — to _ni_
-upravljavska površina (`/api/keys/…`), ki ostaja zaščitena z `requireManagementAuth`.
+**Preverjanje pristnosti:** klicateljev lastni ključ API Bearer, preverjen z `isValidApiKey` — to _ni_
+površina za upravljanje (`/api/keys/…`), ki ostaja zaščitena z `requireManagementAuth`.
+
+### Neobdelani in glede na prag zaustavitve prilagojeni odstotki kvot
+
+Pri uporabi `/api/usage/om-usage` morajo klicatelji upoštevati razliko med
+odstotki, prikazanimi v **izpisu navadnega besedila**, in strukturiranim **izpisom JSON**:
+
+| Vidik                              | Oblika navadnega besedila (`/api/usage/om-usage` / `@@om-usage`)                                              | Oblika JSON (`?format=json`)                                                                 |
+| :--------------------------------- | :------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------- |
+| **Izhodno polje**                  | `NN% left` (npr. `20% left`)                                                                                  | `provider.quotas` / `providers[].quotas`                                                     |
+| **Meritev**                        | **Uporabljiva količina, prilagojena glede na prag zaustavitve**: preostala zmogljivost nad pragom zaustavitve | **Neobdelana kvota ponudnika**: neprilagojena meritev ponudnika                              |
+| **Prilagajanje pragu zaustavitve** | Prilagojeno prek `effectiveRemainingPercent()`, tako da je zaščitena rezerva prikazana kot `0% left`          | Brez (neobdelane vrednosti posnetka, kot jih sporoči ponudnik)                               |
+| **Podatki o pragu**                | Vključeni v prikazani odstotek                                                                                | Shranjeni v `quotaWindowThresholds` za posamezno povezavo (ali privzete vrednosti strežnika) |
+| **Primarni uporabnik**             | Interaktivni CLI-ji, terminalski pozivi, človeški operaterji                                                  | Programske integracije, nadzorne plošče, analitika, sledilniki obračunavanja                 |
+
+#### Formula prilagoditve glede na prag zaustavitve
+
+OmniRoute podpira proaktivne pragove zaustavitve kvot za preprečevanje izčrpanja pri ponudniku (nastavljene prek
+`quotaWindowThresholds` povezave, privzetih nastavitev ponudnika ali globalnih nastavitev odpornosti). Ko je prag zaustavitve
+(npr. `cutoff = 25%`) aktiven za obdobje kvote, upodabljalnik besedila izračuna preostalo količino tako:
+
+- Če je `remaining <= cutoff`: vrne `0%`.
+- Če je `remaining > cutoff`: vrne `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Oblikovani besedilni izpis to zaokroži na najbližje celo število (`Math.round(...)`).
+
+#### Ponazoritveni primer
+
+Oglejmo si obdobje ponudnika s **60-odstotno neobdelano porabo** (torej **40-odstotno neobdelano preostalo kvoto**) in nastavljenim
+pragom zaustavitve pri **25 % preostale kvote**:
+
+| Predstavitev                         | Izračun                                            | Preostanek |             Izpeljana poraba             |
+| :----------------------------------- | :------------------------------------------------- | :--------: | :--------------------------------------: |
+| **Neobdelani JSON (`?format=json`)** | Posnetek ponudnika (`quotas[window]`)              |  **40%**   |                 **60%**                  |
+| **Besedilna oblika (`NN% left`)**    | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**   | **80%** (pri izračunu `100 - remaining`) |
+
+- **Zakaj besedilo prikazuje 20 % preostanka:** Od 40 % fizične kvote, ki je še na voljo v računu, je 25 % rezerviranih s
+  pravilnikom praga zaustavitve. Klicatelju ostane samo 15 % od 75 % uporabljivega razpoložljivega prostora, preden usmerjevalnik preneha
+  usmerjati v to povezavo. Prilagajanje zagotavlja, da povezava sporoči izčrpanost (`0% left`) natanko takrat, ko
+  se usmerjanje preneha.
+- **Zakaj JSON ohrani neobdelane vrednosti:** Koristna vsebina JSON vrne natančen posnetek ponudnika (`UsageSnapshot`),
+  tako da imajo zunanja orodja dostop do dejanske izrabe pri ponudniku in nastavitev
+  `quotaWindowThresholds` na ravni povezave brez izgubnega prilagajanja na strani strežnika.
+
+#### Navodila za selitev odjemalcev
+
+Če je zunanja integracija (kot je vtičnik urejevalnika ali razširitev agenta) prej razčlenjevala besedilno
+končno točko (`NN% left`) in izračunala odstotek porabe kot `100 - NN`, selitev na `?format=json` pomeni:
+
+- Branje neobdelanih vrednosti JSON bo odražalo **dejansko porabo pri ponudniku** (60 % porabljeno v zgornjem primeru).
+- Če želi integracija ohraniti semantiko uporabljive količine iz besedilne končne točke, lahko formulo efektivnega preostanka izračuna
+  na strani odjemalca z uporabo `quotaWindowThresholds` za preglasitve na ravni povezave.
 
 ---
 

@@ -375,15 +375,15 @@ sukut boʻyicha `us-central1` boʻladi. Har ikkala aniqlash jarayoni ham `open-s
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Barcha chat, embedding va tasvir modellari hamda kombinatsiyalarini OpenAI formatida qaytaradi
+→ OpenAI formatidagi barcha chat, embedding va tasvir modellari hamda kombolarni qaytaradi
 ```
 
-### Model identifikatori prefikslari (`?prefix=`)
+### Model id prefikslari (`?prefix=`)
 
-Aksariyat modellar **provayder prefiksi** ostida taqdim etiladi. Qaysi prefiks olinishi
-`MODELS_CATALOG_PREFIX_MODE` funksional bayrogʻi orqali boshqariladi va soʻrov parametri yordamida
+Aksariyat modellar **provayder prefiksi** ostida eʼlon qilinadi. Qaysi prefiks olinishi
+`MODELS_CATALOG_PREFIX_MODE` funksiya bayrogʻi orqali boshqariladi va soʻrov parametri yordamida
 **har bir soʻrov uchun** alohida qayta belgilanishi mumkin — bu server miqyosidagi sozlamani
-boshqalar uchun oʻzgartirmasdan toza roʻyxat olishni istaydigan mijoz uchun foydalidir:
+boshqalar uchun oʻzgartirmasdan toza roʻyxat olishni istaydigan mijoz uchun foydali:
 
 ```bash
 GET /v1/models?prefix=alias        # har bir model uchun bitta id — qisqa taxallus prefiksi
@@ -391,11 +391,11 @@ GET /v1/models?prefix=dual         # ikkala shakl (server standarti)
 GET /v1/models?prefix=canonical    # faqat toʻliq provayder-id prefiksi
 ```
 
-| Rejim       | Chiqaradi                                                | Izohlar                                                                                                                                                                                                                          |
-| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **va** `claude/claude-sonnet-4-6` | **Standart.** Har ikkala id ham bir xil modelga yoʻnaltiriladi; shakllardan birini kod ichida qatʼiy belgilagan mijoz konfiguratsiyalari ishlashda davom etishi uchun saqlangan. Katalog hajmini taxminan ikki baravar oshiradi. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Har bir model uchun bitta yozuv. Alohida taxallusi boʻlmagan provayderlar ham oʻz yozuvini chiqaradi, shuning uchun hech narsa yoʻqolmaydi.                                                                                      |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Har bir model uchun toʻliq provayder-id prefiksi ostida bitta yozuv. Alohida taxallusi boʻlmagan provayderlar (masalan, `antigravity/…`, `agy/…`) ham bu yerda yagona id sini chiqaradi, shuning uchun hech narsa yoʻqolmaydi.   |
+| Rejim       | Chiqaradi                                                | Izohlar                                                                                                                                                                                                                                    |
+| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dual`      | `cc/claude-sonnet-4-6` **va** `claude/claude-sonnet-4-6` | **Standart.** Ikkala id ham bir xil modelga yoʻnaltiriladi; bu shakllardan birini qatʼiy belgilab qoʻygan mijoz konfiguratsiyalari ishlashda davom etishi uchun saqlangan. Katalog hajmini taxminan ikki baravar oshiradi.                 |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Har bir model uchun bitta yozuv. Alohida taxallusi boʻlmagan provayderlar ham oʻz yozuvini chiqaradi, shuning uchun hech narsa yoʻqolmaydi.                                                                                                |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Toʻliq provayder-id prefiksi ostida har bir model uchun bitta yozuv. Alohida taxallusi boʻlmagan provayderlar (masalan, `antigravity/…`, `agy/…`) ham bu yerda oʻzlarining yagona id sini chiqaradi, shuning uchun hech narsa yoʻqolmaydi. |
 
 `dual` rejimidagi nusxani soʻrov parametrisiz ham aniqlash mumkin: unda asosiy id ga ishora qiluvchi `parent`
 maydoni mavjud.
@@ -405,19 +405,27 @@ Model tanlagichini koʻrsatadigan mijozlar `?prefix=alias` parametrini soʻrashi
 
 ### Alohida yashirilgan chat modellari
 
-Provayder sahifasida **Yashirin** deb belgilangan model katalogdan chiqariladi va u aniq so‘ralganda HTTP `404` / `model_not_found` bilan rad etiladi. Tekshiruv provayder taxalluslari, mos provayder tugunlarining prefikslari va ulanishning standart qiymatlarini hisobga olib aniqlangan provayder va modeldan foydalanadi. Combo yashirin nishonlarni o‘tkazib yuboradi va boshqa ko‘rinadigan nishondan foydalanishi mumkin; bajarish mumkin bo‘lgan nishon qolmasa, ayni xato kodini qaytaradi. Modelni yana ko‘rsatish keyingi so‘rovdan kuchga kiradi. Faqat rasmlarga oid ko‘rinish sozlamalarini almashtirish bir xil IDga ega chat modelini yashirmaydi.
+Provayder sahifasida **Hidden** deb belgilangan model katalogdan chiqarib tashlanadi va aniq
+soʻralganda HTTP `404` / `model_not_found` bilan rad etiladi. Tekshiruv aniqlangan
+provayder va modeldan, jumladan provayder taxalluslari, mos keluvchi provayder tuguni prefikslari va
+ulanishning standart qiymatlaridan foydalanadi. Kombo yashirilgan maqsadlarni oʻtkazib yuboradi va koʻrinadigan muqobil modeldan foydalanishi mumkin; bajariladigan
+maqsad qolmasa, u xuddi shu xato kodini qaytaradi. Yashirishni bekor qilish keyingi
+soʻrovdan boshlab kuchga kiradi. Faqat tasvirga oid koʻrinish sozlamalari ayni ID ga ega chat modelini yashirmaydi.
 
-Bu alohida model sozlamasi [modellarni namoyish qilishga ruxsat va taqiq ro‘yxatlaridan](../routing/MODEL_EXPOSURE_LIST.md) ajralib turadi. Ular aniq modelga so‘rov yuborishni saqlagan holda katalogdagi namoyishni va avtomatik yo‘naltirish nomzodlarini filtrlaydi. API kalitining model ruxsatlari mustaqil ravishda amal qilishda davom etadi. Katalog prefikslarining standart rejimi `dual` bo‘lib qoladi.
+Bu alohida model sozlamasi katalogdagi
+eʼlonlar va avtomatik yoʻnaltirish nomzodlarini filtrlab, aniq yuborish imkoniyatini saqlab qoladigan
+[modellarni koʻrsatish ruxsat/taqiq roʻyxatlaridan](../routing/MODEL_EXPOSURE_LIST.md) mustaqildir. API kalitining modelga oid
+ruxsatlari ham mustaqil ravishda qoʻllanishda davom etadi. Katalogning standart prefiks rejimi `dual` boʻlib qoladi.
 
 ### Fikrlashsiz model variantlari
 
-Fikrlash imkoniyatiga ega Claude modellari uchun `/v1/models`, shuningdek, id si `claude-3-omniroute-no-thinking/` prefiksi bilan boshlanadigan **fikrlashsiz** variantni ham taqdim etadi:
+Fikrlash imkoniyatiga ega Claude modellari uchun `/v1/models` id si `claude-3-omniroute-no-thinking/` prefiksi bilan boshlanadigan **fikrlashsiz** variantni ham eʼlon qiladi:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Ushbu id ni tanlash (masalan, doimo `thinking` blokini biriktiradigan Claude Code konfiguratsiyasida) mulohaza yuritish oʻchirilgan holda haqiqiy `<provider>/<model>` modeliga qayta yoʻnaltiriladi — `/v1/messages` yoʻlida `thinking:{type:"disabled"}` qoʻllanadi yoki `/v1/chat/completions` yoʻlida `reasoning`/`reasoning_effort` maydonlari olib tashlanadi. Variant faqat fikrlashni qoʻllab-quvvatlaydigan **va** `disabled` qiymatini qabul qiladigan Claude oilasidagi modellar uchun roʻyxatga kiritiladi (shu sababli, masalan, `disabled` qiymatini rad etadigan faqat adaptiv modellar chiqarib tashlanadi). Operatorlar `ModelSpec.noThinkingAlias` orqali har bir model uchun variantni majburan yoqishi yoki oʻchirishi mumkin.
+Ushbu id ni tanlash (masalan, doimo `thinking` blokini biriktiradigan Claude Code konfiguratsiyasida) fikrlash bostirilgan holda haqiqiy `<provider>/<model>` ga qayta yoʻnaltiriladi — `/v1/messages` yoʻlida `thinking:{type:"disabled"}` qoʻllanadi yoki `/v1/chat/completions` yoʻlida `reasoning`/`reasoning_effort` maydonlari olib tashlanadi. Variant faqat fikrlashni qoʻllab-quvvatlaydigan **va** `disabled` qiymatini qabul qiladigan Claude oilasidagi modellar uchun roʻyxatga kiritiladi (shu sababli, masalan, `disabled` qiymatini rad etadigan faqat adaptiv modellar bundan mustasno). Operatorlar `ModelSpec.noThinkingAlias` orqali har bir model uchun variantni majburan yoqishi yoki oʻchirishi mumkin.
 
 ---
 
@@ -696,26 +704,26 @@ ChatGPT `codex.rate_limits` + `response.created` qaytaradi va yakuniy natijani o
 
 ## Mustaqil foydalanish (`/api/usage/om-usage`)
 
-Har qanday API kaliti **o‘zining** foydalanish ma’lumotlari va kvotalarini boshqaruv autentifikatsiyasisiz o‘qiy oladi. Bu mijoz (CLI, OmniCopilot paneli) kalit egasiga uning xarajatlarini ko‘rsatish uchun foydalanadigan endpointdir.
+Har qanday API kaliti **oʻzining** foydalanish maʼlumotlari va kvotalarini boshqaruv autentifikatsiyasisiz oʻqiy oladi. Bu mijoz (CLI, OmniCopilot paneli) kalit egasiga uning xarajatlarini koʻrsatish uchun foydalanadigan endpointdir.
 
 ```bash
-# Matnli ko‘rinish (tarixiy shartnoma — terminal uchun oddiy matn)
+# Matnli shakl (tarixiy shartnoma — terminal uchun oddiy matn)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Tuzilmaviy ko‘rinish — UI foydalanadigan format
+# Tuzilmali shakl — UI foydalanadigan shakl
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Kalitda **`allowUsageCommand`** yoqilgan bo‘lishi kerak (standart holatda o‘chiq — boshqaruv panelidagi API kalitlari menejeri uni har bir kalit uchun alohida yoqadi). U yoqilmagan bo‘lsa, endpoint `403` javobini qaytaradi.
+Kalitda **`allowUsageCommand`** yoqilgan boʻlishi kerak (standart holatda oʻchiq — boshqaruv panelidagi API kalitlari menejeri uni har bir kalit uchun alohida yoqadi). U yoqilmagan boʻlsa, endpoint `403` javobini qaytaradi.
 
-`?format=json` farqlanuvchi tuzilmani qaytaradi, shuning uchun chaqiruvchi rad etish javobidan hech qachon ma’lumot maydonini o‘qimaydi. Muvaffaqiyatli holatda:
+`?format=json` diskriminatsiyalangan tuzilmani qaytaradi, shu sababli chaqiruvchi rad etish javobidan hech qachon maʼlumot maydonini oʻqimaydi. Muvaffaqiyatli javob:
 
 ```jsonc
 {
   "allowed": true,
-  // faqat kalit har bir kalit uchun foydalanish limitlarini (kunlik/haftalik USD) yoqqanida mavjud bo‘ladi:
+  // faqat kalit har bir kalit uchun foydalanish limitlarini (kunlik/haftalik USD) tanlaganida mavjud:
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -724,14 +732,14 @@ Kalitda **`allowUsageCommand`** yoqilgan bo‘lishi kerak (standart holatda o‘
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // tanlangan provayder kvotasi surati yoki hali hech narsa keshlanmagan bo‘lsa null:
+  // tanlangan provayder kvotasining oniy nusxasi yoki hali hech narsa keshlanmagan boʻlsa null:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // UI bir nechta provayderni yonma-yon ko‘rsatishi uchun har bir ulanishning surati:
+  // UI bir nechta provayderni yonma-yon koʻrsatishi uchun har bir ulanishning oniy nusxasi:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -739,12 +747,51 @@ Kalitda **`allowUsageCommand`** yoqilgan bo‘lishi kerak (standart holatda o‘
 }
 ```
 
-Rad etilganda (`401` noto‘g‘ri kalit / `403` ruxsat berilmagan) ayni marshrut
-`{ "allowed": false, "error": { "message": "…" } }` javobini qaytaradi — mavjud, ammo bo‘sh `personal`/`provider`
-(kalitga ruxsat berilgan, ammo hali hech qanday ma’lumot olinmagan) rad etishdan farqli holat bo‘lib, ularni faqat JSON ko‘rinishi
-farqlaydi.
+Rad etilganda (`401` notoʻgʻri kalit / `403` ruxsat berilmagan) xuddi shu marshrut
+`{ "allowed": false, "error": { "message": "…" } }` javobini qaytaradi — mavjud, ammo boʻsh `personal`/`provider`
+(kalitga ruxsat berilgan, lekin hali hech qanday maʼlumot olinmagan) rad etishdan farqli holat boʻlib, ularni faqat JSON shakli ajratib koʻrsatadi.
 
-**Autentifikatsiya:** chaqiruvchining `isValidApiKey` bilan tekshirilgan o‘z Bearer API kaliti — bu `requireManagementAuth` ortida qoladigan boshqaruv interfeysi (`/api/keys/…`) _emas_.
+**Autentifikatsiya:** chaqiruvchining `isValidApiKey` orqali tekshiriladigan oʻz Bearer API kaliti — bu `requireManagementAuth` ortida qoladigan boshqaruv interfeysi (`/api/keys/…`) _emas_.
+
+### Xom va chegara boʻyicha tuzatilgan kvota foizlari
+
+`/api/usage/om-usage` dan foydalanishda chaqiruvchilar **oddiy matnli chiqish** va tuzilmali **JSON chiqishi** taqdim etadigan foizlar oʻrtasidagi farqni hisobga olishlari kerak:
+
+| Jihat                    | Oddiy matn formati (`/api/usage/om-usage` / `@@om-usage`)                                                     | JSON formati (`?format=json`)                                                             |
+| :----------------------- | :------------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------- |
+| **Chiqish maydoni**      | `NN% left` (masalan, `20% left`)                                                                              | `provider.quotas` / `providers[].quotas`                                                  |
+| **Oʻlchov**              | **Chegara boʻyicha tuzatilgan foydalanish mumkin boʻlgan limit**: chegara qiymatidan yuqoridagi qolgan sigʻim | **Xom yuqori oqim kvotasi**: provayderning tuzatilmagan oʻlchovi                          |
+| **Chegara masshtabi**    | Himoyalangan zaxira `0% left` sifatida koʻrinishi uchun `effectiveRemainingPercent()` orqali masshtablanadi   | Yoʻq (provayder xabar qilgan xom oniy nusxa qiymatlari)                                   |
+| **Chegara maʼlumotlari** | Koʻrsatiladigan foiz tarkibiga kiritiladi                                                                     | Har bir ulanish uchun `quotaWindowThresholds` ichida saqlanadi (yoki server standartlari) |
+| **Asosiy isteʼmolchi**   | Interaktiv CLIlar, terminal soʻrovlari, inson operatorlari                                                    | Dasturiy integratsiyalar, boshqaruv panellari, tahlil va hisob-kitob kuzatuvchilari       |
+
+#### Chegara boʻyicha tuzatish formulasi
+
+OmniRoute yuqori oqim resurslarining tugab qolishiga yoʻl qoʻymaslik uchun proaktiv kvota chegaralarini qoʻllab-quvvatlaydi (ulanishning `quotaWindowThresholds`, provayder standartlari yoki global barqarorlik sozlamalari orqali sozlanadi). Kvota oynasida chegara qiymati (masalan, `cutoff = 25%`) faol boʻlsa, matn renderer qolgan limitni quyidagicha hisoblaydi:
+
+- Agar `remaining <= cutoff` boʻlsa: `0%` qaytaradi.
+- Agar `remaining > cutoff` boʻlsa: `((remaining - cutoff) / (100 - cutoff)) * 100` qaytaradi.
+
+Formatlangan matnli chiqish bu qiymatni eng yaqin butun songa yaxlitlaydi (`Math.round(...)`).
+
+#### Koʻrgazmali misol
+
+**60% xom foydalanish** (demak, **40% xom qolgan kvota**) va sozlangan **25% qolgan kvota chegarasi** mavjud provayder oynasini koʻrib chiqamiz:
+
+| Koʻrinish                     | Hisoblash                                          | Qolgan  |         Nazarda tutilgan sarf          |
+| :---------------------------- | :------------------------------------------------- | :-----: | :------------------------------------: |
+| **Xom JSON (`?format=json`)** | Yuqori oqim oniy nusxasi (`quotas[window]`)        | **40%** |                **60%**                 |
+| **Matn formati (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (`100 - remaining` hisoblansa) |
+
+- **Nima uchun matn 20% qolganini koʻrsatadi:** Hisobda jismonan qolgan 40% kvotaning 25%i chegara siyosati tomonidan zaxiralangan. Router ushbu ulanishga yoʻnaltirishni toʻxtatishidan oldin chaqiruvchida foydalanish mumkin boʻlgan 75% oraliqning faqat 15%i qolgan. Masshtablash ulanish aynan yoʻnaltirish toʻxtatilgan paytda tugaganlik holatini (`0% left`) koʻrsatishini taʼminlaydi.
+- **Nima uchun JSON xom qiymatlarni saqlaydi:** JSON foydali yuklamasi provayderning aniq oniy nusxasini (`UsageSnapshot`) qaytaradi, natijada tashqi vositalar server tomonida yoʻqotishli masshtablashsiz yuqori oqimdagi haqiqiy foydalanish va ulanish darajasidagi `quotaWindowThresholds` maʼlumotlariga kira oladi.
+
+#### Isteʼmolchilarni migratsiya qilish boʻyicha koʻrsatma
+
+Agar tashqi integratsiya (masalan, muharrir plagini yoki agent kengaytmasi) avval matnli endpointdan (`NN% left`) maʼlumotni ajratib olib, foydalanilgan foizni `100 - NN` sifatida hisoblagan boʻlsa, `?format=json` ga migratsiya qilish quyidagilarni anglatadi:
+
+- Xom JSON qiymatlarini oʻqish **yuqori oqimdagi haqiqiy sarfni** aks ettiradi (yuqoridagi misolda 60% ishlatilgan).
+- Agar integratsiya matnli endpointning foydalanish mumkin boʻlgan limit semantikasini saqlamoqchi boʻlsa, ulanish darajasidagi qayta belgilashlar uchun `quotaWindowThresholds` dan foydalanib, samarali qolgan limit formulasini mijoz tomonida hisoblashi mumkin.
 
 ---
 

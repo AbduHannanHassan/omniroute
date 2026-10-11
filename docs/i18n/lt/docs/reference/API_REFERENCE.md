@@ -419,51 +419,59 @@ regionas yra `us-central1`. Abu nustatymai atliekami faile `open-sse/handlers/oc
 
 ```bash
 GET /v1/models
-Authorization: Bearer your-api-key
+Authorization: Bearer jūsų-api-raktas
 
 → Grąžina visus pokalbių, įterpinių ir vaizdų modelius bei jų derinius OpenAI formatu
 ```
 
-### Modelių ID prefiksai (`?prefix=`)
+### Modelių ID priešdėliai (`?prefix=`)
 
-Dauguma modelių pateikiami su **teikėjo prefiksu**. Naudojamą prefiksą valdo
-`MODELS_CATALOG_PREFIX_MODE` funkcijos vėliavėlė, kurią galima perrašyti **kiekvienai užklausai atskirai**
-naudojant užklausos parametrą — tai naudinga klientui, norinčiam gauti tvarkingą sąrašą nekeičiant bendro
-serverio nustatymo visiems kitiems:
+Dauguma modelių pateikiami su **teikėjo priešdėliu**. Kurį priešdėlį gausite, lemia
+`MODELS_CATALOG_PREFIX_MODE` funkcijos vėliavėlė, tačiau ją galima pakeisti **kiekvienai užklausai atskirai**
+naudojant užklausos parametrą — tai naudinga klientui, kuris nori tvarkingo sąrašo nekeisdamas visame serveryje
+visiems kitiems taikomo nustatymo:
 
 ```bash
-GET /v1/models?prefix=alias        # po vieną ID kiekvienam modeliui — trumpasis pseudonimo prefiksas
+GET /v1/models?prefix=alias        # po vieną ID kiekvienam modeliui — trumpasis alternatyvus priešdėlis
 GET /v1/models?prefix=dual         # abi formos (numatytoji serverio reikšmė)
-GET /v1/models?prefix=canonical    # tik visas teikėjo ID prefiksas
+GET /v1/models?prefix=canonical    # tik visas teikėjo ID priešdėlis
 ```
 
-| Režimas     | Pateikia                                                 | Pastabos                                                                                                                                                                                                       |
-| ----------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **ir** `claude/claude-sonnet-4-6` | **Numatytasis.** Abu ID nukreipiami į tą patį modelį; tai išlaikyta, kad klientų konfigūracijos, kuriose tiesiogiai įrašyta kuri nors forma, ir toliau veiktų. Katalogas tampa maždaug dvigubai didesnis.      |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Po vieną įrašą kiekvienam modeliui. Teikėjai, neturintys atskiro pseudonimo, vis tiek pateikia savo įrašą, todėl niekas neprarandama.                                                                          |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Po vieną įrašą kiekvienam modeliui su visu teikėjo ID prefiksu. Teikėjai, neturintys atskiro pseudonimo (pvz., `antigravity/…`, `agy/…`), čia taip pat pateikia savo vienintelį ID, todėl niekas neprarandama. |
+| Režimas     | Pateikia                                                 | Pastabos                                                                                                                                                                                                                       |
+| ----------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dual`      | `cc/claude-sonnet-4-6` **ir** `claude/claude-sonnet-4-6` | **Numatytasis.** Abu ID nukreipiami į tą patį modelį; palikta tam, kad klientų konfigūracijos, kuriose tiesiogiai įrašyta bet kuri forma, ir toliau veiktų. Katalogas apytiksliai padvigubėja.                                 |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Po vieną įrašą kiekvienam modeliui. Teikėjai, neturintys atskiro alternatyvaus priešdėlio, vis tiek pateikia savo įrašą, todėl niekas neprarandama.                                                                            |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Po vieną įrašą kiekvienam modeliui su visu teikėjo ID priešdėliu. Teikėjai, neturintys atskiro alternatyvaus priešdėlio (pvz., `antigravity/…`, `agy/…`), čia taip pat pateikia savo vienintelį ID, todėl niekas neprarandama. |
 
-`dual` režimo dubliuojamą įrašą galima atpažinti ir be užklausos parametro: jame yra `parent`
+`dual` režimo veidrodinį įrašą galima atpažinti ir be užklausos parametro: jame yra `parent`
 laukas, nurodantis pagrindinį ID.
 
-Klientai, rodantys modelio pasirinkimo sąrašą, turėtų pateikti užklausą su `?prefix=alias` — būtent taip daro
+Klientai, rodantys modelio pasirinkimo valdiklį, turėtų siųsti užklausą su `?prefix=alias` — taip daro
 [OmniCopilot VS Code plėtinys](../guides/VSCODE-COPILOT.md).
 
 ### Atskirai paslėpti pokalbių modeliai
 
-Modelis, teikėjo puslapyje pažymėtas kaip **Paslėptas**, pašalinamas iš katalogo, o aiški jo užklausa atmetama su HTTP `404` / `model_not_found`. Patikra naudoja nustatytą teikėją ir modelį, atsižvelgdama į teikėjo alternatyvius vardus, suderinamų teikėjų mazgų priešdėlius ir numatytąsias ryšio reikšmes. Combo praleidžia paslėptus tikslus ir gali naudoti kitą matomą tikslą; jei nelieka vykdytino tikslo, grąžina tą patį klaidos kodą. Pakartotinis rodymas įsigalioja nuo kitos užklausos. Tik vaizdams taikomi matomumo pakeitimai nepaslepia pokalbių modelio su tuo pačiu ID.
+Modelis, kurio teikėjo puslapyje pažymėta **Hidden**, neįtraukiamas į katalogą, o pateikus
+tiesioginę jo užklausą grąžinamas HTTP `404` / `model_not_found`. Tikrinamas galutinis
+teikėjas ir modelis, įskaitant alternatyvius teikėjų pavadinimus, suderinamų teikėjų mazgų priešdėlius ir
+numatytąsias ryšio reikšmes. Derinys praleidžia paslėptus tikslus ir gali naudoti matomą giminingą modelį; kai
+nelieka vykdytinų tikslų, grąžinamas tas pats klaidos kodas. Paslėpimo atšaukimas įsigalioja per kitą
+užklausą. Tik vaizdams taikomos matomumo išimtys nepaslepia pokalbių modelio su tuo pačiu ID.
 
-Šis atskiro modelio nustatymas skiriasi nuo [leidžiamų ir draudžiamų viešinti modelių sąrašų](../routing/MODEL_EXPOSURE_LIST.md), kurie filtruoja katalogo pasiūlą ir automatinio maršruto parinkimo kandidatus, bet išlaiko aiškiai nurodyto modelio iškvietimą. API rakto modelių leidimai ir toliau taikomi nepriklausomai. Numatytasis katalogo priešdėlių režimas lieka `dual`.
+Šis atskiro modelio nustatymas skiriasi nuo
+[modelių prieinamumo leidimų / draudimų sąrašų](../routing/MODEL_EXPOSURE_LIST.md), kurie filtruoja katalogo
+įrašus ir automatinio nukreipimo kandidatus, tačiau išlaiko tiesioginį iškvietimą. API rakto modelių
+leidimai ir toliau taikomi nepriklausomai. Numatytasis katalogo priešdėlių režimas išlieka `dual`.
 
 ### Modelių variantai be mąstymo
 
-Mąstymą palaikantiems Claude modeliams `/v1/models` taip pat pateikia **nemąstantį** variantą, kurio ID prasideda prefiksu `claude-3-omniroute-no-thinking/`:
+Mąstymą palaikantiems Claude modeliams `/v1/models` taip pat pateikia **be mąstymo** veikiantį variantą, kurio ID prasideda priešdėliu `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Pasirinkus šį ID (pvz., Claude Code konfigūracijoje, kuri visada prideda `thinking` bloką), jis nukreipiamas atgal į tikrąjį `<provider>/<model>`, išjungus samprotavimą — `/v1/messages` kelyje naudojama `thinking:{type:"disabled"}`, o `/v1/chat/completions` kelyje pašalinami `reasoning` / `reasoning_effort` laukai. Šis variantas pateikiamas tik tiems Claude šeimos modeliams, kurie palaiko mąstymą **ir** priima `disabled` (todėl, pvz., tik adaptyvųjį režimą palaikantys modeliai, atmetantys `disabled`, neįtraukiami). Operatoriai gali priverstinai įjungti arba išjungti šį variantą kiekvienam modeliui naudodami `ModelSpec.noThinkingAlias`.
+Pasirinkus šį ID (pvz., Claude Code konfigūracijoje, kuri visada prideda `thinking` bloką), jis vėl susiejamas su tikruoju `<provider>/<model>`, išjungiant samprotavimą — `/v1/messages` kelyje naudojama `thinking:{type:"disabled"}`, o `/v1/chat/completions` kelyje pašalinami `reasoning` / `reasoning_effort` laukai. Šis variantas pateikiamas tik mąstymą palaikantiems Claude šeimos modeliams, kurie **taip pat** priima `disabled` (todėl, pvz., tik adaptyvųjį režimą palaikantys modeliai, kurie atmeta `disabled`, neįtraukiami). Operatoriai gali priverstinai įjungti arba išjungti šį variantą kiekvienam modeliui naudodami `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -749,31 +757,31 @@ užbaigtą atsakymą.
 
 ---
 
-## Savitarnos naudojimo duomenys (`/api/usage/om-usage`)
+## Savitarnos naudojimas (`/api/usage/om-usage`)
 
-Bet kuris API raktas gali peržiūrėti **savo paties** naudojimo duomenis ir kvotas — valdymo autentifikavimas nereikalingas. Šią galinę prieigą
-klientas (CLI, OmniCopilot skydelis) naudoja rakto turėtojo išlaidoms rodyti.
+Bet kuris API raktas gali peržiūrėti **savo paties** naudojimą ir kvotas — valdymo autentifikavimas nereikalingas. Tai yra galinis taškas, kurį
+klientas (CLI, „OmniCopilot“ skydelis) naudoja rakto turėtojo išlaidoms rodyti.
 
 ```bash
-# Tekstinė forma (istorinė sutartis — paprastasis tekstas terminalui)
-curl -H "Authorization: Bearer <jūsų-api-raktas>" \
+# Tekstinis formatas (istorinė sutartis — paprastasis tekstas terminalui)
+curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Struktūrizuota forma — skirta naudotojo sąsajai
-curl -H "Authorization: Bearer <jūsų-api-raktas>" \
+# Struktūrizuotas formatas — jį naudoja naudotojo sąsaja
+curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Raktui turi būti įjungtas **`allowUsageCommand`** (pagal numatytuosius nustatymus išjungtas — prietaisų skydelio API raktų
-tvarkytuvėje jis perjungiamas kiekvienam raktui atskirai). Jei jis neįjungtas, galinė prieiga atsako `403`.
+Raktui turi būti įjungta parinktis **`allowUsageCommand`** (pagal numatytuosius nustatymus išjungta — valdymo skydelio API raktų
+tvarkytuvė ją perjungia kiekvienam raktui atskirai). Jei ji neįjungta, galinis taškas pateikia atsakymą `403`.
 
-`?format=json` grąžina atskiriamą struktūrą, todėl kvietėjas niekada neskaito duomenų lauko iš
-atmetimo atsakymo. Sėkmės atveju:
+`?format=json` grąžina diskriminuojamą struktūrą, todėl kviečiančioji šalis niekada neskaito duomenų lauko iš
+atsisakymo atsakymo. Sėkmės atveju:
 
 ```jsonc
 {
   "allowed": true,
-  // pateikiama tik tada, kai raktui įjungti individualūs naudojimo apribojimai (dienos / savaitės USD):
+  // pateikiama tik tada, kai raktui įjungti atskiro rakto naudojimo limitai (dienos / savaitės USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -789,7 +797,7 @@ atmetimo atsakymo. Sėkmės atveju:
     "plan": "…",
     "quotas": {/* … */},
   },
-  // kiekvieno ryšio momentinė kopija, kad naudotojo sąsajoje būtų galima greta rodyti kelis teikėjus:
+  // kiekvieno ryšio momentinė kopija, kad naudotojo sąsaja galėtų greta pateikti kelis teikėjus:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -797,12 +805,63 @@ atmetimo atsakymo. Sėkmės atveju:
 }
 ```
 
-Atmetimo atveju (`401` netinkamas raktas / `403` neleidžiama) tas pats maršrutas grąžina
+Atsisakymo atveju (`401` netinkamas raktas / `403` neleidžiama) tas pats maršrutas grąžina
 `{ "allowed": false, "error": { "message": "…" } }` — pateiktas, bet tuščias `personal` / `provider`
-(raktas leidžiamas, tačiau dar nėra gauta duomenų) yra kitokia būsena nei atmetimas, ir jas atskiria tik JSON forma.
+(raktas leidžiamas, tačiau dar nieko nesužinota) yra kita būsena nei atsisakymas, ir jas atskiria tik JSON formatas.
 
-**Autentifikavimas:** paties kvietėjo Bearer API raktas, patikrintas naudojant `isValidApiKey` — tai _nėra_
+**Autentifikavimas:** kviečiančiosios šalies nuosavas Bearer API raktas, patvirtinamas naudojant `isValidApiKey` — tai _nėra_
 valdymo sąsaja (`/api/keys/…`), kuri tebėra apsaugota naudojant `requireManagementAuth`.
+
+### Neapdoroti ir pagal ribinę vertę pakoreguoti kvotų procentai
+
+Naudodami `/api/usage/om-usage`, kviečiantieji turėtų atkreipti dėmesį į skirtumą tarp
+procentų, pateikiamų **paprastojo teksto išvestyje**, ir struktūrizuotos **JSON išvesties**:
+
+| Aspektas                    | Paprastojo teksto formatas (`/api/usage/om-usage` / `@@om-usage`)                                 | JSON formatas (`?format=json`)                                                           |
+| :-------------------------- | :------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------- |
+| **Išvesties laukas**        | `NN% liko` (pvz., `20% liko`)                                                                     | `provider.quotas` / `providers[].quotas`                                                 |
+| **Matavimas**               | **Pagal ribinę vertę pakoreguotas naudojamas limitas**: likusi talpa virš ribos                   | **Neapdorota tiekėjo kvota**: nepakoreguotas tiekėjo matavimas                           |
+| **Ribos mastelio keitimas** | Perskaičiuojama naudojant `effectiveRemainingPercent()`, kad rezervas būtų rodomas kaip `0% liko` | Nėra (neapdorotos momentinės kopijos vertės, kaip jas pateikė tiekėjas)                  |
+| **Ribos duomenys**          | Įtraukti į rodomą procentą                                                                        | Saugomi kiekvieno ryšio `quotaWindowThresholds` (arba serverio numatytosiose nuostatose) |
+| **Pagrindinis naudotojas**  | Interaktyvios CLI, terminalo raginimai, operatoriai                                               | Programinės integracijos, valdymo skydeliai, analitika, atsiskaitymo stebėjimo priemonės |
+
+#### Koregavimo pagal ribinę vertę formulė
+
+„OmniRoute“ palaiko išankstines kvotų ribas, kad būtų išvengta tiekėjo išteklių išeikvojimo (konfigūruojama naudojant ryšio
+`quotaWindowThresholds`, teikėjo numatytąsias nuostatas arba visuotines atsparumo nuostatas). Kai kvotos lange aktyvi ribinė vertė
+(pvz., `cutoff = 25%`), teksto generavimo priemonė apskaičiuoja likusį limitą taip:
+
+- Jei `remaining <= cutoff`: grąžinama `0%`.
+- Jei `remaining > cutoff`: grąžinama `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Suformatuotoje tekstinėje išvestyje ši reikšmė suapvalinama iki artimiausio sveikojo skaičiaus (`Math.round(...)`).
+
+#### Iliustracinis pavyzdys
+
+Tarkime, teikėjo lange yra **60% neapdoroto naudojimo** (taigi **40% neapdorotos likusios kvotos**) ir sukonfigūruota
+**25% likusios kvotos ribinė vertė**:
+
+| Pateikimas                            | Skaičiavimas                                       |  Liko   |             Numanomai panaudota              |
+| :------------------------------------ | :------------------------------------------------- | :-----: | :------------------------------------------: |
+| **Neapdorotas JSON (`?format=json`)** | Tiekėjo momentinė kopija (`quotas[window]`)        | **40%** |                   **60%**                    |
+| **Teksto formatas (`NN% liko`)**      | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (jei skaičiuojama `100 - remaining`) |
+
+- **Kodėl tekste rodoma, kad liko 20%:** iš 40% fizinės paskyros kvotos 25% rezervuoja
+  ribojimo politika. Kviečiančiajai šaliai lieka tik 15% iš 75% naudojamos atsargos, kol maršruto parinktuvas nustos
+  nukreipti užklausas į šį ryšį. Perskaičiavimas užtikrina, kad ryšys praneš apie išsekimą (`0% liko`) tiksliai tada, kai
+  maršrutų parinkimas bus sustabdytas.
+- **Kodėl JSON išsaugo neapdorotas vertes:** JSON naudingoji apkrova grąžina tikslią teikėjo momentinę kopiją (`UsageSnapshot`),
+  todėl išoriniai įrankiai gali pasiekti tikruosius pradinio teikėjo naudojimo duomenis ir ryšio lygmens
+  `quotaWindowThresholds` be nuostolingo perskaičiavimo serverio pusėje.
+
+#### Naudotojų migravimo gairės
+
+Jei išorinė integracija (pvz., redaktoriaus papildinys ar agento plėtinys) anksčiau analizavo tekstinį
+galinį tašką (`NN% liko`) ir apskaičiuodavo panaudotą procentą kaip `100 - NN`, perėjimas prie `?format=json` reiškia:
+
+- Skaitant neapdorotas JSON vertes bus rodomas **faktinis pradinis sunaudojimas** (anksčiau pateiktame pavyzdyje panaudota 60%).
+- Jei integracija nori išlaikyti tekstinio galinio taško naudojamo limito semantiką, ji gali apskaičiuoti
+  efektyvaus likučio formulę kliento pusėje, ryšio lygmens perrašymams naudodama `quotaWindowThresholds`.
 
 ---
 

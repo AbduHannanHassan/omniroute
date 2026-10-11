@@ -395,12 +395,15 @@ aktarılmadan önce `src/app/api/v1/ocr/route.ts` tarafından kullanılır.
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Tüm sohbet, embedding ve görüntü modellerini + kombinasyonlarını OpenAI biçiminde döndürür
+→ Tüm sohbet, gömme ve görüntü modellerini + kombinasyonları OpenAI biçiminde döndürür
 ```
 
 ### Model kimliği ön ekleri (`?prefix=`)
 
-Çoğu model bir **sağlayıcı ön eki** altında sunulur. Hangi ön eki alacağınız, `MODELS_CATALOG_PREFIX_MODE` özellik bayrağı tarafından kontrol edilir ve bir sorgu parametresiyle **her istek için** geçersiz kılınabilir — sunucu genelindeki ayarı diğer herkes için değiştirmeden temiz bir liste isteyen istemciler için kullanışlıdır:
+Çoğu model bir **sağlayıcı ön eki** altında sunulur. Hangi ön eki alacağınız,
+`MODELS_CATALOG_PREFIX_MODE` özellik bayrağıyla kontrol edilir ve sorgu parametresiyle **her istek için**
+geçersiz kılınabilir — bu, sunucu genelindeki ayarı diğer herkes için değiştirmeden temiz bir liste
+isteyen istemciler için kullanışlıdır:
 
 ```bash
 GET /v1/models?prefix=alias        # model başına bir kimlik — kısa takma ad ön eki
@@ -408,31 +411,40 @@ GET /v1/models?prefix=dual         # her iki biçim (sunucu varsayılanı)
 GET /v1/models?prefix=canonical    # yalnızca tam sağlayıcı kimliği ön eki
 ```
 
-| Mod         | Üretilen                                                 | Notlar                                                                                                                                                                                                     |
-| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **ve** `claude/claude-sonnet-4-6` | **Varsayılan.** Her iki kimlik de aynı modele yönlendirilir; iki biçimden birini sabit kodlayan istemci yapılandırmalarının çalışmaya devam etmesi için korunur. Kataloğun boyutunu yaklaşık ikiye katlar. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Model başına bir giriş. Ayrı bir takma adı olmayan sağlayıcılar da girişlerini sunmaya devam eder, dolayısıyla hiçbir şey kaybolmaz.                                                                       |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Tam sağlayıcı kimliği ön eki altında model başına bir giriş. Ayrı bir takma adı olmayan sağlayıcılar (ör. `antigravity/…`, `agy/…`) burada da tek kimliklerini sunar, dolayısıyla hiçbir şey kaybolmaz.    |
+| Mod         | Üretilen                                                 | Notlar                                                                                                                                                                                                           |
+| ----------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **ve** `claude/claude-sonnet-4-6` | **Varsayılan.** Her iki kimlik de aynı modele yönlendirilir; iki biçimden birini sabit kodlamış istemci yapılandırmalarının çalışmaya devam etmesi için korunur. Kataloğun boyutunu yaklaşık iki katına çıkarır. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Model başına bir giriş. Ayrı bir takma adı olmayan sağlayıcılar da girişlerini üretmeye devam eder; dolayısıyla hiçbir şey kaybolmaz.                                                                            |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Tam sağlayıcı kimliği ön eki altında model başına bir giriş. Ayrı bir takma adı olmayan sağlayıcılar (ör. `antigravity/…`, `agy/…`) da tek kimliklerini burada üretir; dolayısıyla hiçbir şey kaybolmaz.         |
 
-`dual` modundaki bir yansı, sorgu parametresi olmadan da tanınabilir: birincil kimliğe işaret eden bir `parent` alanı taşır.
+`dual` modundaki bir yansı, sorgu parametresi olmadan da tanınabilir: birincil kimliği gösteren bir `parent`
+alanı taşır.
 
-Bir model seçici oluşturan istemciler `?prefix=alias` istemelidir — [OmniCopilot VS Code uzantısı](../guides/VSCODE-COPILOT.md) da bunu yapar.
+Model seçici görüntüleyen istemciler `?prefix=alias` istemelidir —
+[OmniCopilot VS Code uzantısı](../guides/VSCODE-COPILOT.md) bunu yapar.
 
-### Tek tek gizlenen sohbet modelleri
+### Ayrı ayrı gizlenen sohbet modelleri
 
-Sağlayıcısının sayfasında **Gizli** olarak işaretlenen model katalogdan çıkarılır ve açıkça istendiğinde HTTP `404` / `model_not_found` ile reddedilir. Denetim, sağlayıcı takma adlarını, uyumlu sağlayıcı düğümlerinin öneklerini ve bağlantı varsayılanlarını dikkate alarak çözümlenen sağlayıcı ve modeli kullanır. Combo gizli hedefleri atlar ve başka bir görünür hedefi kullanabilir; yürütülebilir hedef kalmazsa aynı hata kodunu döndürür. Modeli yeniden görünür yapmak bir sonraki istekten itibaren geçerlidir. Yalnızca görsellere yönelik görünürlük geçersiz kılmaları aynı ID'ye sahip sohbet modelini gizlemez.
+Sağlayıcı sayfasında **Gizli** olarak işaretlenmiş bir model katalogdan çıkarılır ve açıkça
+istendiğinde HTTP `404` / `model_not_found` ile reddedilir. Denetim; sağlayıcı takma adları,
+uyumlu sağlayıcı düğüm ön ekleri ve bağlantı varsayılanları dâhil olmak üzere çözümlenmiş
+sağlayıcıyı ve modeli kullanır. Bir kombinasyon gizli hedefleri atlar ve görünür bir eş modeli kullanabilir;
+çalıştırılabilir hiçbir hedef kalmadığında aynı hata kodunu döndürür. Gizliliği kaldırma işlemi bir sonraki
+istekte geçerli olur. Yalnızca görüntülere yönelik görünürlük geçersiz kılmaları, aynı kimliğe sahip sohbet modelini gizlemez.
 
-Bu model bazındaki ayar, açıkça istek göndermeyi korurken katalogda gösterimi ve otomatik yönlendirme adaylarını filtreleyen [model gösterimi izin ve engelleme listelerinden](../routing/MODEL_EXPOSURE_LIST.md) ayrıdır. API anahtarının model izinleri bağımsız olarak uygulanmaya devam eder. Kataloğun varsayılan önek modu `dual` olarak kalır.
+Bu ayrı model ayarı; açık yönlendirmeyi korurken katalogda sunulan modelleri ve otomatik yönlendirme
+adaylarını filtreleyen [model görünürlüğü izin/engel listelerinden](../routing/MODEL_EXPOSURE_LIST.md)
+ayrıdır. API anahtarı model izinleri bağımsız olarak uygulanmaya devam eder. Varsayılan katalog ön eki modu `dual` olarak kalır.
 
-### Düşünmesiz model varyantları
+### Düşünmeyen model varyantları
 
-Düşünme özelliğine sahip Claude modelleri için `/v1/models`, kimliğinin başına `claude-3-omniroute-no-thinking/` eklenmiş bir **düşünmesiz** varyantı da sunar:
+Düşünme özelliğine sahip Claude modelleri için `/v1/models`, kimliği `claude-3-omniroute-no-thinking/` ön ekiyle başlayan bir **düşünmeyen** varyantı da sunar:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Bu kimliğin seçilmesi (ör. her zaman bir `thinking` bloğu ekleyen Claude Code yapılandırmasında), akıl yürütme devre dışı bırakılarak gerçek `<provider>/<model>` modeline çözümlenir — `/v1/messages` yolunda `thinking:{type:"disabled"}` kullanılır veya `/v1/chat/completions` yolunda `reasoning`/`reasoning_effort` alanları kaldırılır. Bu varyant yalnızca düşünmeyi destekleyen **ve** `disabled` değerini kabul eden Claude ailesi modelleri için listelenir (dolayısıyla ör. `disabled` değerini reddeden yalnızca uyarlanabilir modeller hariç tutulur). Operatörler, `ModelSpec.noThinkingAlias` aracılığıyla bu varyantı model başına zorunlu olarak etkinleştirebilir veya devre dışı bırakabilir.
+Bu kimliğin seçilmesi (ör. her zaman bir `thinking` bloğu ekleyen Claude Code yapılandırmasında), akıl yürütme devre dışı bırakılmış şekilde gerçek `<provider>/<model>` modeline geri çözümlenir — `/v1/messages` yolunda `thinking:{type:"disabled"}` kullanılır veya `/v1/chat/completions` yolunda `reasoning`/`reasoning_effort` alanları kaldırılır. Varyant yalnızca düşünmeyi destekleyen **ve** `disabled` değerini kabul eden Claude ailesi modelleri için listelenir (dolayısıyla örneğin `disabled` değerini reddeden, yalnızca uyarlanabilir modeller hariç tutulur). Operatörler, `ModelSpec.noThinkingAlias` aracılığıyla varyantı her model için açık veya kapalı olmaya zorlayabilir.
 
 ---
 
@@ -715,12 +727,13 @@ tamamlamayı akış halinde iletir.
 
 ---
 
-## Self servis kullanım (`/api/usage/om-usage`)
+## Self servis kullanımı (`/api/usage/om-usage`)
 
-Herhangi bir API anahtarı, yönetim kimlik doğrulaması olmadan **kendi** kullanımını ve kotalarını okuyabilir. Bu, bir istemcinin (CLI, OmniCopilot paneli) anahtar sahibine harcamalarını göstermek için kullandığı uç noktadır.
+Herhangi bir API anahtarı **kendi** kullanımını ve kotalarını okuyabilir — yönetim kimlik doğrulaması gerekmez. Bu, bir
+istemcinin (CLI, OmniCopilot paneli) anahtar sahibine harcamasını göstermek için kullandığı uç noktadır.
 
 ```bash
-# Metin biçimi (tarihsel sözleşme — terminal için düz metin)
+# Metin biçimi (geçmişten gelen sözleşme — terminal için düz metin)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
@@ -729,14 +742,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Anahtarda **`allowUsageCommand`** etkinleştirilmiş olmalıdır (varsayılan olarak kapalıdır — kontrol panelinin API anahtarı yöneticisi bunu her anahtar için ayrı ayrı değiştirir). Bu özellik olmadan uç nokta `403` yanıtını verir.
+Anahtarda **`allowUsageCommand`** etkinleştirilmiş olmalıdır (varsayılan olarak kapalıdır — kontrol panelinin API anahtarı
+yöneticisi bunu her anahtar için ayrı ayrı açıp kapatır). Bu özellik olmadan uç nokta `403` yanıtını verir.
 
-`?format=json`, çağıranın reddedilmiş bir yanıttan hiçbir zaman veri alanı okumaması için ayırt edilebilir bir yapı döndürür. Başarılı olduğunda:
+`?format=json`, çağıranın bir ret yanıtından hiçbir zaman veri alanı okumaması için ayırt edilebilir bir yapı döndürür.
+Başarı durumunda:
 
 ```jsonc
 {
   "allowed": true,
-  // yalnızca anahtar, anahtar başına kullanım sınırlarını (günlük/haftalık USD) etkinleştirdiğinde bulunur:
+  // yalnızca anahtar, anahtar başına kullanım limitlerini (günlük/haftalık USD) etkinleştirdiyse bulunur:
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -745,14 +760,14 @@ Anahtarda **`allowUsageCommand`** etkinleştirilmiş olmalıdır (varsayılan ol
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // seçilen sağlayıcının kota anlık görüntüsü veya henüz hiçbir şey önbelleğe alınmadıysa null:
+  // seçilen sağlayıcının kota anlık görüntüsü veya henüz önbelleğe alınmış bir şey yoksa null:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // kullanıcı arayüzünün birden fazla sağlayıcıyı yan yana görüntüleyebilmesi için her bağlantının anlık görüntüsü:
+  // kullanıcı arayüzünün birden fazla sağlayıcıyı yan yana işleyebilmesi için her bağlantının anlık görüntüsü:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -760,9 +775,64 @@ Anahtarda **`allowUsageCommand`** etkinleştirilmiş olmalıdır (varsayılan ol
 }
 ```
 
-Reddedildiğinde (`401` hatalı anahtar / `403` izin verilmedi) aynı rota `{ "allowed": false, "error": { "message": "…" } }` döndürür. Mevcut ancak boş bir `personal`/`provider` (anahtara izin verilmiş ancak henüz hiçbir şey öğrenilmemiş) reddedilmeden farklı bir durumdur ve bunları yalnızca JSON biçimi birbirinden ayırır.
+Ret durumunda (`401` geçersiz anahtar / `403` izin verilmedi) aynı rota
+`{ "allowed": false, "error": { "message": "…" } }` döndürür — mevcut ancak boş bir `personal`/`provider`
+(anahtara izin verilmiş, ancak henüz veri edinilmemiş) ret durumundan farklıdır ve yalnızca JSON biçimi
+bunları birbirinden ayırır.
 
-**Kimlik doğrulama:** Çağıranın kendi Bearer API anahtarı, `isValidApiKey` ile doğrulanır. Bu, `requireManagementAuth` arkasında kalmaya devam eden yönetim yüzeyi (`/api/keys/…`) _değildir_.
+**Kimlik doğrulama:** çağıranın kendi Bearer API anahtarı, `isValidApiKey` ile doğrulanır — bu, `requireManagementAuth`
+arkasında kalmaya devam eden yönetim yüzeyi (`/api/keys/…`) _değildir_.
+
+### Ham ve Kesme Noktasına Göre Ayarlanmış Kota Yüzdeleri
+
+Çağıranlar, `/api/usage/om-usage` kullanırken **düz metin çıktısında** ve yapılandırılmış **JSON çıktısında**
+sunulan yüzdeler arasındaki ayrıma dikkat etmelidir:
+
+| Unsur                 | Düz metin biçimi (`/api/usage/om-usage` / `@@om-usage`)                                                | JSON biçimi (`?format=json`)                                                                  |
+| :-------------------- | :----------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| **Çıktı alanı**       | `NN% left` (ör. `20% left`)                                                                            | `provider.quotas` / `providers[].quotas`                                                      |
+| **Ölçüm**             | **Kesme noktasına göre ayarlanmış kullanılabilir miktar**: kesme eşiğinin üzerindeki kalan kapasite    | **Ham üst sağlayıcı kotası**: sağlayıcının ayarlanmamış ölçümü                                |
+| **Kesme ölçeklemesi** | Korunan rezervin `0% left` olarak görünmesi için `effectiveRemainingPercent()` aracılığıyla ölçeklenir | Yok (sağlayıcı tarafından bildirildiği şekliyle ham anlık görüntü değerleri)                  |
+| **Eşik verileri**     | Görüntülenen yüzdeye dahil edilir                                                                      | Bağlantı başına `quotaWindowThresholds` içinde (veya sunucu varsayılanlarında) saklanır       |
+| **Birincil tüketici** | Etkileşimli CLI'lar, terminal istemleri, insan operatörler                                             | Programatik entegrasyonlar, kontrol panelleri, analiz sistemleri, faturalandırma izleyicileri |
+
+#### Kesme Noktası Ayarlama Formülü
+
+OmniRoute, üst sağlayıcı kotalarının tükenmesini önlemek için proaktif kota kesme noktalarını destekler (bağlantı
+`quotaWindowThresholds`, sağlayıcı varsayılanları veya genel dayanıklılık ayarları aracılığıyla yapılandırılır). Bir kota penceresinde
+bir kesme eşiği (ör. `cutoff = 25%`) etkin olduğunda metin işleyici kalan miktarı şu şekilde hesaplar:
+
+- `remaining <= cutoff` ise: `0%` döndürür.
+- `remaining > cutoff` ise: `((remaining - cutoff) / (100 - cutoff)) * 100` döndürür.
+
+Biçimlendirilmiş metin çıktısı bunu en yakın tam sayıya yuvarlar (`Math.round(...)`).
+
+#### Açıklayıcı Örnek
+
+**%60 ham kullanıma** (dolayısıyla **%40 ham kalan kotaya**) ve yapılandırılmış
+**%25 kalan kota kesme** eşiğine sahip bir sağlayıcı penceresini ele alalım:
+
+| Gösterim                      | Hesaplama                                          |  Kalan  |             Dolaylı Kullanım             |
+| :---------------------------- | :------------------------------------------------- | :-----: | :--------------------------------------: |
+| **Ham JSON (`?format=json`)** | Üst sağlayıcı anlık görüntüsü (`quotas[window]`)   | **%40** |                 **%60**                  |
+| **Metin biçimi (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **%20** | **%80** (`100 - remaining` hesaplanırsa) |
+
+- **Metin neden %20 kaldığını gösterir:** Hesapta fiziksel olarak kalan %40 kotanın %25'i kesme politikası tarafından
+  rezerve edilir. Yönlendirici bu bağlantıya yönlendirmeyi durdurmadan önce çağıranın kullanılabilir %75'lik payın yalnızca
+  %15'i kadar kapasitesi kalmıştır. Ölçekleme, yönlendirmenin duracağı anda bağlantının tam olarak tükenme sinyali
+  (`0% left`) vermesini sağlar.
+- **JSON neden ham değerleri korur:** JSON yükü, harici araçların gerçek üst sağlayıcı kullanımına ve bağlantı düzeyindeki
+  `quotaWindowThresholds` değerlerine sunucu tarafında kayıplı ölçekleme olmadan erişebilmesi için sağlayıcının tam anlık
+  görüntüsünü (`UsageSnapshot`) döndürür.
+
+#### Tüketici Geçiş Rehberi
+
+Harici bir entegrasyon (örneğin bir düzenleyici eklentisi veya ajan uzantısı) daha önce metin
+uç noktasını (`NN% left`) ayrıştırıyor ve kullanılan yüzdeyi `100 - NN` olarak hesaplıyorsa `?format=json` biçimine geçiş şu anlama gelir:
+
+- Ham JSON değerlerini okumak, **gerçek üst sağlayıcı tüketimini** yansıtır (yukarıdaki örnekte %60 kullanılmıştır).
+- Entegrasyon, metin uç noktasının kullanılabilir miktar semantiğini korumak isterse bağlantı düzeyindeki geçersiz kılmalar için
+  `quotaWindowThresholds` kullanarak etkili kalan miktar formülünü istemci tarafında değerlendirebilir.
 
 ---
 

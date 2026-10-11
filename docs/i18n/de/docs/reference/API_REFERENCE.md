@@ -425,7 +425,7 @@ Authorization: Bearer your-api-key
 
 ### Modell-ID-Präfixe (`?prefix=`)
 
-Die meisten Modelle werden unter einem **Anbieterpräfix** angeboten. Welches Präfix verwendet wird, wird durch das Feature-Flag `MODELS_CATALOG_PREFIX_MODE` gesteuert und kann **pro Anfrage** mit einem Abfrageparameter überschrieben werden — nützlich für einen Client, der eine übersichtliche Liste erhalten möchte, ohne die serverweite Einstellung für alle anderen zu ändern:
+Die meisten Modelle werden unter einem **Anbieterpräfix** angeboten. Welches Präfix verwendet wird, wird durch das Feature-Flag `MODELS_CATALOG_PREFIX_MODE` gesteuert und kann **pro Anfrage** mit einem Abfrageparameter überschrieben werden — nützlich für einen Client, der eine übersichtliche Liste benötigt, ohne die serverweite Einstellung für alle anderen zu ändern:
 
 ```bash
 GET /v1/models?prefix=alias        # eine ID pro Modell — das kurze Aliaspräfix
@@ -433,31 +433,31 @@ GET /v1/models?prefix=dual         # beide Formen (Serverstandard)
 GET /v1/models?prefix=canonical    # nur das vollständige Anbieter-ID-Präfix
 ```
 
-| Modus       | Gibt aus                                                  | Hinweise                                                                                                                                                                                                                             |
-| ----------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dual`      | `cc/claude-sonnet-4-6` **und** `claude/claude-sonnet-4-6` | **Standard.** Beide IDs werden an dasselbe Modell weitergeleitet; dies bleibt so bestehen, damit Client-Konfigurationen, in denen eine der beiden Formen fest codiert ist, weiterhin funktionieren. Verdoppelt den Katalog ungefähr. |
-| `alias`     | `cc/claude-sonnet-4-6`                                    | Ein Eintrag pro Modell. Anbieter ohne eindeutigen Alias geben ihren Eintrag weiterhin aus, sodass nichts verloren geht.                                                                                                              |
-| `canonical` | `claude/claude-sonnet-4-6`                                | Ein Eintrag pro Modell unter dem vollständigen Anbieter-ID-Präfix. Anbieter ohne eindeutigen Alias (z. B. `antigravity/…`, `agy/…`) geben auch hier ihre einzelne ID aus, sodass nichts verloren geht.                               |
+| Modus       | Ausgabe                                                   | Hinweise                                                                                                                                                                                                                         |
+| ----------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **und** `claude/claude-sonnet-4-6` | **Standard.** Beide IDs werden an dasselbe Modell weitergeleitet; dies bleibt erhalten, damit Clientkonfigurationen, in denen eine der beiden Formen fest codiert ist, weiterhin funktionieren. Verdoppelt den Katalog ungefähr. |
+| `alias`     | `cc/claude-sonnet-4-6`                                    | Ein Eintrag pro Modell. Anbieter ohne eigenes Alias geben ihren Eintrag weiterhin aus, sodass nichts verloren geht.                                                                                                              |
+| `canonical` | `claude/claude-sonnet-4-6`                                | Ein Eintrag pro Modell unter dem vollständigen Anbieter-ID-Präfix. Anbieter ohne eigenes Alias (z. B. `antigravity/…`, `agy/…`) geben auch hier ihre einzige ID aus, sodass nichts verloren geht.                                |
 
-Eine Spiegel-ID im `dual`-Modus kann auch ohne den Abfrageparameter erkannt werden: Sie enthält ein `parent`-Feld, das auf die primäre ID verweist.
+Ein Mirror im Modus `dual` kann auch ohne den Abfrageparameter erkannt werden: Er enthält ein `parent`-Feld, das auf die primäre ID verweist.
 
-Clients, die eine Modellauswahl darstellen, sollten `?prefix=alias` anfordern — so verfährt auch die [OmniCopilot-VS-Code-Erweiterung](../guides/VSCODE-COPILOT.md).
+Clients, die eine Modellauswahl anzeigen, sollten `?prefix=alias` anfordern — so verfährt auch die [OmniCopilot-Erweiterung für VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Einzeln ausgeblendete Chatmodelle
 
-Ein Modell, das auf der Seite seines Anbieters als **Ausgeblendet** markiert ist, wird aus dem Katalog ausgeschlossen und bei expliziter Anforderung mit HTTP `404` / `model_not_found` abgewiesen. Die Prüfung verwendet den aufgelösten Anbieter und das Modell unter Berücksichtigung von Anbieter-Aliasen, Knotenpräfixen kompatibler Anbieter und Verbindungsstandardwerten. Eine Combo überspringt ausgeblendete Ziele und kann ein anderes sichtbares Ziel verwenden; bleibt kein ausführbares Ziel übrig, gibt sie denselben Fehlercode zurück. Das erneute Einblenden wirkt ab der nächsten Anfrage. Sichtbarkeitsüberschreibungen nur für Bilder blenden das Chatmodell mit derselben ID nicht aus.
+Ein Modell, das auf seiner Anbieterseite als **Hidden** markiert ist, wird aus dem Katalog ausgeschlossen und bei expliziter Anforderung mit HTTP `404` / `model_not_found` abgelehnt. Die Prüfung verwendet den aufgelösten Anbieter und das aufgelöste Modell, einschließlich Anbieter-Aliasse, Knotenpräfixe kompatibler Anbieter und Verbindungsstandards. Eine Kombination überspringt ausgeblendete Ziele und kann ein sichtbares verwandtes Modell verwenden; wenn kein ausführbares Ziel verbleibt, gibt sie denselben Fehlercode zurück. Das Aufheben der Ausblendung wird bei der nächsten Anfrage wirksam. Ausschließlich für Bilder geltende Sichtbarkeitsüberschreibungen blenden das Chatmodell mit derselben ID nicht aus.
 
-Diese Einstellung für einzelne Modelle ist von den [Freigabe- und Sperrlisten für die Modellanzeige](../routing/MODEL_EXPOSURE_LIST.md) getrennt. Diese filtern das Katalogangebot und die Kandidaten für automatisches Routing, erhalten aber den expliziten Aufruf. Die Modellberechtigungen des API-Schlüssels gelten weiterhin unabhängig davon. Der standardmäßige Präfixmodus des Katalogs bleibt `dual`.
+Diese individuelle Modelleinstellung ist von den [Positiv-/Negativlisten für die Modellfreigabe](../routing/MODEL_EXPOSURE_LIST.md) getrennt. Diese filtern die Kataloganzeige und Kandidaten für das automatische Routing, während die explizite Weiterleitung erhalten bleibt. Modellberechtigungen für API-Schlüssel gelten weiterhin unabhängig davon. Der standardmäßige Katalogpräfixmodus bleibt `dual`.
 
-### Modellvarianten ohne Denkmodus
+### Modellvarianten ohne Thinking
 
-Für denkfähige Claude-Modelle bietet `/v1/models` außerdem eine **No-Thinking-Variante** an, deren ID das Präfix `claude-3-omniroute-no-thinking/` trägt:
+Für Claude-Modelle mit Thinking-Unterstützung bietet `/v1/models` außerdem eine Variante **ohne Thinking** an, deren ID das Präfix `claude-3-omniroute-no-thinking/` trägt:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Bei Auswahl dieser ID (z. B. in einer Claude-Code-Konfiguration, die immer einen `thinking`-Block anhängt) wird sie wieder zum tatsächlichen `<provider>/<model>` aufgelöst, wobei das Reasoning unterdrückt wird — durch `thinking:{type:"disabled"}` für den Pfad `/v1/messages` oder durch Entfernen der Felder `reasoning`/`reasoning_effort` für den Pfad `/v1/chat/completions`. Die Variante wird nur für Modelle der Claude-Familie aufgeführt, die den Denkmodus unterstützen **und** `disabled` berücksichtigen (d. h. beispielsweise Modelle, die nur den adaptiven Modus unterstützen und `disabled` ablehnen, sind ausgeschlossen). Betreiber können die Variante über `ModelSpec.noThinkingAlias` für jedes Modell erzwingen oder deaktivieren.
+Bei Auswahl dieser ID (z. B. in einer Claude-Code-Konfiguration, die immer einen `thinking`-Block anhängt) wird sie wieder zum tatsächlichen `<provider>/<model>` aufgelöst, wobei Reasoning unterdrückt wird — durch `thinking:{type:"disabled"}` im Pfad `/v1/messages` oder durch das Entfernen der Felder `reasoning`/`reasoning_effort` im Pfad `/v1/chat/completions`. Die Variante wird nur für Modelle der Claude-Familie aufgeführt, die Thinking unterstützen **und** `disabled` berücksichtigen (Modelle, die beispielsweise ausschließlich adaptives Thinking unterstützen und `disabled` ablehnen, werden daher ausgeschlossen). Betreiber können die Variante mithilfe von `ModelSpec.noThinkingAlias` für jedes Modell erzwingen oder deaktivieren.
 
 ---
 
@@ -747,21 +747,24 @@ lokalen Server validiert: ChatGPT gibt `codex.rate_limits` +
 
 ## Self-Service-Nutzung (`/api/usage/om-usage`)
 
-Jeder API-Schlüssel kann seine **eigene** Nutzung und seine Kontingente abrufen — ohne Verwaltungsauthentifizierung. Dies ist der Endpunkt, über den ein Client (CLI, das OmniCopilot-Panel) einem Schlüsselinhaber seine Ausgaben anzeigt.
+Jeder API-Schlüssel kann **seine eigene** Nutzung und seine Kontingente abrufen — ohne Verwaltungs-Authentifizierung. Dies ist der Endpunkt, den ein
+Client (CLI, das OmniCopilot-Panel) verwendet, um einem Schlüsselinhaber seine Ausgaben anzuzeigen.
 
 ```bash
-# Textformat (der bisherige Vertrag — Klartext für ein Terminal)
+# Textform (der bisherige Vertrag — Klartext für ein Terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Strukturiertes Format — für die Nutzung durch eine Benutzeroberfläche
+# Strukturierte Form — für die Nutzung durch eine Benutzeroberfläche
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Für den Schlüssel muss **`allowUsageCommand`** aktiviert sein (standardmäßig deaktiviert — der API-Schlüsselmanager des Dashboards schaltet dies für jeden Schlüssel einzeln um). Andernfalls antwortet der Endpunkt mit `403`.
+Für den Schlüssel muss **`allowUsageCommand`** aktiviert sein (standardmäßig deaktiviert — der API-Schlüssel-
+Manager des Dashboards schaltet dies pro Schlüssel um). Andernfalls antwortet der Endpunkt mit `403`.
 
-`?format=json` gibt eine diskriminierte Struktur zurück, sodass ein Aufrufer niemals ein Datenfeld aus einer Ablehnungsantwort liest. Bei Erfolg:
+`?format=json` gibt eine diskriminierte Struktur zurück, sodass ein Aufrufer niemals ein Datenfeld aus einer
+Ablehnung liest. Bei Erfolg:
 
 ```jsonc
 {
@@ -775,14 +778,14 @@ Für den Schlüssel muss **`allowUsageCommand`** aktiviert sein (standardmäßig
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // die ausgewählte Momentaufnahme des Anbieterkontingents oder null, wenn noch nichts zwischengespeichert wurde:
+  // der Kontingent-Snapshot des ausgewählten Anbieters oder null, wenn noch nichts zwischengespeichert wurde:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // die Momentaufnahme jeder Verbindung, damit eine Benutzeroberfläche mehrere Anbieter nebeneinander darstellen kann:
+  // die Snapshots aller Verbindungen, damit eine Benutzeroberfläche mehrere Anbieter nebeneinander darstellen kann:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -790,9 +793,64 @@ Für den Schlüssel muss **`allowUsageCommand`** aktiviert sein (standardmäßig
 }
 ```
 
-Bei Ablehnung (`401` ungültiger Schlüssel / `403` nicht erlaubt) gibt dieselbe Route `{ "allowed": false, "error": { "message": "…" } }` zurück — ein vorhandenes, aber leeres `personal`/`provider` (Schlüssel zulässig, bisher keine Daten ermittelt) ist ein anderer Zustand als eine Ablehnung, und nur das JSON-Format unterscheidet diese Fälle.
+Bei einer Ablehnung (`401` ungültiger Schlüssel / `403` nicht erlaubt) gibt dieselbe Route
+`{ "allowed": false, "error": { "message": "…" } }` zurück — ein vorhandenes, aber leeres `personal`/`provider`
+(Schlüssel erlaubt, bislang jedoch keine Daten ermittelt) ist ein anderer Zustand als eine Ablehnung, und nur die JSON-Form
+unterscheidet diese Fälle.
 
-**Authentifizierung:** Der eigene Bearer-API-Schlüssel des Aufrufers, validiert mit `isValidApiKey` — dies ist _nicht_ die Verwaltungsoberfläche (`/api/keys/…`), die weiterhin durch `requireManagementAuth` geschützt ist.
+**Authentifizierung:** der eigene Bearer-API-Schlüssel des Aufrufers, validiert mit `isValidApiKey` — dies ist _nicht_ die
+Verwaltungsoberfläche (`/api/keys/…`), die weiterhin durch `requireManagementAuth` geschützt bleibt.
+
+### Unverarbeitete gegenüber Cutoff-angepassten Kontingentprozentwerten
+
+Bei der Nutzung von `/api/usage/om-usage` sollten Aufrufer den Unterschied zwischen den in der
+**Klartextausgabe** und der strukturierten **JSON-Ausgabe** dargestellten Prozentwerten beachten:
+
+| Aspekt                 | Klartextformat (`/api/usage/om-usage` / `@@om-usage`)                                                      | JSON-Format (`?format=json`)                                                     |
+| :--------------------- | :--------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------- |
+| **Ausgabefeld**        | `NN% left` (z. B. `20% left`)                                                                              | `provider.quotas` / `providers[].quotas`                                         |
+| **Messung**            | **Cutoff-angepasstes nutzbares Kontingent**: verbleibende Kapazität oberhalb des Cutoffs                   | **Unverarbeitetes Upstream-Kontingent**: unangepasste Anbietermessung            |
+| **Cutoff-Skalierung**  | Mittels `effectiveRemainingPercent()` skaliert, sodass die geschützte Reserve als `0% left` angezeigt wird | Keine (unverarbeitete Snapshot-Werte, wie vom Anbieter gemeldet)                 |
+| **Schwellenwertdaten** | In den angezeigten Prozentwert einbezogen                                                                  | Pro Verbindung in `quotaWindowThresholds` gespeichert (oder Serverstandardwerte) |
+| **Primäre Nutzer**     | Interaktive CLIs, Terminal-Prompts, menschliche Bediener                                                   | Programmatische Integrationen, Dashboards, Analysen, Abrechnungs-Tracker         |
+
+#### Die Formel zur Cutoff-Anpassung
+
+OmniRoute unterstützt proaktive Kontingent-Cutoffs, um die Ausschöpfung von Upstream-Kontingenten zu verhindern (konfiguriert über
+`quotaWindowThresholds` der Verbindung, Anbieterstandardwerte oder globale Resilienz-Einstellungen). Wenn für ein Kontingentfenster ein Cutoff-Schwellenwert
+(z. B. `cutoff = 25%`) aktiv ist, berechnet der Text-Renderer das verbleibende Kontingent wie folgt:
+
+- Wenn `remaining <= cutoff`: gibt `0%` zurück.
+- Wenn `remaining > cutoff`: gibt `((remaining - cutoff) / (100 - cutoff)) * 100` zurück.
+
+Die formatierte Textausgabe rundet dies auf die nächste ganze Zahl (`Math.round(...)`).
+
+#### Veranschaulichendes Beispiel
+
+Betrachten wir ein Anbieterfenster mit **60 % unverarbeiteter Nutzung** (also **40 % unverbleibendem Rohkontingent**) und einem konfigurierten
+Schwellenwert von **25 % Cutoff für das verbleibende Kontingent**:
+
+| Darstellung                               | Berechnung                                         | Verbleibend |                Implizite Nutzung                |
+| :---------------------------------------- | :------------------------------------------------- | :---------: | :---------------------------------------------: |
+| **Unverarbeitetes JSON (`?format=json`)** | Upstream-Snapshot (`quotas[window]`)               |  **40 %**   |                    **60 %**                     |
+| **Textformat (`NN% left`)**               | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20 %**   | **80 %** (bei Berechnung von `100 - remaining`) |
+
+- **Warum der Text 20 % verbleibend anzeigt:** Von den 40 % des physischen Kontingents, die für das Konto noch verfügbar sind, werden 25 % durch die
+  Cutoff-Richtlinie reserviert. Dem Aufrufer verbleiben nur 15 % von 75 % nutzbarem Spielraum, bevor der Router das
+  Routing zu dieser Verbindung beendet. Die Skalierung stellt sicher, dass die Verbindung genau dann Erschöpfung (`0% left`) signalisiert, wenn
+  das Routing eingestellt wird.
+- **Warum JSON unverarbeitete Werte beibehält:** Die JSON-Nutzlast gibt den exakten Anbieter-Snapshot (`UsageSnapshot`) zurück,
+  sodass externe Werkzeuge ohne verlustbehaftete serverseitige Skalierung auf die tatsächliche Upstream-Auslastung und die
+  verbindungsspezifischen `quotaWindowThresholds` zugreifen können.
+
+#### Hinweise zur Migration für Verbraucher
+
+Wenn eine externe Integration (beispielsweise ein Editor-Plugin oder eine Agentenerweiterung) zuvor den Text-
+Endpunkt (`NN% left`) ausgewertet und den genutzten Prozentwert als `100 - NN` berechnet hat, bedeutet die Migration zu `?format=json`:
+
+- Das Lesen der unverarbeiteten JSON-Werte bildet den **tatsächlichen Upstream-Verbrauch** ab (im obigen Beispiel 60 % genutzt).
+- Wenn die Integration die Semantik des nutzbaren Kontingents des Textendpunkts beibehalten möchte, kann sie
+  die Formel für den effektiv verbleibenden Anteil clientseitig unter Verwendung von `quotaWindowThresholds` für verbindungsspezifische Überschreibungen auswerten.
 
 ---
 

@@ -393,39 +393,47 @@ alapértelmezett értéke pedig `us-central1`. Mindkét feloldás az `open-sse/h
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Visszaadja az összes csevegési, beágyazási és képmodellt, valamint ezek kombinációit OpenAI-formátumban
+→ Visszaadja az összes csevegési, beágyazási és képmodellt, valamint kombinációt OpenAI-formátumban
 ```
 
 ### Modellazonosító-előtagok (`?prefix=`)
 
-A legtöbb modell egy **szolgáltatói előtag** alatt jelenik meg. A használt előtagot a
+A legtöbb modell egy **szolgáltatói előtag** alatt jelenik meg. A kapott előtagot a
 `MODELS_CATALOG_PREFIX_MODE` funkciójelző szabályozza, és egy lekérdezési paraméterrel
-**kérésenként** felülbírálható — ez olyan kliensek számára hasznos, amelyek letisztult listát szeretnének anélkül, hogy mindenki más számára módosítanák a kiszolgálószintű
-beállítást:
+**kérésenként** felülbírálható — ez hasznos olyan kliensek számára, amelyek letisztult listát szeretnének anélkül,
+hogy mindenki más számára módosítanák a teljes szerverre érvényes beállítást:
 
 ```bash
 GET /v1/models?prefix=alias        # modellenként egy azonosító — a rövid aliaselőtag
-GET /v1/models?prefix=dual         # mindkét forma (a kiszolgáló alapértelmezése)
+GET /v1/models?prefix=dual         # mindkét forma (szerver alapértelmezése)
 GET /v1/models?prefix=canonical    # csak a teljes szolgáltatóazonosító-előtag
 ```
 
-| Mód         | Kibocsátott érték                                        | Megjegyzések                                                                                                                                                                                                      |
-| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **és** `claude/claude-sonnet-4-6` | **Alapértelmezett.** Mindkét azonosító ugyanahhoz a modellhez irányít; így az egyik formát rögzítetten használó klienskonfigurációk továbbra is működnek. Nagyjából megduplázza a katalógust.                     |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Modellenként egy bejegyzés. A külön aliassal nem rendelkező szolgáltatók bejegyzése is megjelenik, így semmi sem vész el.                                                                                         |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Modellenként egy bejegyzés a teljes szolgáltatóazonosító-előtag alatt. A külön aliassal nem rendelkező szolgáltatók (pl. `antigravity/…`, `agy/…`) egyetlen azonosítója itt is megjelenik, így semmi sem vész el. |
+| Mód         | Kibocsátott érték                                        | Megjegyzések                                                                                                                                                                                                          |
+| ----------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **és** `claude/claude-sonnet-4-6` | **Alapértelmezett.** Mindkét azonosító ugyanahhoz a modellhez irányít; azért maradt meg, hogy a bármelyik formát rögzítetten használó klienskonfigurációk továbbra is működjenek. Nagyjából megduplázza a katalógust. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Modellenként egy bejegyzés. Az önálló aliassal nem rendelkező szolgáltatók bejegyzése is megjelenik, így semmi sem vész el.                                                                                           |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Modellenként egy bejegyzés a teljes szolgáltatóazonosító-előtag alatt. Az önálló aliassal nem rendelkező szolgáltatók (pl. `antigravity/…`, `agy/…`) egyetlen azonosítója itt is megjelenik, így semmi sem vész el.   |
 
-A `dual` módú tükrözött bejegyzés a lekérdezési paraméter nélkül is felismerhető: rendelkezik egy `parent`
-mezővel, amely az elsődleges azonosítóra mutat.
+A `dual` módú tükör a lekérdezési paraméter nélkül is felismerhető: egy `parent`
+mezőt tartalmaz, amely az elsődleges azonosítóra mutat.
 
-A modellválasztót megjelenítő klienseknek a `?prefix=alias` paramétert kell használniuk — ezt teszi az
+A modellválasztót megjelenítő klienseknek a `?prefix=alias` paramétert kell kérniük — ezt teszi az
 [OmniCopilot VS Code-bővítmény](../guides/VSCODE-COPILOT.md) is.
 
-### Egyenként elrejtett csevegőmodellek
+### Egyenként elrejtett csevegési modellek
 
-A szolgáltató oldalán **Rejtettként** megjelölt modell kimarad a katalógusból, és kifejezett kérése HTTP `404` / `model_not_found` hibával elutasításra kerül. Az ellenőrzés a feloldott szolgáltatót és modellt használja, figyelembe véve a szolgáltatói aliasokat, a kompatibilis szolgáltatói csomópontok előtagjait és a kapcsolat alapértékeit. A combo kihagyja a rejtett célokat, és másik látható célt használhat; ha nem marad végrehajtható cél, ugyanazt a hibakódot adja vissza. Az újbóli megjelenítés a következő kéréstől érvényes. A kizárólag képekre vonatkozó láthatósági felülbírálások nem rejtik el az azonos ID-jű csevegőmodellt.
+A szolgáltatói oldalán **Hidden** jelöléssel ellátott modell kimarad a katalógusból, és explicit
+kérés esetén a rendszer HTTP `404` / `model_not_found` hibával elutasítja. Az ellenőrzés a feloldott
+szolgáltatót és modellt használja, beleértve a szolgáltatói aliasokat, a kompatibilis szolgáltatók csomópont-előtagjait és
+a kapcsolat alapértelmezett értékeit. A kombináció kihagyja a rejtett célokat, és használhat egy látható alternatívát; ha nem
+marad végrehajtható cél, ugyanazt a hibakódot adja vissza. A felfedés a következő
+kéréskor lép érvénybe. A csak képekre vonatkozó láthatósági felülbírálások nem rejtik el az azonos azonosítójú csevegési modellt.
 
-Ez a modellenkénti beállítás különbözik a [modellek közzétételi engedélyezési és tiltási listáitól](../routing/MODEL_EXPOSURE_LIST.md). Ezek a katalógusban megjelenő modelleket és az automatikus útválasztás jelöltjeit szűrik, miközben megtartják a kifejezett továbbítást. Az API-kulcs modellengedélyei továbbra is függetlenül érvényesülnek. A katalógus alapértelmezett előtagmódja továbbra is `dual`.
+Ez az egyedi modellbeállítás elkülönül a
+[modellkitettségi engedélyezési/tiltási listáktól](../routing/MODEL_EXPOSURE_LIST.md), amelyek a katalógusbeli
+megjelenítést és az automatikus útválasztás jelöltjeit szűrik, miközben megtartják az explicit továbbítást. Az API-kulcsok modellengedélyei
+továbbra is ettől függetlenül érvényesek. A katalógus alapértelmezett előtagmódja továbbra is `dual`.
 
 ### Gondolkodás nélküli modellváltozatok
 
@@ -435,7 +443,7 @@ A gondolkodásra képes Claude-modellek esetében a `/v1/models` egy **gondolkod
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Ennek az azonosítónak a kiválasztása (pl. egy olyan Claude Code-konfigurációban, amely mindig csatol egy `thinking` blokkot) visszaalakítja azt a valódi `<provider>/<model>` modellre, letiltott következtetéssel — a `/v1/messages` útvonalon `thinking:{type:"disabled"}` beállítással, illetve a `/v1/chat/completions` útvonalon a `reasoning`/`reasoning_effort` mezők elhagyásával. A változat csak olyan Claude-családba tartozó modelleknél jelenik meg, amelyek támogatják a gondolkodást **és** figyelembe veszik a `disabled` értéket (így például a `disabled` értéket elutasító, kizárólag adaptív modellek nem szerepelnek). Az üzemeltetők modellenként kényszeríthetik a változat be- vagy kikapcsolását a `ModelSpec.noThinkingAlias` segítségével.
+Ennek az azonosítónak a kiválasztása (például egy olyan Claude Code-konfigurációban, amely mindig csatol egy `thinking` blokkot) visszaoldódik a valódi `<provider>/<model>` modellre, elnyomott érveléssel — a `/v1/messages` útvonalon `thinking:{type:"disabled"}`, a `/v1/chat/completions` útvonalon pedig a `reasoning`/`reasoning_effort` mezők elhagyásával. A változat csak azoknál a Claude-családba tartozó modelleknél jelenik meg, amelyek támogatják a gondolkodást **és** elfogadják a `disabled` értéket (így például a `disabled` értéket elutasító, kizárólag adaptív modellek kimaradnak). Az üzemeltetők modellenként kényszeríthetik a változat be- vagy kikapcsolását a `ModelSpec.noThinkingAlias` segítségével.
 
 ---
 
@@ -716,31 +724,28 @@ befejezést.
 
 ---
 
-## Önkiszolgáló használati adatok (`/api/usage/om-usage`)
+## Önkiszolgáló használat (`/api/usage/om-usage`)
 
-Bármely API-kulcs lekérdezheti a **saját** használati adatait és kvótáit — kezelői hitelesítés nélkül. Ezt a végpontot használja egy
-kliens (CLI, az OmniCopilot panel), hogy megjelenítse a kulcs tulajdonosának költését.
+Bármely API-kulcs lekérdezheti a **saját** használati adatait és kvótáit — kezelői hitelesítés nélkül. Ezt a végpontot használják a kliensek (CLI, az OmniCopilot panel), hogy megjelenítsék a kulcs birtokosának költségeit.
 
 ```bash
 # Szöveges forma (a korábbi szerződés — egyszerű szöveg terminálhoz)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Strukturált forma — ezt használja fel egy felhasználói felület
+# Strukturált forma — ezt használja egy felhasználói felület
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-A kulcshoz engedélyezni kell az **`allowUsageCommand`** beállítást (alapértelmezés szerint ki van kapcsolva — az irányítópult API-kulcs-
-kezelője kulcsonként kapcsolja be). Enélkül a végpont `403` választ ad.
+A kulcshoz engedélyezni kell az **`allowUsageCommand`** beállítást (alapértelmezés szerint ki van kapcsolva — az irányítópult API-kulcs-kezelője kulcsonként kapcsolja be). Enélkül a végpont `403` választ ad.
 
-A `?format=json` megkülönböztetett struktúrát ad vissza, így a hívó soha nem olvas adatmezőt
-elutasító válaszból. Siker esetén:
+A `?format=json` diszkriminált struktúrát ad vissza, így a hívó soha nem próbál adatmezőt kiolvasni egy elutasításból. Siker esetén:
 
 ```jsonc
 {
   "allowed": true,
-  // csak akkor van jelen, ha a kulcshoz kulcsonkénti használati korlátokat állítottak be (napi/heti USD):
+  // csak akkor van jelen, ha a kulcshoz kulcsonkénti használati limiteket állítottak be (napi/heti USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -756,7 +761,7 @@ elutasító válaszból. Siker esetén:
     "plan": "…",
     "quotas": {/* … */},
   },
-  // minden kapcsolat pillanatképe, hogy a felhasználói felület több szolgáltatót is egymás mellett jeleníthessen meg:
+  // minden kapcsolat pillanatképe, hogy a felhasználói felület több szolgáltatót is megjeleníthessen egymás mellett:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -765,12 +770,50 @@ elutasító válaszból. Siker esetén:
 ```
 
 Elutasítás esetén (`401` hibás kulcs / `403` nincs engedélyezve) ugyanez az útvonal
-`{ "allowed": false, "error": { "message": "…" } }` választ ad — a jelen lévő, de üres `personal`/`provider`
-(a kulcs engedélyezett, de még nincs begyűjtött adat) eltér az elutasítástól, és csak a JSON-forma
-különbözteti meg őket.
+`{ "allowed": false, "error": { "message": "…" } }` választ ad — a létező, de üres `personal`/`provider`
+(engedélyezett kulcs, de még nincsenek lekért adatok) eltérő állapot az elutasítástól, és csak a JSON-forma különbözteti meg őket.
 
-**Hitelesítés:** a hívó saját Bearer API-kulcsa, az `isValidApiKey` segítségével ellenőrizve — ez _nem_ a
-kezelői felület (`/api/keys/…`), amelyet továbbra is a `requireManagementAuth` véd.
+**Hitelesítés:** a hívó saját Bearer API-kulcsa, amelyet az `isValidApiKey` ellenőriz — ez _nem_ a kezelői felület (`/api/keys/…`), amely továbbra is a `requireManagementAuth` mögött marad.
+
+### Nyers és küszöbértékhez igazított kvótaszázalékok
+
+Az `/api/usage/om-usage` használatakor a hívóknak figyelembe kell venniük a **sima szöveges kimenetben** és a strukturált **JSON-kimenetben** megjelenő százalékértékek közötti különbséget:
+
+| Szempont                 | Sima szöveges formátum (`/api/usage/om-usage` / `@@om-usage`)                                    | JSON-formátum (`?format=json`)                                                                             |
+| :----------------------- | :----------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------- |
+| **Kimeneti mező**        | `NN% left` (például `20% left`)                                                                  | `provider.quotas` / `providers[].quotas`                                                                   |
+| **Mérés**                | **Küszöbértékhez igazított felhasználható keret**: a küszöbérték feletti fennmaradó kapacitás    | **Nyers szolgáltatói kvóta**: a szolgáltató nem módosított mérési értéke                                   |
+| **Küszöbskálázás**       | Az `effectiveRemainingPercent()` skálázza, így a védett tartalék `0% left` értékként jelenik meg | Nincs (a szolgáltató által jelentett nyers pillanatképértékek)                                             |
+| **Küszöbadatok**         | Beépülnek a megjelenített százalékértékbe                                                        | Kapcsolatonként a `quotaWindowThresholds` mezőben tárolódnak (vagy a szerver alapértelmezéseit használják) |
+| **Elsődleges fogyasztó** | Interaktív CLI-k, terminálparancssorok, emberi üzemeltetők                                       | Programozott integrációk, irányítópultok, elemzések, számlázáskövetők                                      |
+
+#### A küszöbértékhez igazítás képlete
+
+Az OmniRoute támogatja a proaktív kvótaküszöböket a szolgáltatói kvóta kimerülésének megelőzésére (a kapcsolat `quotaWindowThresholds` beállításával, a szolgáltató alapértelmezéseivel vagy a globális rezilienciabeállításokkal konfigurálva). Ha egy kvótaidőablakban aktív egy küszöbérték (például `cutoff = 25%`), a szöveges megjelenítő a következőképpen számítja ki a fennmaradó keretet:
+
+- Ha `remaining <= cutoff`: `0%` értéket ad vissza.
+- Ha `remaining > cutoff`: `((remaining - cutoff) / (100 - cutoff)) * 100` értéket ad vissza.
+
+A formázott szöveges kimenet ezt a legközelebbi egész számra kerekíti (`Math.round(...)`).
+
+#### Szemléltető példa
+
+Vegyünk egy szolgáltatói időablakot **60%-os nyers felhasználással** (tehát **40%-os nyers fennmaradó kvótával**) és egy beállított **25%-os fennmaradókvóta-küszöbértékkel**:
+
+| Megjelenítés                       | Számítás                                           | Fennmaradó |             Vélelmezett felhasználás             |
+| :--------------------------------- | :------------------------------------------------- | :--------: | :----------------------------------------------: |
+| **Nyers JSON (`?format=json`)**    | Szolgáltatói pillanatkép (`quotas[window]`)        |  **40%**   |                     **60%**                      |
+| **Szöveges formátum (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**   | **80%** (ha `100 - remaining` alapján számítjuk) |
+
+- **Miért jelenít meg a szöveg 20% fennmaradó értéket:** A fiókban fizikailag fennmaradó 40%-os kvótából 25%-ot lefoglal a küszöbszabályzat. A hívónak a 75%-os felhasználható mozgástérből csak 15% maradt, mielőtt az útválasztó leállítja a kérések ehhez a kapcsolathoz történő irányítását. A skálázás biztosítja, hogy a kapcsolat pontosan akkor jelezze a kimerülést (`0% left`), amikor az útválasztás megszűnik.
+- **Miért őrzi meg a JSON a nyers értékeket:** A JSON-adattartalom a szolgáltató pontos pillanatképét (`UsageSnapshot`) adja vissza, így a külső eszközök veszteséges szerveroldali skálázás nélkül férhetnek hozzá a szolgáltatói kihasználtság hiteles adataihoz és a kapcsolatszintű `quotaWindowThresholds` értékekhez.
+
+#### Útmutató a fogyasztók migrációjához
+
+Ha egy külső integráció (például egy szerkesztőbővítmény vagy ügynökbővítmény) korábban a szöveges végpontból nyerte ki az adatokat (`NN% left`), és a felhasznált százalékot `100 - NN` képlettel számította ki, a `?format=json` használatára való áttérés a következőket jelenti:
+
+- A nyers JSON-értékek olvasása a **szolgáltatónál ténylegesen felhasznált mennyiséget** tükrözi (a fenti példában 60%-os felhasználás).
+- Ha az integráció meg kívánja őrizni a szöveges végpont felhasználható keretre vonatkozó szemantikáját, kliensoldalon kiszámíthatja a tényleges fennmaradó értéket a kapcsolatszintű felülbírálásokhoz tartozó `quotaWindowThresholds` használatával.
 
 ---
 

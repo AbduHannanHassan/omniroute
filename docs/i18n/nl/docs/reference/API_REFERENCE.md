@@ -400,39 +400,52 @@ Authorization: Bearer your-api-key
 
 ### Model-id-prefixen (`?prefix=`)
 
-De meeste modellen worden aangeboden onder een **providerprefix**. Welk prefix je krijgt, wordt bepaald door de featureflag `MODELS_CATALOG_PREFIX_MODE` en kan **per verzoek** worden overschreven met een queryparameter — handig voor een client die een overzichtelijke lijst wil zonder de serverbrede instelling voor alle anderen te wijzigen:
+De meeste modellen worden aangeboden onder een **providerprefix**. Welke prefix u krijgt, wordt bepaald door
+de featureflag `MODELS_CATALOG_PREFIX_MODE` en kan **per verzoek** worden overschreven met een
+queryparameter — handig voor een client die een overzichtelijke lijst wil zonder de serverbrede
+instelling voor alle anderen te wijzigen:
 
 ```bash
-GET /v1/models?prefix=alias        # één id per model — het korte aliasprefix
+GET /v1/models?prefix=alias        # één id per model — de korte aliasprefix
 GET /v1/models?prefix=dual         # beide vormen (standaardinstelling van de server)
-GET /v1/models?prefix=canonical    # alleen het volledige provider-id-prefix
+GET /v1/models?prefix=canonical    # alleen de volledige provider-id-prefix
 ```
 
-| Modus       | Geeft terug                                              | Opmerkingen                                                                                                                                                                                                     |
-| ----------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **en** `claude/claude-sonnet-4-6` | **Standaard.** Beide id's worden naar hetzelfde model gerouteerd; dit blijft behouden zodat clientconfiguraties waarin een van beide vormen hardgecodeerd is, blijven werken. Verdubbelt de catalogus ongeveer. |
-| `alias`     | `cc/claude-sonnet-4-6`                                   | Eén vermelding per model. Providers zonder afzonderlijke alias geven hun vermelding nog steeds terug, zodat er niets verloren gaat.                                                                             |
-| `canonical` | `claude/claude-sonnet-4-6`                               | Eén vermelding per model onder het volledige provider-id-prefix. Providers zonder afzonderlijke alias (bijv. `antigravity/…`, `agy/…`) geven hier ook hun enige id terug, zodat er niets verloren gaat.         |
+| Modus       | Genereert                                                | Opmerkingen                                                                                                                                                                                                 |
+| ----------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **en** `claude/claude-sonnet-4-6` | **Standaard.** Beide id's worden naar hetzelfde model gerouteerd; dit is behouden zodat clientconfiguraties waarin een van beide vormen hardgecodeerd is, blijven werken. Verdubbelt de catalogus ongeveer. |
+| `alias`     | `cc/claude-sonnet-4-6`                                   | Eén item per model. Providers zonder een afzonderlijke alias genereren nog steeds hun item, zodat er niets verloren gaat.                                                                                   |
+| `canonical` | `claude/claude-sonnet-4-6`                               | Eén item per model onder de volledige provider-id-prefix. Providers zonder een afzonderlijke alias (bijv. `antigravity/…`, `agy/…`) genereren hier ook hun enige id, zodat er niets verloren gaat.          |
 
-Een mirror in de modus `dual` kan ook zonder de queryparameter worden herkend: deze bevat een veld `parent` dat naar het primaire id verwijst.
+Een mirror in de modus `dual` kan ook zonder de queryparameter worden herkend: deze bevat een `parent`-veld
+dat naar het primaire id verwijst.
 
-Clients die een modelkiezer weergeven, moeten `?prefix=alias` aanvragen — dit is wat de [OmniCopilot VS Code-extensie](../guides/VSCODE-COPILOT.md) doet.
+Clients die een modelkiezer weergeven, moeten `?prefix=alias` opvragen — dit is wat de
+[OmniCopilot VS Code-extensie](../guides/VSCODE-COPILOT.md) doet.
 
 ### Afzonderlijk verborgen chatmodellen
 
-Een model dat op de pagina van zijn provider als **Verborgen** is gemarkeerd, wordt uit de catalogus verwijderd en bij een expliciet verzoek geweigerd met HTTP `404` / `model_not_found`. De controle gebruikt de gevonden provider en het model, rekening houdend met provideraliasen, prefixen van compatibele providerknooppunten en de standaardwaarden van de verbinding. Een combo slaat verborgen doelen over en kan een ander zichtbaar doel gebruiken; als er geen uitvoerbaar doel overblijft, wordt dezelfde foutcode teruggegeven. Het opnieuw zichtbaar maken geldt vanaf het volgende verzoek. Zichtbaarheidsoverschrijvingen die alleen voor afbeeldingen gelden, verbergen het chatmodel met dezelfde ID niet.
+Een model dat op de providerpagina als **Verborgen** is gemarkeerd, wordt uitgesloten van de catalogus en
+afgewezen met HTTP `404` / `model_not_found` wanneer het expliciet wordt opgevraagd. De controle gebruikt de
+vastgestelde provider en het vastgestelde model, met inbegrip van provideraliases, nodeprefixen van compatibele providers en
+standaardwaarden voor verbindingen. Een combinatie slaat verborgen doelen over en kan een zichtbaar zustermodel gebruiken; wanneer er geen
+uitvoerbaar doel overblijft, wordt dezelfde foutcode geretourneerd. Het zichtbaar maken wordt bij het volgende
+verzoek van kracht. Zichtbaarheidsoverschrijvingen die alleen voor afbeeldingen gelden, verbergen het chatmodel met hetzelfde id niet.
 
-Deze instelling per model staat los van de [toestemmings- en blokkeerlijsten voor modelweergave](../routing/MODEL_EXPOSURE_LIST.md). Die filteren het catalogusaanbod en de kandidaten voor automatische routering, maar behouden expliciete verzending. De modelrechten van de API-sleutel blijven onafhankelijk van toepassing. De standaardmodus voor catalogusprefixen blijft `dual`.
+Deze afzonderlijke modelinstelling staat los van de
+[allow-/deny-lijsten voor modelbeschikbaarheid](../routing/MODEL_EXPOSURE_LIST.md), die de weergave in de catalogus
+en kandidaten voor automatische routering filteren, terwijl expliciete routering behouden blijft. Modelmachtigingen voor API-sleutels
+blijven onafhankelijk van toepassing. De standaardmodus voor catalogusprefixen blijft `dual`.
 
-### Modelvarianten zonder denkmodus
+### Modelvarianten zonder denken
 
-Voor Claude-modellen die denkfunctionaliteit ondersteunen, biedt `/v1/models` ook een variant **zonder denkmodus** aan, waarvan het id wordt voorafgegaan door `claude-3-omniroute-no-thinking/`:
+Voor Claude-modellen die denken ondersteunen, biedt `/v1/models` ook een **variant zonder denken** aan waarvan het id het voorvoegsel `claude-3-omniroute-no-thinking/` heeft:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Als dit id wordt geselecteerd (bijv. in een Claude Code-configuratie die altijd een `thinking`-blok toevoegt), wordt het terugverwezen naar het echte `<provider>/<model>`, waarbij redeneren wordt onderdrukt — `thinking:{type:"disabled"}` op het `/v1/messages`-pad, of waarbij de velden `reasoning`/`reasoning_effort` op het `/v1/chat/completions`-pad worden weggelaten. De variant wordt alleen vermeld voor modellen uit de Claude-familie die denkfunctionaliteit ondersteunen **en** `disabled` respecteren (dus bijvoorbeeld modellen die alleen adaptief werken en `disabled` afwijzen, worden uitgesloten). Beheerders kunnen de variant per model geforceerd in- of uitschakelen via `ModelSpec.noThinkingAlias`.
+Als dit id wordt geselecteerd (bijv. in een Claude Code-configuratie die altijd een `thinking`-blok toevoegt), wordt het terugvertaald naar het echte `<provider>/<model>`, waarbij redeneren wordt onderdrukt — `thinking:{type:"disabled"}` op het `/v1/messages`-pad, of waarbij de velden `reasoning`/`reasoning_effort` op het `/v1/chat/completions`-pad worden weggelaten. De variant wordt alleen vermeld voor modellen uit de Claude-familie die denken ondersteunen **en** `disabled` respecteren (dus bijv. modellen die alleen adaptief werken en `disabled` afwijzen, worden uitgesloten). Beheerders kunnen de variant per model geforceerd in- of uitschakelen via `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -714,17 +727,17 @@ voltooiing.
 
 ---
 
-## Zelfbedieningsgebruik (`/api/usage/om-usage`)
+## Selfservicegebruik (`/api/usage/om-usage`)
 
-Elke API-sleutel kan het **eigen** gebruik en de eigen quota lezen — zonder beheerauthenticatie. Dit is het endpoint dat een
-client (CLI, het OmniCopilot-paneel) gebruikt om de uitgaven van een sleutelhouder weer te geven.
+Elke API-sleutel kan **zijn eigen** gebruik en quota lezen — zonder beheerdersauthenticatie. Dit is het endpoint dat een
+client (CLI, het OmniCopilot-paneel) gebruikt om de houder van een sleutel diens uitgaven te tonen.
 
 ```bash
 # Tekstvorm (het historische contract — platte tekst voor een terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Gestructureerde vorm — wat een gebruikersinterface gebruikt
+# Gestructureerde vorm — wat een UI gebruikt
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
@@ -733,12 +746,12 @@ Voor de sleutel moet **`allowUsageCommand`** zijn ingeschakeld (standaard uitges
 van het dashboard schakelt dit per sleutel in of uit). Zonder deze instelling antwoordt het endpoint met `403`.
 
 `?format=json` retourneert een gediscrimineerde structuur, zodat een aanroeper nooit een gegevensveld van een
-weigering uitleest. Bij succes:
+weigering leest. Bij succes:
 
 ```jsonc
 {
   "allowed": true,
-  // alleen aanwezig wanneer voor de sleutel gebruikslimieten per sleutel zijn ingesteld (dagelijks/wekelijks in USD):
+  // alleen aanwezig wanneer voor de sleutel gebruikslimieten per sleutel zijn ingeschakeld (dagelijks/wekelijks in USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -747,14 +760,14 @@ weigering uitleest. Bij succes:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // de geselecteerde momentopname van het providerquotum, of null wanneer er nog niets in de cache staat:
+  // de geselecteerde momentopname van het providerquotum, of null wanneer nog niets in de cache staat:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // de momentopname van elke verbinding, zodat een gebruikersinterface meerdere providers naast elkaar kan weergeven:
+  // de momentopname van elke verbinding, zodat een UI meerdere providers naast elkaar kan weergeven:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -764,11 +777,62 @@ weigering uitleest. Bij succes:
 
 Bij weigering (`401` ongeldige sleutel / `403` niet toegestaan) retourneert dezelfde route
 `{ "allowed": false, "error": { "message": "…" } }` — een aanwezige maar lege `personal`/`provider`
-(sleutel toegestaan, nog niets gedetecteerd) is een andere status dan een weigering, en alleen de JSON-vorm
+(sleutel toegestaan, nog niets bekend) is een andere toestand dan een weigering, en alleen de JSON-vorm
 maakt daar onderscheid tussen.
 
 **Authenticatie:** de eigen Bearer-API-sleutel van de aanroeper, gevalideerd met `isValidApiKey` — dit is _niet_ het
 beheeroppervlak (`/api/keys/…`), dat beschermd blijft door `requireManagementAuth`.
+
+### Ruwe versus voor afkapwaarden gecorrigeerde quotapercentages
+
+Bij het gebruiken van `/api/usage/om-usage` moeten aanroepers rekening houden met het verschil tussen de
+percentages in de **platte-tekstuitvoer** en die in de gestructureerde **JSON-uitvoer**:
+
+| Aspect                 | Platte-tekstindeling (`/api/usage/om-usage` / `@@om-usage`)                                              | JSON-indeling (`?format=json`)                                              |
+| :--------------------- | :------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **Uitvoerveld**        | `NN% left` (bijv. `20% left`)                                                                            | `provider.quotas` / `providers[].quotas`                                    |
+| **Meting**             | **Voor afkapwaarde gecorrigeerde bruikbare ruimte**: resterende capaciteit boven de afkapdrempel         | **Ruw upstreamquotum**: niet-gecorrigeerde meting van de provider           |
+| **Afkapschaling**      | Geschaald via `effectiveRemainingPercent()`, zodat de beschermde reserve als `0% left` wordt weergegeven | Geen (ruwe momentopnamewaarden zoals gerapporteerd door de provider)        |
+| **Drempelgegevens**    | Verwerkt in het weergegeven percentage                                                                   | Opgeslagen in `quotaWindowThresholds` per verbinding (of serverstandaarden) |
+| **Primaire gebruiker** | Interactieve CLI's, terminalprompts, menselijke operators                                                | Programmatische integraties, dashboards, analyses, factureringstrackers     |
+
+#### De formule voor correctie op basis van de afkapwaarde
+
+OmniRoute ondersteunt proactieve quota-afkapwaarden om uitputting bij de upstreamprovider te voorkomen (geconfigureerd via
+`quotaWindowThresholds` van de verbinding, providerstandaarden of globale weerbaarheidsinstellingen). Wanneer een afkapdrempel
+(bijv. `cutoff = 25%`) actief is voor een quotavenster, berekent de tekstweergave de resterende ruimte als volgt:
+
+- Als `remaining <= cutoff`: retourneert `0%`.
+- Als `remaining > cutoff`: retourneert `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+De opgemaakte tekstuitvoer rondt dit af op het dichtstbijzijnde gehele getal (`Math.round(...)`).
+
+#### Illustratief voorbeeld
+
+Neem een providervenster met **60% ruw gebruik** (en dus **40% ruw resterend quotum**) en een geconfigureerde
+**afkapdrempel van 25% resterend quotum**:
+
+| Weergave                       | Berekening                                         | Resterend |               Impliciet gebruikt               |
+| :----------------------------- | :------------------------------------------------- | :-------: | :--------------------------------------------: |
+| **Ruwe JSON (`?format=json`)** | Upstreammomentopname (`quotas[window]`)            |  **40%**  |                    **60%**                     |
+| **Tekstindeling (`NN% left`)** | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**  | **80%** (bij berekening van `100 - remaining`) |
+
+- **Waarom de tekst 20% resterend toont:** Van het fysieke quotum van 40% dat nog op het account beschikbaar is, wordt 25% door het
+  afkapbeleid gereserveerd. De aanroeper heeft nog slechts 15% van de 75% bruikbare marge over voordat de router stopt
+  met het routeren naar deze verbinding. De schaling zorgt ervoor dat de verbinding uitputting aangeeft (`0% left`) precies wanneer
+  het routeren wordt beëindigd.
+- **Waarom JSON de ruwe waarden behoudt:** De JSON-payload retourneert de exacte providermomentopname (`UsageSnapshot`),
+  zodat externe tools toegang hebben tot de werkelijke upstreambenutting en `quotaWindowThresholds` op verbindingsniveau,
+  zonder verliesgevende schaling aan de serverzijde.
+
+#### Richtlijnen voor de migratie van gebruikers
+
+Als een externe integratie (zoals een editorplug-in of agentextensie) eerder het tekstendpoint
+(`NN% left`) uitleesde en het gebruikte percentage berekende als `100 - NN`, betekent migratie naar `?format=json` het volgende:
+
+- Het lezen van ruwe JSON-waarden weerspiegelt het **werkelijke upstreamverbruik** (60% gebruikt in het bovenstaande voorbeeld).
+- Als de integratie de semantiek voor bruikbare ruimte van het tekstendpoint wil behouden, kan deze
+  de formule voor effectief resterende ruimte aan de clientzijde berekenen met `quotaWindowThresholds` voor overschrijvingen op verbindingsniveau.
 
 ---
 

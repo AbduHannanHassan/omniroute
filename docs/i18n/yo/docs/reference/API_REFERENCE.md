@@ -389,55 +389,63 @@ máa ń lo `us-central1` gẹ́gẹ́ bí àkóbá. Àwọn ìpinnu méjèèjì 
 
 ---
 
-## Ṣe Àtòjọ Àwọn Módelì
+## Ṣàkọsílẹ̀ Àwọn Módẹ́lì
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Ó dá gbogbo àwọn módelì ìfọ̀rọ̀wérọ̀, embedding, àti àwòrán + àwọn àkópọ̀ padà ní ọ̀nà OpenAI
+→ Ó dá gbogbo àwọn módẹ́lì ìfọ̀rọ̀wérọ̀, embedding, àti àwòrán padà + àwọn àkópọ̀ ní fọ́ọ̀mù OpenAI
 ```
 
-### Àwọn ìṣáájú id módelì (`?prefix=`)
+### Àwọn ìṣáájú id módẹ́lì (`?prefix=`)
 
-Ọ̀pọ̀ àwọn módelì ni a ń polówó lábẹ́ **ìṣáájú olùpèsè** kan. Ìṣáájú tí o máa rí ni
-àsíá ẹ̀ya `MODELS_CATALOG_PREFIX_MODE` ń ṣàkóso, a sì lè fagi lé e **fún ìbéèrè kọ̀ọ̀kan** pẹ̀lú
-paramita ìbéèrè kan — ó wúlò fún oníbàárà tó fẹ́ àtòjọ mímọ́ láìṣe àyípadà sí ètò gbogbo
-sáfà fún gbogbo àwọn mìíràn:
+Ọ̀pọ̀lọpọ̀ módẹ́lì ni a ń polówó lábẹ́ **ìṣáájú olùpèsè**. Ìṣáájú tí o máa rí ni àsíá ẹ̀yà
+`MODELS_CATALOG_PREFIX_MODE` ń ṣàkóso, a sì lè ṣàtúnṣe rẹ̀ **fún ìbéèrè kọ̀ọ̀kan** pẹ̀lú
+párámítà ìbéèrè — èyí wúlò fún client tó fẹ́ àkójọ tó mọ́ láì yí ètò gbogbo server padà
+fún gbogbo àwọn yòókù:
 
 ```bash
-GET /v1/models?prefix=alias        # id kan fún módelì kọ̀ọ̀kan — ìṣáájú alias kúkúrú
-GET /v1/models?prefix=dual         # àwọn fọ́ọ̀mù méjèèjì (àìyípadà sáfà)
+GET /v1/models?prefix=alias        # id kan fún módẹ́lì kọ̀ọ̀kan — ìṣáájú alias kúkúrú
+GET /v1/models?prefix=dual         # àwọn fọ́ọ̀mù méjèèjì (àiyípadà server)
 GET /v1/models?prefix=canonical    # ìṣáájú provider-id kíkún nìkan
 ```
 
-| Ìpo         | Ohun tí ó ń gbé jáde                                      | Àwọn àkíyèsí                                                                                                                                                                                           |
-| ----------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dual`      | `cc/claude-sonnet-4-6` **àti** `claude/claude-sonnet-4-6` | **Àìyípadà.** Àwọn id méjèèjì ń darí sí módelì kan náà; a pa wọ́n mọ́ kí àwọn ètò oníbàárà tí ó ti kọ ọ̀kan nínú wọn sínú kóòdù lè máa ṣiṣẹ́ nìṣó. Ó fẹ́rẹ̀ẹ́ sọ katalọ́ọ̀gù di ìlọ́po méjì.                     |
-| `alias`     | `cc/claude-sonnet-4-6`                                    | Àkọsílẹ̀ kan fún módelì kọ̀ọ̀kan. Àwọn olùpèsè tí kò ní alias ọ̀tọ̀ ṣì ń gbé àkọsílẹ̀ wọn jáde, nítorí náà kò sí ohun tó sọnù.                                                                               |
-| `canonical` | `claude/claude-sonnet-4-6`                                | Àkọsílẹ̀ kan fún módelì kọ̀ọ̀kan lábẹ́ ìṣáájú provider-id kíkún. Àwọn olùpèsè tí kò ní alias ọ̀tọ̀ (fún àpẹẹrẹ `antigravity/…`, `agy/…`) tún ń gbé id kan ṣoṣo wọn jáde níbí, nítorí náà kò sí ohun tó sọnù. |
+| Ìpo         | Ohun tí ó ń jáde                                          | Àwọn àkíyèsí                                                                                                                                                                                                    |
+| ----------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **àti** `claude/claude-sonnet-4-6` | **Àiyípadà.** Àwọn id méjèèjì ń darí sí módẹ́lì kan náà; a pa wọ́n mọ́ kí àwọn àtòjọ client tí ó ti fi ọ̀kan nínú àwọn fọ́ọ̀mù náà sí kóòdù lè máa ṣiṣẹ́ síwájú. Ó fẹ́rẹ̀ẹ́ sọ ìwọ̀n catalog di ìlọ́po méjì.                |
+| `alias`     | `cc/claude-sonnet-4-6`                                    | Àkọsílẹ̀ kan fún módẹ́lì kọ̀ọ̀kan. Àwọn olùpèsè tí kò ní alias ọ̀tọ̀ ṣì máa ń ṣe àgbéjáde àkọsílẹ̀ wọn, nítorí náà kò sí ohun tí ó sọnù.                                                                               |
+| `canonical` | `claude/claude-sonnet-4-6`                                | Àkọsílẹ̀ kan fún módẹ́lì kọ̀ọ̀kan lábẹ́ ìṣáájú provider-id kíkún. Àwọn olùpèsè tí kò ní alias ọ̀tọ̀ (fún àpẹẹrẹ `antigravity/…`, `agy/…`) tún máa ń ṣe àgbéjáde id wọn kan ṣoṣo níbí, nítorí náà kò sí ohun tí ó sọnù. |
 
-A tún lè dá àwòrán ojú-òpó ìpo `dual` mọ̀ láìlo paramita ìbéèrè náà: ó ní pápá `parent`
-tí ó ń tọ́ka sí id àkọ́kọ́.
+A tún lè dá mirror ìpo `dual` mọ̀ láìsí párámítà ìbéèrè náà: ó ní field `parent`
+tó ń tọ́ka sí id àkọ́kọ́.
 
-Àwọn oníbàárà tí ń ṣàfihàn ibi yíyan módelì yẹ kí wọ́n béèrè `?prefix=alias` — èyí ni ohun tí
-[ẹ̀ka OmniCopilot VS Code](../guides/VSCODE-COPILOT.md) ń ṣe.
+Àwọn client tó ń ṣàfihàn ibi yíyan módẹ́lì yẹ kí wọ́n béèrè `?prefix=alias` — èyí ni ohun tí
+[àfikún OmniCopilot VS Code](../guides/VSCODE-COPILOT.md) ń ṣe.
 
-### Àwọn àwòṣe ìjíròrò tí a fi pamọ́ lọ́kọ̀ọ̀kan
+### Àwọn módẹ́lì ìfọ̀rọ̀wérọ̀ tí a fi pamọ́ lọ́kọ̀ọ̀kan
 
-Àwòṣe tí a samisi **Fífarapamọ́** lórí ojú-ewé olùpèsè rẹ̀ ni a yọ kúrò nínú kátálọ́ọ̀gù, a sì kọ ìbéèrè tí ó tọ́ka sí i ní tààrà pẹ̀lú HTTP `404` / `model_not_found`. Àyẹ̀wò náà lo olùpèsè àti àwòṣe tí a ti pinnu, ó sì ka àwọn orúkọ àfidípò olùpèsè, àwọn ìpele ìbẹ̀rẹ̀ nóòdù àwọn olùpèsè tó bára mu, àti àwọn iye àkọ́kọ́ ìsopọ̀ sí. Combo fo àwọn ibi-afẹ́ tí a fi pamọ́, ó sì lè lo ibi-afẹ́ mìíràn tí ó hàn; bí kò bá sí ibi-afẹ́ tí a lè ṣiṣẹ́ mọ́, ó dá kóòdù àṣìṣe kan náà padà. Ṣíṣí àwòṣe sílẹ̀ láti hàn padà bẹ̀rẹ̀ sí í ṣiṣẹ́ láti ìbéèrè tó tẹ̀ lé e. Àwọn àtúnṣe ìhàn tí ó kan àwòrán nìkan kò fi àwòṣe ìjíròrò tó ní ID kan náà pamọ́.
+Módẹ́lì tí a sàmì sí **Hidden** lórí ojú-ewé olùpèsè rẹ̀ ni a yọ kúrò nínú catalog, a sì máa kọ̀ ọ́
+pẹ̀lú HTTP `404` / `model_not_found` nígbà tí a bá béèrè rẹ̀ ní tààrà. Àyẹ̀wò náà ń lo
+olùpèsè àti módẹ́lì tí a ti yanjú, pẹ̀lú àwọn alias olùpèsè, àwọn ìṣáájú node olùpèsè tó bá mu,
+àti àwọn àiyípadà àsopọ̀. Àkópọ̀ máa ń fo àwọn ibi-afẹ́ tí a fi pamọ́ kọjá, ó sì lè lo ẹ̀gbọ́n tàbí àbúrò tó hàn; nígbà tí kò bá sí
+ibi-afẹ́ tí a lè ṣiṣẹ́ mọ́, yóò dá kóòdù àṣìṣe kan náà padà. Yíyọ ìpamọ́ kúrò bẹ̀rẹ̀ sí í ṣiṣẹ́ lórí
+ìbéèrè tó kàn. Àwọn àtúnṣe híhan fún àwòrán nìkan kì í fi módẹ́lì ìfọ̀rọ̀wérọ̀ tó ní ID kan náà pamọ́.
 
-Ètò yìí fún àwòṣe kọ̀ọ̀kan yàtọ̀ sí [àwọn àkójọ ìyọ̀nda àti ìdènà fífi àwòṣe hàn](../routing/MODEL_EXPOSURE_LIST.md). Àwọn àkójọ náà ṣàlẹ̀mọ́ ohun tí kátálọ́ọ̀gù ń fi hàn àti àwọn àṣàyàn ìtọ́sọ́nà aládàáṣiṣẹ́, ṣùgbọ́n wọ́n ṣì gba ìfiránṣẹ́ tó tọ́ka sí àwòṣe ní tààrà láyè. Àwọn ìyọ̀nda àwòṣe ti kọ́kọ́rọ́ API ṣì ń ṣiṣẹ́ lọ́tọ̀. Ìpo àkọ́kọ́ àwọn ìpele ìbẹ̀rẹ̀ kátálọ́ọ̀gù ṣì jẹ́ `dual`.
+Ètò módẹ́lì kọ̀ọ̀kan yìí yàtọ̀ sí
+[àwọn àkójọ gbígba/kíkà fún ìṣípayá módẹ́lì](../routing/MODEL_EXPOSURE_LIST.md), tí ń ṣe àlẹ̀mọ́
+ìpolówó catalog àti àwọn olùdíje fún ìdarí aládàáṣiṣẹ́ nígbà tí wọ́n ṣì ń pa ìfiranṣẹ́ ní tààrà mọ́. Àwọn
+àṣẹ módẹ́lì API-key ṣì ń ṣiṣẹ́ lọ́nà òmìnira. Ìpo ìṣáájú catalog àiyípadà ṣì jẹ́ `dual`.
 
-### Àwọn ẹ̀yà módelì tí kò ní ìrònú
+### Àwọn ẹ̀yà módẹ́lì tí kò ní ìrònú
 
-Fún àwọn módelì Claude tó lè ronú, `/v1/models` tún ń polówó ẹ̀yà **tí kò ní ìrònú** tí id rẹ̀ bẹ̀rẹ̀ pẹ̀lú `claude-3-omniroute-no-thinking/`:
+Fún àwọn módẹ́lì Claude tó lágbára láti ronú, `/v1/models` tún ń polówó ẹ̀yà **tí kò ní ìrònú** tí a fi `claude-3-omniroute-no-thinking/` sí iwájú id rẹ̀:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Yíyan id yìí (fún àpẹẹrẹ, nínú ètò Claude Code kan tí ó máa ń so búlọ́ọ̀kù `thinking` mọ́ ọn ní gbogbo ìgbà) máa ń yanjú padà sí `<provider>/<model>` gidi pẹ̀lú dídènà ìfèrò — `thinking:{type:"disabled"}` lórí ipa ọ̀nà `/v1/messages`, tàbí yíyọ àwọn pápá `reasoning`/`reasoning_effort` kúrò lórí ipa ọ̀nà `/v1/chat/completions`. Ẹ̀yà náà ni a ń tò sí àtòjọ fún àwọn módelì ìdílé Claude tí ó ṣe àtìlẹ́yìn fún ìrònú **tí wọ́n sì** tẹ̀lé `disabled` nìkan (nítorí náà, fún àpẹẹrẹ, àwọn módelì adaptive-only tí ó kọ `disabled` sílẹ̀ ni a yọ kúrò). Àwọn olùṣàkóso lè fi ipá tan ẹ̀yà náà tàbí pa á fún módelì kọ̀ọ̀kan nípasẹ̀ `ModelSpec.noThinkingAlias`.
+Yíyan id yìí (fún àpẹẹrẹ, nínú àtòjọ Claude Code tó máa ń so block `thinking` pọ̀ ní gbogbo ìgbà) máa ń yanjú padà sí `<provider>/<model>` gidi pẹ̀lú dídènà ìrònú — `thinking:{type:"disabled"}` lórí ipa ọ̀nà `/v1/messages`, tàbí yíyọ àwọn field `reasoning`/`reasoning_effort` kúrò lórí ipa ọ̀nà `/v1/chat/completions`. Ẹ̀yà náà ni a máa ń ṣàkọsílẹ̀ fún àwọn módẹ́lì ìdílé Claude tó ṣe àtìlẹ́yìn fún ìrònú **tí wọ́n sì** bọ̀wọ̀ fún `disabled` nìkan (nítorí náà, fún àpẹẹrẹ, àwọn módẹ́lì adaptive-only tó kọ `disabled` sílẹ̀ ni a yọ kúrò). Àwọn olùdarí lè fipá mú ẹ̀yà náà ṣiṣẹ́ tàbí pa á fún módẹ́lì kọ̀ọ̀kan nípasẹ̀ `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -721,29 +729,29 @@ completion náà.
 
 ## Ìlò iṣẹ́-ara-ẹni (`/api/usage/om-usage`)
 
-Kọ́kọ́rọ́ API èyíkéyìí lè ka ìlò àti àwọn ìwọ̀n ìlò **tirẹ̀ fúnra rẹ̀** — kò nílò ìfàṣẹsí ìṣàkóso. Èyí ni endpoint tí
-client kan (CLI, pánẹ́ẹ̀lì OmniCopilot) ń lò láti fi iye owó tí ẹni tó ni kọ́kọ́rọ́ ti ná hàn án.
+Kọ́kọ́rọ́ API èyíkéyìí lè ka ìlò àti iye ààlà **tirẹ̀ fúnra rẹ̀** — kò nílò ìfàṣẹsí ìṣàkóso. Èyí ni endpoint tí
+client kan (CLI, pánẹ́ẹ̀lì OmniCopilot) ń lò láti fi iye tí ẹni tó ni kọ́kọ́rọ́ náà ti ná hàn án.
 
 ```bash
-# Fọ́ọ̀mù ọ̀rọ̀ (àdéhùn ìtàn — ọ̀rọ̀ lásán fún terminal)
+# Fọ́ọ̀mù ọ̀rọ̀ (àdéhùn ìbílẹ̀ — ọ̀rọ̀ lásán fún terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Fọ́ọ̀mù tí a ṣètò — èyí tí UI ń lò
+# Fọ́ọ̀mù tó ní ètò — èyí tí UI ń lò
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Kọ́kọ́rọ́ náà gbọ́dọ̀ ní **`allowUsageCommand`** tí a ti mú ṣiṣẹ́ (kò ṣiṣẹ́ ní àkọ́kọ́ — olùṣàkóso kọ́kọ́rọ́ API ti dashboard
-ń yí i padà fún kọ́kọ́rọ́ kọ̀ọ̀kan). Láìsí i, endpoint náà yóò dáhùn `403`.
+Kọ́kọ́rọ́ náà gbọ́dọ̀ ní **`allowUsageCommand`** tí a ti mú ṣiṣẹ́ (ó jẹ́ pípa ní àtìlẹ́yìn — olùṣàkóso
+kọ́kọ́rọ́ API inú dashboard ló ń yí i padà fún kọ́kọ́rọ́ kọ̀ọ̀kan). Láìsí i, endpoint náà yóò dáhùn `403`.
 
-`?format=json` ń dá àkópọ̀ tí a fi ìyàtọ̀ sí padà kí olùpè má bàa ka pápá dátà láti inú
-ìkọ̀. Nígbà àṣeyọrí:
+`?format=json` ń dá ìrísí tó ní ìyàtọ̀ padà kí olùpè má bàa ka pápá dátà kan láti inú
+ìkọ̀sílẹ̀. Nígbà àṣeyọrí:
 
 ```jsonc
 {
   "allowed": true,
-  // yóò wà nìkan nígbà tí kọ́kọ́rọ́ náà bá yan láti lo àwọn ààlà ìlò ti kọ́kọ́rọ́ kọ̀ọ̀kan (USD ojoojúmọ́/ọ̀sọ̀ọ̀sẹ̀):
+  // ó wà nígbà tí kọ́kọ́rọ́ náà bá yan láti lo ààlà ìlò fún kọ́kọ́rọ́ kọ̀ọ̀kan nìkan (USD ojoojúmọ́/ọ̀sọ̀ọ̀sẹ̀):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -752,14 +760,14 @@ Kọ́kọ́rọ́ náà gbọ́dọ̀ ní **`allowUsageCommand`** tí a ti mú 
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // àwòrán ìwọ̀n ìlò provider tí a yàn, tàbí null nígbà tí kò sí ohun tí a ti cache síbẹ̀:
+  // àwòrán-kúkúrú quota provider tí a yàn, tàbí null nígbà tí kò tíì sí ohun tí a fi pamọ́ sínú cache:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // àwòrán gbogbo connection, kí UI lè ṣàfihàn ọ̀pọ̀ provider lẹ́gbẹ̀ẹ́ ara wọn:
+  // àwòrán-kúkúrú gbogbo connection, kí UI lè ṣàfihàn ọ̀pọ̀ provider ní ẹ̀gbẹ́ ara wọn:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -767,13 +775,64 @@ Kọ́kọ́rọ́ náà gbọ́dọ̀ ní **`allowUsageCommand`** tí a ti mú 
 }
 ```
 
-Nígbà ìkọ̀ (`401` kọ́kọ́rọ́ tí kò tọ́ / `403` kò gba láàyè), route kan náà yóò dá
+Nígbà ìkọ̀sílẹ̀ (`401` kọ́kọ́rọ́ tí kò tọ́ / `403` kò gba láàyè), route kan náà yóò dá
 `{ "allowed": false, "error": { "message": "…" } }` padà — `personal`/`provider` tó wà ṣùgbọ́n tó ṣófo
-(kọ́kọ́rọ́ gba láàyè, kò tíì sí ohun tí a mọ̀) jẹ́ ipò tó yàtọ̀ sí ìkọ̀, fọ́ọ̀mù JSON nìkan sì
-ni ó ń fi ìyàtọ̀ wọn hàn.
+(kọ́kọ́rọ́ ní àṣẹ, kò tíì sí ohun tí a mọ̀) jẹ́ ipò tó yàtọ̀ sí ìkọ̀sílẹ̀, fọ́ọ̀mù JSON nìkan sì
+ló lè fi ìyàtọ̀ wọn hàn.
 
-**Ìfàṣẹsí:** Kọ́kọ́rọ́ API Bearer ti olùpè fúnra rẹ̀, tí a fìdí rẹ̀ múlẹ̀ pẹ̀lú `isValidApiKey` — èyí _kì í ṣe_
-ojú-iṣẹ́ ìṣàkóso (`/api/keys/…`), èyí tí ó ṣì wà lẹ́yìn `requireManagementAuth`.
+**Ìfàṣẹsí:** kọ́kọ́rọ́ API Bearer ti olùpè fúnra rẹ̀, tí a fìdí rẹ̀ múlẹ̀ pẹ̀lú `isValidApiKey` — èyí _kì í ṣe_
+ojú-ìṣàkóso (`/api/keys/…`), èyí tí `requireManagementAuth` ṣì ń dáàbò bò.
+
+### Àwọn Ìdá Ọgọ́rùn-ún Quota Àìtúnṣe àti Èyí Tí A Ṣàtúnṣe Pẹ̀lú Cutoff
+
+Nígbà lílo `/api/usage/om-usage`, àwọn olùpè gbọ́dọ̀ kíyè sí ìyàtọ̀ láàárín àwọn
+ìdá ọgọ́rùn-ún tí **àbájáde ọ̀rọ̀-lásán** àti **àbájáde JSON** tó ní ètò ń gbé kalẹ̀:
+
+| Abala               | Fọ́ọ̀mù ọ̀rọ̀-lásán (`/api/usage/om-usage` / `@@om-usage`)                                     | Fọ́ọ̀mù JSON (`?format=json`)                                                              |
+| :------------------ | :----------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Pápá àbájáde**    | `NN% left` (fún àpẹẹrẹ, `20% left`)                                                        | `provider.quotas` / `providers[].quotas`                                                 |
+| **Ìwọ̀n**            | **Ìyọ̀ǹda tó ṣeé lò tí a ṣàtúnṣe pẹ̀lú cutoff**: agbára tó kù lókè ààlà cutoff               | **Quota upstream àìtúnṣe**: ìwọ̀n provider tí a kò ṣàtúnṣe                                |
+| **Ìṣòdiwọ̀n cutoff** | A ṣe ìṣòdiwọ̀n rẹ̀ nípasẹ̀ `effectiveRemainingPercent()` kí ìpamọ́ tó dáàbò bò lè ka `0% left` | Kò sí (àwọn iye àwòrán-kúkúrú àìtúnṣe gẹ́gẹ́ bí provider ṣe ròyìn wọn)                     |
+| **Dátà ààlà**       | A fi í sínú ìdá ọgọ́rùn-ún tí a ṣàfihàn                                                     | A fi pamọ́ sínú `quotaWindowThresholds` fún connection kọ̀ọ̀kan (tàbí àwọn àtìlẹ́yìn server) |
+| **Olùlò àkọ́kọ́**     | Àwọn CLI ìbánisọ̀rọ̀, àwọn ìbéèrè terminal, àwọn òṣìṣẹ́ ènìyàn                                | Àwọn ìsopọ̀ oníṣètò, dashboard, ìtúpalẹ̀, àwọn olùtọpa ìsanwó                              |
+
+#### Fọ́ọ̀mù Ìṣirò Àtúnṣe Cutoff
+
+OmniRoute ń ṣe àtìlẹ́yìn fún àwọn cutoff quota ìṣáájú láti dènà kí upstream má bàa tán (tí a ṣètò nípasẹ̀
+`quotaWindowThresholds` ti connection, àwọn àtìlẹ́yìn provider, tàbí àwọn ètò ìfaradà àgbáyé). Nígbà tí ààlà cutoff
+kan (fún àpẹẹrẹ, `cutoff = 25%`) bá ṣiṣẹ́ lórí fèrèsé quota kan, olùṣe-àfihàn ọ̀rọ̀ yóò ṣírò ìyọ̀ǹda tó kù báyìí:
+
+- Tí `remaining <= cutoff`: yóò dá `0%` padà.
+- Tí `remaining > cutoff`: yóò dá `((remaining - cutoff) / (100 - cutoff)) * 100` padà.
+
+Àbájáde ọ̀rọ̀ tí a ṣe ní fọ́ọ̀mù yóò yí èyí po sí odidi tó sún mọ́ ọn jù (`Math.round(...)`).
+
+#### Àpẹẹrẹ Ìṣàlàyé
+
+Ẹ wo fèrèsé provider kan tó ní **60% ìlò àìtúnṣe** (nítorí náà **40% quota àìtúnṣe ló kù**) àti
+ààlà **25% cutoff quota tó kù** tí a ti ṣètò:
+
+| Àfihàn                            | Ìṣirò                                              | Èyí Tó Kù |            Ìlò Tí A Fojú Díwọ̀n             |
+| :-------------------------------- | :------------------------------------------------- | :-------: | :----------------------------------------: |
+| **JSON àìtúnṣe (`?format=json`)** | Àwòrán-kúkúrú upstream (`quotas[window]`)          |  **40%**  |                  **60%**                   |
+| **Fọ́ọ̀mù ọ̀rọ̀ (`NN% left`)**        | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**  | **80%** (tí a bá ń ṣírò `100 - remaining`) |
+
+- **Ìdí tí ọ̀rọ̀ fi fi 20% tó kù hàn:** Nínú 40% quota gidi tó kù lórí àkọọ́lẹ̀ náà, ìlànà
+  cutoff fi 25% pamọ́. Olùpè náà ní 15% péré nínú 75% àyè lílò tó kù kí router tó dá
+  fífi ìbéèrè ránṣẹ́ sí connection yìí dúró. Ìṣòdiwọ̀n náà ń rí i dájú pé connection fi àmì pé ó ti tán (`0% left`)
+  ní àkókò gan-an tí fífi ìbéèrè ránṣẹ́ yóò dáwọ́ dúró.
+- **Ìdí tí JSON fi ń pa àwọn iye àìtúnṣe mọ́:** Payload JSON ń dá àwòrán-kúkúrú provider gangan (`UsageSnapshot`)
+  padà, kí àwọn irinṣẹ́ òde lè rí ìlò upstream tòótọ́ àti
+  `quotaWindowThresholds` ìpele-connection láìsí ìṣòdiwọ̀n server-side tó ń pàdánù ìsọfúnni.
+
+#### Ìtọ́sọ́nà Ìṣílọ fún Olùlò
+
+Tí ìsopọ̀ òde kan (gẹ́gẹ́ bí plugin editor tàbí extension agent) bá ti ń yọ dátà láti inú endpoint ọ̀rọ̀
+(`NN% left`) tẹ́lẹ̀, tó sì ń ṣírò ìdá ọgọ́rùn-ún tí a lò gẹ́gẹ́ bí `100 - NN`, ìṣílọ sí `?format=json` túmọ̀ sí pé:
+
+- Kíka àwọn iye JSON àìtúnṣe yóò fi **ìlò upstream gangan** hàn (60% ni a lò nínú àpẹẹrẹ lókè).
+- Tí ìsopọ̀ náà bá fẹ́ pa ìtumọ̀ ìyọ̀ǹda-tó-ṣeé-lò ti endpoint ọ̀rọ̀ mọ́, ó lè ṣe àgbéyẹ̀wò
+  fọ́ọ̀mù ìṣirò iye tó kù tó munadoko ní ẹ̀gbẹ́ client nípa lílo `quotaWindowThresholds` fún àwọn àtúnṣe ìpele-connection.
 
 ---
 

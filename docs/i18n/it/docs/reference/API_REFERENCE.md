@@ -389,18 +389,18 @@ predefinita è `us-central1`. Entrambe le risoluzioni avvengono in `open-sse/han
 
 ---
 
-## Elenco dei modelli
+## Elencare i modelli
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Restituisce tutti i modelli di chat, embedding e immagini, oltre alle combinazioni, nel formato OpenAI
+→ Restituisce tutti i modelli di chat, embedding e immagini + le combinazioni nel formato OpenAI
 ```
 
 ### Prefissi degli ID dei modelli (`?prefix=`)
 
-La maggior parte dei modelli viene pubblicizzata con un **prefisso del provider**. Il prefisso ricevuto è controllato dal feature flag `MODELS_CATALOG_PREFIX_MODE` e può essere sovrascritto **per ogni richiesta** mediante un parametro di query — utile per un client che desidera un elenco pulito senza modificare l'impostazione a livello di server per tutti gli altri:
+La maggior parte dei modelli viene presentata con un **prefisso del provider**. Il prefisso ottenuto è controllato dal feature flag `MODELS_CATALOG_PREFIX_MODE` e può essere sostituito **per ogni richiesta** con un parametro di query — utile per un client che desidera un elenco pulito senza modificare l'impostazione dell'intero server per tutti gli altri:
 
 ```bash
 GET /v1/models?prefix=alias        # un ID per modello — il prefisso alias breve
@@ -408,31 +408,31 @@ GET /v1/models?prefix=dual         # entrambe le forme (impostazione predefinita
 GET /v1/models?prefix=canonical    # solo il prefisso completo dell'ID del provider
 ```
 
-| Modalità    | Genera                                                  | Note                                                                                                                                                                                                                                       |
-| ----------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dual`      | `cc/claude-sonnet-4-6` **e** `claude/claude-sonnet-4-6` | **Predefinita.** Entrambi gli ID vengono indirizzati allo stesso modello; vengono mantenuti affinché le configurazioni client che hanno codificato una delle due forme continuino a funzionare. Raddoppia approssimativamente il catalogo. |
-| `alias`     | `cc/claude-sonnet-4-6`                                  | Una voce per modello. I provider privi di un alias distinto continuano a generare la propria voce, quindi non si perde nulla.                                                                                                              |
-| `canonical` | `claude/claude-sonnet-4-6`                              | Una voce per modello con il prefisso completo dell'ID del provider. Anche i provider privi di un alias distinto (ad es. `antigravity/…`, `agy/…`) generano qui il proprio unico ID, quindi non si perde nulla.                             |
+| Modalità    | Restituisce                                             | Note                                                                                                                                                                                                                                          |
+| ----------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **e** `claude/claude-sonnet-4-6` | **Predefinita.** Entrambi gli ID vengono instradati allo stesso modello; vengono mantenuti affinché le configurazioni dei client che hanno codificato una delle due forme continuino a funzionare. Il catalogo raddoppia approssimativamente. |
+| `alias`     | `cc/claude-sonnet-4-6`                                  | Una voce per modello. I provider senza un alias distinto restituiscono comunque la propria voce, quindi non si perde nulla.                                                                                                                   |
+| `canonical` | `claude/claude-sonnet-4-6`                              | Una voce per modello sotto il prefisso completo dell'ID del provider. Anche i provider senza un alias distinto (ad es. `antigravity/…`, `agy/…`) restituiscono qui il proprio singolo ID, quindi non si perde nulla.                          |
 
 Un mirror in modalità `dual` può essere riconosciuto anche senza il parametro di query: contiene un campo `parent` che punta all'ID principale.
 
 I client che visualizzano un selettore di modelli dovrebbero richiedere `?prefix=alias` — è ciò che fa l'[estensione OmniCopilot per VS Code](../guides/VSCODE-COPILOT.md).
 
-### Modelli di chat nascosti individualmente
+### Modelli di chat nascosti singolarmente
 
-Un modello contrassegnato come **Nascosto** nella pagina del suo provider viene escluso dal catalogo e rifiutato con HTTP `404` / `model_not_found` quando richiesto esplicitamente. Il controllo usa il provider e il modello risolti, tenendo conto degli alias del provider, dei prefissi dei nodi dei provider compatibili e dei valori predefiniti della connessione. Un combo salta le destinazioni nascoste e può usarne un’altra visibile; se non rimane alcuna destinazione eseguibile, restituisce lo stesso codice di errore. Rendere nuovamente visibile il modello ha effetto dalla richiesta successiva. Le impostazioni di visibilità specifiche per le immagini non nascondono il modello di chat con lo stesso ID.
+Un modello contrassegnato come **Nascosto** nella pagina del relativo provider viene escluso dal catalogo e rifiutato con HTTP `404` / `model_not_found` quando viene richiesto esplicitamente. Il controllo utilizza il provider e il modello risolti, inclusi gli alias dei provider, i prefissi dei nodi dei provider compatibili e le impostazioni predefinite della connessione. Una combinazione ignora le destinazioni nascoste e può utilizzare un modello correlato visibile; quando non rimane alcuna destinazione eseguibile, restituisce lo stesso codice di errore. La rimozione dell'impostazione Nascosto ha effetto dalla richiesta successiva. Le sostituzioni della visibilità relative alle sole immagini non nascondono il modello di chat con lo stesso ID.
 
-Questa impostazione individuale è separata dalle [liste di inclusione ed esclusione per l’esposizione dei modelli](../routing/MODEL_EXPOSURE_LIST.md), che filtrano la pubblicazione nel catalogo e i candidati all’instradamento automatico mantenendo l’invio esplicito. Le autorizzazioni dei modelli della chiave API continuano ad applicarsi indipendentemente. La modalità predefinita dei prefissi del catalogo resta `dual`.
+Questa impostazione del singolo modello è distinta dagli [elenchi di autorizzazione/blocco per l'esposizione dei modelli](../routing/MODEL_EXPOSURE_LIST.md), che filtrano la pubblicazione nel catalogo e i candidati all'instradamento automatico, pur mantenendo l'invio esplicito. Le autorizzazioni dei modelli associate alle chiavi API continuano ad applicarsi in modo indipendente. La modalità predefinita dei prefissi del catalogo rimane `dual`.
 
 ### Varianti dei modelli senza ragionamento
 
-Per i modelli Claude in grado di ragionare, `/v1/models` pubblicizza anche una variante **senza ragionamento** il cui ID ha come prefisso `claude-3-omniroute-no-thinking/`:
+Per i modelli Claude capaci di ragionamento, `/v1/models` presenta anche una variante **senza ragionamento** il cui ID ha il prefisso `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-La selezione di questo ID (ad es. in una configurazione di Claude Code che include sempre un blocco `thinking`) viene ricondotta al vero `<provider>/<model>` con il ragionamento disattivato — `thinking:{type:"disabled"}` nel percorso `/v1/messages`, oppure con i campi `reasoning`/`reasoning_effort` rimossi nel percorso `/v1/chat/completions`. La variante è elencata solo per i modelli della famiglia Claude che supportano il ragionamento **e** rispettano `disabled` (pertanto, ad esempio, sono esclusi i modelli esclusivamente adattivi che rifiutano `disabled`). Gli operatori possono abilitare o disabilitare forzatamente la variante per ciascun modello tramite `ModelSpec.noThinkingAlias`.
+La selezione di questo ID (ad es. in una configurazione di Claude Code che aggiunge sempre un blocco `thinking`) viene risolta nuovamente nel vero `<provider>/<model>` con il ragionamento disabilitato — `thinking:{type:"disabled"}` nel percorso `/v1/messages`, oppure con i campi `reasoning`/`reasoning_effort` rimossi nel percorso `/v1/chat/completions`. La variante viene elencata soltanto per i modelli della famiglia Claude che supportano il ragionamento **e** rispettano `disabled` (pertanto, ad es., i modelli esclusivamente adattivi che rifiutano `disabled` vengono esclusi). Gli operatori possono forzare l'attivazione o la disattivazione della variante per ogni modello tramite `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -718,8 +718,7 @@ completamento.
 
 ## Utilizzo self-service (`/api/usage/om-usage`)
 
-Qualsiasi chiave API può leggere **il proprio** utilizzo e le proprie quote, senza autenticazione di gestione. Questo è l'endpoint usato da un
-client (CLI, il pannello OmniCopilot) per mostrare al titolare di una chiave la propria spesa.
+Qualsiasi chiave API può leggere **il proprio** utilizzo e le proprie quote, senza autenticazione di gestione. Questo è l'endpoint utilizzato da un client (CLI, il pannello OmniCopilot) per mostrare al titolare di una chiave la propria spesa.
 
 ```bash
 # Formato testuale (il contratto storico: testo semplice per un terminale)
@@ -731,11 +730,9 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-La chiave deve avere **`allowUsageCommand`** abilitato (disabilitato per impostazione predefinita: il gestore delle chiavi API
-della dashboard lo attiva o disattiva per ogni chiave). Senza questa opzione, l'endpoint risponde con `403`.
+La chiave deve avere **`allowUsageCommand`** abilitato (disabilitato per impostazione predefinita: il gestore delle chiavi API della dashboard lo attiva o disattiva per ogni chiave). In caso contrario, l'endpoint risponde con `403`.
 
-`?format=json` restituisce una struttura discriminata, in modo che il chiamante non legga mai un campo dati da una
-risposta di rifiuto. In caso di successo:
+`?format=json` restituisce una struttura discriminata, in modo che il chiamante non legga mai un campo dati da una risposta di rifiuto. In caso di successo:
 
 ```jsonc
 {
@@ -749,14 +746,14 @@ risposta di rifiuto. In caso di successo:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // l'istantanea della quota del provider selezionato oppure null quando non è ancora presente nulla nella cache:
+  // l'istantanea della quota del provider selezionato, oppure null quando non è ancora presente nulla nella cache:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // le istantanee di tutte le connessioni, affinché un'interfaccia utente possa mostrare più provider affiancati:
+  // l'istantanea di ogni connessione, affinché un'interfaccia utente possa visualizzare più provider affiancati:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -764,13 +761,49 @@ risposta di rifiuto. In caso di successo:
 }
 ```
 
-In caso di rifiuto (`401` chiave non valida / `403` operazione non consentita), la stessa route restituisce
-`{ "allowed": false, "error": { "message": "…" } }`: un campo `personal`/`provider` presente ma vuoto
-(chiave consentita, ma nessun dato ancora acquisito) rappresenta uno stato diverso da un rifiuto, e solo il formato JSON
-consente di distinguerli.
+In caso di rifiuto (`401` chiave non valida / `403` operazione non consentita), la stessa route restituisce `{ "allowed": false, "error": { "message": "…" } }`: un campo `personal`/`provider` presente ma vuoto (chiave autorizzata, nessun dato ancora acquisito) rappresenta uno stato diverso da un rifiuto, e solo il formato JSON consente di distinguerli.
 
-**Autenticazione:** la chiave API Bearer del chiamante, convalidata tramite `isValidApiKey`: questa _non_ è
-l'interfaccia di gestione (`/api/keys/…`), che rimane protetta da `requireManagementAuth`.
+**Autenticazione:** la chiave API Bearer del chiamante, convalidata tramite `isValidApiKey`: questa _non_ è l'interfaccia di gestione (`/api/keys/…`), che rimane protetta da `requireManagementAuth`.
+
+### Percentuali delle quote grezze e corrette in base alla soglia di interruzione
+
+Quando utilizzano `/api/usage/om-usage`, i chiamanti devono tenere presente la differenza tra le percentuali presentate dall'**output in testo semplice** e quelle dell'**output JSON** strutturato:
+
+| Aspetto                   | Formato testo semplice (`/api/usage/om-usage` / `@@om-usage`)                                        | Formato JSON (`?format=json`)                                                                 |
+| :------------------------ | :--------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------- |
+| **Campo di output**       | `NN% left` (ad esempio, `20% left`)                                                                  | `provider.quotas` / `providers[].quotas`                                                      |
+| **Misurazione**           | **Disponibilità utilizzabile corretta in base alla soglia**: capacità rimanente oltre la soglia      | **Quota upstream grezza**: misurazione non corretta del provider                              |
+| **Ridimensionamento**     | Ridimensionata tramite `effectiveRemainingPercent()`, affinché la riserva protetta risulti `0% left` | Nessuno (valori grezzi dell'istantanea così come riportati dal provider)                      |
+| **Dati della soglia**     | Incorporati nella percentuale visualizzata                                                           | Memorizzati in `quotaWindowThresholds` per connessione (o valori predefiniti del server)      |
+| **Utilizzatore primario** | CLI interattive, prompt del terminale, operatori umani                                               | Integrazioni programmatiche, dashboard, analisi, strumenti di monitoraggio della fatturazione |
+
+#### Formula di correzione in base alla soglia di interruzione
+
+OmniRoute supporta soglie preventive di interruzione delle quote per evitare l'esaurimento delle risorse upstream, configurate tramite `quotaWindowThresholds` della connessione, valori predefiniti del provider o impostazioni globali di resilienza. Quando una soglia di interruzione (ad esempio, `cutoff = 25%`) è attiva per una finestra di quota, il renderer testuale calcola la disponibilità rimanente nel modo seguente:
+
+- Se `remaining <= cutoff`: restituisce `0%`.
+- Se `remaining > cutoff`: restituisce `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+L'output testuale formattato arrotonda il risultato all'intero più vicino (`Math.round(...)`).
+
+#### Esempio illustrativo
+
+Si consideri una finestra del provider con **60% di utilizzo grezzo** (quindi **40% di quota grezza rimanente**) e una soglia di interruzione configurata al **25% della quota rimanente**:
+
+| Rappresentazione                 | Calcolo                                            | Rimanente |           Utilizzo implicito           |
+| :------------------------------- | :------------------------------------------------- | :-------: | :------------------------------------: |
+| **JSON grezzo (`?format=json`)** | Istantanea upstream (`quotas[window]`)             |  **40%**  |                **60%**                 |
+| **Formato testo (`NN% left`)**   | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**  | **80%** (calcolando `100 - remaining`) |
+
+- **Perché il testo mostra 20% rimanente:** del 40% di quota fisica rimanente sull'account, il 25% è riservato dalla politica della soglia di interruzione. Al chiamante rimane solo il 15% sui 75% di margine utilizzabile prima che il router interrompa l'instradamento verso questa connessione. Il ridimensionamento garantisce che la connessione segnali l'esaurimento (`0% left`) esattamente quando l'instradamento verrà interrotto.
+- **Perché il JSON conserva i valori grezzi:** il payload JSON restituisce l'istantanea esatta del provider (`UsageSnapshot`), in modo che gli strumenti esterni abbiano accesso all'effettivo utilizzo upstream e ai `quotaWindowThresholds` a livello di connessione, senza un ridimensionamento con perdita di informazioni lato server.
+
+#### Indicazioni per la migrazione dei client
+
+Se un'integrazione esterna, come un plugin per editor o un'estensione per agenti, in precedenza effettuava lo scraping dell'endpoint testuale (`NN% left`) e calcolava la percentuale utilizzata come `100 - NN`, la migrazione a `?format=json` comporta quanto segue:
+
+- La lettura dei valori JSON grezzi rifletterà il **consumo upstream effettivo** (60% utilizzato nell'esempio precedente).
+- Se l'integrazione desidera preservare la semantica della disponibilità utilizzabile dell'endpoint testuale, può valutare lato client la formula della percentuale rimanente effettiva utilizzando `quotaWindowThresholds` per le sostituzioni a livello di connessione.
 
 ---
 

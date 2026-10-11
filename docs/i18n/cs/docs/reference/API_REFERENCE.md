@@ -405,45 +405,53 @@ jinak je projekt odvozen z `project_id` v JSON Service Account a jako výchozí 
 
 ---
 
-## Výpis modelů
+## Seznam modelů
 
 ```bash
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Vrátí všechny chatovací, embeddingové a obrazové modely + kombinace ve formátu OpenAI
+→ Vrátí všechny chatovací, embeddingové a obrázkové modely + kombinace ve formátu OpenAI
 ```
 
 ### Prefixy ID modelů (`?prefix=`)
 
-Většina modelů je zveřejňována pod **prefixem poskytovatele**. Použitý prefix je řízen
-příznakem funkce `MODELS_CATALOG_PREFIX_MODE` a lze jej přepsat **pro každý požadavek** pomocí
-parametru dotazu — což je užitečné pro klienta, který chce přehledný seznam, aniž by měnil
-nastavení serveru pro všechny ostatní:
+Většina modelů je zveřejňována pod **prefixem poskytovatele**. To, který prefix získáte, určuje
+příznak funkce `MODELS_CATALOG_PREFIX_MODE` a lze jej přepsat **pro jednotlivé požadavky** pomocí
+parametru dotazu — což je užitečné pro klienta, který chce přehledný seznam bez změny nastavení
+celého serveru pro všechny ostatní:
 
 ```bash
-GET /v1/models?prefix=alias        # jedno ID na model — krátký alias prefixu
+GET /v1/models?prefix=alias        # jedno ID na model — krátký aliasový prefix
 GET /v1/models?prefix=dual         # obě podoby (výchozí nastavení serveru)
 GET /v1/models?prefix=canonical    # pouze úplný prefix ID poskytovatele
 ```
 
-| Režim       | Vrací                                                   | Poznámky                                                                                                                                                                                                   |
-| ----------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **a** `claude/claude-sonnet-4-6` | **Výchozí.** Obě ID směrují na stejný model; tato možnost je zachována, aby nadále fungovaly konfigurace klientů, které napevno používají jednu z těchto podob. Přibližně zdvojnásobuje velikost katalogu. |
-| `alias`     | `cc/claude-sonnet-4-6`                                  | Jedna položka na model. Poskytovatelé bez samostatného aliasu svou položku přesto vracejí, takže se nic neztratí.                                                                                          |
-| `canonical` | `claude/claude-sonnet-4-6`                              | Jedna položka na model pod úplným prefixem ID poskytovatele. Poskytovatelé bez samostatného aliasu (např. `antigravity/…`, `agy/…`) zde také vracejí své jediné ID, takže se nic neztratí.                 |
+| Režim       | Vypisuje                                                | Poznámky                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **a** `claude/claude-sonnet-4-6` | **Výchozí.** Obě ID směrují na stejný model; zachováno proto, aby nadále fungovaly konfigurace klientů, které napevno používají jednu či druhou podobu. Přibližně zdvojnásobuje katalog. |
+| `alias`     | `cc/claude-sonnet-4-6`                                  | Jedna položka na model. Poskytovatelé bez odlišného aliasu svou položku stále vypisují, takže se nic neztratí.                                                                           |
+| `canonical` | `claude/claude-sonnet-4-6`                              | Jedna položka na model pod úplným prefixem ID poskytovatele. Poskytovatelé bez odlišného aliasu (např. `antigravity/…`, `agy/…`) zde také vypisují své jediné ID, takže se nic neztratí. |
 
-Zrcadlenou položku v režimu `dual` lze rozpoznat také bez parametru dotazu: obsahuje pole `parent`
+Zrcadlovou položku v režimu `dual` lze rozpoznat i bez parametru dotazu: obsahuje pole `parent`
 odkazující na primární ID.
 
-Klienti zobrazující výběr modelu by měli používat `?prefix=alias` — takto postupuje
+Klienti, kteří vykreslují výběr modelu, by měli požadovat `?prefix=alias` — takto postupuje
 [rozšíření OmniCopilot pro VS Code](../guides/VSCODE-COPILOT.md).
 
-### Individuálně skryté chatovací modely
+### Jednotlivě skryté chatovací modely
 
-Model označený na stránce svého poskytovatele jako **Skrytý** je vyřazen z katalogu a při explicitním požadavku odmítnut s HTTP `404` / `model_not_found`. Kontrola používá výsledného poskytovatele a model po vyhodnocení aliasů poskytovatele, prefixů uzlů kompatibilních poskytovatelů a výchozích hodnot připojení. Combo přeskočí skryté cíle a může použít jiný viditelný cíl; pokud nezůstane žádný spustitelný cíl, vrátí stejný chybový kód. Opětovné zobrazení se projeví od následujícího požadavku. Přepsání viditelnosti pouze pro obrázky neskryje chatovací model se stejným ID.
+Model označený na stránce svého poskytovatele jako **Skrytý** je vyloučen z katalogu a při
+explicitním požadavku odmítnut pomocí HTTP `404` / `model_not_found`. Kontrola používá přeloženého
+poskytovatele a model, včetně aliasů poskytovatelů, prefixů uzlů kompatibilních poskytovatelů a
+výchozích hodnot připojení. Kombinace přeskočí skryté cíle a může použít viditelný související model;
+pokud nezůstane žádný spustitelný cíl, vrátí stejný chybový kód. Zrušení skrytí se projeví při dalším
+požadavku. Přepsání viditelnosti pouze pro obrázky neskryje chatovací model se stejným ID.
 
-Toto nastavení jednotlivého modelu je oddělené od [seznamů povolených a zakázaných modelů pro zveřejnění](../routing/MODEL_EXPOSURE_LIST.md), které filtrují nabídku katalogu a kandidáty automatického směrování, ale zachovávají explicitní odesílání. Oprávnění k modelům daná klíčem API se nadále uplatňují nezávisle. Výchozí režim prefixů katalogu zůstává `dual`.
+Toto individuální nastavení modelu je oddělené od
+[seznamů povolených/zakázaných zveřejněných modelů](../routing/MODEL_EXPOSURE_LIST.md), které filtrují
+zveřejňování v katalogu a kandidáty pro automatické směrování, přičemž zachovávají explicitní odesílání.
+Oprávnění modelů pro klíče API se nadále uplatňují nezávisle. Výchozí režim prefixu katalogu zůstává `dual`.
 
 ### Varianty modelů bez přemýšlení
 
@@ -453,7 +461,7 @@ Pro modely Claude podporující přemýšlení zveřejňuje `/v1/models` také v
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Výběr tohoto ID (např. v konfiguraci Claude Code, která vždy připojuje blok `thinking`) se přeloží zpět na skutečný model `<provider>/<model>` s potlačeným uvažováním — pomocí `thinking:{type:"disabled"}` na cestě `/v1/messages`, nebo odstraněním polí `reasoning`/`reasoning_effort` na cestě `/v1/chat/completions`. Tato varianta je uvedena pouze pro modely rodiny Claude, které podporují přemýšlení **a zároveň** respektují hodnotu `disabled` (takže jsou například vyloučeny modely podporující pouze adaptivní režim, které hodnotu `disabled` odmítají). Provozovatelé mohou tuto variantu pro jednotlivé modely vynutit nebo zakázat prostřednictvím `ModelSpec.noThinkingAlias`.
+Výběr tohoto ID (např. v konfiguraci Claude Code, která vždy připojuje blok `thinking`) se přeloží zpět na skutečný model `<provider>/<model>` s potlačeným uvažováním — `thinking:{type:"disabled"}` na cestě `/v1/messages`, nebo s vynechanými poli `reasoning`/`reasoning_effort` na cestě `/v1/chat/completions`. Varianta je uvedena pouze pro modely rodiny Claude, které podporují přemýšlení **a** respektují hodnotu `disabled` (takže jsou například vyloučeny modely pouze s adaptivním režimem, které hodnotu `disabled` odmítají). Operátoři mohou tuto variantu pro jednotlivé modely vynutit nebo zakázat prostřednictvím `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -739,9 +747,9 @@ dokončení.
 
 ---
 
-## Samoobslužné zobrazení využití (`/api/usage/om-usage`)
+## Samoobslužné využití (`/api/usage/om-usage`)
 
-Libovolný API klíč může načíst **své vlastní** využití a kvóty — bez ověření pro správu. Toto je koncový bod, který
+Libovolný API klíč může číst **své vlastní** využití a kvóty — bez ověřování pro správu. Toto je koncový bod, který
 klient (CLI, panel OmniCopilot) používá k zobrazení útraty držitele klíče.
 
 ```bash
@@ -749,7 +757,7 @@ klient (CLI, panel OmniCopilot) používá k zobrazení útraty držitele klíč
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Strukturovaná podoba — používá ji uživatelské rozhraní
+# Strukturovaná podoba — tu používá uživatelské rozhraní
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
@@ -757,13 +765,13 @@ curl -H "Authorization: Bearer <your-api-key>" \
 Klíč musí mít povolenou možnost **`allowUsageCommand`** (ve výchozím nastavení je vypnutá — správce API klíčů
 na řídicím panelu ji přepíná pro každý klíč zvlášť). Bez ní koncový bod odpoví stavem `403`.
 
-`?format=json` vrací rozlišitelnou strukturu, takže volající nikdy nečte datové pole z odpovědi
-o zamítnutí. Při úspěchu:
+`?format=json` vrací rozlišitelnou strukturu, takže volající nikdy nečte datové pole z
+odpovědi o zamítnutí. Při úspěchu:
 
 ```jsonc
 {
   "allowed": true,
-  // přítomno pouze tehdy, když má klíč aktivované limity využití pro jednotlivý klíč (denní/týdenní v USD):
+  // přítomno pouze tehdy, když má klíč aktivované limity využití pro daný klíč (denní/týdenní v USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -787,13 +795,64 @@ o zamítnutí. Při úspěchu:
 }
 ```
 
-Při zamítnutí (`401` neplatný klíč / `403` nepovoleno) stejná trasa vrátí
-`{ "allowed": false, "error": { "message": "…" } }` — přítomné, ale prázdné `personal`/`provider`
+Při zamítnutí (`401` neplatný klíč / `403` přístup nepovolen) stejná trasa vrátí
+`{ "allowed": false, "error": { "message": "…" } }` — přítomná, ale prázdná hodnota `personal`/`provider`
 (klíč je povolen, ale zatím nebyla získána žádná data) představuje jiný stav než zamítnutí a rozlišuje je
 pouze podoba JSON.
 
-**Ověření:** vlastní Bearer API klíč volajícího, ověřený pomocí `isValidApiKey` — toto _není_
-rozhraní pro správu (`/api/keys/…`), které zůstává chráněné pomocí `requireManagementAuth`.
+**Ověření:** vlastní Bearer API klíč volajícího, ověřený pomocí `isValidApiKey` — _nejde_ o
+rozhraní pro správu (`/api/keys/…`), které nadále zůstává chráněné pomocí `requireManagementAuth`.
+
+### Neupravená procenta kvót vs. procenta upravená podle mezní hodnoty
+
+Při používání `/api/usage/om-usage` by volající měli vzít na vědomí rozdíl mezi
+procenty zobrazovanými ve **výstupu v prostém textu** a ve strukturovaném **výstupu JSON**:
+
+| Aspekt                      | Formát prostého textu (`/api/usage/om-usage` / `@@om-usage`)                                       | Formát JSON (`?format=json`)                                                                |
+| :-------------------------- | :------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------ |
+| **Výstupní pole**           | `NN% left` (např. `20% left`)                                                                      | `provider.quotas` / `providers[].quotas`                                                    |
+| **Měření**                  | **Použitelný příděl upravený podle mezní hodnoty**: zbývající kapacita nad mezní hodnotou          | **Neupravená kvóta upstreamu**: neupravená hodnota naměřená poskytovatelem                  |
+| **Škálování mezní hodnoty** | Škálováno pomocí `effectiveRemainingPercent()`, takže chráněná rezerva se zobrazuje jako `0% left` | Žádné (neupravené hodnoty snímku, jak je oznámil poskytovatel)                              |
+| **Data mezní hodnoty**      | Zahrnuta do zobrazeného procenta                                                                   | Uložena v `quotaWindowThresholds` pro každé připojení (nebo ve výchozích hodnotách serveru) |
+| **Hlavní příjemce**         | Interaktivní CLI, terminálové výzvy, lidští operátoři                                              | Programové integrace, řídicí panely, analytika, nástroje pro sledování účtování             |
+
+#### Vzorec úpravy podle mezní hodnoty
+
+OmniRoute podporuje proaktivní mezní hodnoty kvót, aby zabránil vyčerpání upstreamu (konfigurované pomocí
+`quotaWindowThresholds` připojení, výchozích hodnot poskytovatele nebo globálních nastavení odolnosti). Když je v okně kvóty aktivní mezní hodnota
+(např. `cutoff = 25%`), textový renderer vypočítá zbývající příděl takto:
+
+- Pokud `remaining <= cutoff`: vrátí `0%`.
+- Pokud `remaining > cutoff`: vrátí `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Formátovaný textový výstup tuto hodnotu zaokrouhlí na nejbližší celé číslo (`Math.round(...)`).
+
+#### Ilustrační příklad
+
+Uvažujme okno poskytovatele s **60% neupraveným využitím** (tedy **40% neupravenou zbývající kvótou**) a nakonfigurovanou
+**25% mezní hodnotou zbývající kvóty**:
+
+| Reprezentace                         | Výpočet                                            |  Zbývá  |            Odvozené využití             |
+| :----------------------------------- | :------------------------------------------------- | :-----: | :-------------------------------------: |
+| **Neupravený JSON (`?format=json`)** | Snímek upstreamu (`quotas[window]`)                | **40%** |                 **60%**                 |
+| **Textový formát (`NN% left`)**      | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` | **20%** | **80%** (při výpočtu `100 - remaining`) |
+
+- **Proč text zobrazuje 20 % zbývající kapacity:** Z 40 % fyzické kvóty, která na účtu zbývá, je 25 % rezervováno
+  zásadou mezní hodnoty. Volajícímu zbývá pouze 15 % ze 75 % použitelné rezervy, než směrovač přestane
+  směrovat na toto připojení. Škálování zajišťuje, že připojení signalizuje vyčerpání (`0% left`) přesně ve chvíli,
+  kdy bude směrování ukončeno.
+- **Proč JSON zachovává neupravené hodnoty:** Datová část JSON vrací přesný snímek poskytovatele (`UsageSnapshot`),
+  takže externí nástroje mají přístup ke skutečnému využití upstreamu a hodnotám
+  `quotaWindowThresholds` na úrovni připojení bez ztrátového škálování na straně serveru.
+
+#### Pokyny k migraci příjemců
+
+Pokud externí integrace (například zásuvný modul editoru nebo rozšíření agenta) dříve získávala data parsováním textového
+koncového bodu (`NN% left`) a počítala procento využití jako `100 - NN`, migrace na `?format=json` znamená:
+
+- Čtení neupravených hodnot JSON bude odrážet **skutečnou spotřebu upstreamu** (v příkladu výše je využito 60 %).
+- Pokud chce integrace zachovat sémantiku použitelného přídělu textového koncového bodu, může vzorec efektivní zbývající kapacity
+  vyhodnotit na straně klienta s použitím `quotaWindowThresholds` pro přepsání hodnot na úrovni připojení.
 
 ---
 

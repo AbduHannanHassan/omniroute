@@ -420,11 +420,11 @@ Authorization: Bearer your-api-key
 → Returnerar alla chatt-, inbäddnings- och bildmodeller samt kombinationer i OpenAI-format
 ```
 
-### Prefix för modell-id:n (`?prefix=`)
+### Prefix för modell-id (`?prefix=`)
 
-De flesta modeller presenteras under ett **leverantörsprefix**. Vilket prefix du får styrs av funktionsflaggan
-`MODELS_CATALOG_PREFIX_MODE` och kan åsidosättas **per begäran** med en
-frågeparameter – praktiskt för en klient som vill ha en ren lista utan att ändra den serverövergripande
+De flesta modeller exponeras under ett **leverantörsprefix**. Vilket prefix du får styrs av
+funktionsflaggan `MODELS_CATALOG_PREFIX_MODE` och kan åsidosättas **för varje enskild begäran** med en
+frågeparameter – användbart för en klient som vill ha en ren lista utan att ändra den serverövergripande
 inställningen för alla andra:
 
 ```bash
@@ -435,7 +435,7 @@ GET /v1/models?prefix=canonical    # endast det fullständiga leverantörs-id-pr
 
 | Läge        | Returnerar                                                | Anmärkningar                                                                                                                                                                                     |
 | ----------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dual`      | `cc/claude-sonnet-4-6` **och** `claude/claude-sonnet-4-6` | **Standard.** Båda id:n dirigeras till samma modell. Detta behålls så att klientkonfigurationer som hårdkodat någon av formerna fortsätter att fungera. Katalogen blir ungefär dubbelt så stor.  |
+| `dual`      | `cc/claude-sonnet-4-6` **och** `claude/claude-sonnet-4-6` | **Standard.** Båda id:na dirigeras till samma modell; detta behålls så att klientkonfigurationer som hårdkodat någon av formerna fortsätter att fungera. Katalogens storlek fördubblas ungefär.  |
 | `alias`     | `cc/claude-sonnet-4-6`                                    | En post per modell. Leverantörer utan ett separat alias returnerar fortfarande sin post, så inget går förlorat.                                                                                  |
 | `canonical` | `claude/claude-sonnet-4-6`                                | En post per modell under det fullständiga leverantörs-id-prefixet. Leverantörer utan ett separat alias (t.ex. `antigravity/…`, `agy/…`) returnerar även här sitt enda id, så inget går förlorat. |
 
@@ -447,19 +447,27 @@ Klienter som visar en modellväljare bör begära `?prefix=alias` – det är va
 
 ### Individuellt dolda chattmodeller
 
-En modell som markeras som **Dold** på leverantörens sida utesluts ur katalogen och avvisas med HTTP `404` / `model_not_found` när den begärs uttryckligen. Kontrollen använder den identifierade leverantören och modellen och tar hänsyn till leverantörsalias, prefix för kompatibla leverantörsnoder och anslutningens standardvärden. En combo hoppar över dolda mål och kan använda ett annat synligt mål; om inget körbart mål återstår returneras samma felkod. Att visa modellen igen får effekt från nästa begäran. Åsidosättningar av synlighet som endast gäller bilder döljer inte chattmodellen med samma ID.
+En modell som är markerad som **Dold** på sin leverantörssida undantas från katalogen och avvisas
+med HTTP `404` / `model_not_found` när den begärs uttryckligen. Kontrollen använder den matchade
+leverantören och modellen, inklusive leverantörsalias, nodprefix för kompatibla leverantörer och
+standardvärden för anslutningen. En kombination hoppar över dolda mål och kan använda ett synligt syskon; när inget
+körbart mål återstår returnerar den samma felkod. Att göra modellen synlig igen träder i kraft vid nästa
+begäran. Synlighetsåsidosättningar som endast gäller bilder döljer inte chattmodellen med samma ID.
 
-Denna inställning för enskilda modeller är separat från [tillåtelse- och blockeringslistorna för modellexponering](../routing/MODEL_EXPOSURE_LIST.md), som filtrerar katalogens utbud och kandidater för automatisk routning men behåller uttrycklig sändning. API-nyckelns modellbehörigheter fortsätter att gälla oberoende. Katalogens standardläge för prefix är fortfarande `dual`.
+Den här individuella modellinställningen är separat från
+[tillåt-/blockeringslistorna för modellexponering](../routing/MODEL_EXPOSURE_LIST.md), som filtrerar vilka modeller som
+annonseras i katalogen och är kandidater för automatisk dirigering, samtidigt som uttrycklig dirigering behålls. Modellbehörigheter
+för API-nycklar fortsätter att gälla oberoende. Standardläget för katalogprefix förblir `dual`.
 
 ### Modellvarianter utan tänkande
 
-För Claude-modeller med stöd för tänkande presenterar `/v1/models` även en variant **utan tänkande**, vars id har prefixet `claude-3-omniroute-no-thinking/`:
+För Claude-modeller med stöd för tänkande annonserar `/v1/models` även en variant **utan tänkande**, vars id har prefixet `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Om detta id väljs (t.ex. i en Claude Code-konfiguration som alltid bifogar ett `thinking`-block) matchas det tillbaka till den verkliga modellen `<provider>/<model>` med resonemang inaktiverat – `thinking:{type:"disabled"}` för sökvägen `/v1/messages`, eller med fälten `reasoning`/`reasoning_effort` borttagna för sökvägen `/v1/chat/completions`. Varianten listas endast för modeller i Claude-familjen som stöder tänkande **och** respekterar `disabled` (så t.ex. modeller som endast stöder adaptivt läge och avvisar `disabled` undantas). Operatörer kan tvinga varianten att vara aktiverad eller inaktiverad per modell via `ModelSpec.noThinkingAlias`.
+När detta id väljs (t.ex. i en Claude Code-konfiguration som alltid bifogar ett `thinking`-block) matchas det tillbaka till den verkliga `<provider>/<model>` med resonemang inaktiverat – `thinking:{type:"disabled"}` för sökvägen `/v1/messages`, eller med fälten `reasoning`/`reasoning_effort` borttagna för sökvägen `/v1/chat/completions`. Varianten listas endast för modeller i Claude-familjen som stöder tänkande **och** respekterar `disabled` (så exempelvis modeller som endast stöder adaptivt läge och avvisar `disabled` undantas). Operatörer kan tvinga varianten att vara på eller av för varje modell via `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -742,13 +750,13 @@ slutförandet.
 
 ---
 
-## Användning med självbetjäning (`/api/usage/om-usage`)
+## Självbetjäningsanvändning (`/api/usage/om-usage`)
 
-Alla API-nycklar kan läsa **sin egen** användning och sina egna kvoter — ingen administratörsautentisering krävs. Detta är den ändpunkt som en
-klient (CLI, OmniCopilot-panelen) använder för att visa en nyckelinnehavare dennes kostnader.
+Alla API-nycklar kan läsa **sin egen** användning och sina kvoter — ingen hanteringsautentisering krävs. Det här är slutpunkten som en
+klient (CLI, OmniCopilot-panelen) använder för att visa nyckelinnehavaren dennes kostnader.
 
 ```bash
-# Textformat (det historiska kontraktet — oformaterad text för en terminal)
+# Textformat (det historiska kontraktet — vanlig text för en terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
@@ -757,15 +765,16 @@ curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Nyckeln måste ha **`allowUsageCommand`** aktiverat (inaktiverat som standard — kontrollpanelens hanterare för API-nycklar växlar detta per nyckel). Utan det svarar ändpunkten med `403`.
+Nyckeln måste ha **`allowUsageCommand`** aktiverat (inaktiverat som standard — kontrollpanelens hanterare för API-nycklar
+växlar detta per nyckel). Utan det svarar slutpunkten med `403`.
 
 `?format=json` returnerar en diskriminerad struktur så att en anropare aldrig läser ett datafält från ett
-avslag. Vid lyckat anrop:
+avslag. Vid framgång:
 
 ```jsonc
 {
   "allowed": true,
-  // finns endast när nyckeln har valt användningsgränser per nyckel (USD per dag/vecka):
+  // finns endast när nyckeln har valt att använda användningsgränser per nyckel (dagligen/veckovis i USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -774,14 +783,14 @@ avslag. Vid lyckat anrop:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // ögonblicksbilden av den valda leverantörskvoten, eller null när inget har cachelagrats ännu:
+  // ögonblicksbilden av kvoten för den valda leverantören, eller null när inget ännu har cachelagrats:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // ögonblicksbilder för alla anslutningar, så att ett användargränssnitt kan visa flera leverantörer sida vid sida:
+  // ögonblicksbilden för varje anslutning, så att ett användargränssnitt kan visa flera leverantörer sida vid sida:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -791,11 +800,62 @@ avslag. Vid lyckat anrop:
 
 Vid avslag (`401` felaktig nyckel / `403` inte tillåtet) returnerar samma rutt
 `{ "allowed": false, "error": { "message": "…" } }` — ett befintligt men tomt `personal`/`provider`
-(nyckeln är tillåten, men inget har hämtats ännu) är ett annat tillstånd än ett avslag, och endast JSON-formatet
+(nyckeln är tillåten, men inget har ännu hämtats) är ett annat tillstånd än ett avslag, och endast JSON-formatet
 skiljer dem åt.
 
-**Autentisering:** anroparens egen Bearer-API-nyckel, validerad med `isValidApiKey` — detta är _inte_
-administrationsgränssnittet (`/api/keys/…`), som förblir skyddat av `requireManagementAuth`.
+**Autentisering:** anroparens egen Bearer API-nyckel, validerad med `isValidApiKey` — detta är _inte_
+hanteringsgränssnittet (`/api/keys/…`), som fortfarande skyddas av `requireManagementAuth`.
+
+### Råa kontra brytgränsjusterade kvotprocent
+
+Vid användning av `/api/usage/om-usage` bör anropare observera skillnaden mellan de
+procentvärden som visas i **klartextutdata** och strukturerade **JSON-utdata**:
+
+| Aspekt                | Klartextformat (`/api/usage/om-usage` / `@@om-usage`)                                     | JSON-format (`?format=json`)                                                 |
+| :-------------------- | :---------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------- |
+| **Utdatafält**        | `NN% left` (t.ex. `20% left`)                                                             | `provider.quotas` / `providers[].quotas`                                     |
+| **Mätning**           | **Brytgränsjusterat användbart utrymme**: återstående kapacitet över brytgränsen          | **Rå uppströmskvot**: ojusterat mätvärde från leverantören                   |
+| **Brytgränsskalning** | Skalas via `effectiveRemainingPercent()` så att den skyddade reserven visas som `0% left` | Ingen (råa ögonblicksbildsvärden som rapporterats av leverantören)           |
+| **Tröskeldata**       | Ingår i det visade procentvärdet                                                          | Lagras i `quotaWindowThresholds` per anslutning (eller serverstandardvärden) |
+| **Primär konsument**  | Interaktiva CLI-verktyg, terminalprompter, mänskliga operatörer                           | Programmatiska integrationer, kontrollpaneler, analys, kostnadsspårare       |
+
+#### Formeln för brytgränsjustering
+
+OmniRoute stöder proaktiva kvotgränser för att förhindra att uppströmsresurser tar slut (konfigurerat via anslutningens
+`quotaWindowThresholds`, leverantörens standardvärden eller globala inställningar för motståndskraft). När en brytgräns
+(t.ex. `cutoff = 25%`) är aktiv för ett kvotfönster beräknar textrenderaren återstående utrymme så här:
+
+- Om `remaining <= cutoff`: returnerar `0%`.
+- Om `remaining > cutoff`: returnerar `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Den formaterade textutdatan avrundar detta till närmaste heltal (`Math.round(...)`).
+
+#### Illustrativt exempel
+
+Anta ett leverantörsfönster med **60 % rå användning** (och därmed **40 % rå återstående kvot**) och en konfigurerad
+brytgräns på **25 % återstående kvot**:
+
+| Representation               | Beräkning                                          | Återstående |               Underförstått använt               |
+| :--------------------------- | :------------------------------------------------- | :---------: | :----------------------------------------------: |
+| **Rå JSON (`?format=json`)** | Uppströmsögonblicksbild (`quotas[window]`)         |  **40 %**   |                     **60 %**                     |
+| **Textformat (`NN% left`)**  | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20 %**   | **80 %** (om det beräknas som `100 - remaining`) |
+
+- **Varför texten visar 20 % kvar:** Av de 40 % av den fysiska kvoten som återstår på kontot reserveras 25 % av
+  brytgränspolicyn. Anroparen har endast 15 % av 75 % användbart utrymme kvar innan routern slutar
+  dirigera till denna anslutning. Skalningen säkerställer att anslutningen signalerar uttömning (`0% left`) exakt när
+  dirigeringen upphör.
+- **Varför JSON bevarar råvärden:** JSON-nyttolasten returnerar den exakta ögonblicksbilden från leverantören (`UsageSnapshot`)
+  så att externa verktyg får tillgång till den faktiska uppströmsanvändningen och anslutningsspecifika
+  `quotaWindowThresholds` utan informationsförlorande skalning på serversidan.
+
+#### Vägledning för migrering av konsumenter
+
+Om en extern integration (t.ex. ett redigeringsinsticksprogram eller agenttillägg) tidigare skrapade textslutpunkten
+(`NN% left`) och beräknade använd procent som `100 - NN`, innebär en migrering till `?format=json` följande:
+
+- Avläsning av råa JSON-värden återspeglar **den faktiska uppströmsförbrukningen** (60 % använt i exemplet ovan).
+- Om integrationen vill bevara textslutpunktens semantik för användbart utrymme kan den utvärdera
+  formeln för effektivt återstående utrymme på klientsidan med hjälp av `quotaWindowThresholds` för anslutningsspecifika åsidosättningar.
 
 ---
 

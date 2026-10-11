@@ -375,49 +375,59 @@ zadano postavlja na `us-central1`. Oba razrješavanja se odvijaju u `open-sse/ha
 GET /v1/models
 Authorization: Bearer your-api-key
 
-→ Vraća sve chat, embedding i image modele + kombinacije u OpenAI formatu
+→ Vraća sve modele za razgovor, ugrađivanje i slike te kombinacije u OpenAI formatu
 ```
 
-### Prefiksi id-a modela (`?prefix=`)
+### Prefiksi ID-jeva modela (`?prefix=`)
 
-Većina modela se oglašava pod **prefiksom pružatelja usluge**. Koji prefiks ćete dobiti kontrolira
-oznaka funkcije `MODELS_CATALOG_PREFIX_MODE`, a može se nadjačati **po zahtjevu** s
-query parametrom — korisno za klijenta koji želi čist popis bez mijenjanja postavke na razini
-poslužitelja za sve ostale korisnike:
+Većina modela prikazuje se pod **prefiksom pružatelja**. Koji ćete prefiks dobiti određuje
+zastavica značajke `MODELS_CATALOG_PREFIX_MODE`, a može se nadjačati **za svaki zahtjev** s pomoću
+parametra upita — korisno za klijenta koji želi čist popis bez mijenjanja postavke na razini
+poslužitelja za sve ostale:
 
 ```bash
-GET /v1/models?prefix=alias        # jedan id po modelu — kratki alias prefiks
-GET /v1/models?prefix=dual         # oba oblika (zadano na poslužitelju)
-GET /v1/models?prefix=canonical    # samo prefiks s cijelim id-om pružatelja usluge
+GET /v1/models?prefix=alias        # jedan ID po modelu — kratki prefiks pseudonima
+GET /v1/models?prefix=dual         # oba oblika (zadana postavka poslužitelja)
+GET /v1/models?prefix=canonical    # samo puni prefiks ID-ja pružatelja
 ```
 
-| Način       | Emitira                                                 | Napomene                                                                                                                                                                                                        |
-| ----------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dual`      | `cc/claude-sonnet-4-6` **i** `claude/claude-sonnet-4-6` | **Zadano.** Oba id-a preusmjeravaju na isti model; zadržano kako bi konfiguracije klijenata koje su tvrdo kodirale bilo koji od oblika i dalje radile. Približno duplira katalog.                               |
-| `alias`     | `cc/claude-sonnet-4-6`                                  | Jedan unos po modelu. Pružatelji usluge bez zasebnog aliasa i dalje emitiraju svoj unos, tako da ništa nije izgubljeno.                                                                                         |
-| `canonical` | `claude/claude-sonnet-4-6`                              | Jedan unos po modelu pod prefiksom cijelog id-a pružatelja usluge. Pružatelji usluge bez zasebnog aliasa (npr. `antigravity/…`, `agy/…`) ovdje također emitiraju svoj jedini id, tako da ništa nije izgubljeno. |
+| Način       | Ispisuje                                                | Napomene                                                                                                                                                                                  |
+| ----------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dual`      | `cc/claude-sonnet-4-6` **i** `claude/claude-sonnet-4-6` | **Zadano.** Oba ID-ja usmjeravaju na isti model; zadržani su kako bi konfiguracije klijenata koje su izravno navele jedan od tih oblika nastavile raditi. Otprilike udvostručuje katalog. |
+| `alias`     | `cc/claude-sonnet-4-6`                                  | Jedan unos po modelu. Pružatelji bez zasebnog pseudonima i dalje prikazuju svoj unos, tako da se ništa ne gubi.                                                                           |
+| `canonical` | `claude/claude-sonnet-4-6`                              | Jedan unos po modelu pod punim prefiksom ID-ja pružatelja. Pružatelji bez zasebnog pseudonima (npr. `antigravity/…`, `agy/…`) i ovdje prikazuju svoj jedini ID, tako da se ništa ne gubi. |
 
-`dual`-mod zrcalo se također može prepoznati bez query parametra: sadrži polje `parent`
-koje pokazuje na primarni id.
+Zrcalni unos u načinu `dual` može se prepoznati i bez parametra upita: sadrži polje `parent`
+koje upućuje na primarni ID.
 
-Klijenti koji prikazuju birač modela trebaju zatražiti `?prefix=alias` — ovo je ono što
-[OmniCopilot VS Code ekstenzija](../guides/VSCODE-COPILOT.md) radi.
+Klijenti koji prikazuju birač modela trebali bi zatražiti `?prefix=alias` — to čini i
+[proširenje OmniCopilot za VS Code](../guides/VSCODE-COPILOT.md).
 
 ### Pojedinačno skriveni modeli za razgovor
 
-Model označen kao **Skriven** na stranici svojeg pružatelja uklanja se iz kataloga, a izričit zahtjev za njim odbija se uz HTTP `404` / `model_not_found`. Provjera upotrebljava razriješenog pružatelja i model, uzimajući u obzir pseudonime pružatelja, prefikse čvorova kompatibilnih pružatelja i zadane vrijednosti veze. Combo preskače skrivene ciljeve i može upotrijebiti drugi vidljivi cilj; ako ne preostane nijedan izvršiv cilj, vraća isti kôd pogreške. Ponovno prikazivanje vrijedi od sljedećeg zahtjeva. Nadjačavanja vidljivosti samo za slike ne skrivaju model za razgovor s istim ID-jem.
+Model označen kao **Skriven** na stranici svojeg pružatelja isključuje se iz kataloga, a kada se
+izričito zatraži, zahtjev se odbija HTTP statusom `404` / pogreškom `model_not_found`. Provjera
+upotrebljava razriješenog pružatelja i model, uključujući pseudonime pružatelja, prefikse čvorova
+kompatibilnih pružatelja i zadane postavke veze. Kombinacija preskače skrivene ciljeve i može
+upotrijebiti vidljivi srodni model; kada ne preostane nijedan izvršiv cilj, vraća isti kôd pogreške.
+Poništavanje skrivanja stupa na snagu pri sljedećem zahtjevu. Nadjačavanja vidljivosti samo za slike
+ne skrivaju model za razgovor s istim ID-jem.
 
-Ova pojedinačna postavka odvojena je od [popisa dopuštenog i zabranjenog izlaganja modela](../routing/MODEL_EXPOSURE_LIST.md), koji filtriraju ponudu kataloga i kandidate za automatsko usmjeravanje, a zadržavaju izričito slanje zahtjeva. Dopuštenja za modele API ključa i dalje se primjenjuju neovisno. Zadani način prefiksa kataloga ostaje `dual`.
+Ova postavka pojedinačnog modela odvojena je od
+[popisa dopuštenih/zabranjenih izlaganja modela](../routing/MODEL_EXPOSURE_LIST.md), koji filtriraju
+prikazivanje u katalogu i kandidate za automatsko usmjeravanje, uz zadržavanje izričitog slanja.
+Dopuštenja modela za API ključeve i dalje se primjenjuju neovisno. Zadani način prefiksa kataloga
+ostaje `dual`.
 
-### Varijante modela bez razmišljanja (no-thinking)
+### Varijante modela bez razmišljanja
 
-Za Claude modele koji su sposobni za razmišljanje, `/v1/models` također oglašava **no-thinking** varijantu čiji je id prefiksiran s `claude-3-omniroute-no-thinking/`:
+Za Claude modele koji podržavaju razmišljanje, `/v1/models` također prikazuje varijantu **bez razmišljanja** čiji ID ima prefiks `claude-3-omniroute-no-thinking/`:
 
 ```
 claude-3-omniroute-no-thinking/<provider>/<model>
 ```
 
-Odabir ovog id-a (npr. u Claude Code konfiguraciji koja uvijek prilaže `thinking` blok) razrješava se natrag na stvarni `<provider>/<model>` s ugušenim zaključivanjem (reasoning) — `thinking:{type:"disabled"}` na `/v1/messages` putanji, ili se polja `reasoning`/`reasoning_effort` izostavljaju na `/v1/chat/completions` putanji. Varijanta je navedena samo za modele iz Claude obitelji koji podržavaju razmišljanje **i** poštuju `disabled` (tako su npr. isključivo adaptivni modeli koji odbijaju `disabled` izuzeti). Operatori mogu prisilno uključiti ili isključiti varijantu po modelu putem `ModelSpec.noThinkingAlias`.
+Odabir ovog ID-ja (npr. u konfiguraciji Claude Codea koja uvijek dodaje blok `thinking`) razrješava se natrag na stvarni `<provider>/<model>` uz potisnuto zaključivanje — `thinking:{type:"disabled"}` na putanji `/v1/messages` ili uz uklonjena polja `reasoning`/`reasoning_effort` na putanji `/v1/chat/completions`. Varijanta se prikazuje samo za modele iz obitelji Claude koji podržavaju razmišljanje **i** poštuju vrijednost `disabled` (stoga su, primjerice, isključeni modeli koji podržavaju samo prilagodljivi način i odbijaju `disabled`). Operateri mogu prisilno uključiti ili isključiti varijantu za svaki model putem `ModelSpec.noThinkingAlias`.
 
 ---
 
@@ -702,31 +712,31 @@ dovršenje.
 
 ---
 
-## Samoposluživanje korištenja (`/api/usage/om-usage`)
+## Samostalna upotreba (`/api/usage/om-usage`)
 
-Svaki API ključ može pročitati **svoje vlastito** korištenje i kvote — nije potrebna administratorska autentifikacija. Ovo je krajnja točka koju
-klijent (CLI, OmniCopilot panel) koristi da vlasniku ključa prikaže njegovu potrošnju.
+Svaki API ključ može čitati **vlastitu** potrošnju i kvote — bez upravljačke autentifikacije. Ovo je krajnja točka koju
+klijent (CLI, ploča OmniCopilot) koristi kako bi vlasniku ključa prikazao njegovu potrošnju.
 
 ```bash
-# Tekstualni oblik (povijesni ugovor — čisti tekst za terminal)
+# Tekstualni oblik (povijesni ugovor — običan tekst za terminal)
 curl -H "Authorization: Bearer <your-api-key>" \
   http://localhost:20128/api/usage/om-usage
 
-# Strukturirani oblik — što koristi korisničko sučelje
+# Strukturirani oblik — ono što koristi korisničko sučelje
 curl -H "Authorization: Bearer <your-api-key>" \
   "http://localhost:20128/api/usage/om-usage?format=json"
 ```
 
-Ključ mora imati omogućen **`allowUsageCommand`** (podrazumijevano isključen — upravitelj API ključeva
-u nadzornoj ploči ga uključuje po ključu). Bez toga krajnja točka odgovara s `403`.
+Ključ mora imati omogućen **`allowUsageCommand`** (prema zadanim je postavkama isključen — upravitelj API ključeva
+na nadzornoj ploči uključuje ga zasebno za svaki ključ). Bez toga krajnja točka odgovara statusom `403`.
 
-`?format=json` vraća diskriminirani oblik tako da pozivatelj nikad ne čita podatkovno polje iz
-odbijenog odgovora. Kod uspjeha:
+`?format=json` vraća diskriminirani oblik kako pozivatelj nikada ne bi čitao podatkovno polje iz
+odbijenog zahtjeva. U slučaju uspjeha:
 
 ```jsonc
 {
   "allowed": true,
-  // prisutno samo kad se ključ prijavio za ograničenja korištenja po ključu (dnevno/tjedno u USD):
+  // prisutno samo kada je za ključ uključeno ograničenje potrošnje po ključu (dnevno/tjedno u USD):
   "personal": {
     "dailySpentUsd": 1.25,
     "dailyLimitUsd": 5,
@@ -735,14 +745,14 @@ odbijenog odgovora. Kod uspjeha:
     "weeklyLimitUsd": 20,
     "weeklyResetAtIso": "…" /* … */,
   },
-  // snimka odabrane kvote pružatelja usluge, ili null ako još ništa nije predmemorirano:
+  // snimka kvote odabranog pružatelja ili null kada još ništa nije predmemorirano:
   "provider": {
     "connectionId": "…",
     "provider": "claude",
     "plan": "…",
     "quotas": {/* … */},
   },
-  // snimka svake veze, tako da korisničko sučelje može prikazati više pružatelja usluga jedan uz drugi:
+  // snimka svake veze kako bi korisničko sučelje moglo prikazati više pružatelja jednog uz drugog:
   "providers": [
     { "connectionId": "…", "provider": "claude" /* … */ },
     { "provider": "codex" /* … */ },
@@ -750,13 +760,64 @@ odbijenog odgovora. Kod uspjeha:
 }
 ```
 
-Kod odbijanja (`401` neispravan ključ / `403` nije dozvoljeno) ista ruta vraća
-`{ "allowed": false, "error": { "message": "…" } }` — prisutan-ali-praznо `personal`/`provider`
-(ključ je dozvoljen, ali ništa još nije saznano) je drugačije stanje od odbijanja, a samo JSON oblik
-ih razlikuje.
+U slučaju odbijanja (`401` neispravan ključ / `403` nije dopušteno) ista ruta vraća
+`{ "allowed": false, "error": { "message": "…" } }` — prisutan, ali prazan `personal`/`provider`
+(ključ je dopušten, ali još ništa nije dohvaćeno) predstavlja stanje različito od odbijanja, a razlikuje ih
+samo JSON oblik.
 
-**Autentifikacija:** vlastiti Bearer API ključ pozivatelja, validiran pomoću `isValidApiKey` — ovo _nije_
-administratorska površina (`/api/keys/…`), koja ostaje iza `requireManagementAuth`.
+**Autentifikacija:** pozivateljev vlastiti Bearer API ključ, provjeren funkcijom `isValidApiKey` — ovo _nije_
+upravljačko sučelje (`/api/keys/…`), koje ostaje zaštićeno funkcijom `requireManagementAuth`.
+
+### Neobrađeni postoci kvote nasuprot postocima prilagođenima pragu prekida
+
+Pri upotrebi `/api/usage/om-usage` pozivatelji trebaju uzeti u obzir razliku između postotaka
+prikazanih u **izlazu običnog teksta** i strukturiranom **JSON izlazu**:
+
+| Aspekt                       | Format običnog teksta (`/api/usage/om-usage` / `@@om-usage`)                                       | JSON format (`?format=json`)                                                             |
+| :--------------------------- | :------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Izlazno polje**            | `NN% left` (npr. `20% left`)                                                                       | `provider.quotas` / `providers[].quotas`                                                 |
+| **Mjerenje**                 | **Iskoristivo dopuštenje prilagođeno pragu prekida**: preostali kapacitet iznad praga              | **Neobrađena uzvodna kvota**: neprilagođeno mjerenje pružatelja                          |
+| **Skaliranje praga prekida** | Skalirano putem `effectiveRemainingPercent()` tako da se zaštićena rezerva prikazuje kao `0% left` | Nema ga (neobrađene vrijednosti snimke koje je prijavio pružatelj)                       |
+| **Podaci o pragu**           | Uključeni u prikazani postotak                                                                     | Pohranjeni u `quotaWindowThresholds` za svaku vezu (ili zadane vrijednosti poslužitelja) |
+| **Primarni korisnik**        | Interaktivni CLI-jevi, terminalni upiti, ljudski operateri                                         | Programske integracije, nadzorne ploče, analitika, alati za praćenje naplate             |
+
+#### Formula prilagodbe pragu prekida
+
+OmniRoute podržava proaktivne pragove prekida kvote radi sprječavanja iscrpljivanja uzvodnih resursa (konfigurirano putem
+`quotaWindowThresholds` veze, zadanih vrijednosti pružatelja ili globalnih postavki otpornosti). Kada je prag prekida
+(npr. `cutoff = 25%`) aktivan u razdoblju kvote, prikazivač teksta izračunava preostalo dopuštenje na sljedeći način:
+
+- Ako je `remaining <= cutoff`: vraća `0%`.
+- Ako je `remaining > cutoff`: vraća `((remaining - cutoff) / (100 - cutoff)) * 100`.
+
+Formatirani tekstualni izlaz zaokružuje rezultat na najbliži cijeli broj (`Math.round(...)`).
+
+#### Ilustrativni primjer
+
+Uzmimo razdoblje pružatelja s **60% neobrađene potrošnje** (dakle **40% neobrađene preostale kvote**) i konfiguriranim
+pragom prekida od **25% preostale kvote**:
+
+| Prikaz                               | Izračun                                            | Preostalo |          Implicitno iskorišteno           |
+| :----------------------------------- | :------------------------------------------------- | :-------: | :---------------------------------------: |
+| **Neobrađeni JSON (`?format=json`)** | Uzvodna snimka (`quotas[window]`)                  |  **40%**  |                  **60%**                  |
+| **Tekstualni format (`NN% left`)**   | `((40 - 25) / (100 - 25)) * 100 = (15 / 75) * 100` |  **20%**  | **80%** (ako se računa `100 - remaining`) |
+
+- **Zašto tekst prikazuje 20% preostalo:** Od 40% fizičke kvote preostale na računu, pravilom
+  praga prekida rezervirano je 25%. Pozivatelju je preostalo samo 15% od 75% iskoristivog prostora prije nego što usmjerivač
+  prestane usmjeravati zahtjeve prema ovoj vezi. Skaliranje osigurava da veza signalizira iscrpljenost (`0% left`) točno kada
+  usmjeravanje prestane.
+- **Zašto JSON zadržava neobrađene vrijednosti:** JSON sadržaj vraća točnu snimku pružatelja (`UsageSnapshot`)
+  kako bi vanjski alati imali pristup stvarnoj uzvodnoj iskorištenosti i vrijednostima
+  `quotaWindowThresholds` na razini veze, bez gubitaka uzrokovanih skaliranjem na strani poslužitelja.
+
+#### Smjernice za migraciju korisnika
+
+Ako je vanjska integracija (poput dodatka za uređivač ili proširenja agenta) prethodno izdvajala podatke iz tekstualne
+krajnje točke (`NN% left`) i izračunavala postotak iskorištenosti kao `100 - NN`, prelazak na `?format=json` znači:
+
+- Čitanje neobrađenih JSON vrijednosti odražavat će **stvarnu uzvodnu potrošnju** (60% iskorišteno u gornjem primjeru).
+- Ako integracija želi zadržati semantiku iskoristivog dopuštenja tekstualne krajnje točke, može na strani klijenta
+  izračunati formulu efektivnog preostalog postotka koristeći `quotaWindowThresholds` za nadjačavanja na razini veze.
 
 ---
 
