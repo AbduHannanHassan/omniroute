@@ -543,10 +543,10 @@ test("#12273 unknown-context sole survivor does not restore hard-rejected target
   );
 });
 
-// Opt-in `outputLimitAdvisory`: a known output ceiling below `max_tokens` demotes a
-// target instead of removing it. Clients such as Claude Code send max_tokens as a
+// Opt-in `outputLimitAdvisory`: a known output ceiling below `max_tokens` keeps a
+// target in its strategy position instead of removing it. Clients such as Claude Code send max_tokens as a
 // generous ceiling (128000), which otherwise strips every 64k-output model.
-test("outputLimitAdvisory demotes output-limited targets instead of removing them", () => {
+test("outputLimitAdvisory keeps output-limited targets in strategy order instead of removing them", () => {
   saveModelsDevCapabilities({
     "unit-output-limit": {
       insufficient: capabilityEntryWithLimits(128_000, 128_000, 128),
@@ -564,7 +564,7 @@ test("outputLimitAdvisory demotes output-limited targets instead of removing the
 
   assert.deepEqual(
     out.map((entry) => entry.modelStr),
-    ["unit-output-limit/sufficient", "unit-output-limit/insufficient"]
+    ["unit-output-limit/insufficient", "unit-output-limit/sufficient"]
   );
 });
 
@@ -616,7 +616,7 @@ test("outputLimitAdvisory does not soften tool-calling mismatches", () => {
   );
 });
 
-test("combo config outputLimitAdvisory lets an output-limited target serve as fallback", async () => {
+test("combo config outputLimitAdvisory keeps an output-limited target in its priority slot", async () => {
   saveModelsDevCapabilities({
     // Separate providers: a 503 from one provider must not skip the other.
     "unit-output-a": { insufficient: capabilityEntryWithLimits(128_000, 128_000, 128) },
@@ -652,8 +652,8 @@ test("combo config outputLimitAdvisory lets an output-limited target serve as fa
 
   const advisory = await run({ outputLimitAdvisory: true });
   assert.equal(advisory.status, 200);
-  assert.equal(advisory.calls[0], "unit-output-b/sufficient");
-  assert.equal(advisory.calls.at(-1), "unit-output-a/insufficient");
+  // Operator priority wins: the output-limited first step is tried first.
+  assert.deepEqual(advisory.calls, ["unit-output-a/insufficient"]);
 });
 
 test("combo config schema accepts boolean outputLimitAdvisory and rejects other types", async () => {
