@@ -195,6 +195,50 @@ test("count_as_zero still enforces the limit on priced spend", async () => {
   assert.match(message, /reached its weekly usage quota/);
 });
 
+for (const policy of ["fail_closed", "count_as_zero"] as const) {
+  test(`${policy} counts search ledger spend alongside priced and unpriced chat usage`, async () => {
+    const created = await makeMeteredKeyWithUnpricedUsage();
+    const { recordLedgerEntry } = await import("../../src/lib/db/costLedger.ts");
+    featureFlagsDb.setFeatureFlagOverride("UNPRICED_USAGE_BUDGET_POLICY", policy);
+    // Chat already contributes $1 through usage_history. Search contributes
+    // another $2, including a charged failed request; neither policy waives it.
+    for (const success of [true, false]) {
+      recordLedgerEntry({
+        apiKeyId: created.id,
+        provider: "searxng-search",
+        model: "search",
+        amountUsd: 1,
+        serviceTier: "search",
+        success,
+      });
+    }
+    recordLedgerEntry({
+      apiKeyId: created.id,
+      provider: "openai",
+      model: "gpt-4o",
+      amountUsd: 50,
+      serviceTier: "standard",
+    });
+    await apiKeysDb.updateApiKeyPermissions(created.id, { weeklyUsageLimitUsd: 2 });
+    apiKeysDb.clearApiKeyCaches();
+
+    const status = await getApiKeyUsageLimitStatus({
+      id: created.id,
+      usageLimitEnabled: true,
+      weeklyUsageLimitUsd: 2,
+    });
+    assert.equal(status.weeklySpentUsd, 3, "chat ledger must not be counted twice");
+    assert.equal(status.weeklyHasUnpricedUsage, true);
+    assert.deepEqual(status.weeklyUnpricedModels, [`${UNPRICED_PROVIDER}/${UNPRICED_MODEL}`]);
+    assert.equal(status.weeklyPricingFailure, false);
+    assert.equal(status.unpricedUsagePolicy, policy);
+    assert.equal(status.weeklyExceeded, true);
+    const result = await enforceApiKeyPolicy(chatRequest(created.key), "openai/gpt-4o");
+    assert.equal(result.rejection?.status, 429);
+    assert.match(JSON.stringify(await result.rejection!.json()), /reached its weekly usage quota/);
+  });
+}
+
 test("an unknown env value falls back to fail_closed", async () => {
   const created = await makeMeteredKeyWithUnpricedUsage();
   // The DB override store already rejects invalid enum values; env is unvalidated.
