@@ -188,6 +188,7 @@ export async function handleVideoGeneration({ body, credentials, log, resolvedPr
         body,
         credentials,
         log,
+        provider,
         ...resolveVideoJobPollingOverrides(body),
       });
     }
@@ -227,6 +228,7 @@ export async function handleVideoGeneration({ body, credentials, log, resolvedPr
       body,
       credentials,
       log,
+      provider,
       ...resolveVideoJobPollingOverrides(body),
     });
   }

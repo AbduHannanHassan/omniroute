@@ -16,6 +16,7 @@ import {
 } from "@/shared/utils/fetchTimeout";
 import { sanitizeErrorMessage } from "../../utils/error.ts";
 import { sleep } from "../../utils/sleep.ts";
+import { saveCallLog, saveRequestUsage } from "@/lib/usageDb";
 
 interface LogLike {
   info?: (tag: string, msg: string, meta?: unknown) => void;
@@ -236,7 +237,109 @@ export function getVideoJobPreset(presetName: unknown): VideoJobPreset | null {
  * Handle a video-generation job via the submit→poll preset pipeline.
  * Returns the same shape as the sync handlers: { success, data?: …, status?, error? }.
  */
+type JobLog = {
+  info?: (tag: string, msg: string, meta?: unknown) => void;
+  error?: (tag: string, msg: string) => void;
+};
+
+export type VideoJobResult =
+  { success: true; data: unknown } | { success: false; status: number; error: string };
+
+/**
+ * Record a finished job in both usage surfaces.
+ *
+ * This pipeline previously wrote neither, so a job-preset provider was invisible in
+ * the request log and in the usage view while the synchronous video handlers appeared
+ * in both. `path`/`duration` are the names the call-log writer reads, and `endpoint` is
+ * what the usage row reports; the synchronous OpenAI path had been passing
+ * `endpoint`/`durationMs`, which were silently dropped.
+ */
+async function recordJobCall({
+  provider,
+  model,
+  result,
+  durationMs,
+}: {
+  provider: string;
+  model: string;
+  /**
+   * Structural, not the VideoJobResult union: this workspace compiles with
+   * `strict: false` (open-sse/tsconfig.json), where a `true`/`false` property is
+   * widened to `boolean` and therefore cannot act as a discriminant. Declaring the
+   * optional members directly avoids relying on narrowing that does not happen here.
+   */
+  result: { success: boolean; status?: number; error?: string };
+  durationMs: number;
+}): Promise<void> {
+  const status = result.success ? 200 : (result.status ?? 502);
+  const error = result.success ? undefined : result.error;
+  await Promise.allSettled([
+    saveCallLog({
+      method: "POST",
+      path: "/v1/videos/generations",
+      status,
+      model: `${provider}/${model}`,
+      provider,
+      duration: durationMs,
+      ...(error ? { error } : {}),
+    }),
+    saveRequestUsage({
+      provider,
+      model,
+      endpoint: "video",
+      status: String(status),
+      success: result.success,
+      latencyMs: durationMs,
+      ...(error ? { errorCode: error.slice(0, 200) } : {}),
+    }),
+  ]);
+}
+
+/**
+ * Handle a video-generation job via the submit→poll preset pipeline.
+ * Returns the same shape as the sync handlers: { success, data?: …, status?, error? }.
+ */
 export async function handleVideoJobGeneration({
+  model,
+  presetName,
+  body,
+  credentials,
+  log,
+  maxPolls,
+  pollIntervalMs,
+  provider,
+}: {
+  model: string;
+  presetName: string;
+  body: Record<string, unknown>;
+  credentials?: unknown;
+  log?: JobLog;
+  maxPolls?: number;
+  pollIntervalMs?: number;
+  /** Provider id, for the usage/call-log rows. Unknown falls back to the preset. */
+  provider?: string;
+}): Promise<VideoJobResult> {
+  const startTime = Date.now();
+  const result = await runVideoJobGeneration({
+    model,
+    presetName,
+    body,
+    credentials,
+    log,
+    maxPolls,
+    pollIntervalMs,
+  });
+  // Recorded here rather than on each return, so a new exit path cannot skip it.
+  await recordJobCall({
+    provider: provider || presetName,
+    model,
+    result,
+    durationMs: Date.now() - startTime,
+  });
+  return result;
+}
+
+async function runVideoJobGeneration({
   model,
   presetName,
   body,
@@ -249,13 +352,10 @@ export async function handleVideoJobGeneration({
   presetName: string;
   body: Record<string, unknown>;
   credentials?: unknown;
-  log?: {
-    info?: (tag: string, msg: string, meta?: unknown) => void;
-    error?: (tag: string, msg: string) => void;
-  };
+  log?: JobLog;
   maxPolls?: number;
   pollIntervalMs?: number;
-}) {
+}): Promise<VideoJobResult> {
   const preset = getVideoJobPreset(presetName);
   if (!preset) {
     return {

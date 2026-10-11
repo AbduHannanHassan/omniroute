@@ -36,6 +36,7 @@ import {
   getCompletedDetails,
 } from "./completedRequestDetails";
 import { shouldPersistToDisk } from "./migrations";
+import { getCallLogApiKeyContext } from "./callLogApiKeyContext";
 import { emitUsageRecorded } from "./usageEvents";
 import {
   getLoggedInputTokens,
@@ -877,6 +878,15 @@ export async function saveRequestUsage(entry: UsageEntry) {
 
     const tokensInput = getLoggedInputTokens(entry.tokens);
     const tokensOutput = getLoggedOutputTokens(entry.tokens);
+    // Fall back to the request-scoped api-key context, exactly as saveCallLogOperation
+    // does. The context exists so callers need not thread identity through every
+    // handler, but this writer only ever read `entry.apiKeyId` — so media paths, which
+    // set the context once in the route, stored an unattributed usage row while their
+    // call-log row came out attributed. Attribution matters here more than in call_logs:
+    // this table is what the per-key usage aggregation reads.
+    const apiKeyContext = getCallLogApiKeyContext();
+    const apiKeyId = entry.apiKeyId || apiKeyContext?.apiKeyId || null;
+    const apiKeyName = entry.apiKeyName || apiKeyContext?.apiKeyName || null;
     const connection = entry.connectionId
       ? (db.prepare("SELECT * FROM provider_connections WHERE id = ?").get(entry.connectionId) as
           Record<string, unknown> | undefined)
@@ -912,7 +922,7 @@ export async function saveRequestUsage(entry: UsageEntry) {
           entry.provider ? resolveProviderId(entry.provider) : null,
           entry.model || null,
           entry.connectionId || null,
-          entry.apiKeyId || null,
+          apiKeyId,
           tokensInput,
           tokensOutput
         ) as { id: number; endpoint: string | null; cpa_auth_index: string | null } | undefined;
@@ -950,8 +960,8 @@ export async function saveRequestUsage(entry: UsageEntry) {
         accountIdentity.accountKey,
         accountIdentity.accountLabel,
         accountIdentity.accountLabelPriority,
-        entry.apiKeyId || null,
-        entry.apiKeyName || null,
+        apiKeyId,
+        apiKeyName,
         tokensInput,
         tokensOutput,
         getPromptCacheReadTokens(entry.tokens),
