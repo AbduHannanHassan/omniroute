@@ -33,6 +33,7 @@
 
 import { recordEarlyKeepaliveBytes } from "./earlyKeepaliveByteBuffer.ts";
 import { SYNTHETIC_RESPONSES_SEQUENCE_NUMBER } from "./responsesSequence.ts";
+import { withUpstreamErrorDetail } from "./upstreamErrorDetail.ts";
 
 const ENCODER = new TextEncoder();
 const KEEPALIVE_FRAME = ENCODER.encode(": keepalive\n\n");
@@ -87,6 +88,12 @@ export const OPENAI_RESPONSES_ERROR_FRAME = ENCODER.encode(
     code: null,
     message: "Upstream stream failed before completion.",
     param: null,
+    error: {
+      type: "stream_error",
+      code: "stream_error",
+      message: "Upstream stream failed before completion.",
+      param: null,
+    },
     // #14330: was hardcoded to 0, colliding with the real per-stream emitter's
     // first event (also numbered 1 from its own `state.seq` base of 0) — this
     // frame is synthesized outside that counter, so it uses the shared seed.
@@ -144,11 +151,13 @@ function buildResponsesErrorDataLine(
     parsed && typeof parsed.error === "object" && parsed.error !== null
       ? (parsed.error as Record<string, unknown>)
       : null;
-  const message =
+  const message = withUpstreamErrorDetail(
     (typeof errorObj?.message === "string" && errorObj.message) ||
-    (typeof parsed?.message === "string" && parsed.message) ||
-    trimmed ||
-    "Upstream stream failed before completion.";
+      (typeof parsed?.message === "string" && parsed.message) ||
+      trimmed ||
+      "Upstream stream failed before completion.",
+    parsed?.upstream_details
+  );
   const code = (typeof errorObj?.code === "string" && errorObj.code) || null;
   const param = (typeof errorObj?.param === "string" && errorObj.param) || null;
   // The HTTP status and retry hint are already lost once the stream committed to 200;
@@ -169,6 +178,12 @@ function buildResponsesErrorDataLine(
     code,
     message,
     param,
+    error: {
+      type: errorType || "stream_error",
+      code: code || errorType || "stream_error",
+      message,
+      param,
+    },
     // #14330: was hardcoded to 0 — see OPENAI_RESPONSES_ERROR_FRAME above.
     sequence_number: SYNTHETIC_RESPONSES_SEQUENCE_NUMBER,
     ...statusFields,
@@ -312,9 +327,16 @@ export function __getDeadlineTokenRegistrySizeForTests(): number {
  *
  * The wrapped request MUST be the one the route hands downstream (admission,
  * body parse, `handleChat`): the handler snapshots `request.signal` after
- * admission, so wrapping after that point would not propagate. Rebuilt via
- * `new Request(request, { signal, headers })`, which preserves method, url and
- * body byte-for-byte.
+ * admission, so wrapping after that point would not propagate. Rebuilt
+ * field-by-field (`new Request(request.url, { method, headers, body, signal,
+ * duplex: "half" })`) — NOT via `new Request(request, …)`: under the Next.js
+ * App Router the inbound request is a Proxy, and passing it as the
+ * constructor input makes undici read `#state` on the proxy receiver, which
+ * ECMAScript mandates to throw. Field reads below go through the proxy get
+ * trap and are safe. Note: unlike the constructor-input form, the original
+ * request's `bodyUsed` stays `false` here; its stream is still transferred,
+ * so reading it afterwards fails regardless — do not reuse the input object
+ * after wrapping.
  *
  * Controller recovery downstream (`getDeadlineController`) is two-layered:
  * the combined signal object (fast path — same object when nothing rebuilds),
@@ -338,7 +360,28 @@ export function withDeadlineSignal(request: Request): {
   // admission rebuilds, which both copy headers but mint new signal objects.
   const token = `dl-${Date.now().toString(36)}-${(deadlineTokenSeq += 1)}`;
   headers.set(DEADLINE_TOKEN_HEADER, token);
-  const wrappedReq = new Request(request, { signal: combined, headers });
+  // Build the wrapped request field-by-field. Passing the incoming request
+  // object itself as the constructor input is NOT safe under the Next.js App
+  // Router runtime: for `dynamic: "auto"` routes Next hands handlers a Proxy
+  // around the real request (app-route runtime), and the undici constructor
+  // reads `input.#state` with that proxy as the receiver. ECMAScript gives a
+  // Proxy no [[PrivateFieldValues]], so the access throws
+  // "TypeError: Cannot read private member #state from an object whose class
+  // did not declare it" (observed 2026-09-26 as every request on the
+  // /v1/chat/completions, /v1/messages and /v1/responses routes answering
+  // HTTP 500 after #14808 wired this wrapper into those routes). Property
+  // reads (url/method/body/headers) go through the proxy get trap with
+  // receiver = target and are safe; only the constructor's private-field
+  // path breaks. Do not "simplify" back to `new Request(request, ...)`.
+  const wrappedReq = new Request(request.url, {
+    method: request.method,
+    headers,
+    body: request.body,
+    signal: combined,
+    // `duplex` is an undici extension absent from the DOM-lib RequestInit;
+    // it is required whenever `body` is a ReadableStream.
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
   deadlineControllers.set(combined, deadlineController);
   deadlineControllersByToken.set(token, new WeakRef(deadlineController));
   deadlineTokenByController.set(deadlineController, token);
