@@ -666,6 +666,14 @@ export type CompatFilterOptions = {
    * instead of returning an empty list. Default is fail-closed.
    */
   failOpen?: boolean;
+  /**
+   * Opt-in: treat a known output ceiling below the request's `max_tokens` as a
+   * routing hint instead of a hard mismatch. Such targets stay in the pool,
+   * behind every target whose ceiling fits. Clients like Claude Code send
+   * max_tokens as a generous ceiling (128000), which otherwise strips every
+   * 64k-output model from the combo. Default keeps the hard exclusion.
+   */
+  outputLimitAdvisory?: boolean;
 };
 
 function highestKnownOutputLimit(targets: ResolvedComboTarget[]): number {
@@ -754,7 +762,42 @@ export function filterTargetsByRequestCompatibility(
   label = "Context-aware fallback",
   options?: CompatFilterOptions
 ): ResolvedComboTarget[] {
+  const filtered = filterByRequestCompatibilityCore(targets, body, log, label, options);
+  if (options?.outputLimitAdvisory !== true || filtered.length < 2) return filtered;
+  return demoteOutputLimitedTargets(filtered, body);
+}
+
+/** Stable partition: targets whose known output ceiling fits `max_tokens` go first. */
+function demoteOutputLimitedTargets(
+  targets: ResolvedComboTarget[],
+  body: Record<string, unknown>
+): ResolvedComboTarget[] {
+  const { requestedOutputTokens } = deriveRequestCompatibilityRequirements(body);
+  if (requestedOutputTokens <= 0) return targets;
+  const isLimited = (target: ResolvedComboTarget) =>
+    exceedsKnownOutputLimit(
+      requestedOutputTokens,
+      getResolvedModelCapabilities({
+        provider: target.providerId || target.provider || null,
+        model: target.modelStr,
+      }).maxOutputTokens
+    );
+  const limited = targets.filter(isLimited);
+  if (limited.length === 0 || limited.length === targets.length) return targets;
+  return [...targets.filter((target) => !limited.includes(target)), ...limited];
+}
+
+function filterByRequestCompatibilityCore(
+  targets: ResolvedComboTarget[],
+  body: Record<string, unknown>,
+  log: ComboLogger,
+  label: string,
+  options?: CompatFilterOptions
+): ResolvedComboTarget[] {
   if (targets.length === 0) return targets;
+  const outputLimitAdvisory = options?.outputLimitAdvisory === true;
+  const isHardReason = (reason: string) =>
+    HARD_COMPAT_REASONS.has(reason) && !(outputLimitAdvisory && reason === "output_tokens");
   const requirements = deriveRequestCompatibilityRequirements(body);
   const needsFiltering =
     requirements.requiresTools ||
@@ -776,7 +819,7 @@ export function filterTargetsByRequestCompatibility(
   // never remove the only target that could accept the request at runtime.
   const compatible = targets.filter((target) => {
     const reasons = targetReasons.get(target) || [];
-    return !reasons.some((reason) => HARD_COMPAT_REASONS.has(reason));
+    return !reasons.some(isHardReason);
   });
   const hadKnownTooSmallContextTarget = rejected.some((entry) =>
     entry.reasons.includes("context_window")
