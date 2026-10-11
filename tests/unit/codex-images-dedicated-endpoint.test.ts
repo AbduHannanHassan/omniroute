@@ -237,9 +237,9 @@ test("Codex Images errors keep plan guards, terminal outcomes, and privacy", asy
 test("v1 image generation route serves codex/gpt-image-2.5-flare from the Images route", async () => {
   await providersDb.createProviderConnection({
     provider: "codex",
-    authType: "apikey",
+    authType: "oauth",
     name: "codex-images",
-    apiKey: "codex-oauth-token",
+    accessToken: "codex-oauth-token",
     isActive: true,
     testStatus: "active",
     providerSpecificData: {},
@@ -269,9 +269,9 @@ test("v1 image generation route serves codex/gpt-image-2.5-flare from the Images
 test("v1 image edit route sends Codex GPT Image references to the Images edits route", async () => {
   await providersDb.createProviderConnection({
     provider: "codex",
-    authType: "apikey",
+    authType: "oauth",
     name: "codex-images-edit",
-    apiKey: "codex-oauth-token",
+    accessToken: "codex-oauth-token",
     isActive: true,
     testStatus: "active",
     providerSpecificData: {},
