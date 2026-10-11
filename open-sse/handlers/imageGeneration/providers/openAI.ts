@@ -1,7 +1,11 @@
 import { randomUUID } from "crypto";
 import { saveCallLog } from "@/lib/usageDb";
-import { applyPollinationsAnonymousFallback, reportPollinationsAnonOutcome } from "../pollinationsAnonAuth.ts";
+import {
+  applyPollinationsAnonymousFallback,
+  reportPollinationsAnonOutcome,
+} from "../pollinationsAnonAuth.ts";
 import { resolveImageBaseUrl, extractImageInputs, fetchImageEndpoint } from "../shared.ts";
+import { buildXaiImageRequest } from "./xaiImage.ts";
 const OPENAI_IMAGE_TO_IMAGE_MODELS = new Set([
   "black-forest-labs/FLUX.2-max",
   "black-forest-labs/FLUX.2-pro",
@@ -79,7 +83,11 @@ export async function handleOpenAIImageGeneration({
           prompt: body.prompt,
         };
 
-  if (providerConfig.format !== "agnes-image") {
+  if (providerConfig.format === "xai-image") {
+    const request = buildXaiImageRequest(model, body);
+    if ("error" in request) return { success: false, status: 400, error: request.error };
+    Object.assign(upstreamBody, request.body);
+  } else if (providerConfig.format !== "agnes-image") {
     // Pass optional parameters for ordinary OpenAI-compatible providers.
     if (body.n !== undefined) upstreamBody.n = body.n;
     if (body.size !== undefined) upstreamBody.size = body.size;
@@ -401,4 +409,3 @@ export async function handleOpenRouterImageEdit({
 
   return result;
 }
-

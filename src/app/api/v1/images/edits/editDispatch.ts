@@ -1,29 +1,51 @@
-import { handleGeminiImageGeneration, validateAntigravityReferences } from "@omniroute/open-sse/handlers/geminiImage.ts";
-import { handleAdobeFireflyImageGeneration, handleCodexImageEdit, handleOpenAIImageEdit, handleOpenRouterImageEdit } from "@omniroute/open-sse/handlers/imageGeneration.ts";
+import {
+  handleGeminiImageGeneration,
+  validateAntigravityReferences,
+} from "@omniroute/open-sse/handlers/geminiImage.ts";
+import {
+  handleAdobeFireflyImageGeneration,
+  handleSyntxImageGeneration,
+  handleCodexImageEdit,
+  handleOpenAIImageEdit,
+  handleOpenRouterImageEdit,
+} from "@omniroute/open-sse/handlers/imageGeneration.ts";
 import { handleCodexImages, isCodexImagesModel } from "@omniroute/open-sse/handlers/codexImages.ts";
-import { handleFalAIImageEdit, isFalImageEditModel } from "@omniroute/open-sse/handlers/imageGeneration/providers/fal.ts";
+import {
+  handleFalAIImageEdit,
+  isFalImageEditModel,
+} from "@omniroute/open-sse/handlers/imageGeneration/providers/fal.ts";
 
-import { getProviderCredentialsWithQuotaPreflight, clearRecoveredProviderState } from "@/sse/services/auth";
-import { parseImageModel, getImageProvider, getImageModelEntry } from "@omniroute/open-sse/config/imageRegistry.ts";
+import {
+  getProviderCredentialsWithQuotaPreflight,
+  clearRecoveredProviderState,
+} from "@/sse/services/auth";
+import {
+  parseImageModel,
+  getImageProvider,
+  getImageModelEntry,
+} from "@omniroute/open-sse/config/imageRegistry.ts";
 import { errorResponse, unavailableResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import { getComboByName, getCombos } from "@/lib/db/combos";
 import { resolveComboTargets } from "@omniroute/open-sse/services/combo.ts";
-import { runImageComboTargets, type ImageComboDispatchResult } from "@omniroute/open-sse/services/imageCombo.ts";
+import {
+  runImageComboTargets,
+  type ImageComboDispatchResult,
+} from "@omniroute/open-sse/services/imageCombo.ts";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
 import { isUsableImageCredentials } from "@/sse/services/imageCredentials";
 import * as log from "@/sse/utils/logger";
 import { toJsonErrorPayload } from "@/shared/utils/upstreamError";
 
-import { resolveImageModelPrefix, validateCodexImageEditReferences } from "@/lib/images/imageRouteModel";
+import {
+  resolveImageModelPrefix,
+  validateCodexImageEditReferences,
+} from "@/lib/images/imageRouteModel";
 
 import { resolveProxyForConnection } from "@/lib/db/settings";
 import { runWithProxyContext } from "@omniroute/open-sse/utils/proxyFetch.ts";
 import { isCodexFreePlan } from "@omniroute/open-sse/config/codexPlan.ts";
 import { refreshSelectedCodexImageCredentials } from "@/sse/services/selectedCodexImageCredentials";
-
-
-
 
 function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -102,7 +124,8 @@ export async function handleAdobeFireflyEditRequest(params: {
       `No credentials for provider: ${parsed.provider}`
     );
   }
-  if ("blockedByKeyPolicy" in credentials) return errorResponse(403, "Image provider connection is not allowed by API key policy");
+  if ("blockedByKeyPolicy" in credentials)
+    return errorResponse(403, "Image provider connection is not allowed by API key policy");
   if (isAllRateLimitedCredentials(credentials)) {
     return unavailableResponse(
       HTTP_STATUS.RATE_LIMITED,
@@ -112,9 +135,12 @@ export async function handleAdobeFireflyEditRequest(params: {
     );
   }
 
-  if ("allRateLimited" in credentials) return errorResponse(503, "Image provider credentials unavailable");
-  if ("leaseUnavailable" in credentials) return errorResponse(429, "Selected image account is already leased; try again later");
-  if (!isUsableImageCredentials(credentials)) return errorResponse(401, "Image credential selection did not return usable credentials");
+  if ("allRateLimited" in credentials)
+    return errorResponse(503, "Image provider credentials unavailable");
+  if ("leaseUnavailable" in credentials)
+    return errorResponse(429, "Selected image account is already leased; try again later");
+  if (!isUsableImageCredentials(credentials))
+    return errorResponse(401, "Image credential selection did not return usable credentials");
   // Prefer multi-image list when present; fall back to the primary imageBytes.
   const dataUrls = buildAdobeFireflyEditDataUrls(images, imageBytes, imageMime);
   if (dataUrls.length === 0) {
@@ -136,6 +162,92 @@ export async function handleAdobeFireflyEditRequest(params: {
       images: dataUrls,
     },
     credentials,
+    log,
+  });
+
+  if ((result as { success?: boolean }).success) {
+    await clearRecoveredProviderState(credentials);
+    return jsonResponse((result as { data?: unknown }).data);
+  }
+  return jsonResponse(
+    toJsonErrorPayload((result as { error?: unknown }).error, "Image edit provider error"),
+    (result as { status?: number }).status ?? HTTP_STATUS.BAD_GATEWAY
+  );
+}
+
+export async function handleSyntxEditRequest(params: {
+  parsed: ReturnType<typeof parseImageModel>;
+  providerConfig: NonNullable<ReturnType<typeof getImageProvider>>;
+  allowedConnections: string[] | null;
+  resolvedModel: string;
+  prompt: string;
+  size: string | null;
+  responseFormat: string | null;
+  images: Array<{ bytes: Buffer; mime: string }>;
+  imageBytes: Buffer | null;
+  imageMime: string | null;
+}): Promise<Response> {
+  const {
+    parsed,
+    providerConfig,
+    allowedConnections,
+    resolvedModel,
+    prompt,
+    size,
+    responseFormat,
+    images,
+    imageBytes,
+    imageMime,
+  } = params;
+
+  const credentials = await getProviderCredentialsWithQuotaPreflight(
+    parsed.provider,
+    null,
+    allowedConnections,
+    resolvedModel
+  );
+  if (!credentials || "allExpired" in credentials) {
+    return errorResponse(
+      HTTP_STATUS.UNAUTHORIZED,
+      `No credentials for provider: ${parsed.provider}`
+    );
+  }
+  if ("blockedByKeyPolicy" in credentials)
+    return errorResponse(403, "Image provider connection is not allowed by API key policy");
+  if (isAllRateLimitedCredentials(credentials)) {
+    return unavailableResponse(
+      HTTP_STATUS.RATE_LIMITED,
+      `[${parsed.provider}] All accounts rate limited`,
+      credentials.retryAfter,
+      credentials.retryAfterHuman
+    );
+  }
+
+  if ("allRateLimited" in credentials)
+    return errorResponse(503, "Image provider credentials unavailable");
+  if ("leaseUnavailable" in credentials)
+    return errorResponse(429, "Selected image account is already leased; try again later");
+  if (!isUsableImageCredentials(credentials))
+    return errorResponse(401, "Image credential selection did not return usable credentials");
+  const dataUrls = buildAdobeFireflyEditDataUrls(images, imageBytes, imageMime);
+  if (dataUrls.length === 0) {
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Missing required field: image");
+  }
+
+  const result = await handleSyntxImageGeneration({
+    provider: parsed.provider,
+    model: parsed.model,
+    providerConfig,
+    body: {
+      prompt,
+      size: size ?? undefined,
+      response_format: responseFormat ?? undefined,
+      n: 1,
+      image_url: dataUrls,
+      image: dataUrls.length === 1 ? dataUrls[0] : dataUrls,
+      image_urls: dataUrls,
+    },
+    credentials: credentials as Parameters<typeof handleSyntxImageGeneration>[0]["credentials"],
     log,
   });
 
@@ -192,6 +304,7 @@ function classifyImageEditTarget(
       providerConfig.format === "gemini-image" ||
       providerConfig.format === "codex-responses" ||
       providerConfig.format === "adobe-firefly-image" ||
+      providerConfig.format === "syntx-image" ||
       (providerConfig.format === "fal-ai" && isFalImageEditModel(parsed.model)) ||
       providerConfig.id === "openrouter"
     ) {
@@ -221,14 +334,19 @@ async function dispatchImageEditTarget(
   const { parsed, providerConfig, modelStr } = target;
   const { prompt, size, responseFormat, images, imageBytes, imageMime, request } = ctx;
 
-  if (providerConfig?.format === "gemini-image") return dispatchAntigravityEdit(target, credentials, ctx) as Promise<ImageComboDispatchResult>;
+  if (providerConfig?.format === "gemini-image")
+    return dispatchAntigravityEdit(target, credentials, ctx) as Promise<ImageComboDispatchResult>;
 
   // Built-in Codex — native Responses hosted tool for reference-image edits.
   if (providerConfig?.format === "codex-responses") {
     if (isCodexImagesModel(parsed.model)) return dispatchCodexImagesEdit(target, credentials, ctx);
     const modelEntry = getImageModelEntry(modelStr);
     if (!modelEntry || modelEntry.provider !== "codex" || modelEntry.model !== parsed.model) {
-      return { success: false, status: HTTP_STATUS.BAD_REQUEST, error: `Unsupported Codex image edit model: ${modelStr}` };
+      return {
+        success: false,
+        status: HTTP_STATUS.BAD_REQUEST,
+        error: `Unsupported Codex image edit model: ${modelStr}`,
+      };
     }
     const imageValidationError = validateCodexImageEditReferences(images);
     if (imageValidationError) {
@@ -294,7 +412,11 @@ async function dispatchImageEditTarget(
   if (providerConfig?.format === "adobe-firefly-image") {
     const dataUrls = buildAdobeFireflyEditDataUrls(images, imageBytes, imageMime);
     if (dataUrls.length === 0) {
-      return { success: false, status: HTTP_STATUS.BAD_REQUEST, error: "Missing required field: image" };
+      return {
+        success: false,
+        status: HTTP_STATUS.BAD_REQUEST,
+        error: "Missing required field: image",
+      };
     }
     return (await handleAdobeFireflyImageGeneration({
       provider: parsed.provider,
@@ -309,6 +431,33 @@ async function dispatchImageEditTarget(
         image: dataUrls.length === 1 ? dataUrls[0] : dataUrls,
         image_urls: dataUrls,
         images: dataUrls,
+      },
+      credentials: credentials as never,
+      log,
+    })) as ImageComboDispatchResult;
+  }
+
+  if (providerConfig?.format === "syntx-image") {
+    const dataUrls = buildAdobeFireflyEditDataUrls(images, imageBytes, imageMime);
+    if (dataUrls.length === 0) {
+      return {
+        success: false,
+        status: HTTP_STATUS.BAD_REQUEST,
+        error: "Missing required field: image",
+      };
+    }
+    return (await handleSyntxImageGeneration({
+      provider: parsed.provider,
+      model: parsed.model,
+      providerConfig,
+      body: {
+        prompt,
+        size: size ?? undefined,
+        response_format: responseFormat ?? undefined,
+        n: 1,
+        image_url: dataUrls,
+        image: dataUrls.length === 1 ? dataUrls[0] : dataUrls,
+        image_urls: dataUrls,
       },
       credentials: credentials as never,
       log,
@@ -362,7 +511,10 @@ async function dispatchImageEditTarget(
  * edit-capable (or lacks credentials) now falls through to a later edit-capable
  * target instead of flattening to the first target and hard-erroring.
  */
-export async function executeImageEditCombo(comboName: string, ctx: ImageEditContext): Promise<Response> {
+export async function executeImageEditCombo(
+  comboName: string,
+  ctx: ImageEditContext
+): Promise<Response> {
   const combo = await getComboByName(comboName);
   if (!combo) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, `Combo not found: ${comboName}`);
@@ -438,49 +590,115 @@ export async function executeImageEditCombo(comboName: string, ctx: ImageEditCon
 }
 
 export function validateCodexImagesEditOptions(ctx): string | null {
-  if (ctx.hasMask || Object.keys(ctx.nativeOptions ?? {}).some((key) => !["n", "quality", "background"].includes(key))) return "Unsupported Codex Images edit parameter; masks and output-format controls are not supported";
+  if (
+    ctx.hasMask ||
+    Object.keys(ctx.nativeOptions ?? {}).some(
+      (key) => !["n", "quality", "background"].includes(key)
+    )
+  )
+    return "Unsupported Codex Images edit parameter; masks and output-format controls are not supported";
   const options = ctx.nativeOptions ?? {};
   if (options.n !== undefined && options.n !== 1) return "Codex Images supports n=1 only";
-  if (options.quality !== undefined && !["low", "medium", "high", "auto"].includes(options.quality)) return "Unsupported Codex Images quality";
-  if (options.background !== undefined && !["transparent", "opaque", "auto"].includes(options.background)) return "Unsupported Codex Images background";
-  if (ctx.responseFormat !== null && ctx.responseFormat !== undefined && ctx.responseFormat !== "b64_json") return "Codex Images returns original b64_json only";
-  if (ctx.size !== null && ctx.size !== undefined && !/^(?:auto|[1-9]\d{0,4}x[1-9]\d{0,4})$/.test(ctx.size)) return "Invalid Codex Images size; use auto or WIDTHxHEIGHT";
+  if (options.quality !== undefined && !["low", "medium", "high", "auto"].includes(options.quality))
+    return "Unsupported Codex Images quality";
+  if (
+    options.background !== undefined &&
+    !["transparent", "opaque", "auto"].includes(options.background)
+  )
+    return "Unsupported Codex Images background";
+  if (
+    ctx.responseFormat !== null &&
+    ctx.responseFormat !== undefined &&
+    ctx.responseFormat !== "b64_json"
+  )
+    return "Codex Images returns original b64_json only";
+  if (
+    ctx.size !== null &&
+    ctx.size !== undefined &&
+    !/^(?:auto|[1-9]\d{0,4}x[1-9]\d{0,4})$/.test(ctx.size)
+  )
+    return "Invalid Codex Images size; use auto or WIDTHxHEIGHT";
   return validateCodexImageEditReferences(ctx.images, 5);
 }
 
-export async function dispatchCodexImagesEdit(target, credentials, ctx): Promise<ImageComboDispatchResult> {
+export async function dispatchCodexImagesEdit(
+  target,
+  credentials,
+  ctx
+): Promise<ImageComboDispatchResult> {
   const { parsed, providerConfig, modelStr } = target;
   const entry = getImageModelEntry(modelStr);
   const fail = (status, error) => ({ success: false as const, status, error, retryable: false });
-  if (!entry || entry.provider !== "codex" || entry.model !== parsed.model || !isCodexImagesModel(parsed.model)) return fail(400, "Unsupported dedicated Codex image edit model");
+  if (
+    !entry ||
+    entry.provider !== "codex" ||
+    entry.model !== parsed.model ||
+    !isCodexImagesModel(parsed.model)
+  )
+    return fail(400, "Unsupported dedicated Codex image edit model");
   const validation = validateCodexImagesEditOptions(ctx);
   if (validation) return fail(400, validation);
   const refreshed = await refreshSelectedCodexImageCredentials(credentials, ctx.request.signal);
   if (refreshed.success === false) return refreshed;
   const selected = refreshed.credentials;
   try {
-    const proxyInfo = selected.connectionId ? await resolveProxyForConnection(selected.connectionId) : null;
-    return await runWithProxyContext(proxyInfo?.proxy || null, () => handleCodexImages({
-      provider: parsed.provider, model: parsed.model, providerConfig,
-      body: { ...ctx.nativeOptions, prompt: ctx.prompt, size: ctx.size ?? undefined, response_format: ctx.responseFormat ?? undefined },
-      referenceImages: ctx.images, operation: "edits", credentials: selected, log, signal: ctx.request.signal,
-    }));
+    const proxyInfo = selected.connectionId
+      ? await resolveProxyForConnection(selected.connectionId)
+      : null;
+    return await runWithProxyContext(proxyInfo?.proxy || null, () =>
+      handleCodexImages({
+        provider: parsed.provider,
+        model: parsed.model,
+        providerConfig,
+        body: {
+          ...ctx.nativeOptions,
+          prompt: ctx.prompt,
+          size: ctx.size ?? undefined,
+          response_format: ctx.responseFormat ?? undefined,
+        },
+        referenceImages: ctx.images,
+        operation: "edits",
+        credentials: selected,
+        log,
+        signal: ctx.request.signal,
+      })
+    );
   } catch {
-    return fail(503, "Codex Images edit proxy or transport failed; do not resubmit an unknown outcome");
+    return fail(
+      503,
+      "Codex Images edit proxy or transport failed; do not resubmit an unknown outcome"
+    );
   }
 }
 
 export async function dispatchAntigravityEdit(target, credentials, ctx) {
   const { parsed, providerConfig, modelStr } = target;
   const entry = getImageModelEntry(modelStr);
-  if (!entry || entry.provider !== "antigravity" || entry.model !== parsed.model) return { success: false, status: 400, error: "Unsupported Antigravity image edit model" };
+  if (!entry || entry.provider !== "antigravity" || entry.model !== parsed.model)
+    return { success: false, status: 400, error: "Unsupported Antigravity image edit model" };
   const validation = validateAntigravityReferences(ctx.images, ctx.hasMask);
   if (validation) return { success: false, status: 400, error: validation };
   let proxyInfo = null;
-  if (credentials.connectionId) proxyInfo = await resolveProxyForConnection(credentials.connectionId);
-  return runWithProxyContext(proxyInfo?.proxy || null, () => handleGeminiImageGeneration({
-    model: parsed.model, providerConfig, credentials, log, signal: ctx.request.signal,
-    referenceImages: ctx.images, logPath: "/v1/images/edits",
-    body: { model: modelStr, prompt: ctx.prompt, size: ctx.size, response_format: ctx.responseFormat ?? undefined, aspect_ratio: ctx.aspectRatio, image_size: ctx.imageSize, n: 1 },
-  }));
+  if (credentials.connectionId)
+    proxyInfo = await resolveProxyForConnection(credentials.connectionId);
+  return runWithProxyContext(proxyInfo?.proxy || null, () =>
+    handleGeminiImageGeneration({
+      model: parsed.model,
+      providerConfig,
+      credentials,
+      log,
+      signal: ctx.request.signal,
+      referenceImages: ctx.images,
+      logPath: "/v1/images/edits",
+      body: {
+        model: modelStr,
+        prompt: ctx.prompt,
+        size: ctx.size,
+        response_format: ctx.responseFormat ?? undefined,
+        aspect_ratio: ctx.aspectRatio,
+        image_size: ctx.imageSize,
+        n: 1,
+      },
+    })
+  );
 }

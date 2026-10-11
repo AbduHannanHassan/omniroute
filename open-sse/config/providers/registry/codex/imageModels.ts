@@ -34,13 +34,20 @@ export const CODEX_IMAGE_PROVIDER: ImageProviderConfig = {
       id: "gpt-image-2",
       name: "GPT Image 2 (Codex requested engine)",
       inputModalities: ["text", "image"],
-      description: "Dedicated Codex Images request; served engine, account access and actual dimensions remain unverified.",
+      description:
+        "Dedicated Codex Images request; served engine, account access and actual dimensions remain unverified.",
     },
     {
       id: "gpt-image-2.5-sunburst",
       name: "GPT Image 2.5 Sunburst (Codex requested engine)",
       inputModalities: ["text", "image"],
-      description: "Explicit Sunburst request through Codex Images; OAuth entitlement and served engine are unknown.",
+      description:
+        "Explicit Sunburst request through Codex Images; OAuth entitlement and served engine are unknown.",
+    },
+    {
+      id: "gpt-image-2.5-flare",
+      name: "GPT Image 2.5 Flare (Codex)",
+      inputModalities: ["text", "image"],
     },
   ],
   supportedSizes: ["1024x1024", "1024x1536", "1536x1024"],

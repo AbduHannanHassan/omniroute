@@ -1,13 +1,23 @@
 import { getCodexClientVersion, getCodexUserAgent } from "../../../config/codexClient.ts";
 import { isCodexFreePlan } from "../../../executors/codex/tools.ts";
 import { sanitizeErrorMessage } from "../../../utils/error.ts";
-import { parseJsonOrNull, sanitizeImageProviderError, saveImageSuccessResult, saveImageErrorResult } from "../shared.ts";
+import { normalizeImageBuffer } from "../../../utils/imageNormalize.ts";
+import {
+  parseJsonOrNull,
+  sanitizeImageProviderError,
+  saveImageSuccessResult,
+  saveImageErrorResult,
+} from "../shared.ts";
 // #8307 — some ChatGPT accounts can run Codex but lack entitlement for the specific
 // requested image model. Upstream signals this as a 400 with an exact, stable message
 // (not a generic "invalid request"). Classify it so the caller can mark the failure
 // `retryable: true`, which routes it through the same sibling-account fallback that
 // already handles 401s (executeImageWithCredentialFallback, src/sse/services/imageCredentialRetry.ts).
-function isCodexChatGptModelAccessError(status: number, errorText: string, model: string): boolean {
+export function isCodexChatGptModelAccessError(
+  status: number,
+  errorText: string,
+  model: string
+): boolean {
   if (status !== 400) return false;
   const parsed = parseJsonOrNull(errorText);
   let detail: string | null = null;
@@ -65,11 +75,28 @@ export function extractImageGenerationCalls(
 // The image_generation hosted tool accepts { "auto" | "low" | "medium" | "high" }
 // for `quality`. Legacy image clients often send "standard" / "hd". Map those values
 // so OpenWebUI's quality dropdown doesn't silently get rejected upstream.
-function mapLegacyImageQualityToImageTool(value: string): string {
+export function mapLegacyImageQualityToImageTool(value: string): string {
   const normalized = value.toLowerCase();
   if (normalized === "standard") return "medium";
   if (normalized === "hd") return "high";
   return normalized;
+}
+
+// Hosted Codex can reject large inline references with 503; dedicated Images keeps original bytes.
+const CODEX_REFERENCE_MAX_BYTES = 400_000;
+const CODEX_REFERENCE_MAX_LONG_EDGE = 1024;
+
+export async function shrinkCodexReferenceImage(image: {
+  bytes: Buffer;
+  mime?: string;
+}): Promise<{ bytes: Buffer; mime: string }> {
+  const mime = image.mime || "image/png";
+  if (image.bytes.length <= CODEX_REFERENCE_MAX_BYTES) return { bytes: image.bytes, mime };
+  const out = await normalizeImageBuffer(image.bytes, {
+    maxLongEdge: CODEX_REFERENCE_MAX_LONG_EDGE,
+  });
+  if (!out.resized) return { bytes: image.bytes, mime };
+  return { bytes: out.buffer, mime: out.mime || mime };
 }
 
 export async function handleCodexImageGeneration({
@@ -136,10 +163,8 @@ export async function handleCodexImageGeneration({
       ? (credentials.providerSpecificData as Record<string, unknown>).workspaceId
       : undefined;
 
-  // Forward size/quality from the GPT-Image-style body into the hosted tool so
-  // OpenWebUI's size/quality selectors actually take effect. Everything else
-  // (model, n, background, moderation, output_compression) is left to the
-  // Codex backend's defaults — today that's `gpt-image-2`.
+  // Hosted chat orchestration uses the backend's image engine; exact image engines
+  // are dispatched separately by handleImageGeneration through codexImages.ts.
   const toolConfig: Record<string, unknown> = { type: "image_generation", output_format: "png" };
   if (referenceImages.length > 0) toolConfig.action = "edit";
   if (typeof body.size === "string" && body.size.trim()) {
@@ -149,11 +174,16 @@ export async function handleCodexImageGeneration({
     toolConfig.quality = mapLegacyImageQualityToImageTool(body.quality.trim());
   }
 
+  if (typeof body.background === "string" && body.background.trim()) {
+    toolConfig.background = body.background.trim();
+  }
+
   const inputContent: Array<Record<string, unknown>> = [{ type: "input_text", text: prompt }];
   for (const image of referenceImages) {
+    const reference = await shrinkCodexReferenceImage(image);
     inputContent.push({
       type: "input_image",
-      image_url: `data:${image.mime || "image/png"};base64,${image.bytes.toString("base64")}`,
+      image_url: `data:${reference.mime};base64,${reference.bytes.toString("base64")}`,
     });
   }
 

@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const baseline = "23a11484862b3bb589a55e85b00e4ac53ffeb234";
+const baseline = "7f3cbb046b3706bf0bbc047b7eaa0cbada8d9e50";
 const work = path.join(root, ".ci-work/image-repair");
 const home = path.join(work, "isolated-home");
 const temp = path.join(work, "isolated-temp");
@@ -128,20 +128,54 @@ async function run(label, command, args, wall = 240, idle = 60, capture = false)
 
 function offline(command, args) {
   // Set up loopback as root, then drop back to the runner before executing project code.
-  const script = 'uid="$1"; gid="$2"; shift 2; ip link set lo up; exec setpriv --reuid "$uid" --regid "$gid" --clear-groups -- "$@"';
-  return ["sudo", ["-n", "unshare", "--net", "--", "/bin/bash", "-euc", script, "image-ci",
-    String(process.getuid()), String(process.getgid()), "/usr/bin/env", "-i",
-    ...Object.entries(env).map(([key, value]) => `${key}=${value}`), command, ...args]];
+  const script =
+    'uid="$1"; gid="$2"; shift 2; ip link set lo up; exec setpriv --reuid "$uid" --regid "$gid" --clear-groups -- "$@"';
+  return [
+    "sudo",
+    [
+      "-n",
+      "unshare",
+      "--net",
+      "--",
+      "/bin/bash",
+      "-euc",
+      script,
+      "image-ci",
+      String(process.getuid()),
+      String(process.getgid()),
+      "/usr/bin/env",
+      "-i",
+      ...Object.entries(env).map(([key, value]) => `${key}=${value}`),
+      command,
+      ...args,
+    ],
+  ];
 }
 
 async function changedSources() {
-  const tracked = await run("discover changed roots", "git",
-    ["diff", "--name-only", "--diff-filter=ACMR", "-z", baseline, "--"], 30, 15, true);
-  const added = await run("discover new roots", "git",
-    ["ls-files", "--others", "--exclude-standard", "-z"], 30, 15, true);
-  return [...new Set(`${tracked}\0${added}`.split("\0").filter((file) =>
-    /^(src|open-sse|tests)\//.test(file) && /\.(?:[cm]?[jt]sx?)$/.test(file)
-  ))].sort();
+  const tracked = await run(
+    "discover changed roots",
+    "git",
+    ["diff", "--name-only", "--diff-filter=ACMR", "-z", baseline, "--"],
+    30,
+    15,
+    true
+  );
+  const added = await run(
+    "discover new roots",
+    "git",
+    ["ls-files", "--others", "--exclude-standard", "-z"],
+    30,
+    15,
+    true
+  );
+  return [
+    ...new Set(
+      `${tracked}\0${added}`
+        .split("\0")
+        .filter((file) => /^(src|open-sse|tests)\//.test(file) && /\.(?:[cm]?[jt]sx?)$/.test(file))
+    ),
+  ].sort();
 }
 
 async function typecheck() {
@@ -149,21 +183,34 @@ async function typecheck() {
   const files = JSON.parse(await fs.readFile(path.join(work, "roots.json"), "utf8"));
   const configPath = path.join(root, "tsconfig.json");
   const config = ts.readConfigFile(configPath, ts.sys.readFile);
-  if (config.error) throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, "\n"));
+  if (config.error)
+    throw new Error(ts.flattenDiagnosticMessageText(config.error.messageText, "\n"));
   const parsed = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
-  const declarations = [...parsed.fileNames.filter((file) => file.endsWith(".d.ts")),
-    path.join(root, "open-sse/types.d.ts")];
-  const program = ts.createProgram([...files.map((file) => path.join(root, file)), ...declarations], {
-    ...parsed.options, noCheck: false, noEmit: true, incremental: false,
-  });
+  const declarations = [
+    ...parsed.fileNames.filter((file) => file.endsWith(".d.ts")),
+    path.join(root, "open-sse/types.d.ts"),
+  ];
+  const program = ts.createProgram(
+    [...files.map((file) => path.join(root, file)), ...declarations],
+    {
+      ...parsed.options,
+      noCheck: false,
+      noEmit: true,
+      incremental: false,
+    }
+  );
   const diagnostics = [...parsed.errors, ...ts.getPreEmitDiagnostics(program)];
   if (diagnostics.length) {
-    console.error(ts.formatDiagnosticsWithColorAndContext(diagnostics, {
-      getCanonicalFileName: (file) => file,
-      getCurrentDirectory: () => root,
-      getNewLine: () => "\n",
-    }));
-    throw new Error(`Changed-root compiler: ${diagnostics.length} diagnostics (including transitive imports)`);
+    console.error(
+      ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+        getCanonicalFileName: (file) => file,
+        getCurrentDirectory: () => root,
+        getNewLine: () => "\n",
+      })
+    );
+    throw new Error(
+      `Changed-root compiler: ${diagnostics.length} diagnostics (including transitive imports)`
+    );
   }
   log("INFO", `compiler roots=${files.length} noCheck=false strict=${parsed.options.strict}`);
 }
@@ -171,6 +218,7 @@ async function typecheck() {
 const regressionFiles = [
   "10197-openrouter-image-edits-route.test.ts",
   "codex-free-plan-image-generation.test.ts",
+  "codex-images-dedicated-endpoint.test.ts",
   "codex-spark-image-generation.test.ts",
   "hard-session-lease-bypass-inventory.test.ts",
   "proxySubscription.parse.test.ts",
@@ -185,33 +233,59 @@ const regressionFiles = [
 
 async function focusedTests(roots) {
   const all = await fs.readdir(path.join(root, "tests/unit"));
-  const selected = all.filter((file) =>
-    /^(?:native-(?:codex|antigravity|image)|antigravity-image-|image-(?:generation|edits|credential|registry|routes|combo-edits|upscale-error))/.test(file)
-    && file.endsWith(".test.ts")
-  ).map((file) => `tests/unit/${file}`);
+  const selected = all
+    .filter(
+      (file) =>
+        /^(?:native-(?:codex|antigravity|image)|antigravity-image-|image-(?:generation|edits|credential|registry|routes|combo-edits|upscale-error))/.test(
+          file
+        ) && file.endsWith(".test.ts")
+    )
+    .map((file) => `tests/unit/${file}`);
   for (const file of regressionFiles) {
     await fs.access(path.join(root, "tests/unit", file));
     selected.push(`tests/unit/${file}`);
   }
-  for (const file of roots.filter((file) => /^tests\/.*\.test\.(?:ts|mjs)$/.test(file))) selected.push(file);
+  for (const file of roots.filter((file) => /^tests\/.*\.test\.(?:ts|mjs)$/.test(file)))
+    selected.push(file);
   const files = [...new Set(selected)].sort();
   assert.ok(files.length > 0, "No focused image suites discovered");
   log("INFO", `focused suites=${files.length} workers=2 native timeout=120s/file`);
   for (const file of files) log("INFO", `suite=${file}`);
-  const args = ["--import", "tsx/esm", "--import", "./tests/_setup/isolateDataDir.ts",
-    "--import", "./open-sse/utils/setupPolyfill.ts", "--test", "--test-timeout=120000",
-    "--test-concurrency=1", "--test-reporter=spec"];
-  const lifecycleSuites = new Set([
-    "10197-openrouter-image-edits-route.test.ts", "combo/image-combo.test.ts",
-    "combo/image-combo-empty-200-fallback.test.ts", "fal-image-edit.test.ts",
-    "fal-image-generation-default.test.ts", "image-combo-edits-fallback-12547.test.ts",
-    "image-edits-multipart-3273.test.ts", "image-generation-fetch-timeout.test.ts",
-    "image-generation-handler.test.ts", "image-generation-route-auth.test.ts",
-    "image-generation-route.test.ts", "image-generation-proxy.test.ts",
-    "image-generation-size-and-payload-guard.test.ts",
-    "image-routes-combo-edits-3214-3215.test.ts", "image-upscale-error-log.test.ts",
-    "nanobanana-image-handler.test.ts", "t42-image-size-to-aspect-ratio.test.ts",
-  ].map((file) => `tests/unit/${file}`));
+  const args = [
+    "--import",
+    "tsx/esm",
+    "--import",
+    "./tests/_setup/isolateDataDir.ts",
+    "--import",
+    "./open-sse/utils/setupPolyfill.ts",
+    "--test",
+    "--test-timeout=120000",
+    "--test-concurrency=1",
+    "--test-reporter=spec",
+  ];
+  const lifecycleSuites = new Set(
+    [
+      "10197-openrouter-image-edits-route.test.ts",
+      "combo/image-combo.test.ts",
+      "combo/image-combo-empty-200-fallback.test.ts",
+      "fal-image-edit.test.ts",
+      "fal-image-generation-default.test.ts",
+      "image-combo-edits-fallback-12547.test.ts",
+      "image-edits-multipart-3273.test.ts",
+      "image-generation-fetch-timeout.test.ts",
+      "image-generation-handler.test.ts",
+      "image-generation-route-auth.test.ts",
+      "image-generation-route.test.ts",
+      "image-generation-resilience.test.ts",
+      "image-generation-proxy.test.ts",
+      "codex-images-dedicated-endpoint.test.ts",
+      "image-generation-size-and-payload-guard.test.ts",
+      "image-routes-combo-edits-3214-3215.test.ts",
+      "image-upscale-error-log.test.ts",
+      "nanobanana-image-handler.test.ts",
+      "t42-image-size-to-aspect-ratio.test.ts",
+    ].map((file) => `tests/unit/${file}`)
+  );
   // A preload also runs in the native parent. One file per invocation prevents its
   // DATA_DIR from being inherited by multiple workers; run at most two invocations.
   const workspace = path.join(root, ".ci-work");
@@ -221,15 +295,32 @@ async function focusedTests(roots) {
     for (let index = 0; index < files.length; index += 2) {
       const remaining = Math.ceil((deadline - Date.now()) / 1000);
       if (remaining <= 0) throw new Error("Focused image bucket exceeded wall timeout of 240s");
-      const results = await Promise.allSettled(files.slice(index, index + 2).map((file) => {
-        const lifecycle = lifecycleSuites.has(file)
-          ? ["--import", "./tests/_setup/imageCallLogLifecycle.ts"] : [];
-        return run(file, ...offline("/usr/bin/env", ["-u", "DATA_DIR", process.execPath,
-          ...args, ...lifecycle, file]), remaining, 60);
-      }));
+      const results = await Promise.allSettled(
+        files.slice(index, index + 2).map((file) => {
+          const lifecycle = lifecycleSuites.has(file)
+            ? ["--import", "./tests/_setup/imageCallLogLifecycle.ts"]
+            : [];
+          return run(
+            file,
+            ...offline("/usr/bin/env", [
+              "-u",
+              "DATA_DIR",
+              process.execPath,
+              ...args,
+              ...lifecycle,
+              file,
+            ]),
+            remaining,
+            60
+          );
+        })
+      );
       const failed = results.filter((result) => result.status === "rejected");
-      if (failed.length) throw new AggregateError(failed.map((result) => result.reason),
-        failed.map((result) => result.reason.message).join("; "));
+      if (failed.length)
+        throw new AggregateError(
+          failed.map((result) => result.reason),
+          failed.map((result) => result.reason.message).join("; ")
+        );
     }
   } finally {
     for (const name of await fs.readdir(workspace)) {
@@ -239,7 +330,6 @@ async function focusedTests(roots) {
     }
   }
 }
-
 
 async function main() {
   assert.equal(process.platform, "linux", "This entry point is hosted Ubuntu-only");
@@ -251,20 +341,48 @@ async function main() {
   if (process.argv[2] === "--typecheck") return typecheck();
   try {
     await run("locked npm install", "npm", ["ci", "--no-audit", "--no-fund"], 480, 180);
-    await run("runner syntax", process.execPath, ["--check", fileURLToPath(import.meta.url)], 30, 15);
+    await run(
+      "runner syntax",
+      process.execPath,
+      ["--check", fileURLToPath(import.meta.url)],
+      30,
+      15
+    );
     const roots = await changedSources();
     assert.ok(roots.length > 0, "No changed/new source roots found against repair baseline");
     await fs.writeFile(path.join(work, "roots.json"), JSON.stringify(roots), "utf8");
     for (const file of roots) log("INFO", `compiler/lint root=${file}`);
-    await run("changed-root TypeScript", process.execPath,
-      [fileURLToPath(import.meta.url), "--typecheck"], 240, 120);
-    await run("changed-source ESLint", process.execPath,
-      ["node_modules/eslint/bin/eslint.js", "--suppressions-location",
-        "config/quality/eslint-suppressions.json", "--pass-on-unpruned-suppressions", ...roots], 240, 120);
+    await run(
+      "changed-root TypeScript",
+      process.execPath,
+      [fileURLToPath(import.meta.url), "--typecheck"],
+      240,
+      120
+    );
+    await run(
+      "changed-source ESLint",
+      process.execPath,
+      [
+        "node_modules/eslint/bin/eslint.js",
+        "--suppressions-location",
+        "config/quality/eslint-suppressions.json",
+        "--pass-on-unpruned-suppressions",
+        ...roots,
+      ],
+      240,
+      120
+    );
     await focusedTests(roots);
-    await run("backend standalone build", ...offline(process.execPath,
-      // Hosted cold builds measured260-394s and webpack can be quiet during compilation.
-      ["scripts/build/build-next-isolated.mjs"]), 900, 450);
+    await run(
+      "backend standalone build",
+      ...offline(
+        process.execPath,
+        // Hosted cold builds measured260-394s and webpack can be quiet during compilation.
+        ["scripts/build/build-next-isolated.mjs"]
+      ),
+      900,
+      450
+    );
     await verifyImageArtifact(root);
   } finally {
     await fs.rm(work, { recursive: true, force: true });

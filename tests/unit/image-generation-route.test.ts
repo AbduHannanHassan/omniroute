@@ -7,6 +7,7 @@ import path from "node:path";
 const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "omniroute-image-route-"));
 process.env.DATA_DIR = TEST_DATA_DIR;
 process.env.API_KEY_SECRET = process.env.API_KEY_SECRET || "image-route-test-api-key-secret";
+process.env.GROK_SUBSCRIPTION_IMAGES_ENABLED = "true";
 
 await import("../_setup/imageCallLogLifecycle.ts");
 
@@ -229,8 +230,15 @@ test("v1 image models GET exposes current Codex image models and hides inactive 
   assert.equal(response.status, 200);
   assert.deepEqual(
     ids.filter((id) => id.startsWith("codex/")),
-    ["codex/gpt-5.6-sol-image", "codex/gpt-5.6-terra-image", "codex/gpt-5.6-luna-image",
-      "codex/gpt-6.1-sol-image", "codex/gpt-image-2", "codex/gpt-image-2.5-sunburst"]
+    [
+      "codex/gpt-5.6-sol-image",
+      "codex/gpt-5.6-terra-image",
+      "codex/gpt-5.6-luna-image",
+      "codex/gpt-6.1-sol-image",
+      "codex/gpt-image-2",
+      "codex/gpt-image-2.5-sunburst",
+      "codex/gpt-image-2.5-flare",
+    ]
   );
   assert.ok(!ids.includes("codex/gpt-5.5"));
   assert.ok(!ids.includes("openai/gpt-image-2"));
@@ -644,11 +652,12 @@ test("v1 image edit POST executes Codex through the configured connection proxy"
   // mock must stay pending: an instantly-throwing fetch would settle the race
   // first and surface as a generic 502 upstream error instead of the proxy 503.
   // A real fetch settles on cancellation so its owned timeout can be cleared.
-  globalThis.fetch = async (_url, options: RequestInit = {}) => new Promise<Response>((_resolve, reject) => {
-    const abort = () => reject(new DOMException("Fixture request aborted", "AbortError"));
-    if (options.signal?.aborted) abort();
-    else options.signal?.addEventListener("abort", abort, { once: true });
-  });
+  globalThis.fetch = async (_url, options: RequestInit = {}) =>
+    new Promise<Response>((_resolve, reject) => {
+      const abort = () => reject(new DOMException("Fixture request aborted", "AbortError"));
+      if (options.signal?.aborted) abort();
+      else options.signal?.addEventListener("abort", abort, { once: true });
+    });
 
   const response = await imageEditRoute.POST(
     new Request("http://localhost/api/v1/images/edits", {

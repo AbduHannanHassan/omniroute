@@ -10,7 +10,11 @@ import {
   getImageModelEntry,
   modalitiesRequireImageInput,
 } from "@omniroute/open-sse/config/imageRegistry.ts";
-import { errorResponse, unavailableResponse } from "@omniroute/open-sse/utils/error.ts";
+import {
+  errorResponse,
+  sanitizeErrorMessage,
+  unavailableResponse,
+} from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
 import * as log from "@/sse/utils/logger";
@@ -256,7 +260,9 @@ async function postHandler(request, context) {
   }
 
   // Keep account selection inside the API key's connection allowlist.
-  const allowedConnections = policy.apiKeyInfo?.allowedConnections?.length ? policy.apiKeyInfo.allowedConnections : null;
+  const allowedConnections = policy.apiKeyInfo?.allowedConnections?.length
+    ? policy.apiKeyInfo.allowedConnections
+    : null;
   // Get credentials — skip for local providers (authType: "none")
   let credentials = null;
   if (providerConfig && providerConfig.authType !== "none") {
@@ -318,47 +324,55 @@ async function postHandler(request, context) {
 
   const dedicatedCodexImages = provider === "codex" && isCodexImagesModel(requestedModel);
   const executeImage = async (attemptCredentials) => {
-      let proxyInfo = null;
-      if (attemptCredentials?.connectionId) {
-        try {
-          proxyInfo = await resolveProxyForConnection(attemptCredentials.connectionId);
-        } catch {
-          if (dedicatedCodexImages) return { success: false, status: 503, error: "Codex Images proxy resolution failed", retryable: false };
-          log.debug("PROXY", `Failed to resolve proxy for image provider: ${provider}`);
-        }
-      }
-
-      const generateImage = () =>
-        runWithCallLogApiKeyContext(
-          {
-            apiKeyId: policy.apiKeyInfo?.id ?? null,
-            apiKeyName: policy.apiKeyInfo?.name ?? null,
-          },
-          () =>
-            handleImageGeneration({
-              body,
-              credentials: attemptCredentials,
-              log,
-              ...(isCustomModel && { resolvedProvider: provider }),
-              signal: request.signal,
-              clientHeaders: publicBaseUrlHeaders(request.headers),
-              // Trusted "loopback"|"lan"|"remote" verdict stamped by the authz
-              // pipeline from the real TCP peer (never the spoofable Host
-              // header). Only the spawn-capable cursor-agent-image provider
-              // consumes this (Hard Rules #15 + #17) — every other image
-              // provider ignores it.
-              peerLocality: request.headers.get(AUTHZ_HEADER_PEER_LOCALITY),
-            })
-        );
-
-      return attemptCredentials?.connectionId
-        ? runWithProxyContext(proxyInfo?.proxy || null, generateImage).catch((err: any) => ({
+    let proxyInfo = null;
+    if (attemptCredentials?.connectionId) {
+      try {
+        proxyInfo = await resolveProxyForConnection(attemptCredentials.connectionId);
+      } catch {
+        if (dedicatedCodexImages)
+          return {
             success: false,
-            status: dedicatedCodexImages ? 503 : err.statusCode || 500,
-            error: dedicatedCodexImages ? "Codex Images proxy or transport failed; do not resubmit an unknown outcome" : err.message,
-            ...(dedicatedCodexImages ? { retryable: false } : {}),
-          }))
-        : generateImage();
+            status: 503,
+            error: "Codex Images proxy resolution failed",
+            retryable: false,
+          };
+        log.debug("PROXY", `Failed to resolve proxy for image provider: ${provider}`);
+      }
+    }
+
+    const generateImage = () =>
+      runWithCallLogApiKeyContext(
+        {
+          apiKeyId: policy.apiKeyInfo?.id ?? null,
+          apiKeyName: policy.apiKeyInfo?.name ?? null,
+        },
+        () =>
+          handleImageGeneration({
+            body,
+            credentials: attemptCredentials,
+            log,
+            ...(isCustomModel && { resolvedProvider: provider }),
+            signal: request.signal,
+            clientHeaders: publicBaseUrlHeaders(request.headers),
+            // Trusted "loopback"|"lan"|"remote" verdict stamped by the authz
+            // pipeline from the real TCP peer (never the spoofable Host
+            // header). Only the spawn-capable cursor-agent-image provider
+            // consumes this (Hard Rules #15 + #17) — every other image
+            // provider ignores it.
+            peerLocality: request.headers.get(AUTHZ_HEADER_PEER_LOCALITY),
+          })
+      );
+
+    return attemptCredentials?.connectionId
+      ? runWithProxyContext(proxyInfo?.proxy || null, generateImage).catch((err: any) => ({
+          success: false,
+          status: dedicatedCodexImages ? 503 : err.statusCode || 500,
+          error: dedicatedCodexImages
+            ? "Codex Images proxy or transport failed; do not resubmit an unknown outcome"
+            : sanitizeErrorMessage(err.message),
+          ...(dedicatedCodexImages ? { retryable: false } : {}),
+        }))
+      : generateImage();
   };
   const executeSelectedCodexImages = async () => {
     const selected = await refreshSelectedCodexImageCredentials(credentials, request.signal);
@@ -367,7 +381,12 @@ async function postHandler(request, context) {
   };
   const execution = dedicatedCodexImages
     ? await executeSelectedCodexImages()
-    : await executeImageWithCredentialFallback({ provider, requestedModel, credentials, execute: executeImage });
+    : await executeImageWithCredentialFallback({
+        provider,
+        requestedModel,
+        credentials,
+        execute: executeImage,
+      });
   credentials = execution.credentials;
   const result = execution.result;
 

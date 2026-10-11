@@ -60,6 +60,11 @@ test("Codex image catalog separates hosted GPT-5.6/6.1 models from requested ima
       description:
         "Explicit Sunburst request through Codex Images; OAuth entitlement and served engine are unknown.",
     },
+    {
+      id: "gpt-image-2.5-flare",
+      name: "GPT Image 2.5 Flare (Codex)",
+      inputModalities: ["text", "image"],
+    },
   ]);
 
   for (const model of ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6.1-sol"]) {
@@ -79,6 +84,7 @@ test("Codex image listings do not shadow the hosted chat catalog ids", () => {
       "codex/gpt-6.1-sol-image",
       "codex/gpt-image-2",
       "codex/gpt-image-2.5-sunburst",
+      "codex/gpt-image-2.5-flare",
     ]
   );
 

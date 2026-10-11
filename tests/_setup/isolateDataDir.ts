@@ -34,9 +34,13 @@ if (!process.env.DATA_DIR) {
   }
   Object.assign(process.env, {
     DATA_DIR: path.join(dir, "data"),
-    HOME: path.join(dir, "home"), USERPROFILE: path.join(dir, "home"),
-    APPDATA: path.join(dir, "appdata"), LOCALAPPDATA: path.join(dir, "localappdata"),
-    TEMP: path.join(dir, "temp"), TMP: path.join(dir, "temp"), TMPDIR: path.join(dir, "temp"),
+    HOME: path.join(dir, "home"),
+    USERPROFILE: path.join(dir, "home"),
+    APPDATA: path.join(dir, "appdata"),
+    LOCALAPPDATA: path.join(dir, "localappdata"),
+    TEMP: path.join(dir, "temp"),
+    TMP: path.join(dir, "temp"),
+    TMPDIR: path.join(dir, "temp"),
   });
 
   // Best-effort cleanup so a long suite run does not leak hundreds of temp DBs.
@@ -48,6 +52,14 @@ if (!process.env.DATA_DIR) {
     }
   });
 }
+
+// Plugin-dir guard: the plugin scanner (src/lib/plugins/scanner.ts) resolves its directory
+// from OMNIROUTE_PLUGINS_DIR, else from HOME, which would point every test process at the
+// developer's real ~/.omniroute/plugins (scanned, and loaded, by the chat pipeline). Keep it
+// under the isolated DATA_DIR unless the caller already chose a directory; a blank value
+// counts as unset, matching the scanner's own trim.
+process.env.OMNIROUTE_PLUGINS_DIR =
+  process.env.OMNIROUTE_PLUGINS_DIR?.trim() || path.join(process.env.DATA_DIR!, "plugins");
 
 // System-trust guard: the suite must NEVER mutate the OS trust store. On a
 // persistent self-hosted runner the cert-flow integration test installed a fake

@@ -9,12 +9,16 @@ import {
   toRegistryImageModels,
 } from "../services/adobeFireflyModels.ts";
 import { AI_HORDE_IMAGE_PROVIDER } from "./providers/registry/aihorde/imageModels.ts";
+import { toRegistryImageModels as toSyntxImageModels } from "../services/syntxMediaCatalog.ts";
+import { ZENMUX_IMAGE_PROVIDER } from "./providers/registry/zenmux/imageModels.ts";
 
 import type { ImageProviderConfig } from "./imageRegistryTypes.ts";
 import { CODEX_IMAGE_PROVIDER } from "./providers/registry/codex/imageModels.ts";
 import { ANTIGRAVITY_IMAGE_PROVIDER } from "./providers/registry/antigravity/imageModels.ts";
+import { XAI_API_KEY_IMAGE_PROVIDER } from "./providers/registry/xai/imageModels.ts";
 
 export const IMAGE_PROVIDERS: Record<string, ImageProviderConfig> = {
+  zenmux: ZENMUX_IMAGE_PROVIDER,
   agnes: {
     id: "agnes",
     baseUrl: "https://apihub.agnes-ai.com/v1/images/generations",
@@ -125,18 +129,7 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderConfig> = {
     supportedSizes: ["1024x1024", "1024x1536", "1536x1024", "1024x1792", "1792x1024"],
   },
 
-  xai: {
-    id: "xai",
-    baseUrl: "https://api.x.ai/v1/images/generations",
-    authType: "apikey",
-    authHeader: "bearer",
-    format: "openai",
-    models: [
-      { id: "grok-imagine-image-quality", name: "Grok Imagine Image Quality" },
-      { id: "grok-imagine-image", name: "Grok Imagine Image" },
-    ],
-    supportedSizes: ["1024x1024", "2048x2048"],
-  },
+  xai: XAI_API_KEY_IMAGE_PROVIDER,
 
   "vercel-ai-gateway": {
     id: "vercel-ai-gateway",
@@ -738,6 +731,16 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderConfig> = {
     // passes any OpenAI-style size through. These are the aspect buckets.
     supportedSizes: ["1024x1024", "1024x576", "576x1024", "1024x768", "768x1024"],
   },
+  syntx: {
+    id: "syntx",
+    alias: "stx",
+    baseUrl: "https://api.syntx.ai/api/v1/design/generate",
+    authType: "apikey",
+    authHeader: "bearer",
+    format: "syntx-image",
+    models: toSyntxImageModels(),
+    supportedSizes: [],
+  },
 
   // Cloudflare Workers AI image generation (FLUX.1 Schnell). Reuses the same
   // Account ID + API Token connection as the existing `cloudflare-ai` chat
@@ -758,4 +761,3 @@ export const IMAGE_PROVIDERS: Record<string, ImageProviderConfig> = {
     supportedSizes: ["1024x1024", "768x768", "512x512"],
   },
 };
-

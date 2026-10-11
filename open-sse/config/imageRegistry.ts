@@ -5,103 +5,48 @@
  * Each provider has its own request format and endpoint.
  */
 
+import { resolveRegisteredFeatureFlag } from "@/shared/utils/featureFlagResolverBridge.ts";
 import { hasUnsafeModelIdSyntax } from "../utils/modelIdSafety.ts";
-import { IMAGE_PROVIDERS } from "./imageProviderCatalog.ts";
-import type { ImageProviderConfig } from "./imageRegistryTypes.ts";
+import {
+  type ImageModelEntry,
+  type ImageProviderConfig,
+  type ImageModelAliasEntry,
+  type ImageCatalogModelEntry,
+  XAI_IMAGE_CONFIG,
+  XAI_API_KEY_IMAGE_PROVIDER,
+  XAI_SUBSCRIPTION_IMAGE_PROVIDERS,
+  IMAGE_MODEL_ALIASES,
+  IMAGE_PROVIDERS,
+} from "./imageRegistryData.ts";
 
-export { IMAGE_PROVIDERS };
-
-interface ImageModelAliasEntry {
-  provider: string;
-  model: string;
-  name: string;
-  listInCatalog: boolean;
-  inputModalities?: string[];
-  imageRequired?: boolean;
-  description?: string;
-  mediaCapabilities?: Record<string, unknown>;
-}
-
-interface ImageCatalogModelEntry {
-  id: string;
-  name: string;
-  provider: string;
-  supportedSizes: string[];
-  inputModalities: string[];
-  description?: string;
-  mediaCapabilities?: Record<string, unknown>;
-}
-
-const IMAGE_MODEL_ALIASES: Record<string, ImageModelAliasEntry> = {
-  "gemini-3-pro-image-preview": {
-    provider: "antigravity",
-    model: "gemini-3-pro-image",
-    name: "Gemini 3 Pro Image",
-    listInCatalog: false,
-  },
-  "gemini-3.1-flash-image-preview": {
-    provider: "antigravity",
-    model: "gemini-3.1-flash-image",
-    name: "Gemini 3.1 Flash Image",
-    listInCatalog: false,
-  },
-  "flux-kontext": {
-    provider: "black-forest-labs",
-    model: "flux-kontext-pro",
-    name: "FLUX Kontext Pro",
-    listInCatalog: true,
-    inputModalities: ["text", "image"],
-  },
-  "flux-kontext-max": {
-    provider: "black-forest-labs",
-    model: "flux-kontext-max",
-    name: "FLUX Kontext Max",
-    listInCatalog: true,
-    inputModalities: ["text", "image"],
-  },
-  "flux-2-max": {
-    provider: "black-forest-labs",
-    model: "flux-2-max",
-    name: "FLUX.2 Max",
-    listInCatalog: true,
-    inputModalities: ["text", "image"],
-  },
-  "flux-2-pro": {
-    provider: "black-forest-labs",
-    model: "flux-2-pro",
-    name: "FLUX.2 Pro",
-    listInCatalog: true,
-    inputModalities: ["text", "image"],
-  },
-  "flux-2-flex": {
-    provider: "black-forest-labs",
-    model: "flux-2-flex",
-    name: "FLUX.2 Flex",
-    listInCatalog: true,
-    inputModalities: ["text", "image"],
-  },
-  "flux-2-dev": {
-    provider: "together",
-    model: "black-forest-labs/FLUX.2-dev",
-    name: "FLUX.2 Dev",
-    listInCatalog: true,
-    inputModalities: ["text", "image"],
-  },
-  kontext: {
-    provider: "black-forest-labs",
-    model: "flux-kontext-pro",
-    name: "FLUX Kontext Pro",
-    listInCatalog: false,
-    inputModalities: ["text", "image"],
-  },
-  "pollinations/kontext": {
-    provider: "black-forest-labs",
-    model: "flux-kontext-pro",
-    name: "FLUX Kontext Pro",
-    listInCatalog: false,
-    inputModalities: ["text", "image"],
-  },
+export {
+  type ImageModelEntry,
+  type ImageProviderConfig,
+  type ImageModelAliasEntry,
+  type ImageCatalogModelEntry,
+  XAI_IMAGE_CONFIG,
+  XAI_API_KEY_IMAGE_PROVIDER,
+  XAI_SUBSCRIPTION_IMAGE_PROVIDERS,
+  IMAGE_PROVIDERS,
 };
+
+export function isGrokSubscriptionImagesEnabled(): boolean {
+  try {
+    return resolveRegisteredFeatureFlag("GROK_SUBSCRIPTION_IMAGES_ENABLED");
+  } catch (error) {
+    console.error(
+      "[imageRegistry] Failed to resolve GROK_SUBSCRIPTION_IMAGES_ENABLED, defaulting to disabled:",
+      error instanceof Error ? error.message : error
+    );
+    const envValue = process.env.GROK_SUBSCRIPTION_IMAGES_ENABLED;
+    return envValue === "true" || envValue === "1" || envValue === "yes";
+  }
+}
+
+function visibleImageProviders(): Record<string, ImageProviderConfig> {
+  if (!isGrokSubscriptionImagesEnabled()) return IMAGE_PROVIDERS;
+  return { ...IMAGE_PROVIDERS, ...XAI_SUBSCRIPTION_IMAGE_PROVIDERS };
+}
 
 function resolveImageModelAlias(modelStr) {
   const alias = IMAGE_MODEL_ALIASES[modelStr];
@@ -120,7 +65,7 @@ function resolveSameProviderBareAlias(providerId, model) {
 }
 
 function findImageModelConfig(providerId, modelId) {
-  const provider = IMAGE_PROVIDERS[providerId];
+  const provider = visibleImageProviders()[providerId];
   if (!provider) return null;
   return (
     provider.models.find((model) => model.id === modelId || model.catalogId === modelId) || null
@@ -138,14 +83,14 @@ function resolveAliasImageRequired(alias, modelConfig) {
   return alias.imageRequired ?? modelConfig?.imageRequired;
 }
 
-
 /**
  * Get image provider config by ID
  */
 export function getImageProvider(providerId) {
-  if (IMAGE_PROVIDERS[providerId]) return IMAGE_PROVIDERS[providerId];
+  const providers = visibleImageProviders();
+  if (providers[providerId]) return providers[providerId];
   if (!providerId) return null;
-  for (const config of Object.values(IMAGE_PROVIDERS)) {
+  for (const config of Object.values(providers)) {
     if (config.alias === providerId) return config;
   }
   return null;
@@ -164,7 +109,7 @@ export function parseImageModel(modelStr) {
   }
 
   // Try each provider prefix
-  for (const [providerId, config] of Object.entries(IMAGE_PROVIDERS)) {
+  for (const [providerId, config] of Object.entries(visibleImageProviders())) {
     if (modelStr.startsWith(providerId + "/")) {
       const model = modelStr.slice(providerId.length + 1);
       const aliased =
@@ -187,7 +132,7 @@ export function parseImageModel(modelStr) {
   }
 
   // No provider prefix — try to find the model in every provider, excluding cookie-auth (web) bridges
-  for (const [providerId, config] of Object.entries(IMAGE_PROVIDERS)) {
+  for (const [providerId, config] of Object.entries(visibleImageProviders())) {
     const modelConfig = config.models.find(
       (model) => model.id === modelStr || model.catalogId === modelStr
     );
@@ -226,7 +171,7 @@ function imageAliasCatalogEntry(
 ): ImageCatalogModelEntry | null {
   if (!target.listInCatalog) return null;
 
-  const providerConfig = IMAGE_PROVIDERS[target.provider];
+  const providerConfig = visibleImageProviders()[target.provider];
   const modelConfig = findImageModelConfig(target.provider, target.model);
   return {
     id: alias,
@@ -239,7 +184,7 @@ function imageAliasCatalogEntry(
 }
 
 export function getAllImageModels(): ImageCatalogModelEntry[] {
-  const providerModels = Object.entries(IMAGE_PROVIDERS).flatMap(([providerId, config]) =>
+  const providerModels = Object.entries(visibleImageProviders()).flatMap(([providerId, config]) =>
     imageProviderCatalogEntries(providerId, config)
   );
   const aliasModels = Object.entries(IMAGE_MODEL_ALIASES).flatMap(([alias, target]) => {
@@ -265,6 +210,7 @@ export function getImageModelAliases() {
 export function isRegisteredImageModel(providerId, modelId) {
   return Boolean(findImageModelConfig(providerId, modelId));
 }
+
 export function getImageModelEntry(modelStr) {
   if (!modelStr) return null;
 

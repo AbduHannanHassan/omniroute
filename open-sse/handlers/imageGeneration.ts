@@ -29,10 +29,12 @@ import { handleMinimaxImageGeneration } from "./imageGeneration/providers/minima
 import { handleCloudflareAiImageGeneration } from "./imageGeneration/providers/cloudflareAi.ts";
 import { handleMaxaiImageGeneration } from "./imageGeneration/providers/maxaiImage.ts";
 import { handleAdobeFireflyImageGeneration } from "./imageGeneration/providers/adobeFirefly.ts";
+import { handleSyntxImageGeneration } from "./imageGeneration/providers/syntx.ts";
+import { handleZenmuxImageGeneration } from "./imageGeneration/providers/zenmux.ts";
 import { handleAlibabaImageGeneration } from "./imageGeneration/providers/alibabaImage.ts";
 import { handleAiHordeImageGeneration } from "./imageGeneration/providers/aihorde.ts";
 // Re-export so /v1/images/edits can dispatch Firefly reference-image edits.
-export { handleAdobeFireflyImageGeneration };
+export { handleAdobeFireflyImageGeneration, handleSyntxImageGeneration };
 import { handleGeminiImageGeneration } from "./geminiImage.ts";
 import { resolveImageBaseUrl } from "./imageGeneration/shared.ts";
 import { resolveComfyUiBaseUrl } from "../utils/comfyuiClient.ts";
@@ -46,11 +48,32 @@ import { handleBlackForestLabsImageGeneration } from "./imageGeneration/provider
 import { handleRecraftImageGeneration } from "./imageGeneration/providers/recraft.ts";
 import { handleTopazImageGeneration } from "./imageGeneration/providers/topaz.ts";
 import { handleNanoBananaImageGeneration } from "./imageGeneration/providers/nanoBanana.ts";
-export { KIE_MARKET_UPSTREAM_MODEL_IDS, resolveKieMarketUpstreamModelId } from "./imageGeneration/providers/kie.ts";
-export { handleOpenAIImageEdit, handleOpenRouterImageEdit } from "./imageGeneration/providers/openAI.ts";
-export { handleCodexImageEdit, extractImageGenerationCalls } from "./imageGeneration/providers/codex.ts";
+export {
+  KIE_MARKET_UPSTREAM_MODEL_IDS,
+  resolveKieMarketUpstreamModelId,
+} from "./imageGeneration/providers/kie.ts";
+export {
+  handleOpenAIImageEdit,
+  handleOpenRouterImageEdit,
+} from "./imageGeneration/providers/openAI.ts";
+export {
+  handleCodexImageEdit,
+  extractImageGenerationCalls,
+  isCodexChatGptModelAccessError,
+  mapLegacyImageQualityToImageTool,
+  shrinkCodexReferenceImage,
+} from "./imageGeneration/providers/codex.ts";
 export { normalizeNanoBananaTaskResult } from "./imageGeneration/providers/nanoBanana.ts";
-export { resolveImageBaseUrl, resolveImageSource, normalizeRequestedImageFormat, mapFalImageSize, normalizeProviderImagePayload, saveImageSuccessResult, saveImageErrorResult } from "./imageGeneration/shared.ts";
+export {
+  resolveImageBaseUrl,
+  resolveImageSource,
+  normalizeRequestedImageFormat,
+  mapFalImageSize,
+  normalizeProviderImagePayload,
+  sanitizeImageProviderError,
+  saveImageSuccessResult,
+  saveImageErrorResult,
+} from "./imageGeneration/shared.ts";
 /**
  * Handle image generation request
  * @param {object} options
@@ -151,14 +174,19 @@ export async function handleImageGeneration({
       // Previously only the (always-absent) top-level credentials.baseUrl was
       // read, so every custom image node fell back to the Gemini endpoint and
       // returned "Please pass a valid API key".
-      baseUrl: resolveImageBaseUrl(
-        credentials,
-        `https://generativelanguage.googleapis.com/v1beta/openai/images/generations`
-      ),
+      baseUrl: resolveImageBaseUrl(credentials, "", "generations", true),
       authType: "apikey",
       authHeader: "bearer",
       format: "openai",
     };
+
+    if (!syntheticConfig.baseUrl) {
+      return {
+        success: false,
+        status: 501,
+        error: `Image generation is not configured for custom provider: ${provider}`,
+      };
+    }
 
     return handleOpenAIImageGeneration({
       model,
@@ -168,6 +196,22 @@ export async function handleImageGeneration({
       credentials,
       log,
     });
+  }
+
+  if (providerConfig.format === "zenmux-image") {
+    return handleZenmuxImageGeneration({
+      model,
+      provider,
+      providerConfig,
+      body,
+      credentials,
+      log,
+      signal,
+    });
+  }
+
+  if (providerConfig.format === "syntx-image") {
+    return handleSyntxImageGeneration({ model, provider, providerConfig, body, credentials, log });
   }
 
   if (providerConfig.format === "aihorde") {
@@ -370,7 +414,8 @@ export async function handleImageGeneration({
   }
 
   if (providerConfig.format === "codex-responses") {
-    if (isCodexImagesModel(model)) return handleCodexImages({ model, provider, providerConfig, body, credentials, log, signal });
+    if (isCodexImagesModel(model))
+      return handleCodexImages({ model, provider, providerConfig, body, credentials, log, signal });
     return handleCodexImageGeneration({
       model,
       provider,
@@ -378,6 +423,7 @@ export async function handleImageGeneration({
       body,
       credentials,
       log,
+      signal,
     });
   }
 
