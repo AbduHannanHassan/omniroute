@@ -418,9 +418,8 @@ export function resolveExpiryFirstConfig(config: Record<string, unknown> | null 
  *   legacy score = tightestWindowRemaining / hoursUntilNearestReset
  *   metric-aware score = max(0, usable - observedBurn * hours) * planCapacityWeight / hours
  *
- * `usable` is the tightest window's remaining fraction for the exhaustion guard.
- * With burn telemetry, each window's expiring tranche is projected to its own
- * reset so a short session window is not scored using weekly burn.
+ * `usable` is the tightest window's remaining fraction. Burn telemetry projects
+ * consumption to the nearest reset, preserving that tightest-window bound.
  *
  * Deliberately different from `scoreResetAwareQuota`, which ranks mostly on
  * leftover and adds `resetUrgency * (1 - remaining)` — a RECOVERY signal that
@@ -480,25 +479,20 @@ export function scoreExpiryFirstQuota(
     configuredWeight > 0
       ? Math.min(100, configuredWeight)
       : 1;
-  const burnRates = metrics?.burnFractionPerHourByWindow || {};
-  if (Object.keys(burnRates).length === 0) {
-    if (!Number.isFinite(legacyMsUntilReset)) return { score: usable * capacityWeight };
-    const legacyHours = Math.max(config.minHours, legacyMsUntilReset / (60 * 60 * 1000));
-    return { score: (usable * capacityWeight) / legacyHours };
-  }
+  if (!Number.isFinite(legacyMsUntilReset)) return { score: usable * capacityWeight };
 
+  const burnRates = metrics?.burnFractionPerHourByWindow || {};
   let score = 0;
   let hasReset = false;
   for (const { key, window } of windows) {
     const resetMs = parseResetTimeMs(window.resetAt);
     if (!Number.isFinite(resetMs)) continue;
     hasReset = true;
-    // A non-positive delta means the snapshot predates its reset. Clamp to
-    // minHours so it is rechecked promptly without inventing a reset deadline.
     const hours = Math.max(config.minHours, (resetMs - nowMs) / (60 * 60 * 1000));
     const remaining = clamp01(1 - (window.percentUsed ?? 0.5));
     const burnRate = Math.max(0, burnRates[key] ?? 0);
-    const predictedWaste = Math.max(0, remaining - burnRate * hours);
+    const projectedRemaining = Math.max(0, remaining - burnRate * hours);
+    const predictedWaste = Math.min(usable, projectedRemaining);
     score = Math.max(score, (predictedWaste * capacityWeight) / hours);
   }
   if (!hasReset) return { score: usable * capacityWeight };
