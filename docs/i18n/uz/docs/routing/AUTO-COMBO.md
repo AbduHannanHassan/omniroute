@@ -51,15 +51,15 @@ Har qanday yaroqli `auto/<category>[:<tier>]` talab boʻyicha aniqlanadi; sarala
 **Foydalanish usuli:**
 
 ```bash
-# OpenAI formatini qoʻllab-quvvatlaydigan istalgan IDE yoki CLI vositasi
-Asosiy URL: http://localhost:20128/v1
-API kaliti:  <your-endpoint-key>
+# Any IDE or CLI tool that supports OpenAI format
+Base URL: http://localhost:20128/v1
+API Key:  <your-endpoint-key>
 
-# Kod/konfiguratsiyangizda modelni quyidagicha belgilang:
-model: "auto"                 # muvozanatli standart
-model: "auto/coding"          # kodlash vazifalari uchun eng yaxshisi
-model: "auto/fast"            # mavjudlar ichida eng tezkori
-model: "auto/cheap"           # har bir token uchun eng arzoni
+# In your code/config, set model to:
+model: "auto"                 # balanced default
+model: "auto/coding"          # best for coding tasks
+model: "auto/fast"            # fastest available
+model: "auto/cheap"           # cheapest per token
 ```
 
 **Nima sodir boʻladi:**
@@ -110,15 +110,15 @@ yoki global boʻlishi kerakligi haqidagi ochiq savol uchun #7819 rejasiga qarang
 **Sahna ortida:**
 
 ```txt
-Soʻrov: { model: "auto/coding" }
+Request: { model: "auto/coding" }
    ↓
-src/sse/handlers/chat.ts prefiksni aniqlaydi
+src/sse/handlers/chat.ts detects prefix
    ↓
-createVirtualAutoCombo('coding') → faol ulanishlardan candidatePool
+createVirtualAutoCombo('coding') → candidatePool from active connections
    ↓
-handleComboChat (saqlangan kombinatsiyalar bilan bir xil mexanizm)
+handleComboChat (same engine as persisted combos)
    ↓
-Avtomatik baholash har bir soʻrov uchun eng yaxshi provayder/modelni tanlaydi
+Auto-scoring selects best provider/model per request
 ```
 
 **Amalga oshirish fayllari:**
@@ -156,13 +156,7 @@ model idʼi bilan to‘qnashganda javobga bloklamaydigan `warning` maydonini
 qo‘shadi:
 
 ```json
-{
-  "warning": {
-    "code": "COMBO_NAME_SHADOWS_MODEL",
-    "modelId": "gpt-5.5",
-    "providerId": "openai"
-  }
-}
+{ "warning": { "code": "COMBO_NAME_SHADOWS_MODEL", "modelId": "gpt-5.5", "providerId": "openai" } }
 ```
 
 Ishga tushirish vaqtida `scanComboModelNameCollisionsAtBoot()`
@@ -274,7 +268,7 @@ Izohlar:
 | `X-OmniRoute-Effort`          | `auto` (boshqa qiymatlar zaxiralangan)                                                                                                                                                                    | Moslashuvchan fikrlash budjeti: soʻrovda hech qanday koʻrinishdagi mulohaza yuritish maydoni (`reasoning_effort`, `reasoning`, `thinking`) boʻlmasa, shlyuz deterministik soʻrov tuzilishi signallari (foydalanuvchining oxirgi xabari uzunligi, foydalanuvchining oxirgi xabarigacha boʻlgan kontekst hajmi, oldingi vosita natijalari, vosita sikli chuqurligi) asosida `auto` qiymatini `low`/`medium`/`high` qiymatlaridan biriga aylantiradi. Signallar joriy yurish doirasida cheklanadi — foydalanuvchining oxirgi xabaridan keyingi barcha maʼlumotlar eʼtiborga olinmaydi — shu sababli vosita siklidagi har bir soʻrov bir xil darajaga ega boʻladi (har bir yurish uchun holatsiz mahkamlash, sessiya holatisiz, yuqori oqimdagi prompt-kesh prefikslarini buzishi mumkin boʻlgan sikl ichidagi oshirishsiz). Mijoz tomonidan aniq koʻrsatilgan mulohaza yuritish maydoni har doim ustun keladi. Yuqori oqimga yoʻnaltirilishi OpenAI Chat Completions shakliga (`targetFormat === FORMATS.OPENAI`) mos keladigan soʻrovlar bilan cheklangan — `reasoning_effort` OpenAI shaklidagi maydon boʻlgani uchun, Claude yoki Geminiʼga yoʻnaltirilgan soʻrovda bu sarlavha hech qanday taʼsir koʻrsatmaydi (`open-sse/handlers/chatCore/adaptiveEffortWiring.ts` fayliga qarang). |
 
 ```bash
-# Eng tez profilni majburan tanlang, bu soʻrov xarajatini $0.05 bilan cheklang va ortiqcha sarflash oʻrniga qatʼiy bloklang
+# Force the fastest profile, cap this request at $0.05, and hard-block instead of overspending
 curl -sS http://localhost:20128/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-OmniRoute-Mode: fast" \
@@ -288,72 +282,53 @@ aniqlangan qiymatlar mexanizmning mavjud `config.modePack` / `config.budgetCap` 
 `config.budgetFallback` kirishlariga uzatiladi. Kombinatsiyada saqlangan `config.budgetFallback` ("strict" |
 "cheapest") doimiy siyosatni belgilaydi; sarlavha uni bitta soʻrov uchun qayta belgilaydi.
 
-## Barcha yoʻnaltirish strategiyalari (Routing Strategies)
+## Barcha marshrutlash strategiyalari
 
-OmniRoute combo dvigateli **19 ta yoʻnaltirish strategiyasini** qoʻllab-quvvatlaydi (`src/shared/constants/routingStrategies.ts` faylidagi `ROUTING_STRATEGY_VALUES` da eʼlon qilingan). Auto Combo dvigatelining oʻzi `auto` strategiyasi ostida taqdim etiladi; qolganlari esa saqlangan kombolar uchun mavjud.
+OmniRoute'ning combo dvigateli **20 ta marshrutlash strategiyasini** qo‘llab-quvvatlaydi (`src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES` da e’lon qilingan). Auto Combo dvigateli `auto` strategiyasi ostida taqdim etiladi; qolganlari esa saqlanib qolgan (persisted) kombolar uchun mavjud.
 
-| Strategiya          | Tavsif                                                                                                                                                                                                                                              |
-| :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `priority`          | Aniq belgilangan ustuvorlikka ega birinchi nishonga yoʻnaltirilgan tartiblangan roʻyxat                                                                                                                                                             |
-| `weighted`          | Har bir nishonning vazniga asoslangan mutanosib tasodifiy tanlov                                                                                                                                                                                    |
-| `round-robin`       | Nishonlar boʻylab ketma-ketlikda aylanish (paketlangan; quyida koʻring)                                                                                                                                                                             |
-| `context-relay`     | Nishonlar boʻylab kontekstni uzatish (uzoq suhbatlar uchun)                                                                                                                                                                                         |
-| `fill-first`        | Keyingisiga oʻtishdan oldin har bir nishonning kvotasini toʻldirish                                                                                                                                                                                 |
-| `p2c`               | Yuklamani Power-of-2-choices usuli orqali tasodifiy muvozanatlash                                                                                                                                                                                   |
-| `random`            | Bir tekis tasodifiy tanlash                                                                                                                                                                                                                         |
-| `least-used`        | Eng kam joriy yuklamaga ega boʻlgan nishonni tanlash                                                                                                                                                                                                |
-| `cost-optimized`    | Katalog narxlaridan kelib chiqqan holda har bir soʻrov uchun $ xarajatini minimallashtirish                                                                                                                                                         |
-| `reset-aware` ⭐    | Kvotani yangilash vaqti boʻyicha ustuvorlik berish — qisqa yangilanish oynasiga ega boʻlganlar yuqoriroq oʻrin oladi                                                                                                                                |
-| `reset-window`      | Kvota oynasi eng tez yangilanadigan nishonlarni afzal koʻrish                                                                                                                                                                                       |
-| `headroom`          | Eng koʻp qolgan kvota zaxirasiga ega nishonni tanlash                                                                                                                                                                                               |
-| `strict-random`     | Takrorlanishlarni olib tashlamasdan tasodifiy tanlash                                                                                                                                                                                               |
-| `auto`              | Auto Combo ball tizimidan (16 faktorli) foydalanish — **tavsiya etiladi**                                                                                                                                                                           |
-| `lkgp`              | Last-Known-Good Path (oxirgi muvaffaqiyatli provayderga biriktiradi, soʻngra qoidalarga qaytadi)                                                                                                                                                    |
-| `context-optimized` | Joriy kontekst hajmiga eng mos keladigan nishonni tanlash                                                                                                                                                                                           |
-| `cache-optimized`   | Prompt keshiga yaqinlik boʻyicha nishonlarni qayta tartiblash — ushbu soʻrovning keshlangan prefiksini oʻzida saqlash ehtimoli eng yuqori boʻlgan ulanish birinchi boʻlib sinab koʻriladi (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
-| `fusion` 🧬         | Bir vaqtning oʻzida bir nechta modellar paneliga tarqatish, soʻngra hakam (judge) orqali yagona javobni sintez qilish (quyida koʻring)                                                                                                              |
-| `pipeline`          | Nishonlarni ketma-ket ishga tushirish, har bir bosqich natijasini keyingi bosqich kirishiga uzatish; faqat yakuniy javob qaytariladi (#6396)                                                                                                        |
+| Strategiya          | Tavsif                                                                                                                                                                                                                                   |
+| :------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `priority`          | Aniq ustuvorlikka ega bo‘lgan birinchi maqsadli tartiblangan ro‘yxat                                                                                                                                                                     |
+| `weighted`          | Har bir maqsad bo‘yicha vazn (weight) asosida tortilgan tasodifiy tanlov                                                                                                                                                                 |
+| `round-robin`       | Maqsadlar bo‘ylab tartib bilan aylanish (to‘plamlangan; quyida qarang)                                                                                                                                                                   |
+| `context-relay`     | Kontekstni maqsadlar o‘rtasida uzatish (uzun suhbatlar)                                                                                                                                                                                  |
+| `fill-first`        | Keyingisiga o‘tishdan oldin har bir maqsadning kvotasini to‘ldirish                                                                                                                                                                      |
+| `p2c`               | Power-of-2-choices (P2C) tasodifiy yukni taqsimlash                                                                                                                                                                                      |
+| `random`            | Bir xil ehtimollikdagi tasodifiy tanlov                                                                                                                                                                                                  |
+| `least-used`        | Joriy yuklanishi eng past bo‘lgan maqsadni tanlash                                                                                                                                                                                       |
+| `cost-optimized`    | Katalog narxlari asosida so‘rov uchun $ xarajatini minimallashtirish                                                                                                                                                                     |
+| `reset-aware` ⭐    | Kvota tiklanish vaqti bo‘yicha ustuvorlik berish — qisqa tiklanish oynalari yuqoriroq o‘ringa ega                                                                                                                                        |
+| `reset-window`      | Kvota oynasi eng tez tiklanadigan maqsadlarni afzal ko‘rish                                                                                                                                                                              |
+| `headroom`          | Eng ko‘p qolgan kvota zaxirasiga ega maqsadni tanlash                                                                                                                                                                                    |
+| `quota-weighted`    | Tugagan hisoblarni o‘tkazib yuborish, so‘ngra qolganlari orasidan qolgan kvotaning bajarilayotgan yuklamaga nisbati bo‘yicha tanlash; mavjud suhbatlar biriktirilgan holda qoladi                                                        |
+| `strict-random`     | Takrorlanishlarni deduplikatsiya qilmasdan tasodifiy tanlash                                                                                                                                                                             |
+| `auto`              | Auto Combo ball tizimidan foydalanish (16-faktorli) — **tavsiya etiladi**                                                                                                                                                                |
+| `lkgp`              | Last-Known-Good Path (oxirgi muvaffaqiyatli provayderga biriktiradi, so‘ngra qoidalarga qaytadi)                                                                                                                                         |
+| `context-optimized` | Joriy kontekst hajmi uchun eng mos maqsadni tanlash                                                                                                                                                                                      |
+| `cache-optimized`   | Maqsadlarni prompt-kesh yaqinligi bo‘yicha qayta tartiblash — ushbu so‘rovning keshdagi prefiksini saqlash ehtimoli eng yuqori bo‘lgan ulanish birinchi bo‘lib sinab ko‘riladi (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
+| `fusion` 🧬         | Parallel ravishda modellar paneliga tarqatish, so‘ngra hakam orqali bitta javobni sintez qilish (quyida qarang)                                                                                                                          |
+| `pipeline`          | Maqsadlarni ketma-ket bajarish, har bir qadamning chiqishini keyingi qadamning kirishiga ulash; faqat yakuniy javob qaytariladi (#6396)                                                                                                  |
 
 ⭐ = v3.8.0 da yangi · 🧬 = v3.8.36 da yangi
 
 ### `weighted` semantikasi
 
-`weighted` bu **har bir soʻrov uchun mutanosib tasodifiy tanlov**
-(`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`), tenglashtiruvchi emas:
+`weighted` — bu **har bir so‘rov uchun mutanosib tasodifiy tanlov** (`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`), tenglashtiruvchi emas:
 
-- Har bir soʻrov `weight / totalWeight` ehtimoli bilan **bitta** bosqichni tanlaydi; qolgan bosqichlar
-  ushbu soʻrov uchun zaxira zanjiri sifatida kamayuvchi vazn boʻyicha tartiblanadi.
-- Vazni `0` boʻlgan (yoki koʻrsatilmagan) bosqich boshqa har qanday bosqichning vazni > 0 boʻlgan holatda
-  **hech qachon tanlanmaydi** — u faqat tanlangan bosqich muvaffaqiyatsiz tugaganidan keyin zaxira sifatida xizmat qilishi mumkin. Faqat **barcha**
-  vaznlar 0 boʻlgandagina tanlov bir tekis boʻladi.
-- Nishonlari toʻliq mavjud boʻlmagan bosqichlar — provayder circuit breaker holati `OPEN`, ulanishni
-  kutish vaqti (cooldown), model blokirovkasi — tanlov oʻtkazilishidan oldin roʻyxatdan olib tashlanadi
-  (`open-sse/services/combo/targetResolution.ts`), shuning uchun bitta soz holatdagi bosqich vaqtincha
-  barcha soʻrovlarni qabul qilishi mumkin.
-- `stickyWeightedLimit` (combo konfiguratsiyasi, standart qiymati `1` = oʻchirilgan) qayta tanlashdan oldin
-  tanlangan bosqichni shuncha ketma-ket muvaffaqiyatli urinishlar davomida biriktirib turadi.
+- Har bir so‘rov `weight / totalWeight` ehtimolligi bilan **bitta** qadamni tanlaydi; qolgan qadamlar ushbu so‘rov uchun zaxira zanjiri sifatida vaznning kamayish tartibida joylashtiriladi.
+- Vazni `0` bo‘lgan (yoki mavjud bo‘lmagan) qadam, boshqa har qanday qadamning vazni > 0 bo‘lganda **hech qachon tanlanmaydi** — u faqat tanlangan qadam muvaffaqiyatsizlikka uchragandan keyin zaxira sifatida xizmat qilishi mumkin. Faqat **barcha** vaznlar 0 bo‘lganda tanlov bir xil (uniform) bo‘ladi.
+- Maqsadlari mavjud bo‘lmagan qadamlar — provayderning `OPEN` holatidagi o‘chirgichi (circuit breaker), ulanishning sovish davri (cooldown), modelning bloklanishi — tanlov amalga oshirilishidan oldin chiqarib tashlanadi (`open-sse/services/combo/targetResolution.ts`), shuning uchun bitta sog‘lom qadam vaqtincha har bir so‘rovda g‘olib chiqishi mumkin.
+- `stickyWeightedLimit` (combo konfiguratsiyasi, standart `1` = o‘chirilgan) qayta tanlashdan oldin tanlangan qadamni ketma-ket shuncha muvaffaqiyat uchun biriktiradi.
 
-Qatʼiy navbatlash uchun `round-robin` dan foydalaning; `weighted` da teng vaznlar qatʼiy emas, balki
-statistik muvozanatni beradi.
+Qatʼiy aylanish (strict rotation) uchun `round-robin` dan foydalaning; `weighted` (vaznlangan) boʻyicha teng vaznlar statistik — qatʼiy emas — muvozanatni beradi.
 
 ### Agentic pipeline rejimi
 
-Ikki bosqichli `pipeline` kombosi `config.agenticOrchestration.enabled` orqali
-planner/executor yo‘naltirishini (routing) faollashtirishi mumkin. Birinchi nishon
-rejalashtirish va yakuniy javoblarga javob beradi; ikkinchi nishon esa mijozga xos (client-native)
-instrument chaqiruvlarini (tool calls) yuboradi. OmniRoute so‘rov protokolidan
-instrument natijalarining davomini aniqlaydi, rejalashtiruvchidan (planner) yana bir
-instrument bosqichi kerakmi yoki yo‘qligini so‘raydi va dinamik ravishda executor yoki
-plannerni mijozga ko‘rsatiladigan yakuniy bosqichga aylantiradi.
+Kamida ikkita modelga ega `pipeline` kombinatsiyasi `config.agenticOrchestration.enabled` yordamida rejalashtiruvchi/bajaruvchi (planner/executor) marshrutizatsiyasini tanlashi mumkin. Birinchi maqsad rejalashtirish va yakuniy javoblar uchun javobgardir; ikkinchi maqsad esa mijozga xos vosita chaqiruvlarini (client-native tool calls) amalga oshiradi. OmniRoute soʻrov protokolidan vosita natijalarining davomini aniqlaydi, rejalashtiruvchidan yana bir vosita bosqichi kerakligini soʻraydi va dinamik ravishda bajaruvchi yoki rejalashtiruvchini mijozga koʻrinadigan yakuniy qadamga aylantiradi.
 
-Instrument natijalari davom etganda, OmniRoute shuningdek, agar ketma-ket ikki yakunlangan
-bosqichda o‘zgarmagan natijalar bilan bir xil instrument chaqiruvlari takrorlansa yoki
-ketma-ket ikki bosqichdagi har bir aniq belgilangan natija muvaffaqiyatsiz tugasa,
-ijroni to‘xtatadi. O‘zgargan natijalar qayta chaqiruvlarga ruxsat beradi (masalan, polling).
-Ushbu himoya yangi foydalanuvchi so‘rovi kelganda qayta tiklanadi, parallel chaqiruvlarni
-bitta bosqichga guruhlaydi hamda Anthropic, Chat Completions, Responses va Gemini
-tarixlarini qo‘llab-quvvatlaydi. Planner sababni qabul qiladi va hatto u boshqa instrument
-bosqichini so‘ragan taqdirda ham yakuniy javobga egalik qiladi.
+Vosita natijalarining davomida, OmniRoute, shuningdek, ketma-ket ikki marta yakunlangan bosqichlar oʻzgarmagan natijalar bilan bir xil vosita chaqiruvlarini takrorlaganda yoki ketma-ket ikki bosqichdagi har bir aniq belgilangan natija muvaffaqiyatsizlikka uchraganda bajarishni toʻxtatadi. Oʻzgargan natijalar takroriy chaqiruvlarga (masalan, soʻrov oʻtkazish/polling) ruxsat beradi. Himoya mexanizmi (guard) yangi foydalanuvchi soʻrovida qayta oʻrnatiladi, parallel chaqiruvlarni bitta bosqichga guruhlaydi va Anthropic, Chat Completions, Responses va Gemini tarixlarini qoʻllab-quvvatlaydi. Rejalashtiruvchi sababni qabul qiladi va hatto boshqa vosita bosqichini talab qilsa ham, yakuniy javob uchun javobgar boʻladi.
+
+Ikkinchi maqsaddan keyingi qoʻshimcha modellar tartiblangan bajaruvchi zaxiralari hisoblanadi. Muvaffaqiyatsiz HTTP javobi yoki transport istisnosi keyingi bajaruvchiga oʻtadi, bunda xuddi shu rejalashtiruvchi qarori va mahalliy vositalar saqlanib qoladi, lekin oʻsha bajaruvchining oʻz qadam taklifi (step prompt) va hal qilingan ulanishi ishlatiladi. Birinchi muvaffaqiyatli javob oʻzgarishsiz qaytariladi, shu jumladan SSE oqimi (streaming); muvaffaqiyatli oqim boshlangandan keyingi nosozliklarni bu yerda qayta urinib boʻlmaydi. Agar barcha bajaruvchilar muvaffaqiyatsizlikka uchrasa, oxirgi xatolik qaytariladi. Mijoz tomonidan bekor qilish (aborts) joʻnatishni toʻxtatadi.
 
 ```json
 {
@@ -365,40 +340,17 @@ bosqichini so‘ragan taqdirda ham yakuniy javobga egalik qiladi.
 }
 ```
 
-Executor bitta javobda bir nechta mustaqil chaqiruvlarni chiqarishi mumkin. Bog‘liq
-chaqiruvlar keyingi mijoz instrument natijalari navbatlarida ko‘rib chiqiladi va
-planner har bir natijani tekshiradi. `maxToolRounds` sukut bo‘yicha `8` ga teng va
-`1`–`32` oralig‘ini qabul qiladi; limitga yetgach, planner mavjud eng yaxshi yakuniy
-javobni tayyorlashi shart. Ichki planner qarorlari buferlanadi, tanlangan mijozga
-ko‘rsatiladigan javob esa asl striming (streaming) sozlamasini saqlab qoladi.
+Bajaruvchi bitta javobda bir nechta mustaqil chaqiruvlarni amalga oshirishi mumkin. Bogʻliq chaqiruvlar keyingi mijoz vositasi natijalari navbatlarida koʻrib chiqiladi, bunda rejalashtiruvchi har bir natijani tekshiradi. `maxToolRounds` sukut boʻyicha `8` ga teng va `1`–`32` oraligʻini qabul qiladi; bu chegaraga yetganda, rejalashtiruvchi mavjud boʻlgan eng yaxshi yakuniy javobni taqdim etishi shart. Ichki rejalashtiruvchi qarorlari buferlanadi, tanlangan mijozga koʻrinadigan javob esa asl oqim (streaming) afzalligini saqlab qoladi.
 
-### `round-robin` yopishqoq to‘plami (sticky batch) va akkauntlarni kengaytirish
+### `round-robin` sticky batch va hisob qaydnomasini kengaytirish
 
-Round-robin bitta-so‘rov-bitta-bosqich emas, balki to‘plamli (batched) ishlaydi:
+Round-robin bosqichma-bosqich emas, balki toʻplam (batch) shaklida ishlaydi:
 
-- `stickyRoundRobinLimit` (kombo konfiguratsiyasi, so‘ngra `comboStickyRoundRobinLimit`,
-  keyin `settings.stickyRoundRobinLimit`, sukut bo‘yicha **3**) aylanishdan (rotatsiyadan)
-  oldin ketma-ket shuncha muvaffaqiyatli urinish uchun aynan bitta nishonni saqlab turadi.
-  Bitta so‘rovli rotatsiya uchun kombo sozlamasini `1` ga o‘rnating. Kombo muharriri
-  amaldagi qiymatni va u qaysi qatlamdan kelganini ko‘rsatadi.
-- `connectionAwareExpansion` (kombo konfiguratsiyasi, so‘ngra sozlamalar, sukut bo‘yicha
-  **false**) rotatsiyadan oldin har bir provayder darajasidagi bosqichni akkauntlar
-  bo‘yicha nishonlarga kengaytiradi. B guruhidagi strategiyalar (priority, weighted,
-  round-robin, random, p2c, least-used, cost-optimized, lkgp, fill-first, strict-random,
-  context-optimized, cache-optimized, context-relay, fusion, pipeline) bu funksiya
-  yoqilmaguncha provayder darajasidagi ko‘rinishni saqlab qoladi. Kombo muharriri
-  inherit / on / off parametrlarini taqdim etadi; inherit global sukut bo‘yicha qiymatdan
-  (off) foydalanadi.
-- Prompt-keshning lokal yo‘naltirilishi (`promptCacheAffinityEnabled`, sukut bo‘yicha **true**)
-  biriktirilgan ulanishlarni qayta tartiblaydi, shunda mos keluvchi kesh kalitlari bitta
-  akkauntda qoladi. U biriktirilgan akkauntlararo bosqichlar bo‘yicha round-robin va vaznli
-  rotatsiyadan ustunlikka ega. Agar sizga qat'iy rotatsiya kerak bo‘lsa, uni Settings → Combo defaults
-  orqali o‘chirib qo‘ying. Har bir kombo uchun alohida qayta belgilash (override) mavjud emas.
+- `stickyRoundRobinLimit` (combo konfiguratsiyasi, keyin `comboStickyRoundRobinLimit`, keyin `settings.stickyRoundRobinLimit`, sukut boʻyicha **3**) aylanishdan oldin ketma-ket muvaffaqiyatlar soni uchun bir xil maqsadni saqlab qoladi. Bir soʻrovli aylanish uchun combo override qiymatini **1** ga oʻrnating. Combo muharriri samarali qiymatni va u qaysi qatlamdan kelganini koʻrsatadi.
+- `connectionAwareExpansion` (combo konfiguratsiyasi, keyin sozlamalar, sukut boʻyicha **false**) har bir provayder darajasidagi qadamni aylanishdan oldin hisob qaydnomasi boʻyicha maqsadlarga kengaytiradi. B-guruh strategiyalari (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp, fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion, pipeline) bu yoqilguncha provayder darajasidagi koʻrinishni saqlab qoladi. Combo muharriri inherit / on / off variantlarini taqdim etadi; inherit global sukut boʻyicha qiymatdan (off) foydalanadi.
+- Prompt-cache joylashuv marshrutizatsiyasi (`promptCacheAffinityEnabled`, sukut boʻyicha **true**) biriktirilgan ulanishlarni qayta tartiblaydi, shunda mos keladigan kesh kalitlari bitta hisob qaydnomasida qoladi. Bu biriktirilgan hisob qaydnomasi boʻyicha qadamlar boʻylab round-robin va vaznlangan aylanishdan ustunlikka ega. Agar sizga qatʼiy aylanish kerak boʻlsa, uni Settings → Combo defaults ostida oʻchirib qoʻying. Har bir combo uchun alohida override mavjud emas.
 
-Bitta modelda ko‘p akkauntli rotatsiya uchun uchtadan biriktirilgan `connectionId`lar o‘rniga,
-yopishqoqlik limiti `1` bo‘lgan **bitta dinamik-akkauntli bosqich**dan (bo‘sh `connectionId`,
-butun pul) foydalanish afzalroqdir. Biriktirilgan bosqichlar va affinlik (affinity) RR hisoblagichi
-oldinga siljigan taqdirda ham bitta akkauntga birlashib qoladi.
+Bitta modelda koʻp hisob qaydnomali aylanish uchun, uchta biriktirilgan `connectionId` oʻrniga, sticky limit **1** boʻlgan bitta dinamik hisob qaydnomasi qadamini (boʻsh `connectionId`, butun hovuz) afzal koʻring. Biriktirilgan qadamlar va yaqinlik (affinity) RR hisoblagichi oldinga siljigan taqdirda ham bir xil hisob qaydnomasiga yigʻiladi.
 
 ## Fusion strategiyasi
 
@@ -499,53 +451,46 @@ So‘rovlarning 5%i (sozlanishi mumkin) tadqiqot maqsadida tasodifiy provayderla
 
 ## API
 
-**Maxsus `POST /api/combos/auto` endpointi mavjud emas** — Auto-Combo ikki usulda ishlatiladi:
+**`POST /api/combos/auto` uchun maxsus endpoint mavjud emas** — Auto-Combo ikki usulda ishlatiladi:
 
-1. **Sozlamalarsiz (tavsiya etiladi):** Istalgan chat yakunlash so‘rovini `model: "auto"` yoki `model: "auto/<variant>"` bilan yuboring. Virtual fabrika kombinatsiyani har bir so‘rov uchun yaratadi — saqlash ham, API chaqiruvlari ham talab qilinmaydi.
+1. **Zero-config (tavsiya etiladi):** `model: "auto"` yoki `model: "auto/<variant>"` bilan istalgan chat completion so‘rovini yuboring. Virtual zavod har bir so‘rov uchun kombinatsiyani (combo) yaratadi — hech qanday saqlash (persistence) yoki API chaqiruvlari talab qilinmaydi.
 
-2. **`strategy: "auto"` bilan saqlanadigan kombinatsiya:** `POST /api/combos` orqali odatiy kombinatsiya yarating va `strategy: "auto"` hamda `config.auto.weights` / `config.auto.candidatePool` qiymatlarini belgilang. Xuddi shu baholash mexanizmidan foydalaniladi; kombinatsiya `combos` ichida saqlanadi va ID orqali qayta ishlatilishi mumkin.
+2. **`strategy: "auto"` bilan saqlanadigan (persisted) combo:** `POST /api/combos` orqali oddiy combo yarating va `strategy: "auto"` hamda `config.auto.weights` / `config.auto.candidatePool` ni o‘rnating. Xuddi shu baholash mexanizmi (scoring engine) ishlatiladi; combo `combos` ichida saqlanadi va ID orqali qayta ishlatilishi mumkin.
 
-Topish uchun `GET /api/combos/auto` har bir variantni uning aniqlangan nomzodlar to‘plami hamda `context_length` / `max_output_tokens` bilan birga ko‘rsatadi — bu nomzodlar to‘plamidagi kontekst oynalari orasidagi ENG KATTA qiymatdir. Mijozlar (masalan, opencode plagini) `0` o‘rniga ushbu qiymatlarni ko‘rsatishi kerak: nol kontekst opencode’ning avtomatik ixchamlashtirishini butunlay o‘chiradi va seanslarning shlyuzdagi tarixni tozalash jarayoni kontekstni yo‘q qilguncha o‘sib borishiga imkon beradi. ENG KATTA qiymatni ko‘rsatish xavfsiz, chunki auto-combo kontekstining dastlabki filtri hajmi katta so‘rovlarni katta oynali nomzodlarga yo‘naltiradi.
+Aniqlash (discovery) uchun, `GET /api/combos/auto` har bir variantni uning hal qilingan nomzodlar to‘plami (candidate pool) hamda `context_length` / `max_output_tokens` — ya'ni nomzodlar to‘plami oynalari bo‘yicha MAKSIMUM qiymat bilan birga ro‘yxatlaydi. Mijozlar (masalan, opencode plagini) `0` o‘rniga ushbu qiymatlarni e’lon qilishi shart: nol kontekst opencode'ning avtomatik siqishini (auto-compaction) butunlay o‘chirib qo‘yadi va sessiyalarning shlyuz tarixi tozalanib, kontekst yo‘q qilinmaguncha o‘sishiga imkon beradi. MAKSIMUM qiymatni e’lon qilish xavfsiz, chunki auto-combo kontekstini oldindan filtrlash (pre-filter) katta hajmdagi so‘rovlarni katta oynali nomzodlarga yo‘naltiradi.
 
 ```bash
-# Sozlamalarsiz foydalanish (kombinatsiya yaratilmaydi)
+# Zero-config usage (no combo creation)
 curl -X POST http://localhost:20128/v1/chat/completions \
   -H "Authorization: Bearer <key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto/coding","messages":[{"role":"user","content":"Hello"}]}'
 
-# Odatiy kombinatsiyalar endpointi orqali saqlanadigan avtomatik kombinatsiya
+# Persisted auto combo via the regular combos endpoint
 curl -X POST http://localhost:20128/api/combos \
   -H "Content-Type: application/json" \
   -d '{"id":"my-auto","name":"Auto Coder","strategy":"auto","config":{"auto":{"candidatePool":["anthropic","google","openai"],"weights":{"quota":0.15,"health":0.3,"costInv":0.05,"latencyInv":0.35,"taskFit":0.1,"stability":0,"tierPriority":0.05}}}}'
 ```
 
-### Avtomatik router strategiyalari
+### Auto router strategiyalari
 
-Saqlanadigan `strategy: "auto"` kombinatsiyalari `config.routerStrategy` (yoki eski
-`config.auto.routerStrategy`) qiymatini quyidagilardan biriga o‘rnatishi mumkin:
+Saqlanadigan `strategy: "auto"` combo'lari `config.routerStrategy` (yoki eski `config.auto.routerStrategy`) ni quyidagilardan biriga sozlashi mumkin:
 
-- `rules` — standart vaznli baholash
-- `score` — sozlangan eng yuqori vaznli bahoni tanlaydi. Mutlaq tenglikda sozlangan
-  nomzodlar tartibi saqlanadi; mavjud `explorationRate` to‘liq tartiblangan to‘plamdan namuna tanlaydi.
+- `rules` — standart vaznlangan baholash
+- `score` — eng yuqori sozlangan vaznlangan ballni tanlaydi. Aniq tenglik holatlarida sozlangan nomzodlar tartibi saqlanib qoladi; mavjud `explorationRate` to‘liq reytinglangan hovuzdan namuna oladi.
 - `cost` / `eco` — eng arzon sog‘lom provayder
-- `latency` / `fast` — ishonchlilik jarimasi hisobga olingan eng past p95 kechikish
-- `sla-aware` / `sla` — p95 kechikish, xatolik darajasi va ixtiyoriy
-  xarajat SLO talablarini qondiradigan nomzodlarni afzal ko‘radi
-- `lkgp` — oxirgi ma’lum bo‘lgan yaxshi provayder birinchi tanlanadi
+- `latency` / `fast` — ishonchlilik jarimasi bilan eng past p95 kechikish (latency)
+- `sla-aware` / `sla` — p95 kechikish, xatolik darajasi va ixtiyoriy xarajat SLO'lariga javob beradigan nomzodlarni afzal ko‘radi
+- `lkgp` — oxirgi ma’lum yaxshi provayder birinchi o‘rinda
+- `nadir` — ask [Nadir](https://getnadir.com) qaror qabul qilish API'sidan prompt uchun hovuzdagi qaysi model kerakligini so‘raydi; opt-in, `rules` ga fail-open (xatolik yuz berganda qaytish)
 
 ### Router strategiyalari batafsil
 
-Auto-combo mexanizmi `config.routerStrategy` (yoki eski `config.auto.routerStrategy`)
-orqali almashtirishingiz mumkin bo‘lgan 6 ta ulanadigan **RouterStrategy** realizatsiyasini taqdim etadi.
-Har bir strategiya `RoutingContext` (vazifa turi, vosita/ko‘rish bo‘yicha ko‘rsatmalar, taxminiy tokenlar soni, ixtiyoriy SLA siyosati va ixtiyoriy
-oxirgi ma’lum bo‘lgan yaxshi provayder) asosida nomzodlar to‘plamidan bitta provayderni tanlaydi.
+Auto-combo mexanizmi `config.routerStrategy` (yoki eski `config.auto.routerStrategy`) orqali almashtirishingiz mumkin bo‘lgan 7 ta plaginli **RouterStrategy** implementatsiyasini taqdim etadi. Har bir strategiya `RoutingContext` (vazifa turi, vosita/ko‘rish bo‘yicha maslahatlar, token hisobi, ixtiyoriy SLA siyosati, ixtiyoriy oxirgi ma’lum yaxshi provayder) berilganda nomzodlar hovuzidan bitta provayderni tanlaydi.
 
-#### 1. `rules` (standart) — 16 omilli vaznli baholash
+#### 1. `rules` (standart) — 16-faktorli vaznlangan baholash
 
-Mavjud baholash mexanizmini o‘rab oladi. Avval avtomatik uzgichi `OPEN` holatidagi
-nomzodlarni chiqarib tashlaydi, so‘ng joriy vazifa turi va `getTaskFitness()` bilan `scorePool()`ni ishga tushirib,
-eng yuqori baholangan provayderni tanlaydi.
+Mavjud baholash mexanizmini o‘rab oladi. `OPEN` holatidagi circuit-breaker nomzodlarini filtrlaydi, so‘ngra joriy vazifa turi va `getTaskFitness()` bilan `scorePool()` ni ishga tushiradi va eng yuqori ball to‘plagan provayderni tanlaydi.
 
 ```ts
 class RulesStrategyImpl implements RouterStrategy {
@@ -565,16 +510,15 @@ class RulesStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Qachon foydalanish kerak**: Standart holatda. Barcha signallar o‘rtasida muvozanatli murosaga erishmoqchi bo‘lsangiz foydalaning.
+**Qachon ishlatish kerak**: Standart. Barcha signallar bo‘ylab muvozanatli kelishuvni xohlaganingizda foydalaning.
 
-**Taxallus**: `rules` (taxallusi yo‘q)
+**Alias**: `rules` (alias yo‘q)
 
 ---
 
 #### 2. `cost` / `eco` — eng arzon sog‘lom provayder
 
-Nomzodlar to‘plamini `costPer1MTokens` bo‘yicha (o‘sish tartibida) saralaydi va eng arzonini tanlaydi.
-Avval `OPEN` holatidagi nomzodlarni chiqarib tashlaydi.
+Nomzodlar hovuzini `costPer1MTokens` bo‘yicha (o‘sish tartibida) saralaydi va eng arzonini tanlaydi. Avval `OPEN` holatidagi nomzodlarni filtrlab tashlaydi.
 
 ```ts
 class CostStrategyImpl implements RouterStrategy {
@@ -589,15 +533,15 @@ class CostStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Qachon foydalanish kerak**: Xarajatga sezgir ish yuklamalari, paketli qayta ishlash yoki fon vazifalari uchun.
+**Qachon ishlatish kerak**: Xarajatga sezgir ish yuklari, ommaviy (batch) ishlov berish yoki fon jarayonlari uchun.
 
-**Taxalluslar**: `cost`, `eco`
+**Aliaslar**: `cost`, `eco`
 
 ---
 
-#### 3. `latency` / `fast` — ishonchlilik jarimasi hisobga olingan eng past p95 kechikish
+#### 3. `latency` / `fast` — ishonchlilik jarimasi bilan eng past p95 kechikish
 
-`p95LatencyMs + (errorRate * 1000)` bo‘yicha saralaydi. Xatolik darajasi uchun jarima nominal kechikishi past bo‘lsa ham, ishonchsiz provayderlarning reytingda pastroq turishini ta’minlaydi.
+`p95LatencyMs + (errorRate * 1000)` bo‘yicha saralaydi. Xatolik darajasi jarimasi ishonchsiz provayderlarning nominal kechikishi past bo‘lsa ham, reytingda pastroq o‘rin egallashini ta’minlaydi.
 
 ```ts
 class LatencyStrategyImpl implements RouterStrategy {
@@ -614,28 +558,26 @@ class LatencyStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Qachon foydalanish kerak**: Real vaqt rejimidagi chat, avtomatik to‘ldirish yoki
-interaktiv dasturlash yordamchilari kabi kechikishga sezgir ish yuklari uchun.
+**Qachon ishlatish kerak**: Real vaqt rejimida chat, avtomatik to‘ldirish yoki interaktiv kodlash yordamchilari kabi kechikishga sezgir ish yuklari uchun.
 
-**Taxalluslar**: `latency`, `fast`
+**Aliaslar**: `latency`, `fast`
 
 ---
 
-#### 4. `sla-aware` / `sla` — kechikish/xatolik/xarajat SLO talablariga muvofiqlik
+#### 4. `sla-aware` / `sla` — kechikish/xatolik/xarajat SLO muvofiqligi
 
-Har bir nomzodni sozlangan SLO siyosatiga qanchalik yaxshi mos kelishiga qarab baholaydi:
+Har bir nomzodni sozlangan SLO siyosatiga qanchalik mos kelishiga qarab baholaydi:
 
-| Omil             | Vazn | Formula                                                           |
-| ---------------- | ---- | ----------------------------------------------------------------- |
-| Kechikish bali   | 35%  | `threshold / max(value, ε)`                                       |
-| Xatolik bali     | 35%  | `threshold / max(value, ε)`                                       |
-| Holat bali       | 15%  | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)                 |
-| Xarajat bali     | 10%  | `threshold / max(value, ε)` yoki teskari normallashtirilgan       |
-| Barqarorlik bali | 5%   | kechikish standart og‘ishining teskari normallashtirilgan qiymati |
+| Omil                     | Vazn | Formula                                                     |
+| ------------------------ | ---- | ----------------------------------------------------------- |
+| Kechikish koʻrsatkichi   | 35%  | `threshold / max(value, ε)`                                 |
+| Xatolik koʻrsatkichi     | 35%  | `threshold / max(value, ε)`                                 |
+| Sogʻlik koʻrsatkichi     | 15%  | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)           |
+| Xarajat koʻrsatkichi     | 10%  | `threshold / max(value, ε)` yoki teskari normallashtirilgan |
+| Barqarorlik koʻrsatkichi | 5%   | teskari normallashtirilgan kechikish standart ogʻishi       |
 
-`hardConstraints: true` bo‘lganda, nomzodlar avvalo **buzilish bali**
-(ular istalgan SLO chegarasidan qanchalik oshgani), keyin esa umumiy ball bo‘yicha saralanadi. Aks holda,
-faqat umumiy ball ishlatiladi.
+`hardConstraints: true` boʻlganda, nomzodlar birinchi navbatda **buzilish koʻrsatkichi**
+(SLO dan qanchalik oshib ketganligi) boʻyicha, keyin esa umumiy ball boʻyicha saralanadi. Aks holda, faqat umumiy ball ishlatiladi.
 
 ```ts
 class SLAStrategyImpl implements RouterStrategy {
@@ -644,12 +586,12 @@ class SLAStrategyImpl implements RouterStrategy {
     "Selects the provider most likely to satisfy latency, error-rate, and cost SLOs";
 
   select(pool, context) {
-    // ... har bir nomzodni siyosat bo‘yicha baholaydi: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
+    // ... scores each candidate against policy: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
   }
 }
 ```
 
-**SLA maydonlari** (kombinatsiya konfiguratsiyasida o‘rnatiladi):
+**SLA maydonlari** (combo konfiguratsiyasida oʻrnatiladi):
 
 ```json
 {
@@ -664,17 +606,15 @@ class SLAStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Qachon foydalanish kerak**: Kechikish, xatolik darajasi yoki xarajat bo‘yicha qat’iy byudjetlarga ega ishlab chiqarish ish yuklari uchun.
+**Qachon foydalanish kerak**: Qatʼiy kechikish, xatolik darajasi yoki xarajat byudjetlariga ega boʻlgan ishlab chiqarish yuklamalari uchun.
 
 **Taxalluslar**: `sla-aware`, `sla`
 
 ---
 
-#### 5. `lkgp` — oxirgi ma’lum yaxshi provayder birinchi
+#### 5. `lkgp` — oxirgi maʼlum yaxshi provayder birinchi
 
-Avval **oxirgi ma’lum yaxshi provayder**ni (agar o‘rnatilgan bo‘lsa) sinab ko‘radi, so‘ng
-`rules` strategiyasiga qaytadi. Seansni bir provayderga biriktirish uchun foydali — suhbatdagi
-keyingi so‘rovlarni ayni provayder qayta ishlaydi.
+Birinchi navbatda **oxirgi maʼlum yaxshi provayderni** (agar oʻrnatilgan boʻlsa) sinab koʻradi, keyin esa `rules` strategiyasiga qaytadi. Sessiya barqarorligi uchun foydali — bir xil provayder suhbatdagi keyingi soʻrovlarni qayta ishlaydi.
 
 ```ts
 class LKGPStrategyImpl implements RouterStrategy {
@@ -695,22 +635,51 @@ class LKGPStrategyImpl implements RouterStrategy {
       }
     }
 
-    // rules strategiyasiga qaytish
+    // Fallback to rules strategy
     return getStrategy("rules").select(pool, context);
   }
 }
 ```
 
-**Qachon foydalanish kerak**: Keyingi so‘rovlarni ayni provayder qayta ishlashini istagan
-ko‘p bosqichli suhbatlar uchun (masalan, keshlash, kontekst uzluksizligi yoki narxlar izchilligi uchun).
+**Qachon foydalanish kerak**: Bir xil provayder keyingi soʻrovlarni qayta ishlashini xohlagan koʻp bosqichli suhbatlar uchun (masalan, kesh xotira, kontekst davomiyligi yoki narxlar izchilligi uchun).
 
-**Taxallus**: `lkgp` (taxallusi yo‘q)
+**Taxallus**: `lkgp` (taxallus yoʻq)
+
+---
+
+#### 6. `nadir` — Nadir orqali promptga asoslangan model tanlovi
+
+Yuqoridagi har bir strategiya nomzodlarni oʻz telemetriyasi boʻyicha baholaydi; ularning hech biri soʻrovni oʻqimaydi. `nadir` foydalanuvchining oxirgi xabarini va pool'dagi model identifikatorlarini [Nadir](https://getnadir.com) qaror qabul qilish API'siga (`POST /v1/bucket`) yuboradi va Nadir menyudan tanlagan modelga yoʻnaltiradi (`simple` → eng arzon qobiliyatli model, `complex` → eng ilgʻor model). Ushbu modelga xizmat koʻrsatadigan ulanish hali ham `rules` tomonidan tanlanadi, shuning uchun kvota, sogʻlik va xarajat qaysi hisob qaydnomasi ishlatilishini hal qilishda davom etadi.
+
+```json
+{
+  "strategy": "auto",
+  "config": {
+    "routerStrategy": "nadir",
+    "nadir": {
+      "apiKey": "ndr_...",
+      "baseUrl": "https://api.getnadir.com",
+      "timeoutMs": 2000
+    }
+  }
+}
+```
+
+`OMNIROUTE_NADIR_API_KEY` va `OMNIROUTE_NADIR_BASE_URL` ushbu ikki qator uchun muhit (env) zaxira variantlaridir. `baseUrl` faqat oʻz-oʻzidan joylashtirilgan (self-hosted) Nadir uchun kerak (oxiridagi `/v1` qabul qilinadi). Kalitsiz qoʻngʻiroqlar Nadirning anonim darajasiga tushadi, u IP boʻyicha tezlik bilan cheklangan.
+
+Tizimdan nimalar chiqadi: foydalanuvchining oxirgi xabar matni (birinchi 16k belgi), nomzod model identifikatorlari va `source: "omniroute"` kanal tegi. Tizim prompti, tarix, vositalar yoki sarlavhalar yoʻq.
+
+Muvaffaqiyatsizlik xatti-harakati fail-open hisoblanadi: taym-aut (standart 2000 ms), 2xx boʻlmagan javob, yetib boʻlmaydigan xost, notoʻgʻri formatlangan javob yoki pool tashqarisidagi tanlov `rules` qaroriga oʻtadi va sabab `NadirStrategy: fallback (…)` prefiksi bilan belgilanadi. Muvaffaqiyatsiz qoʻngʻiroqdan soʻng, strategiya 30 soniya davomida tarmoqni oʻtkazib yuboradi, shuning uchun uzilish har bir soʻrov uchun emas, balki har 30 soniyada bitta taym-autga tushadi. Marshrutlash hodisalari faqat Nadir haqiqatan ham tanlovni amalga oshirganda `strategy: "nadir"` deb xabar beradi.
+
+**Qachon foydalanish kerak**: model darajalarini (kichik, oʻrta va ilgʻor model) qamrab olgan pool'dagi aralash qiyinlikdagi trafik uchun, bu yerda har doim ilgʻor modelni ishlatish siz qisqartirmoqchi boʻlgan xarajatdir.
+
+**Taxallus**: `nadir` (taxallus yoʻq)
 
 ---
 
 ### Maxsus router strategiyalari
 
-Ochiq API orqali o‘zingizning `RouterStrategy` implementatsiyangizni ro‘yxatdan o‘tkazishingiz mumkin:
+Siz oʻzingizning `RouterStrategy` implementatsiyangizni ommaviy API orqali roʻyxatdan oʻtkazishingiz mumkin:
 
 ```ts
 import {
@@ -723,7 +692,7 @@ class MyCustomStrategy implements RouterStrategy {
   readonly description = "My custom routing strategy";
 
   select(pool, context) {
-    // Marshrutlash mantiqingiz shu yerda
+    // Your routing logic here
     return {
       provider: pool[0].provider,
       model: pool[0].model,
@@ -738,7 +707,7 @@ class MyCustomStrategy implements RouterStrategy {
 registerStrategy("my-custom", new MyCustomStrategy());
 ```
 
-So‘ng undan foydalaning:
+Keyin undan foydalaning:
 
 ```json
 {
@@ -751,15 +720,16 @@ So‘ng undan foydalaning:
 
 ---
 
-### Router strategiyasini tanlash bo‘yicha qo‘llanma
+### Router strategiyasini tanlash boʻyicha qoʻllanma
 
-| Foydalanish holati      | Strategiya  | Sabab                                               |
-| ----------------------- | ----------- | --------------------------------------------------- |
-| Muvozanatli ish yuki    | `rules`     | Standart — barcha omillarni hisobga oladi           |
-| Xarajatni kamaytirish   | `cost`      | Har doim eng arzonini tanlaydi                      |
-| Kechikishni kamaytirish | `latency`   | Eng tezkor ishonchli provayderni tanlaydi           |
-| Qat’iy SLOlar           | `sla-aware` | p95/xatolik/xarajat chegaralari bo‘yicha filtrlaydi |
-| Ko‘p bosqichli chat     | `lkgp`      | Seansni bir provayderga biriktirish                 |
+| Foydalanish holati            | Strategiya  | Sabab                                              |
+| ----------------------------- | ----------- | -------------------------------------------------- |
+| Muvozanatli yuklama           | `rules`     | Standart — barcha omillarni hisobga oladi          |
+| Xarajatni minimallashtirish   | `cost`      | Har doim eng arzonini tanlaydi                     |
+| Kechikishni minimallashtirish | `latency`   | Eng tezkor ishonchli provayderni tanlaydi          |
+| Qatʼiy SLOlar                 | `sla-aware` | p95/xatolik/xarajat chegaralari boʻyicha filtrlash |
+| Koʻp bosqichli chat           | `lkgp`      | Sessiya barqarorligi                               |
+| Aralash qiyinlik              | `nadir`     | Har bir prompt uchun model darajasini tanlaydi     |
 
 SLA-aware maydonlari:
 
@@ -836,15 +806,15 @@ Ushbu tezkor sinovlar haqiqiy uzatish yoʻlini (kombinatsiya → provayder → y
 
 ## Fayllar
 
-| Fayl                                                      | Maqsadi                                                                                                               |
-| :-------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------- |
-| `open-sse/services/autoCombo/scoring.ts`                  | 16 omilli baholash funksiyasi, `DEFAULT_WEIGHTS`, pul normasi                                                         |
-| `open-sse/services/autoCombo/taskFitness.ts`              | Model × vazifa mosligi qidiruvi                                                                                       |
-| `open-sse/services/autoCombo/engine.ts`                   | Tanlash mantiqi, bandit, budjet cheklovi                                                                              |
-| `open-sse/services/autoCombo/selfHealing.ts`              | Istisno qilish, tekshiruvlar, insident rejimi                                                                         |
-| `open-sse/services/autoCombo/modePacks.ts`                | 6 ta vazn profili (tez chiqarish, xarajatni tejash, sifat birinchi, oflaynga mos, ishonchlilik birinchi, xaos rejimi) |
-| `open-sse/services/autoCombo/autoPrefix.ts`               | `auto/` prefiksi parseri + 6 ta variant                                                                               |
-| `open-sse/services/autoCombo/virtualFactory.ts`           | Faol ulanishlardan xotiradagi `AutoComboConfig`ni yaratadi                                                            |
-| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Provayderlar reyestrini soxtalashtirish uchun test mexanizmi                                                          |
-| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (19 ta strategiya)                                                                          |
-| `src/sse/handlers/chat.ts`                                | Integratsiya: auto-prefiks uchun qisqa tutashuv                                                                       |
+| Fayl                                                      | Maqsadi                                                                                                   |
+| :-------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| `open-sse/services/autoCombo/scoring.ts`                  | 16-faktorli baholash funksiyasi, `DEFAULT_WEIGHTS`, pool norm                                             |
+| `open-sse/services/autoCombo/taskFitness.ts`              | Model × vazifa mosligi (fitness) qidiruvi                                                                 |
+| `open-sse/services/autoCombo/engine.ts`                   | Tanlash mantigʻi, bandit, byudjet chegarasi                                                               |
+| `open-sse/services/autoCombo/selfHealing.ts`              | Istisno qilish, zondlar, hodisa rejimi                                                                    |
+| `open-sse/services/autoCombo/modePacks.ts`                | 6 ta vazn profili (ship-fast, cost-saver, quality-first, offline-friendly, reliability-first, chaos-mode) |
+| `open-sse/services/autoCombo/autoPrefix.ts`               | `auto/` prefiks tahlilchisi + 6 ta variant                                                                |
+| `open-sse/services/autoCombo/virtualFactory.ts`           | Jonli ulanishlardan xotiradagi `AutoComboConfig` ni yaratadi                                              |
+| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Provayderlar reestrini mock qilish uchun test ilmogʻi                                                     |
+| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (20 ta strategiya)                                                              |
+| `src/sse/handlers/chat.ts`                                | Integratsiya: auto-prefix short-circuit                                                                   |

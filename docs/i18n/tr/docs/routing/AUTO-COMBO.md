@@ -51,15 +51,15 @@ Geçerli tüm `auto/<category>[:<tier>]` değerleri talep üzerine çözümlenir
 **Kullanımı:**
 
 ```bash
-# OpenAI biçimini destekleyen herhangi bir IDE veya CLI aracı
+# Any IDE or CLI tool that supports OpenAI format
 Base URL: http://localhost:20128/v1
-API Key:  <uç-nokta-anahtarınız>
+API Key:  <your-endpoint-key>
 
-# Kodunuzda/yapılandırmanızda modeli şu şekilde ayarlayın:
-model: "auto"                 # dengeli varsayılan
-model: "auto/coding"          # kodlama görevleri için en iyisi
-model: "auto/fast"            # kullanılabilir en hızlı seçenek
-model: "auto/cheap"           # token başına en ucuz seçenek
+# In your code/config, set model to:
+model: "auto"                 # balanced default
+model: "auto/coding"          # best for coding tasks
+model: "auto/fast"            # fastest available
+model: "auto/cheap"           # cheapest per token
 ```
 
 **Gerçekleşen işlemler:**
@@ -112,15 +112,15 @@ soru için #7819 planına bakın.
 **Arka planda:**
 
 ```txt
-İstek: { model: "auto/coding" }
+Request: { model: "auto/coding" }
    ↓
-src/sse/handlers/chat.ts ön eki algılar
+src/sse/handlers/chat.ts detects prefix
    ↓
-createVirtualAutoCombo('coding') → etkin bağlantılardan candidatePool
+createVirtualAutoCombo('coding') → candidatePool from active connections
    ↓
-handleComboChat (kalıcı kombinasyonlarla aynı motor)
+handleComboChat (same engine as persisted combos)
    ↓
-Otomatik puanlama, istek başına en iyi sağlayıcıyı/modeli seçer
+Auto-scoring selects best provider/model per request
 ```
 
 **Uygulama dosyaları:**
@@ -157,13 +157,7 @@ belgelenmiş bu iş akışını bozar. Bunun yerine (#8530),
 kimliğiyle çakıştığında yanıta engelleyici olmayan bir `warning` alanı ekler:
 
 ```json
-{
-  "warning": {
-    "code": "COMBO_NAME_SHADOWS_MODEL",
-    "modelId": "gpt-5.5",
-    "providerId": "openai"
-  }
-}
+{ "warning": { "code": "COMBO_NAME_SHADOWS_MODEL", "modelId": "gpt-5.5", "providerId": "openai" } }
 ```
 
 Başlatma sırasında `scanComboModelNameCollisionsAtBoot()`
@@ -293,7 +287,7 @@ Bir `auto` kombinasyonu, depolanan kombinasyon yapılandırmasını değiştirme
 | `X-OmniRoute-Effort`          | `auto` (diğer değerler ayrılmıştır)                                                                                                                                                                       | Uyarlanabilir düşünme bütçesi: istek herhangi bir biçimde **hiçbir** akıl yürütme alanı (`reasoning_effort`, `reasoning`, `thinking`) içermediğinde ağ geçidi, deterministik istek yapısı sinyallerine (son kullanıcı mesajının uzunluğu, son kullanıcı mesajına kadar olan bağlam boyutu, önceki araç sonuçları, araç döngüsü derinliği) göre `auto` değerini `low`/`medium`/`high` olarak çözümler. Sinyaller geçerli turla sınırlıdır — son kullanıcı mesajından sonraki her şey yok sayılır — böylece bir araç döngüsündeki her istek aynı düzeye çözümlenir (tur başına durumsuz sabitleme; oturum durumu yoktur ve üst sistem istem önbelleği öneklerini bozacak döngü ortası yükseltme yapılmaz). İstemci tarafından açıkça belirtilen bir akıl yürütme alanı her zaman önceliklidir. Üst sistem yönlendirmesi OpenAI Chat Completions biçimine çözümlenen isteklerle (`targetFormat === FORMATS.OPENAI`) sınırlıdır — `reasoning_effort`, OpenAI biçimli bir alan olduğundan başlığın Claude veya Gemini hedefli bir istekte hiçbir etkisi yoktur (bkz. `open-sse/handlers/chatCore/adaptiveEffortWiring.ts`). |
 
 ```bash
-# En hızlı profili zorunlu kıl, bu isteği $0.05 ile sınırla ve bütçeyi aşmak yerine kesin olarak engelle
+# Force the fastest profile, cap this request at $0.05, and hard-block instead of overspending
 curl -sS http://localhost:20128/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-OmniRoute-Mode: fast" \
@@ -309,68 +303,52 @@ curl -sS http://localhost:20128/v1/chat/completions \
 
 ## Tüm Yönlendirme Stratejileri
 
-OmniRoute'un kombo motoru **19 yönlendirme stratejisini** destekler (`src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES` içinde tanımlanmıştır). Auto Combo motorunun kendisi `auto` stratejisi altında sunulur; diğerleri kalıcı kombolar için kullanılabilir.
+OmniRoute'un combo motoru **20 yönlendirme stratejisini** destekler (`src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`). Auto Combo motorunun kendisi `auto` stratejisi altında sunulur; diğerleri kalıcı (persisted) combolar için kullanılabilir.
 
-| Strateji            | Açıklama                                                                                                                                                                                                                      |
-| :------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `priority`          | Açık önceliğe sahip ilk hedef sıralı liste                                                                                                                                                                                    |
-| `weighted`          | Hedef başına ağırlığa göre ağırlıklı rastgele seçim                                                                                                                                                                           |
-| `round-robin`       | Hedefler arasında sırayla dönme (toplu işlenir; aşağıya bakın)                                                                                                                                                                |
-| `context-relay`     | Bağlamı hedefler arasında devretme (uzun konuşmalar)                                                                                                                                                                          |
-| `fill-first`        | Sonrakine geçmeden önce her hedefin kotasını doldurma                                                                                                                                                                         |
-| `p2c`               | Power-of-2-choices rastgele yük dengeleme                                                                                                                                                                                     |
-| `random`            | Tekdüze (uniform) rastgele seçim                                                                                                                                                                                              |
-| `least-used`        | En düşük mevcut yüke sahip hedefi seçme                                                                                                                                                                                       |
-| `cost-optimized`    | Katalog fiyatlandırması doğrultusunda istek başına maliyeti ($) en aza indirme                                                                                                                                                |
-| `reset-aware` ⭐    | Kota sıfırlama zamanına göre önceliklendirme — kısa sıfırlama pencereleri daha üst sırada yer alır                                                                                                                            |
-| `reset-window`      | Kota penceresi en kısa sürede sıfırlanan hedefleri tercih etme                                                                                                                                                                |
-| `headroom`          | En fazla kalan kota alanına (headroom) sahip hedefi seçme                                                                                                                                                                     |
-| `strict-random`     | Tekrarların tekilleştirilmesi olmadan rastgele seçim                                                                                                                                                                          |
-| `auto`              | Auto Combo puanlamasını (16 faktörlü) kullanma — **önerilen**                                                                                                                                                                 |
-| `lkgp`              | Bilinen Son İyi Yol (Last-Known-Good Path - son başarılı sağlayıcıya sabitler, ardından kurallara geri döner)                                                                                                                 |
-| `context-optimized` | Mevcut bağlam boyutuna en uygun hedefi seçme                                                                                                                                                                                  |
-| `cache-optimized`   | Hedefleri prompt önbellek yakınlığına göre yeniden sıralama — bu isteğin önbelleğe alınmış önekini zaten tutma olasılığı en yüksek olan bağlantı ilk olarak denenir (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
-| `fusion` 🧬         | Paralel olarak bir model paneline dağıtma (fan out), ardından bir hakem aracılığıyla tek bir yanıt sentezleme (aşağıya bakın)                                                                                                 |
-| `pipeline`          | Hedefleri sıralı olarak çalıştırma, her adımın çıktısını bir sonraki adımın girdisine aktarma; yalnızca nihai yanıt döndürülür (#6396)                                                                                        |
+| Strateji            | Açıklama                                                                                                                                                                                                       |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `priority`          | İlk hedef sıralı liste, açık öncelik ile                                                                                                                                                                       |
+| `weighted`          | Hedef başına ağırlığa göre ağırlıklı rastgele seçim                                                                                                                                                            |
+| `round-robin`       | Hedefler arasında sırayla döngü (toplu; aşağıya bakın)                                                                                                                                                         |
+| `context-relay`     | Bağlamı hedefler arasında aktar (uzun konuşmalar)                                                                                                                                                              |
+| `fill-first`        | Bir sonrakine geçmeden önce her hedefin kotasını doldur                                                                                                                                                        |
+| `p2c`               | 2'nin gücü (Power-of-2-choices) rastgele yük dengeleme                                                                                                                                                         |
+| `random`            | Tekdüze rastgele seçim                                                                                                                                                                                         |
+| `least-used`        | Mevcut yükü en düşük olan hedefi seç                                                                                                                                                                           |
+| `cost-optimized`    | Katalog fiyatlandırmasına göre istek başına $ maliyetini en aza indir                                                                                                                                          |
+| `reset-aware` ⭐    | Kota sıfırlama zamanına göre önceliklendir — kısa sıfırlama pencereleri daha üst sırada                                                                                                                        |
+| `reset-window`      | Kota penceresi en erken sıfırlanan hedefleri tercih et                                                                                                                                                         |
+| `headroom`          | Kalan kota payı en yüksek olan hedefi seç                                                                                                                                                                      |
+| `quota-weighted`    | Tükenmiş hesapları atla, ardından kalan kotanın devam eden yüke bölünmesiyle orantılı olarak geri kalanlar arasından seçim yap; mevcut konuşmalar sabit kalır                                                  |
+| `strict-random`     | Tekrarların tekilleştirilmesi olmadan rastgele seçim                                                                                                                                                           |
+| `auto`              | Auto Combo puanlamasını kullan (16-faktörlü) — **önerilen**                                                                                                                                                    |
+| `lkgp`              | Son Bilinen İyi Yol (en son başarılı sağlayıcıya sabitler, ardından kurallara geri döner)                                                                                                                      |
+| `context-optimized` | Mevcut bağlam boyutu için en uygun hedefi seç                                                                                                                                                                  |
+| `cache-optimized`   | Hedefleri istem-önbellek yakınlığına göre yeniden sırala — bu isteğin önbelleğe alınmış önekini tutma olasılığı en yüksek olan bağlantı önce denenir (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
+| `fusion` 🧬         | Paralel olarak bir model paneline dağıt, ardından bir hakem aracılığıyla tek bir cevap sentezle (aşağıya bakın)                                                                                                |
+| `pipeline`          | Hedefleri sırayla çalıştır, her adımın çıktısını bir sonraki adımın girdisine aktar; yalnızca nihai cevap döndürülür (#6396)                                                                                   |
 
-⭐ = v3.8.0 sürümünde yeni · 🧬 = v3.8.36 sürümünde yeni
+⭐ = v3.8.0 ile yeni · 🧬 = v3.8.36 ile yeni
 
-### `weighted` semantiği
+### `weighted` anlambilimi
 
-`weighted`, bir dengeleyici değil, **istek başına orantılı rastgele bir çekiliştir**
+`weighted`, bir eşitleyici değil, **istek başına orantılı rastgele çekiliştir**
 (`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`):
 
-- Her istek, `weight / totalWeight` olasılığıyla **bir** adım çeker; kalan adımlar,
-  o istek için yedek zincir (fallback chain) olarak azalan ağırlığa göre sıralanır.
-- Ağırlığı `0` olan (veya eksik olan) bir adım, ağırlığı > 0 olan başka bir adım varken
-  **asla çekilmez** — yalnızca çekilen adım başarısız olduktan sonra bir yedek olarak hizmet edebilir. Yalnızca **tüm**
-  ağırlıklar 0 olduğunda seçim tekdüze (uniform) hale gelir.
-- Tüm hedefleri kullanım dışı olan adımlar — sağlayıcı devre kesicisi (circuit breaker) `OPEN`, bağlantı
-  soğuma süresi (cooldown), model kilitlenmesi — çekiliş gerçekleşmeden önce çekilişten çıkarılır
-  (`open-sse/services/combo/targetResolution.ts`), böylece sağlıklı tek bir adım geçici olarak
-  her isteği kazanabilir.
-- `stickyWeightedLimit` (kombo yapılandırması, varsayılan `1` = kapalı), yeniden çekiliş yapmadan önce
-  çekilen adımı art arda belirtilen sayıda başarı boyunca sabitler.
+- Her istek, `weight / totalWeight` olasılığıyla **bir** adım çeker; kalan adımlar, o istek için geri dönüş zinciri olarak ağırlığa göre azalan sırada düzenlenir.
+- Ağırlığı `0` olan (veya eksik olan) bir adım, başka herhangi bir adımın ağırlığı > 0 iken **asla çekilmez** — yalnızca çekilen adım başarısız olduktan sonra bir geri dönüş olarak hizmet edebilir. Yalnızca **tüm** ağırlıklar 0 olduğunda seçim tekdüze hale gelir.
+- Hedefleri kullanılamayan adımlar — sağlayıcı devre kesici `OPEN`, bağlantı soğuma süresi, model kilidi — gerçekleşmeden önce çekilişten çıkarılır (`open-sse/services/combo/targetResolution.ts`), bu nedenle tek bir sağlıklı adım geçici olarak her isteği kazanabilir.
+- `stickyWeightedLimit` (combo yapılandırması, varsayılan `1` = kapalı), yeniden çekiliş yapmadan önce çekilen adımı bu kadar ardışık başarı için sabitler.
 
-Kesin rotasyon için `round-robin` kullanın; `weighted` üzerindeki eşit ağırlıklar kesin değil,
-istatistiksel bir denge sağlar.
+Sıkı (strict) rotasyon için `round-robin` kullanın; `weighted` üzerindeki eşit ağırlıklar istatistiksel — sıkı değil — bir denge sağlar.
 
-### Ajanik işlem hattı (pipeline) modu
+### Agentic pipeline modu
 
-İki adımlı bir `pipeline` kombosu, `config.agenticOrchestration.enabled` ile
-planner/executor yönlendirmesini etkinleştirebilir. İlk hedef planlama ve nihai
-yanıtları üstlenir; ikinci hedef ise istemciye özgü araç çağrıları üretir. OmniRoute,
-istek protokolünden araç sonucu devamlılıklarını tespit eder, planlayıcıya başka bir
-araç turuna ihtiyaç olup olmadığını sorar ve yürütücüyü veya planlayıcıyı dinamik
-olarak istemciye dönük son adım haline getirir.
+En az iki modele sahip bir `pipeline` kombinasyonu, `config.agenticOrchestration.enabled` ile planlayıcı/yürütücü (planner/executor) yönlendirmesini tercih edebilir. İlk hedef planlamadan ve nihai yanıtlardan sorumludur; ikinci hedef ise istemciye özgü (client-native) araç çağrıları üretir. OmniRoute, istek protokolünden araç sonucu devamlılıklarını (tool-result continuations) algılar, planlayıcıya başka bir araç turuna ihtiyaç olup olmadığını sorar ve dinamik olarak yürütücüyü veya planlayıcıyı istemciye dönük nihai adım haline getirir.
 
-Araç sonucu devamlılıklarında OmniRoute, tamamlanan ardışık iki tur değişmeyen
-sonuçlarla aynı araç çağrılarını tekrarladığında veya ardışık iki turdaki açıkça
-işaretlenmiş her sonuç başarısız olduğunda da yürütmeyi durdurur. Değişen sonuçlar
-tekrarlanan çağrılara izin verir (örneğin yoklama/polling). Bu koruma mekanizması,
-yeni bir kullanıcı isteğinde sıfırlanır, paralel çağrıları tek bir turda gruplar ve
-Anthropic, Chat Completions, Responses ve Gemini geçmişlerini destekler. Planlayıcı,
-başka bir araç turu talep etse bile gerekçeyi alır ve nihai yanıta sahip olur.
+Araç sonucu devamlılıklarında OmniRoute, iki ardışık tamamlanmış tur aynı araç çağrılarını değişmemiş sonuçlarla tekrarladığında veya iki ardışık turdaki açıkça işaretlenmiş her sonuç başarısız olduğunda yürütmeyi durdurur. Değişen sonuçlar tekrarlanan çağrılara (örneğin, yoklama/polling) izin verir. Koruma (guard), yeni bir kullanıcı isteğinde sıfırlanır, paralel çağrıları tek bir turda gruplandırır ve Anthropic, Chat Completions, Responses ve Gemini geçmişlerini destekler. Planlayıcı nedeni alır ve başka bir araç turu talep etse bile nihai yanıtın sahibidir.
+
+İkinci hedeften sonraki ek modeller, sıralı yürütücü yedekleridir. Başarısız bir HTTP yanıtı veya taşıma istisnası, aynı planlayıcı kararını ve yerel araçları taşıyan ancak o yürütücünün kendi adım istemini (step prompt) ve çözümlenmiş bağlantısını kullanan bir sonraki yürütücüye geçer. İlk başarılı yanıt, SSE akışı dahil olmak üzere değiştirilmeden döndürülür; başarılı bir akış başladıktan sonraki hatalar burada yeniden denenemez. Tüm yürütücüler başarısız olursa, son hata döndürülür. İstemci iptalleri gönderimi durdurur.
 
 ```json
 {
@@ -382,39 +360,17 @@ başka bir araç turu talep etse bile gerekçeyi alır ve nihai yanıta sahip ol
 }
 ```
 
-Yürütücü, tek bir yanıtta birden fazla bağımsız çağrı üretebilir. Bağımlı çağrılar,
-planlayıcının her sonucu incelemesiyle birlikte daha sonraki istemci araç sonucu
-turlarında işlenir. `maxToolRounds` varsayılan olarak `8` değerini alır ve `1`–`32`
-arasını kabul eder; sınıra ulaşıldığında, planlayıcı mevcut en iyi nihai yanıtı
-üretmelidir. Dahili planlayıcı kararları arabelleğe alınırken, seçilen istemciye dönük
-yanıt orijinal akış (streaming) tercihini korur.
+Yürütücü, tek bir yanıtta birden fazla bağımsız çağrı üretebilir. Bağımlı çağrılar, planlayıcının her sonucu incelemesiyle birlikte sonraki istemci araç-sonucu turlarında ele alınır. `maxToolRounds` varsayılan olarak `8`'dir ve `1`–`32` arası değerleri kabul eder; bu sınıra ulaşıldığında, planlayıcı mevcut en iyi nihai yanıtı üretmelidir. Dahili planlayıcı kararları arabelleğe alınırken, seçilen istemciye dönük yanıt orijinal akış tercihini korur.
 
-### `round-robin` yapışkan grup (sticky batch) ve hesap genişletme
+### `round-robin` yapışkan (sticky) toplu iş ve hesap genişletme
 
-Round-robin, adım başına tek istek şeklinde değil, toplu (batched) olarak çalışır:
+Round-robin toplu işlenir, adım başına bir istek şeklinde değildir:
 
-- `stickyRoundRobinLimit` (kombo yapılandırması, ardından `comboStickyRoundRobinLimit`,
-  ardından `settings.stickyRoundRobinLimit`, varsayılan **3**), rotasyona girmeden önce
-  aynı hedefi bu sayıda ardışık başarılı istek boyunca korur. Tek istekte bir rotasyon
-  için kombo geçersiz kılma (override) değerini `1` olarak ayarlayın. Kombo düzenleyici,
-  geçerli değeri ve hangi katmandan geldiğini gösterir.
-- `connectionAwareExpansion` (kombo yapılandırması, ardından ayarlar, varsayılan **false**),
-  rotasyondan önce sağlayıcı düzeyindeki her adımı hesap başına hedeflere genişletir.
-  Grup-B stratejileri (priority, weighted, round-robin, random, p2c, least-used,
-  cost-optimized, lkgp, fill-first, strict-random, context-optimized, cache-optimized,
-  context-relay, fusion, pipeline), bu ayar açılana kadar sağlayıcı düzeyinde bir görünüm
-  korur. Kombo düzenleyici inherit / on / off seçeneklerini sunar; inherit genel
-  varsayılanı (off) kullanır.
-- Prompt önbellek yerelliği yönlendirmesi (`promptCacheAffinityEnabled`, varsayılan **true**),
-  eşleşen önbellek anahtarlarının tek bir hesapta kalması için sabitlenmiş bağlantıları
-  yeniden sıralar. Sabitlenmiş hesap başına adımlar genelinde round-robin ve ağırlıklı
-  rotasyona göre öncelik taşır. Kesin rotasyona ihtiyacınız varsa bunu Ayarlar → Kombo
-  varsayılanları altından kapatın. Kombo bazında geçersiz kılma (override) bulunmamaktadır.
+- `stickyRoundRobinLimit` (kombinasyon yapılandırması, ardından `comboStickyRoundRobinLimit`, ardından `settings.stickyRoundRobinLimit`, varsayılan **3**), rotasyon öncesinde o kadar ardışık başarı boyunca aynı hedefi tutar. Tek istekli rotasyon için kombinasyon geçersiz kılma (override) değerini `1` olarak ayarlayın. Kombinasyon düzenleyici, geçerli değeri ve hangi katmandan geldiğini gösterir.
+- `connectionAwareExpansion` (kombinasyon yapılandırması, ardından ayarlar, varsayılan **false**), rotasyondan önce her sağlayıcı düzeyindeki adımı hesap başına hedeflere genişletir. Group-B stratejileri (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp, fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion, pipeline), bu özellik açılana kadar sağlayıcı düzeyinde bir görünüm tutar. Kombinasyon düzenleyici inherit / on / off seçeneklerini sunar; inherit, küresel varsayılanı (off) kullanır.
+- İstem-önbelleği yerellik yönlendirmesi (`promptCacheAffinityEnabled`, varsayılan **true**), eşleşen önbellek anahtarlarının tek bir hesapta kalması için sabitlenmiş bağlantıları yeniden sıralar. Sabitlenmiş hesap bazlı adımlar genelinde round-robin ve ağırlıklı rotasyona göre önceliklidir. Sıkı rotasyona ihtiyacınız varsa Settings → Combo defaults altından kapatın. Kombinasyon bazlı bir geçersiz kılma (override) yoktur.
 
-Tek bir modelde çoklu hesap rotasyonu için, sabitlenmiş üç `connectionId` yerine yapışkan
-sınırı `1` olan **tek bir dinamik hesap adımı** (boş `connectionId`, tüm havuz) tercih
-edin. Sabitlenmiş adımlar ve ilgi (affinity), RR sayacı ilerlese bile aynı hesap üzerine
-daralır.
+Tek bir model üzerinde çoklu hesap rotasyonu için, üç sabit `connectionId` yerine, sticky limit `1` ile **bir dinamik-hesap adımı** (boş `connectionId`, tüm havuz) tercih edin. Sabitlenmiş adımlar ve yakınlık (affinity), RR sayacı ilerlese bile aynı hesap üzerinde birleşir.
 
 ## Fusion Stratejisi
 
@@ -515,54 +471,46 @@ Bu, **`auto/*` etkinleştirilmiş yeni bir provider eklemenin aday havuzunu otom
 
 ## API
 
-**Özel bir `POST /api/combos/auto` endpoint'i yoktur** — Auto-Combo iki şekilde kullanılır:
+**Özel bir `POST /api/combos/auto` uç noktası yoktur** — Auto-Combo iki şekilde tüketilir:
 
-1. **Sıfır yapılandırma (önerilir):** `model: "auto"` veya `model: "auto/<variant>"` içeren herhangi bir sohbet tamamlama isteği gönderin. Sanal fabrika combo'yu her istek için oluşturur — kalıcılık veya API çağrısı gerekmez.
+1. **Sıfır yapılandırma (önerilen):** `model: "auto"` veya `model: "auto/<variant>"` ile herhangi bir sohbet tamamlama isteği gönderin. Sanal fabrika, kombinasyonu istek başına oluşturur — kalıcılık veya API çağrısı gerekmez.
 
-2. **`strategy: "auto"` içeren kalıcı combo:** `POST /api/combos` aracılığıyla normal bir combo oluşturun ve `strategy: "auto"` ile birlikte `config.auto.weights` / `config.auto.candidatePool` değerlerini ayarlayın. Aynı puanlama motoru kullanılır; combo `combos` içinde saklanır ve ID ile yeniden kullanılabilir.
+2. **`strategy: "auto"` ile kalıcı kombinasyon:** `POST /api/combos` aracılığıyla normal bir kombinasyon oluşturun ve `strategy: "auto"` ile birlikte `config.auto.weights` / `config.auto.candidatePool` ayarlarını yapın. Aynı puanlama motoru kullanılır; kombinasyon `combos` içinde saklanır ve ID ile yeniden kullanılabilir.
 
-Keşif amacıyla `GET /api/combos/auto`, her varyantı çözümlenmiş aday havuzuyla birlikte ve aday havuzunun pencereleri arasındaki MAKSİMUM değerler olan `context_length` / `max_output_tokens` bilgileriyle listeler. İstemciler (ör. opencode eklentisi) `0` yerine bu değerleri bildirmelidir: sıfır bağlam, opencode'un otomatik sıkıştırmasını tamamen devre dışı bırakarak oturumların gateway'in geçmiş temizleme işlemi bağlamı yok edene kadar büyümesine izin verir. MAKSİMUM değerin bildirilmesi güvenlidir; çünkü auto-combo bağlam ön filtresi, aşırı büyük istekleri geniş pencereli adaylara yönlendirir.
+Keşif için, `GET /api/combos/auto` her varyantı, çözümlenmiş aday havuzu ve `context_length` / `max_output_tokens` (aday havuzunun pencereleri arasındaki MAKSİMUM değer) ile listeler. İstemciler (örneğin opencode eklentisi), `0` yerine bu değerleri bildirmelidir: sıfır bağlam, opencode'un otomatik sıkıştırmasını tamamen devre dışı bırakır ve oturumların, ağ geçidinin geçmiş temizleme işlemi bağlamı yok edene kadar büyümesine izin verir. MAKSİMUM değerini bildirmek güvenlidir çünkü auto-combo bağlam ön filtresi, büyük boyutlu istekleri geniş pencereli adaylara yönlendirir.
 
 ```bash
-# Sıfır yapılandırmayla kullanım (combo oluşturulmaz)
+# Zero-config usage (no combo creation)
 curl -X POST http://localhost:20128/v1/chat/completions \
   -H "Authorization: Bearer <key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto/coding","messages":[{"role":"user","content":"Hello"}]}'
 
-# Normal combos endpoint'i aracılığıyla kalıcı auto combo
+# Persisted auto combo via the regular combos endpoint
 curl -X POST http://localhost:20128/api/combos \
   -H "Content-Type: application/json" \
   -d '{"id":"my-auto","name":"Auto Coder","strategy":"auto","config":{"auto":{"candidatePool":["anthropic","google","openai"],"weights":{"quota":0.15,"health":0.3,"costInv":0.05,"latencyInv":0.35,"taskFit":0.1,"stability":0,"tierPriority":0.05}}}}'
 ```
 
-### Auto router stratejileri
+### Otomatik yönlendirici stratejileri
 
-Kalıcı `strategy: "auto"` combo'ları, `config.routerStrategy` (veya eski
-`config.auto.routerStrategy`) değerini aşağıdakilerden biri olarak ayarlayabilir:
+Kalıcı `strategy: "auto"` kombinasyonları, `config.routerStrategy` (veya eski `config.auto.routerStrategy`) ayarını şunlardan birine ayarlayabilir:
 
 - `rules` — varsayılan ağırlıklı puanlama
-- `score` — yapılandırılmış en yüksek ağırlıklı puanı seçer. Tam eşitliklerde yapılandırılmış
-  aday sırası korunur; mevcut `explorationRate`, tam sıralanmış havuzdan örnekleme yapar.
-- `cost` / `eco` — en ucuz sağlıklı provider
-- `latency` / `fast` — güvenilirlik cezasıyla birlikte en düşük p95 gecikmesi
-- `sla-aware` / `sla` — p95 gecikmesi, hata oranı ve isteğe bağlı
-  maliyet SLO'larını karşılayan adayları tercih eder
-- `lkgp` — önce son bilinen iyi provider
+- `score` — en yüksek yapılandırılmış ağırlıklı puanı seçer. Tam eşitlik durumunda yapılandırılmış aday sırası korunur; mevcut `explorationRate`, tam sıralı havuzdan örnekleme yapar.
+- `cost` / `eco` — en ucuz sağlıklı sağlayıcı
+- `latency` / `fast` — güvenilirlik cezası ile en düşük p95 gecikmesi
+- `sla-aware` / `sla` — p95 gecikmesi, hata oranı ve isteğe bağlı maliyet SLO'larını karşılayan adayları tercih eder
+- `lkgp` — önce bilinen son iyi sağlayıcı
+- `nadir` — istemin havuzdaki hangi modele ihtiyaç duyduğunu [Nadir](https://getnadir.com)'in karar API'sine sorar; isteğe bağlıdır, başarısızlık durumunda `rules` stratejisine geri döner
 
-### Router stratejilerinin ayrıntıları
+### Ayrıntılı yönlendirici stratejileri
 
-Auto-combo motoru, `config.routerStrategy` (veya eski `config.auto.routerStrategy`)
-aracılığıyla değiştirebileceğiniz, takılabilir 6 **RouterStrategy** uygulaması sunar.
-Her strateji; bir `RoutingContext` (görev türü, araç/görüntü ipuçları, belirteç tahmini,
-isteğe bağlı SLA politikası, isteğe bağlı son bilinen iyi provider) verildiğinde aday
-havuzundan bir provider seçer.
+Auto-combo motoru, `config.routerStrategy` (veya eski `config.auto.routerStrategy`) aracılığıyla değiştirebileceğiniz 7 adet takılabilir **RouterStrategy** uygulaması sunar. Her strateji, bir `RoutingContext` (görev türü, araç/görüş ipuçları, token tahmini, isteğe bağlı SLA politikası, isteğe bağlı bilinen son iyi sağlayıcı) verildiğinde aday havuzundan bir sağlayıcı seçer.
 
 #### 1. `rules` (varsayılan) — 16 faktörlü ağırlıklı puanlama
 
-Mevcut puanlama motorunu sarmalar. `OPEN` durumundaki devre kesici
-adaylarını filtreler, ardından geçerli görev türü ve `getTaskFitness()` ile `scorePool()`
-çalıştırarak en yüksek puanlı provider'ı seçer.
+Mevcut puanlama motorunu sarmalar. `OPEN` devre kesici durumundaki adayları filtreler, ardından mevcut görev türü ve `getTaskFitness()` ile `scorePool()` işlevini çalıştırarak en yüksek puanlı sağlayıcıyı seçer.
 
 ```ts
 class RulesStrategyImpl implements RouterStrategy {
@@ -582,16 +530,15 @@ class RulesStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Ne zaman kullanılmalı**: Varsayılan seçenektir. Tüm sinyaller arasında dengeli bir ödünleşim istediğinizde kullanın.
+**Ne zaman kullanılır**: Varsayılan. Tüm sinyaller arasında dengeli bir ödünleşim istediğinizde kullanın.
 
-**Takma ad**: `rules` (takma adı yoktur)
+**Takma ad**: `rules` (takma ad yok)
 
 ---
 
-#### 2. `cost` / `eco` — en ucuz sağlıklı provider
+#### 2. `cost` / `eco` — en ucuz sağlıklı sağlayıcı
 
-Aday havuzunu `costPer1MTokens` değerine göre (artan sırada) sıralar ve en ucuz olanı seçer.
-Önce `OPEN` durumundaki adayları filtreler.
+Aday havuzunu `costPer1MTokens` değerine göre (artan sırada) sıralar ve en ucuz olanı seçer. Önce `OPEN` durumundaki adayları filtreler.
 
 ```ts
 class CostStrategyImpl implements RouterStrategy {
@@ -606,15 +553,15 @@ class CostStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Ne zaman kullanılmalı**: Maliyete duyarlı iş yükleri, toplu işleme veya arka plan işleri için.
+**Ne zaman kullanılır**: Maliyete duyarlı iş yükleri, toplu işleme veya arka plan işleri.
 
 **Takma adlar**: `cost`, `eco`
 
 ---
 
-#### 3. `latency` / `fast` — güvenilirlik cezasıyla birlikte en düşük p95 gecikmesi
+#### 3. `latency` / `fast` — güvenilirlik cezası ile en düşük p95 gecikmesi
 
-`p95LatencyMs + (errorRate * 1000)` değerine göre sıralar. Hata oranı cezası, nominal gecikmeleri düşük olsa bile güvenilir olmayan sağlayıcıların daha alt sıralarda yer almasını sağlar.
+`p95LatencyMs + (errorRate * 1000)` değerine göre sıralar. Hata oranı cezası, güvenilmez sağlayıcıların nominal gecikmeleri düşük olsa bile daha alt sıralarda yer almasını sağlar.
 
 ```ts
 class LatencyStrategyImpl implements RouterStrategy {
@@ -631,7 +578,7 @@ class LatencyStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Ne zaman kullanılmalı**: Gerçek zamanlı sohbet, otomatik tamamlama veya etkileşimli kodlama asistanları gibi gecikmeye duyarlı iş yüklerinde.
+**Ne zaman kullanılır**: Gerçek zamanlı sohbet, otomatik tamamlama veya etkileşimli kodlama asistanları gibi gecikmeye duyarlı iş yükleri.
 
 **Takma adlar**: `latency`, `fast`
 
@@ -641,15 +588,15 @@ class LatencyStrategyImpl implements RouterStrategy {
 
 Her adayı, yapılandırılmış SLO politikasını ne kadar iyi karşıladığına göre puanlar:
 
-| Faktör           | Ağırlık | Formül                                                  |
-| ---------------- | ------- | ------------------------------------------------------- |
-| Gecikme puanı    | 35%     | `threshold / max(value, ε)`                             |
-| Hata puanı       | 35%     | `threshold / max(value, ε)`                             |
-| Sağlık puanı     | 15%     | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)       |
-| Maliyet puanı    | 10%     | `threshold / max(value, ε)` veya ters normalize edilmiş |
-| Kararlılık puanı | 5%      | ters normalize edilmiş gecikme standart sapması         |
+| Faktör           | Ağırlık | Formül                                            |
+| ---------------- | ------- | ------------------------------------------------- |
+| Gecikme puanı    | 35%     | `threshold / max(value, ε)`                       |
+| Hata puanı       | 35%     | `threshold / max(value, ε)`                       |
+| Sağlık puanı     | 15%     | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN) |
+| Maliyet puanı    | 10%     | `threshold / max(value, ε)` veya ters normalize   |
+| Kararlılık puanı | 5%      | ters normalize edilmiş gecikme standart sapması   |
 
-`hardConstraints: true` olduğunda adaylar öncelikle **ihlal puanına** (herhangi bir SLO'yu ne kadar aştıklarına), ardından bileşik puana göre sıralanır. Aksi takdirde yalnızca bileşik puan kullanılır.
+`hardConstraints: true` olduğunda, adaylar öncelikle **ihlal puanına** (herhangi bir SLO'yu ne kadar aştıklarına) göre, ardından bileşik puana göre sıralanır. Aksi takdirde sadece bileşik puan kullanılır.
 
 ```ts
 class SLAStrategyImpl implements RouterStrategy {
@@ -658,12 +605,12 @@ class SLAStrategyImpl implements RouterStrategy {
     "Selects the provider most likely to satisfy latency, error-rate, and cost SLOs";
 
   select(pool, context) {
-    // ... her adayı şu politikaya göre puanlar: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
+    // ... scores each candidate against policy: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
   }
 }
 ```
 
-**SLA alanları** (birleşik yapılandırmada ayarlanır):
+**SLA alanları** (combo yapılandırmasında ayarlanır):
 
 ```json
 {
@@ -678,15 +625,15 @@ class SLAStrategyImpl implements RouterStrategy {
 }
 ```
 
-**Ne zaman kullanılmalı**: Katı gecikme, hata oranı veya maliyet bütçelerine sahip üretim iş yüklerinde.
+**Kullanım durumu**: Katı gecikme, hata oranı veya maliyet bütçelerine sahip üretim iş yükleri.
 
 **Takma adlar**: `sla-aware`, `sla`
 
 ---
 
-#### 5. `lkgp` — önce bilinen son iyi sağlayıcı
+#### 5. `lkgp` — bilinen son iyi sağlayıcı öncelikli
 
-Önce **bilinen son iyi sağlayıcıyı** (ayarlanmışsa) dener, ardından `rules` stratejisine geri döner. Oturum kalıcılığı için kullanışlıdır — bir konuşmadaki takip isteklerini aynı sağlayıcı işler.
+Önce **bilinen son iyi sağlayıcıyı** (ayarlanmışsa) dener, ardından `rules` stratejisine geri döner. Oturum sürekliliği için kullanışlıdır — aynı sağlayıcı, bir konuşmadaki takip eden istekleri işler.
 
 ```ts
 class LKGPStrategyImpl implements RouterStrategy {
@@ -707,21 +654,51 @@ class LKGPStrategyImpl implements RouterStrategy {
       }
     }
 
-    // rules stratejisine geri dön
+    // Fallback to rules strategy
     return getStrategy("rules").select(pool, context);
   }
 }
 ```
 
-**Ne zaman kullanılmalı**: Takip isteklerini aynı sağlayıcının işlemesini istediğiniz çok turlu konuşmalarda (ör. önbelleğe alma, bağlam sürekliliği veya fiyatlandırma tutarlılığı için).
+**Kullanım durumu**: Aynı sağlayıcının takip eden istekleri işlemesini istediğiniz çok turlu konuşmalar (örneğin, önbelleğe alma, bağlam sürekliliği veya fiyatlandırma tutarlılığı için).
 
-**Takma ad**: `lkgp` (başka takma adı yoktur)
+**Takma ad**: `lkgp` (takma ad yok)
+
+---
+
+#### 6. `nadir` — Nadir aracılığıyla isteme duyarlı model seçimi
+
+Yukarıdaki her strateji, adayları kendi telemetrilerine göre sıralar; hiçbiri isteği okumaz. `nadir`, son kullanıcı mesajını ve havuzun model kimliklerini [Nadir](https://getnadir.com)'in karar API'sine (`POST /v1/bucket`) gönderir ve Nadir'in o menüden seçtiği modele yönlendirir (`simple` → en ucuz yetenekli model, `complex` → en gelişmiş model). O modele hizmet veren bağlantı yine `rules` tarafından seçilir, bu nedenle kota, sağlık ve maliyet hangi hesabın kullanılacağına karar vermeye devam eder.
+
+```json
+{
+  "strategy": "auto",
+  "config": {
+    "routerStrategy": "nadir",
+    "nadir": {
+      "apiKey": "ndr_...",
+      "baseUrl": "https://api.getnadir.com",
+      "timeoutMs": 2000
+    }
+  }
+}
+```
+
+`OMNIROUTE_NADIR_API_KEY` ve `OMNIROUTE_NADIR_BASE_URL`, bu iki dize için ortam değişkeni yedekleridir. `baseUrl`, kendi kendine barındırılan (self-hosted) bir Nadir için gereklidir (sonunda `/v1` olması kabul edilir). Anahtarsız çağrılar, IP başına hız sınırlamasına tabi olan Nadir'in anonim katmanına düşer.
+
+Kutudan çıkanlar: son kullanıcı mesajının metni (ilk 16k karakter), aday model kimlikleri ve bir `source: "omniroute"` kanal etiketi. Sistem istemi, geçmiş, araçlar veya başlıklar gönderilmez.
+
+Hata davranışı fail-open (açık kalma) şeklindedir: bir zaman aşımı (varsayılan 2000 ms), 2xx olmayan bir yanıt, ulaşılamayan bir ana bilgisayar, hatalı biçimlendirilmiş bir yanıt veya havuz dışı bir seçim, `rules` kararına çözümlenir ve nedenin önüne `NadirStrategy: fallback (…)` ön eki eklenir. Başarısız bir çağrıdan sonra strateji 30 saniye boyunca ağı atlar, böylece bir kesinti her istek başına değil, 30 saniyede bir zaman aşımına mal olur. Yönlendirme olayları, yalnızca Nadir seçimi gerçekten yaptığında `strategy: "nadir"` rapor eder.
+
+**Kullanım durumu**: Model katmanlarını kapsayan (küçük, orta ve en gelişmiş model) bir havuzda karışık zorluktaki trafik; burada her zaman en gelişmiş modeli kullanmak kısmak istediğiniz maliyettir.
+
+**Takma ad**: `nadir` (takma ad yok)
 
 ---
 
 ### Özel yönlendirici stratejileri
 
-Genel API aracılığıyla kendi `RouterStrategy` uygulamanızı kaydedebilirsiniz:
+Kendi `RouterStrategy` uygulamanızı genel API aracılığıyla kaydedebilirsiniz:
 
 ```ts
 import {
@@ -734,7 +711,7 @@ class MyCustomStrategy implements RouterStrategy {
   readonly description = "My custom routing strategy";
 
   select(pool, context) {
-    // Yönlendirme mantığınız buraya gelir
+    // Your routing logic here
     return {
       provider: pool[0].provider,
       model: pool[0].model,
@@ -749,7 +726,7 @@ class MyCustomStrategy implements RouterStrategy {
 registerStrategy("my-custom", new MyCustomStrategy());
 ```
 
-Ardından bunu kullanın:
+Ardından kullanın:
 
 ```json
 {
@@ -764,15 +741,16 @@ Ardından bunu kullanın:
 
 ### Yönlendirici stratejisi seçim kılavuzu
 
-| Kullanım senaryosu       | Strateji    | Neden                                      |
-| ------------------------ | ----------- | ------------------------------------------ |
-| Dengeli iş yükü          | `rules`     | Varsayılan — tüm faktörleri dikkate alır   |
-| Maliyeti en aza indirme  | `cost`      | Her zaman en ucuz olanı seçer              |
-| Gecikmeyi en aza indirme | `latency`   | En hızlı güvenilir sağlayıcıyı seçer       |
-| Katı SLO'lar             | `sla-aware` | p95/hata/maliyet eşiklerine göre filtreler |
-| Çok turlu sohbet         | `lkgp`      | Oturum kalıcılığı                          |
+| Kullanım durumu        | Strateji    | Neden                                      |
+| ---------------------- | ----------- | ------------------------------------------ |
+| Dengeli iş yükü        | `rules`     | Varsayılan — tüm faktörleri değerlendirir  |
+| Maliyeti en aza indir  | `cost`      | Her zaman en ucuzu seçer                   |
+| Gecikmeyi en aza indir | `latency`   | En hızlı güvenilir sağlayıcıyı seçer       |
+| Katı SLO'lar           | `sla-aware` | p95/hata/maliyet eşiklerine göre filtreler |
+| Çok turlu sohbet       | `lkgp`      | Oturum sürekliliği                         |
+| Karışık zorluk         | `nadir`     | İsteme göre model katmanını seçer          |
 
-SLA uyumlu alanlar:
+SLA'ya duyarlı alanlar:
 
 ```json
 {
@@ -854,13 +832,13 @@ bilgileri ve VPS erişimi gerektirdikleri için kasıtlı olarak CI kapsamı dı
 
 | Dosya                                                     | Amaç                                                                                                                         |
 | :-------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------- |
-| `open-sse/services/autoCombo/scoring.ts`                  | 16 faktörlü puanlama işlevi, `DEFAULT_WEIGHTS`, havuz normalizasyonu                                                         |
-| `open-sse/services/autoCombo/taskFitness.ts`              | Model × görev uygunluğu araması                                                                                              |
-| `open-sse/services/autoCombo/engine.ts`                   | Seçim mantığı, bandit, bütçe üst sınırı                                                                                      |
-| `open-sse/services/autoCombo/selfHealing.ts`              | Hariç tutma, problar, olay modu                                                                                              |
+| `open-sse/services/autoCombo/scoring.ts`                  | 16 faktörlü puanlama fonksiyonu, `DEFAULT_WEIGHTS`, havuz normu                                                              |
+| `open-sse/services/autoCombo/taskFitness.ts`              | Model × görev uygunluk araması                                                                                               |
+| `open-sse/services/autoCombo/engine.ts`                   | Seçim mantığı, bandit, bütçe sınırı                                                                                          |
+| `open-sse/services/autoCombo/selfHealing.ts`              | Dışlama, problar, olay modu                                                                                                  |
 | `open-sse/services/autoCombo/modePacks.ts`                | 6 ağırlık profili (hızlı-gönderim, maliyet-tasarrufu, kalite-öncelikli, çevrimdışı-dostu, güvenilirlik-öncelikli, kaos-modu) |
-| `open-sse/services/autoCombo/autoPrefix.ts`               | `auto/` ön ek ayrıştırıcısı + 6 varyant                                                                                      |
+| `open-sse/services/autoCombo/autoPrefix.ts`               | `auto/` önek ayrıştırıcısı + 6 varyant                                                                                       |
 | `open-sse/services/autoCombo/virtualFactory.ts`           | Canlı bağlantılardan bellek içi `AutoComboConfig` oluşturur                                                                  |
 | `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Sağlayıcı kayıt defterini taklit etmek için test kancası                                                                     |
-| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (19 strateji)                                                                                      |
-| `src/sse/handlers/chat.ts`                                | Entegrasyon: auto-prefix kısa devresi                                                                                        |
+| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (20 strateji)                                                                                      |
+| `src/sse/handlers/chat.ts`                                | Entegrasyon: auto-prefix kısa devre                                                                                          |

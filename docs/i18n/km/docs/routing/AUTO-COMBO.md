@@ -51,15 +51,15 @@ suffix បែប OpenRouter បំបែក **ប្រភេទផ្លូវ*
 **របៀបប្រើ៖**
 
 ```bash
-# IDE ឬឧបករណ៍ CLI ណាមួយដែលគាំទ្រទម្រង់ OpenAI
+# Any IDE or CLI tool that supports OpenAI format
 Base URL: http://localhost:20128/v1
 API Key:  <your-endpoint-key>
 
-# ក្នុងកូដ/ការកំណត់រចនាសម្ព័ន្ធរបស់អ្នក កំណត់ model ទៅជា៖
-model: "auto"                 # លំនាំដើមមានតុល្យភាព
-model: "auto/coding"          # ល្អបំផុតសម្រាប់កិច្ចការសរសេរកូដ
-model: "auto/fast"            # ជម្រើសលឿនបំផុតដែលអាចប្រើបាន
-model: "auto/cheap"           # ថោកបំផុតក្នុងមួយ token
+# In your code/config, set model to:
+model: "auto"                 # balanced default
+model: "auto/coding"          # best for coding tasks
+model: "auto/fast"            # fastest available
+model: "auto/cheap"           # cheapest per token
 ```
 
 **អ្វីដែលកើតឡើង៖**
@@ -110,15 +110,15 @@ single-tenant ដែលគ្មាន table `users` ដូច្នេះ `apiK
 **ដំណើរការនៅពីក្រោយ៖**
 
 ```txt
-សំណើ៖ { model: "auto/coding" }
+Request: { model: "auto/coding" }
    ↓
-src/sse/handlers/chat.ts រកឃើញ prefix
+src/sse/handlers/chat.ts detects prefix
    ↓
-createVirtualAutoCombo('coding') → candidatePool ពី connections ដែលសកម្ម
+createVirtualAutoCombo('coding') → candidatePool from active connections
    ↓
-handleComboChat (engine ដូចគ្នានឹង combos ដែលបានរក្សាទុក)
+handleComboChat (same engine as persisted combos)
    ↓
-ការដាក់ពិន្ទុដោយស្វ័យប្រវត្តិជ្រើសរើស provider/model ល្អបំផុតសម្រាប់សំណើនីមួយៗ
+Auto-scoring selects best provider/model per request
 ```
 
 **ឯកសារអនុវត្ត៖**
@@ -153,13 +153,7 @@ provider តែមួយ — វាប្រើឡើងវិញនូវអា
 model id ពិតប្រាកដ៖
 
 ```json
-{
-  "warning": {
-    "code": "COMBO_NAME_SHADOWS_MODEL",
-    "modelId": "gpt-5.5",
-    "providerId": "openai"
-  }
-}
+{ "warning": { "code": "COMBO_NAME_SHADOWS_MODEL", "modelId": "gpt-5.5", "providerId": "openai" } }
 ```
 
 នៅពេល boot, `scanComboModelNameCollisionsAtBoot()`
@@ -270,7 +264,7 @@ Auto-Combo Engine ជ្រើសរើស provider/model ដែលល្អប�
 | `X-OmniRoute-Effort`          | `auto` (តម្លៃផ្សេងទៀតត្រូវបានបម្រុងទុក)                                                                                                                                                       | កញ្ចប់ថវិកាសម្រាប់ការគិតដែលសម្របខ្លួន៖ នៅពេលសំណើមិនមានវាលហេតុផលក្នុងទម្រង់ណាមួយឡើយ (`reasoning_effort`, `reasoning`, `thinking`) gateway នឹងកំណត់ `auto` ទៅជា `low`/`medium`/`high` ដោយផ្អែកលើសញ្ញាកំណត់ជាក់លាក់ពីទម្រង់សំណើ (ប្រវែងសារចុងក្រោយរបស់អ្នកប្រើ ទំហំបរិបទរហូតដល់សារចុងក្រោយរបស់អ្នកប្រើ លទ្ធផលពី tool មុនៗ និងជម្រៅនៃ tool-loop)។ សញ្ញាទាំងនេះត្រូវបានកំណត់វិសាលភាពត្រឹម turn បច្ចុប្បន្នប៉ុណ្ណោះ — អ្វីៗទាំងអស់បន្ទាប់ពីសារចុងក្រោយរបស់អ្នកប្រើត្រូវបានមិនអើពើ — ដូច្នេះ រាល់សំណើនៅក្នុង tool loop នឹងត្រូវបានកំណត់ទៅកម្រិតដូចគ្នា (ការចងកម្រិតតាម turn ដោយគ្មាន state មិនមាន session state និងមិនមានការបង្កើនកម្រិតនៅពាក់កណ្តាល loop ដែលអាចបំបែក prefix របស់ upstream prompt-cache)។ វាលហេតុផលដែល client បញ្ជាក់យ៉ាងច្បាស់ តែងតែមានអាទិភាព។ វាត្រូវបានកំណត់វិសាលភាពចំពោះសំណើដែល upstream dispatch របស់វាត្រូវបានកំណត់ទៅទម្រង់ OpenAI Chat Completions (`targetFormat === FORMATS.OPENAI`) — `reasoning_effort` គឺជាវាលទម្រង់ OpenAI ដូច្នេះ header នេះមិនមានឥទ្ធិពលលើសំណើដែលកំណត់គោលដៅទៅ Claude ឬ Gemini ទេ (សូមមើល `open-sse/handlers/chatCore/adaptiveEffortWiring.ts`)។ |
 
 ```bash
-# បង្ខំឱ្យប្រើប្រូហ្វាល់លឿនបំផុត កំណត់សំណើនេះឱ្យចំណាយមិនលើស $0.05 និងទប់ស្កាត់ទាំងស្រុងជំនួសឱ្យការចំណាយលើស
+# Force the fastest profile, cap this request at $0.05, and hard-block instead of overspending
 curl -sS http://localhost:20128/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-OmniRoute-Mode: fast" \
@@ -283,66 +277,55 @@ curl -sS http://localhost:20128/v1/chat/completions \
 `config.budgetFallback`។ `config.budgetFallback` ដែលបានរក្សាទុករបស់ combo មួយ ("strict" |
 "cheapest") កំណត់គោលការណ៍អចិន្ត្រៃយ៍។ header នឹងបដិសេធតម្លៃនោះសម្រាប់សំណើតែមួយ។
 
-## យុទ្ធសាស្ត្រកំណត់ផ្លូវ (Routing) ទាំងអស់
+## យុទ្ធសាស្ត្រកំណត់ផ្លូវទាំងអស់
 
-Combo engine របស់ OmniRoute គាំទ្រ **យុទ្ធសាស្ត្រកំណត់ផ្លូវចំនួន 19** (ត្រូវបានប្រកាសនៅក្នុង `src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`)។ ម៉ាស៊ីន Auto Combo ខ្លួនឯងត្រូវបានដាក់ឱ្យប្រើប្រាស់ក្រោមយុទ្ធសាស្ត្រ `auto` ចំណែកយុទ្ធសាស្ត្រផ្សេងទៀតគឺអាចប្រើបានសម្រាប់ persisted combos។
+ម៉ាស៊ីន combo របស់ OmniRoute គាំទ្រ **យុទ្ធសាស្ត្រកំណត់ផ្លូវចំនួន 20** (ដែលបានប្រកាសនៅក្នុង `src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`)។ ម៉ាស៊ីន Auto Combo ខ្លួនវាត្រូវបានបង្ហាញនៅក្រោមយុទ្ធសាស្ត្រ `auto`។ យុទ្ធសាស្ត្រផ្សេងទៀតមានសម្រាប់ combo ដែលត្រូវបានរក្សាទុក (persisted combos)។
 
-| យុទ្ធសាស្ត្រ        | ការពិពណ៌នា                                                                                                                                                                                   |
-| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `priority`          | បញ្ជីរៀបតាមលំដាប់ផ្ដោតលើគោលដៅដំបូង (First-target) ជាមួយអាទិភាពជាក់លាក់                                                                                                                       |
-| `weighted`          | ចៃដន្យតាមទម្ងន់កំណត់ (Weighted random) ផ្អែកលើទម្ងន់នៃគោលដៅនីមួយៗ                                                                                                                            |
-| `round-robin`       | វិលជុំតាមគោលដៅនានាតាមលំដាប់ (ជាបាច់ ឬ batched; មើលខាងក្រោម)                                                                                                                                  |
-| `context-relay`     | បញ្ជូនបន្ត context ឆ្លងកាត់គោលដៅផ្សេងៗ (សម្រាប់ការសន្ទនាវែងៗ)                                                                                                                                |
-| `fill-first`        | បំពេញកូតា (quota) របស់គោលដៅនីមួយៗឱ្យអស់សិន មុនពេលប្តូរទៅគោលដៅបន្ទាប់                                                                                                                         |
-| `p2c`               | ការរក្សាតុល្យភាពបន្ទុកបែបចៃដន្យដោយជ្រើសរើសជម្រើសល្អជាងក្នុងចំណោម 2 (Power-of-2-choices)                                                                                                      |
-| `random`            | ការជ្រើសរើសដោយចៃដន្យស្មើៗគ្នា (Uniform random)                                                                                                                                               |
-| `least-used`        | ជ្រើសរើសគោលដៅណាដែលមានបន្ទុកការងារបច្ចុប្បន្នទាបបំផុត                                                                                                                                         |
-| `cost-optimized`    | កាត់បន្ថយការចំណាយជា $ ក្នុងមួយ request ផ្អែកលើតម្លៃក្នុងកាតាឡុក                                                                                                                              |
-| `reset-aware` ⭐    | ផ្តល់អាទិភាពតាមពេលវេលាកំណត់ឡើងវិញនៃកូតា (quota reset time) — រយៈពេល reset ខ្លីទទួលបានចំណាត់ថ្នាក់ខ្ពស់ជាង                                                                                    |
-| `reset-window`      | ផ្តល់អាទិភាពដល់គោលដៅណាដែល window នៃកូតារបស់វា reset ឆាប់ជាងគេ                                                                                                                                |
-| `headroom`          | ជ្រើសរើសគោលដៅណាដែលមានទំហំកូតានៅសល់ (quota headroom) ច្រើនជាងគេ                                                                                                                               |
-| `strict-random`     | ចៃដន្យដោយមិនលុបការជ្រើសរើសដែលជាន់គ្នាចោលឡើយ (without deduplication of repeats)                                                                                                               |
-| `auto`              | ប្រើប្រាស់ការវាយតម្លៃពិន្ទុរបស់ Auto Combo (16 កត្តា) — **ណែនាំឱ្យប្រើ**                                                                                                                     |
-| `lkgp`              | Last-Known-Good Path (ភ្ជាប់ទៅកាន់ provider ដែលជោគជ័យចុងក្រោយគេ បន្ទាប់មកទើប fallback ទៅកាន់ច្បាប់កំណត់)                                                                                     |
-| `context-optimized` | ជ្រើសរើសគោលដៅណាដែលស័ក្តិសមបំផុតសម្រាប់ទំហំ context បច្ចុប្បន្ន                                                                                                                               |
-| `cache-optimized`   | រៀបចំលំដាប់គោលដៅឡើងវិញតាម prompt-cache affinity — ការតភ្ជាប់ណាដែលទំនងជាមាន cached prefix នៃ request នេះរួចហើយ នឹងត្រូវសាកល្បងមុនគេ (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
-| `fusion` 🧬         | បំបែកការផ្ញើ (Fan out) ទៅកាន់ក្រុមម៉ូឌែលជាច្រើនស្របពេលគ្នា បន្ទាប់មកសំយោគចម្លើយតែមួយតាមរយៈ judge (មើលខាងក្រោម)                                                                               |
-| `pipeline`          | ដំណើរការគោលដៅជាបន្តបន្ទាប់ ដោយបញ្ចូល output នៃជំហាននីមួយៗទៅក្នុង input នៃជំហានបន្ទាប់។ មានតែចម្លើយចុងក្រោយប៉ុណ្ណោះដែលត្រូវបានបញ្ជូនត្រឡប់មកវិញ (#6396)                                       |
+| យុទ្ធសាស្ត្រ        | ការពិពណ៌នា                                                                                                                                                                                                                           |
+| :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `priority`          | បញ្ជីដែលបានរៀបតាមគោលដៅដំបូងជាមួយនឹងអាទិភាពច្បាស់លាស់                                                                                                                                                                                 |
+| `weighted`          | ការជ្រើសរើសដោយចៃដន្យតាមទម្ងន់សម្រាប់គោលដៅនីមួយៗ                                                                                                                                                                                      |
+| `round-robin`       | វិលជុំតាមគោលដៅតាមលំដាប់លំដោយ (ជាបាច់; សូមមើលខាងក្រោម)                                                                                                                                                                                |
+| `context-relay`     | បញ្ជូនបរិបទបន្តរវាងគោលដៅ (ការសន្ទនាវែងៗ)                                                                                                                                                                                             |
+| `fill-first`        | បំពេញកូតារបស់គោលដៅនីមួយៗមុននឹងបន្តទៅគោលដៅបន្ទាប់                                                                                                                                                                                     |
+| `p2c`               | ការថ្លឹងថ្លែងបន្ទុកដោយចៃដន្យតាមវិធី Power-of-2-choices                                                                                                                                                                               |
+| `random`            | ការជ្រើសរើសដោយចៃដន្យស្មើៗគ្នា                                                                                                                                                                                                        |
+| `least-used`        | ជ្រើសរើសគោលដៅដែលមានបន្ទុកប្រើប្រាស់តិចបំផុតបច្ចុប្បន្ន                                                                                                                                                                               |
+| `cost-optimized`    | កាត់បន្ថយតម្លៃ $ ក្នុងមួយសំណើដោយផ្អែកលើតម្លៃក្នុងកាតាឡុក                                                                                                                                                                             |
+| `reset-aware` ⭐    | ផ្តល់អាទិភាពតាមពេលវេលាកំណត់កូតាឡើងវិញ — រយៈពេលកំណត់ឡើងវិញខ្លីត្រូវបានដាក់ចំណាត់ថ្នាក់ខ្ពស់ជាង                                                                                                                                        |
+| `reset-window`      | ជ្រើសរើសគោលដៅដែលមានរយៈពេលកំណត់កូតាឡើងវិញឆាប់បំផុត                                                                                                                                                                                    |
+| `headroom`          | ជ្រើសរើសគោលដៅដែលមានកូតាសល់ច្រើនជាងគេ                                                                                                                                                                                                 |
+| `quota-weighted`    | រំលងគណនីដែលអស់កូតា បន្ទាប់មកជ្រើសរើសក្នុងចំណោមគណនីដែលនៅសល់តាមសមាមាត្រនៃកូតាដែលនៅសល់ចែកនឹងបន្ទុកដែលកំពុងដំណើរការ; ការសន្ទនាដែលមានស្រាប់នៅតែត្រូវបានរក្សាទុក                                                                           |
+| `strict-random`     | ការជ្រើសរើសដោយចៃដន្យដោយមិនដកការជាន់គ្នា                                                                                                                                                                                              |
+| `auto`              | ប្រើការដាក់ពិន្ទុ Auto Combo (16-factor) — **ត្រូវបានណែនាំ**                                                                                                                                                                         |
+| `lkgp`              | ផ្លូវល្អចុងក្រោយដែលបានស្គាល់ (កំណត់ទៅអ្នកផ្តល់សេវាដែលជោគជ័យចុងក្រោយ បន្ទាប់មកត្រឡប់ទៅប្រើច្បាប់វិញ)                                                                                                                                  |
+| `context-optimized` | ជ្រើសរើសគោលដៅដែលសមស្របបំផុតសម្រាប់ទំហំបរិបទបច្ចុប្បន្ន                                                                                                                                                                               |
+| `cache-optimized`   | រៀបចំគោលដៅឡើងវិញតាមភាពស្និទ្ធស្នាលនៃ prompt-cache — ការតភ្ជាប់ដែលមានលទ្ធភាពខ្ពស់បំផុតក្នុងការរក្សាទុក prefix ដែលបានឃ្លាំងសម្ងាត់ (cached) នៃសំណើនេះនឹងត្រូវបានសាកល្បងមុនគេ (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
+| `fusion` 🧬         | បំបែកទៅក្រុមម៉ូដែលជាច្រើនស្របគ្នា បន្ទាប់មកសំយោគចម្លើយមួយតាមរយៈអ្នកវិនិច្ឆ័យ (សូមមើលខាងក្រោម)                                                                                                                                        |
+| `pipeline`          | ដំណើរការគោលដៅជាបន្តបន្ទាប់ ដោយបញ្ជូនលទ្ធផលនៃជំហាននីមួយៗទៅជាធាតុចូលនៃជំហានបន្ទាប់; មានតែចម្លើយចុងក្រោយប៉ុណ្ណោះដែលត្រូវបានត្រឡប់ (#6396)                                                                                               |
 
 ⭐ = ថ្មីនៅក្នុង v3.8.0 · 🧬 = ថ្មីនៅក្នុង v3.8.36
 
-### អត្ថន័យនៃ `weighted`
+### `weighted` ន័យនៃ
 
-`weighted` គឺជា **ការចាប់ឆ្នោតចៃដន្យតាមសមាមាត្រក្នុងមួយ request**
-(`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`) មិនមែនជាឧបករណ៍ធ្វើឱ្យមានតុល្យភាពស្មើគ្នានោះទេ៖
+`weighted` គឺជា **ការចាប់ឆ្នោតដោយចៃដន្យតាមសមាមាត្រក្នុងមួយសំណើ**
+(`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`) មិនមែនជាឧបករណ៍ធ្វើឱ្យស្មើគ្នានោះទេ៖
 
-- request នីមួយៗចាប់ឆ្នោតយក **មួយ** ជំហាន ជាមួយនឹងប្រូបាប៊ីលីតេ `weight / totalWeight`; ជំហានដែលនៅសល់
-  ត្រូវបានរៀបចំតាមលំដាប់ទម្ងន់ពីធំទៅតូច ជាច្រវាក់ fallback សម្រាប់ request នោះ។
-- ជំហានណាដែលមានទម្ងន់ស្មើ `0` (ឬបាត់) គឺ **មិនត្រូវបានចាប់ឆ្នោតឡើយ** ដរាបណាជំហានផ្សេងទៀតមាន
-  ទម្ងន់ > 0 — វាអាចដើរតួជា fallback ប៉ុណ្ណោះ បន្ទាប់ពីជំហានដែលចាប់បានទទួលបរាជ័យ។ លុះត្រាតែទម្ងន់ **ទាំងអស់**
-  ស្មើ 0 ទើបការជ្រើសរើសប្រែជាបែបស្មើគ្នា (uniform)។
-- ជំហានណាដែលគោលដៅទាំងអស់មិនអាចដំណើរការបាន — provider circuit breaker ស្ថិតក្នុងស្ថានភាព `OPEN`, connection
-  cooldown, model lockout — ត្រូវបានដកចេញពីការចាប់ឆ្នោតមុនពេលវាកើតឡើង
-  (`open-sse/services/combo/targetResolution.ts`) ដូច្នេះជំហានតែមួយដែលមានសុខភាពល្អអាចឈ្នះរាល់ request ជាបណ្តោះអាសន្ន។
-- `stickyWeightedLimit` (combo config, តម្លៃដើម `1` = បិទ) ចងភ្ជាប់ជំហានដែលចាប់បាននោះសម្រាប់ចំនួនជោគជ័យ
-  ផ្ទួនៗគ្នាប៉ុណ្ណោះ មុនពេលចាប់ឆ្នោតឡើងវិញ។
+- សំណើនីមួយៗចាប់យកជំហាន **មួយ** ដោយមានប្រូបាប៊ីលីតេ `weight / totalWeight`; ជំហានដែលនៅសល់ត្រូវបានរៀបតាមលំដាប់ទម្ងន់ចុះក្រោមជាខ្សែសង្វាក់ជំនួសសម្រាប់សំណើនោះ។
+- ជំហានដែលមានទម្ងន់ `0` (ឬបាត់) គឺ **មិនដែលត្រូវបានចាប់យក** ទេ ខណៈពេលដែលជំហានផ្សេងទៀតមានទម្ងន់ > 0 — វាអាចបម្រើជាការជំនួសបានតែបន្ទាប់ពីជំហានដែលបានចាប់យកបរាជ័យប៉ុណ្ណោះ។ មានតែនៅពេលដែលទម្ងន់ **ទាំងអស់** គឺ 0 ទើបការជ្រើសរើសក្លាយជាឯកសណ្ឋាន។
+- ជំហានដែលគោលដៅទាំងអស់មិនអាចប្រើបាន — provider circuit breaker `OPEN`, connection cooldown, model lockout — ត្រូវបានដកចេញពីការចាប់ឆ្នោតមុនពេលវាចាប់ផ្តើម
+  (`open-sse/services/combo/targetResolution.ts`) ដូច្នេះជំហានដែលមានសុខភាពល្អតែមួយអាចឈ្នះរាល់សំណើជាបណ្តោះអាសន្ន។
+- `stickyWeightedLimit` (ការកំណត់ combo, លំនាំដើម `1` = បិទ) ខ្ទាស់ជំហានដែលបានចាប់យកសម្រាប់ចំនួនជោគជ័យជាប់ៗគ្នានោះ មុនពេលចាប់ឆ្នោតម្តងទៀត។
 
-សម្រាប់ការបង្វិលដ៏តឹងរ៉ឹង សូមប្រើ `round-robin`; ទម្ងន់ស្មើគ្នានៅលើ `weighted` ផ្តល់នូវតុល្យភាពតាមបែបស្ថិតិ — មិនមែនតុល្យភាព
-តឹងរ៉ឹងនោះទេ។
+សម្រាប់ការបង្វិល (rotation) យ៉ាងតឹងរ៉ឹង សូមប្រើ `round-robin`។ ទម្ងន់ស្មើគ្នានៅលើ `weighted` ផ្តល់នូវតុល្យភាពស្ថិតិ មិនមែនតុល្យភាពតឹងរ៉ឹងនោះទេ។
 
-### របៀប Agentic pipeline
+### របៀប pipeline ភ្នាក់ងារ (Agentic pipeline mode)
 
-បន្សំ `pipeline` ពីរជំហាន អាចជ្រើសរើសប្រើការបញ្ជូនផ្លូវ (routing) បែប planner/executor ជាមួយ
-`config.agenticOrchestration.enabled`។ គោលដៅដំបូងគ្រប់គ្រងលើការរៀបចំផែនការ (planning) និងចម្លើយចុងក្រោយ។
-ចំណែកគោលដៅទីពីរ បញ្ចេញនូវការហៅប្រើប្រាស់ tool ដែលជា native របស់ client។ OmniRoute រកឃើញការបន្ត
-លទ្ធផល tool ពី request protocol, សួរបញ្ជាក់ planner ថាតើត្រូវការជុំ tool មួយទៀតដែរឬទេ,
-និងកំណត់ជាលក្ខណៈ dynamic នូវ executor ឬ planner ឱ្យទៅជាជំហានចុងក្រោយដែលបង្ហាញទៅកាន់ client។
+ការរួមបញ្ចូល (combo) `pipeline` ដែលមានម៉ូដែលយ៉ាងហោចណាស់ពីរ អាចជ្រើសរើសចូលទៅក្នុងការកំណត់ផ្លូវ (routing) អ្នករៀបចំផែនការ/អ្នកប្រតិបត្តិ (planner/executor) ជាមួយនឹង `config.agenticOrchestration.enabled`។ គោលដៅទីមួយទទួលបន្ទុកលើការរៀបចំផែនការ និងចម្លើយចុងក្រោយ។ គោលដៅទីពីរបញ្ចេញការហៅឧបករណ៍ (tool calls) ដែលជា native របស់អតិថិជន។ OmniRoute រកឃើញការបន្តលទ្ធផលឧបករណ៍ (tool-result continuations) ពីពិធីការសំណើ សួរអ្នករៀបចំផែនការថាតើត្រូវការជុំឧបករណ៍មួយទៀតដែរឬទេ ហើយធ្វើឱ្យអ្នកប្រតិបត្តិ ឬអ្នករៀបចំផែនការក្លាយជាជំហានចុងក្រោយដែលបង្ហាញដល់អតិថិជនដោយស្វ័យប្រវត្តិ។
 
-លើការបន្តលទ្ធផល tool, OmniRoute ក៏បញ្ឈប់ការប្រតិបត្តិផងដែរ នៅពេលដែលពីរជុំជាប់គ្នាដែលបានបញ្ចប់
-មានការហៅ tool ដដែលៗឡើងវិញជាមួយលទ្ធផលមិនផ្លាស់ប្តូរ ឬនៅពេលដែលគ្រប់លទ្ធផលដែលបានសម្គាល់ច្បាស់លាស់ក្នុងពីរជុំជាប់គ្នាបានបរាជ័យ។ លទ្ធផលដែលបានផ្លាស់ប្តូរ អនុញ្ញាតឱ្យមានការហៅឡើងវិញ (ឧទាហរណ៍៖ polling)។ ការការពារនេះកំណត់ឡើងវិញ (reset) នៅពេលមាន request ថ្មីពីអ្នកប្រើប្រាស់,
-ប្រមូលផ្តុំការហៅស្របគ្នា (parallel calls) ទៅក្នុងមួយជុំ, និងគាំទ្រប្រវត្តិរបស់ Anthropic, Chat Completions,
-Responses និង Gemini។ Planner ទទួលបានមូលហេតុ ហើយគ្រប់គ្រងលើចម្លើយចុងក្រោយ
-ទោះបីជាវាស្នើសុំជុំ tool មួយទៀតក៏ដោយ។
+នៅលើការបន្តលទ្ធផលឧបករណ៍ OmniRoute ក៏បញ្ឈប់ការប្រតិបត្តិផងដែរ នៅពេលដែលជុំដែលបានបញ្ចប់ពីរជាប់គ្នាធ្វើការហៅឧបករណ៍ដដែលៗជាមួយនឹងលទ្ធផលដែលមិនផ្លាស់ប្តូរ ឬនៅពេលដែលរាល់លទ្ធផលដែលបានសម្គាល់យ៉ាងច្បាស់នៅក្នុងជុំពីរជាប់គ្នាបានបរាជ័យ។ លទ្ធផលដែលបានផ្លាស់ប្តូរអនុញ្ញាតឱ្យមានការហៅម្តងទៀត (ឧទាហរណ៍ ការស្ទង់មតិ/polling)។ យន្តការការពារ (guard) នឹងកំណត់ឡើងវិញនៅពេលមានសំណើអ្នកប្រើប្រាស់ថ្មី ដាក់ក្រុមការហៅស្របគ្នា (parallel calls) ទៅក្នុងជុំតែមួយ ហើយគាំទ្រប្រវត្តិ Anthropic, Chat Completions, Responses និង Gemini។ អ្នករៀបចំផែនការទទួលបានហេតុផល និងទទួលបន្ទុកលើចម្លើយចុងក្រោយ ទោះបីជាវាស្នើសុំជុំឧបករណ៍មួយទៀតក៏ដោយ។
+
+ម៉ូដែលបន្ថែមបន្ទាប់ពីគោលដៅទីពីរគឺជាអ្នកប្រតិបត្តិបម្រុង (executor backups) ដែលត្រូវបានរៀបចំតាមលំដាប់។ ការឆ្លើយតប HTTP ដែលបរាជ័យ ឬករណីលើកលែងនៃការដឹកជញ្ជូន (transport exception) នឹងបន្តទៅអ្នកប្រតិបត្តិបន្ទាប់ ដោយរក្សាការសម្រេចចិត្តរបស់អ្នករៀបចំផែនការ និងឧបករណ៍ native ដដែល ប៉ុន្តែប្រើប្រាស់ prompt ជំហាន និងការតភ្ជាប់ដែលបានដោះស្រាយរបស់អ្នកប្រតិបត្តិនោះ។ ការឆ្លើយតបជោគជ័យដំបូងនឹងត្រូវបានត្រឡប់មកវិញដោយមិនផ្លាស់ប្តូរ រួមទាំងការស្ទ្រីម SSE ផងដែរ។ ការបរាជ័យបន្ទាប់ពីការស្ទ្រីមជោគជ័យបានចាប់ផ្តើម មិនអាចព្យាយាមម្តងទៀតនៅទីនេះបានទេ។ ប្រសិនបើអ្នកប្រតិបត្តិទាំងអស់បរាជ័យ ការបរាជ័យចុងក្រោយនឹងត្រូវបានត្រឡប់មកវិញ។ ការបញ្ឈប់ដោយអតិថិជន (Client aborts) នឹងបញ្ឈប់ការបញ្ជូន (dispatch)។
 
 ```json
 {
@@ -354,34 +337,17 @@ Responses និង Gemini។ Planner ទទួលបានមូលហេតុ
 }
 ```
 
-Executor អាចបញ្ចេញការហៅឯករាជ្យជាច្រើននៅក្នុងការឆ្លើយតបតែមួយ។ ការហៅដែលអាស្រ័យគ្នា ត្រូវបាន
-ដោះស្រាយនៅក្នុងវេនលទ្ធផល tool របស់ client បន្ទាប់ៗ ដោយ planner ពិនិត្យមើលគ្រប់លទ្ធផលទាំងអស់។
-`maxToolRounds` មានតម្លៃដើម (default) ត្រឹម `8` និងទទួលយកពី `1`–`32`; នៅពេលដែលដល់កម្រិតកំណត់នេះ, planner ត្រូវតែ
-បង្កើតចម្លើយចុងក្រោយដ៏ល្អបំផុតដែលអាចធ្វើបាន។ ការសម្រេចចិត្តផ្ទៃក្នុងរបស់ planner ត្រូវបានរក្សាទុកបណ្តោះអាសន្ន (buffered), ខណៈដែល
-ការឆ្លើយតបដែលបានជ្រើសរើសសម្រាប់បង្ហាញទៅកាន់ client រក្សាទុកនូវចំណូលចិត្ត streaming ដើម។
+អ្នកប្រតិបត្តិអាចបញ្ចេញការហៅឯករាជ្យជាច្រើនក្នុងការឆ្លើយតបតែមួយ។ ការហៅដែលពឹងផ្អែកលើគ្នា (Dependent calls) ត្រូវបានដោះស្រាយនៅក្នុងវេនលទ្ធផលឧបករណ៍របស់អតិថិជននៅពេលក្រោយ ដោយអ្នករៀបចំផែនការពិនិត្យមើលរាល់លទ្ធផលទាំងអស់។ `maxToolRounds` មានតម្លៃលំនាំដើម `8` និងទទួលយកតម្លៃពី `1`–`32`។ នៅពេលឈានដល់ដែនកំណត់នេះ អ្នករៀបចំផែនការត្រូវតែបង្កើតចម្លើយចុងក្រោយដ៏ល្អបំផុតដែលមាន។ ការសម្រេចចិត្តរបស់អ្នករៀបចំផែនការផ្ទៃក្នុងត្រូវបានរក្សាទុកក្នុង buffer ខណៈពេលដែលការឆ្លើយតបដែលបានជ្រើសរើសសម្រាប់អតិថិជនរក្សាការកំណត់ចំណូលចិត្តការស្ទ្រីមដើម។
 
-### `round-robin` sticky batch និងការពង្រីកគណនី
+### ការបាច់ (batch) ស្អិត `round-robin` និងការពង្រីកគណនី
 
-Round-robin ដំណើរការជា batch មិនមែនមួយ request ក្នុងមួយជំហាននោះទេ៖
+Round-robin ត្រូវបានធ្វើជាបាច់ មិនមែនមួយសំណើក្នុងមួយជំហាននោះទេ៖
 
-- `stickyRoundRobinLimit` (ការកំណត់ combo, បន្ទាប់មក `comboStickyRoundRobinLimit`, បន្ទាប់មក
-  `settings.stickyRoundRobinLimit`, តម្លៃដើម **3**) រក្សាគោលដៅដដែលសម្រាប់ចំនួនជោគជ័យ
-  ជាប់ៗគ្នាប៉ុណ្ណោះ មុនពេលបង្វិលផ្លាស់ប្តូរ (rotating)។ កំណត់ការបដិសេធ (override) របស់ combo ទៅជា `1` សម្រាប់ការបង្វិលមួយ request ម្តង។ កម្មវិធីកែសម្រួល combo បង្ហាញពីតម្លៃដែលមានប្រសិទ្ធភាព និងស្រទាប់ដែលវាមកពី។
-- `connectionAwareExpansion` (ការកំណត់ combo, បន្ទាប់មក settings, តម្លៃដើម **false**) ពង្រីក
-  ជំហានកម្រិត provider នីមួយៗទៅជាគោលដៅតាមគណនីនីមួយៗ មុនពេលបង្វិលផ្លាស់ប្តូរ។ យុទ្ធសាស្ត្រ Group-B
-  (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp,
-  fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion,
-  pipeline) រក្សាទិដ្ឋភាពកម្រិត provider រហូតទាល់តែជម្រើសនេះត្រូវបានបើក។ កម្មវិធីកែសម្រួល combo ផ្តល់ជម្រើស
-  inherit / on / off; inherit ប្រើតម្លៃដើមសកល (off)។
-- ការបញ្ជូនផ្លូវតាមមូលដ្ឋាននៃ Prompt-cache (`promptCacheAffinityEnabled`, តម្លៃដើម **true**) រៀបចំឡើងវិញនូវ
-  ការភ្ជាប់ដែលបានខ្ទាស់ (pinned connections) ដូច្នេះ cache keys ដែលត្រូវគ្នា នៅតែស្ថិតនៅលើគណនីតែមួយ។ វាមានអាទិភាពជាង
-  round-robin និងការបង្វិលតាមទម្ងន់ (weighted rotation) នៅទូទាំងជំហានតាមគណនីដែលបានខ្ទាស់។ បិទវាស្ថិតនៅក្រោម
-  Settings → Combo defaults ប្រសិនបើអ្នកត្រូវការការបង្វិលយ៉ាងតឹងរ៉ឹង។ មិនមានការកំណត់ override សម្រាប់ combo នីមួយៗនោះទេ។
+- `stickyRoundRobinLimit` (ការកំណត់ combo បន្ទាប់មក `comboStickyRoundRobinLimit` បន្ទាប់មក `settings.stickyRoundRobinLimit` លំនាំដើម **3**) រក្សាគោលដៅដដែលសម្រាប់ចំនួនជោគជ័យជាប់គ្នានោះ មុនពេលបង្វិល។ កំណត់ការជំនួស (override) combo ទៅ `1` សម្រាប់ការបង្វិលមួយសំណើ។ កម្មវិធីកែសម្រួល combo បង្ហាញតម្លៃដែលមានប្រសិទ្ធភាព និងស្រទាប់ដែលវាបានមកពី។
+- `connectionAwareExpansion` (ការកំណត់ combo បន្ទាប់មកការកំណត់ settings លំនាំដើម **false**) ពង្រីកជំហានកម្រិតអ្នកផ្តល់សេវា (provider-level) នីមួយៗទៅជាគោលដៅក្នុងមួយគណនី មុនពេលបង្វិល។ យុទ្ធសាស្ត្រ Group-B (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp, fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion, pipeline) រក្សាមុំមើលកម្រិតអ្នកផ្តល់សេវារហូតដល់មុខងារនេះត្រូវបានបើក។ កម្មវិធីកែសម្រួល combo បង្ហាញជម្រើស inherit / on / off; inherit ប្រើលំនាំដើមសកល (off)។
+- ការកំណត់ផ្លូវតាមទីតាំង cache នៃ prompt (`promptCacheAffinityEnabled` លំនាំដើម **true**) រៀបចំការតភ្ជាប់ដែលបានខ្ទាស់ (pinned) ឡើងវិញ ដើម្បីឱ្យ cache keys ដែលផ្គូផ្គងស្ថិតនៅលើគណនីតែមួយ។ វាមានអាទិភាពជាងការបង្វិល round-robin និង weighted នៅលើជំហានដែលបានខ្ទាស់ក្នុងមួយគណនី។ បិទវាក្រោម Settings → Combo defaults ប្រសិនបើអ្នកត្រូវការការបង្វិលយ៉ាងតឹងរ៉ឹង។ មិនមានការជំនួស (override) ក្នុងមួយ combo ទេ។
 
-សម្រាប់ការបង្វិលគណនីច្រើននៅលើម៉ូឌែលមួយ គួរតែជ្រើសរើស **ជំហាន dynamic-account មួយ** (empty
-`connectionId`, អាងទាំងមូល) ជាមួយ sticky limit `1`, មិនមែន `connectionId` ចំនួនបីដែលបានខ្ទាស់នោះទេ។
-ជំហានដែលបានខ្ទាស់បូករួមទាំង affinity នឹងរួញចូលទៅលើគណនីតែមួយ ទោះបីជា RR counter
-បន្តកើនឡើងក៏ដោយ។
+សម្រាប់ការបង្វិលគណនីច្រើននៅលើម៉ូដែលតែមួយ សូមជ្រើសរើស **ជំហានគណនីថាមវន្តមួយ** (`connectionId` ទទេ, អាងទាំងមូល) ជាមួយនឹងដែនកំណត់ស្អិត `1` មិនមែន `connectionId` ដែលបានខ្ទាស់ចំនួនបីនោះទេ។ ជំហានដែលបានខ្ទាស់បូករួមនឹង affinity នឹងរួមបញ្ចូលគ្នាទៅលើគណនីតែមួយ ទោះបីជាកុងទ័រ RR កំពុងដំណើរការក៏ដោយ។
 
 ## យុទ្ធសាស្ត្រ Fusion
 
@@ -481,54 +447,46 @@ curl -X POST http://localhost:20128/api/combos \
 
 ## API
 
-**មិនមាន endpoint `POST /api/combos/auto` ដាច់ដោយឡែកទេ** — Auto-Combo ត្រូវបានប្រើតាមពីរវិធី៖
+មិនមាន **endpoint `POST /api/combos/auto` ជាក់លាក់** នោះទេ — Auto-Combo ត្រូវបានប្រើប្រាស់តាមពីរវិធី៖
 
-1. **មិនចាំបាច់កំណត់រចនាសម្ព័ន្ធ (បានណែនាំ)៖** ផ្ញើ chat completion request ណាមួយជាមួយ `model: "auto"` ឬ `model: "auto/<variant>"`។ Virtual factory នឹងបង្កើត combo សម្រាប់ request នីមួយៗ — មិនមាន persistence និងមិនចាំបាច់ហៅ API ទេ។
+1. **Zero-config (ត្រូវបានណែនាំ):** ផ្ញើសំណើ chat completion ណាមួយជាមួយ `model: "auto"` ឬ `model: "auto/<variant>"`។ virtual factory បង្កើត combo ក្នុងមួយសំណើ — មិនត្រូវការការរក្សាទុក (persistence) ឬការហៅ API នោះទេ។
 
-2. **Combo ដែលបានរក្សាទុកជាមួយ `strategy: "auto"`៖** បង្កើត combo ធម្មតាតាមរយៈ `POST /api/combos` ហើយកំណត់ `strategy: "auto"` រួមជាមួយ `config.auto.weights` / `config.auto.candidatePool`។ ម៉ាស៊ីនដាក់ពិន្ទុដូចគ្នានឹងត្រូវបានប្រើ; combo ត្រូវបានរក្សាទុកក្នុង `combos` និងអាចប្រើឡើងវិញតាម ID។
+2. **Persisted combo ជាមួយ `strategy: "auto"`:** បង្កើត combo ធម្មតាដោយប្រើ `POST /api/combos` ហើយកំណត់ `strategy: "auto"` បូករួមទាំង `config.auto.weights` / `config.auto.candidatePool`។ scoring engine ដដែលត្រូវបានប្រើប្រាស់; combo ត្រូវបានរក្សាទុកក្នុង `combos` ហើយអាចប្រើឡើងវិញបានតាមរយៈ ID។
 
-សម្រាប់ការស្វែងរក `GET /api/combos/auto` រាយ variant ទាំងអស់ រួមជាមួយ candidate pool ដែលបាន resolve និង `context_length` / `max_output_tokens` របស់វា — ជាតម្លៃ MAX ក្នុងចំណោម window របស់ candidate pool។ Client (ឧ. opencode plugin) ត្រូវតែប្រកាសតម្លៃទាំងនេះជំនួសឱ្យ `0`៖ context ដែលមានតម្លៃសូន្យនឹងបិទ auto-compaction របស់ opencode ទាំងស្រុង ដែលអនុញ្ញាតឱ្យ session កើនឡើងរហូតដល់ការសម្អាត history របស់ gateway បំផ្លាញ context។ ការប្រកាស MAX គឺមានសុវត្ថិភាព ពីព្រោះ context pre-filter របស់ auto-combo នឹង route request ដែលមានទំហំធំពេកទៅកាន់ candidate ដែលមាន window ធំ។
+សម្រាប់ការស្វែងរក (discovery), `GET /api/combos/auto` បង្ហាញរាល់ variant ជាមួយនឹង candidate pool ដែលបានដោះស្រាយ (resolved) បូករួមទាំង `context_length` / `max_output_tokens` — ដែលជាតម្លៃ MAX ក្នុងចំណោម windows របស់ candidate pool។ Clients (ឧទាហរណ៍ opencode plugin) ត្រូវតែផ្សព្វផ្សាយតម្លៃទាំងនេះជំនួសឱ្យ `0`: context សូន្យនឹងបិទមុខងារ auto-compaction របស់ opencode ទាំងស្រុង ដែលអនុញ្ញាតឱ្យ sessions កើនឡើងរហូតដល់ការសម្អាតប្រវត្តិ (history purge) របស់ gateway បំផ្លាញ context ចោល។ ការផ្សព្វផ្សាយតម្លៃ MAX គឺមានសុវត្ថិភាព ពីព្រោះ auto-combo context pre-filter បញ្ជូនសំណើដែលមានទំហំធំទៅកាន់ candidates ដែលមាន window ធំ។
 
 ```bash
-# ការប្រើប្រាស់ដោយមិនចាំបាច់កំណត់រចនាសម្ព័ន្ធ (មិនបង្កើត combo)
+# Zero-config usage (no combo creation)
 curl -X POST http://localhost:20128/v1/chat/completions \
   -H "Authorization: Bearer <key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto/coding","messages":[{"role":"user","content":"Hello"}]}'
 
-# Combo ស្វ័យប្រវត្តិដែលបានរក្សាទុក តាមរយៈ combos endpoint ធម្មតា
+# Persisted auto combo via the regular combos endpoint
 curl -X POST http://localhost:20128/api/combos \
   -H "Content-Type: application/json" \
   -d '{"id":"my-auto","name":"Auto Coder","strategy":"auto","config":{"auto":{"candidatePool":["anthropic","google","openai"],"weights":{"quota":0.15,"health":0.3,"costInv":0.05,"latencyInv":0.35,"taskFit":0.1,"stability":0,"tierPriority":0.05}}}}'
 ```
 
-### Strategy របស់ auto router
+### Auto router strategies
 
-Combo ដែលបានរក្សាទុកជាមួយ `strategy: "auto"` អាចកំណត់ `config.routerStrategy` (ឬ
-`config.auto.routerStrategy` ចាស់) ទៅជាតម្លៃមួយក្នុងចំណោម៖
+Combos ដែលមាន `strategy: "auto"` ដែលបានរក្សាទុក អាចកំណត់ `config.routerStrategy` (ឬ `config.auto.routerStrategy` ដែលជា legacy) ទៅជាជម្រើសមួយក្នុងចំណោមជម្រើសទាំងនេះ៖
 
-- `rules` — ការដាក់ពិន្ទុដោយមាន weight លំនាំដើម
-- `score` — ជ្រើសរើសពិន្ទុដែលបានកំណត់ weight ខ្ពស់បំផុត។ ក្នុងករណីពិន្ទុស្មើគ្នាទាំងស្រុង លំដាប់
-  candidate ដែលបានកំណត់នឹងត្រូវបានរក្សាទុក; `explorationRate` ដែលមានស្រាប់នឹង sample ពី ranked pool ទាំងមូល។
-- `cost` / `eco` — provider ដែលមានស្ថានភាពល្អ និងតម្លៃទាបបំផុត
-- `latency` / `fast` — latency p95 ទាបបំផុត ជាមួយ reliability penalty
-- `sla-aware` / `sla` — ផ្ដល់អាទិភាពដល់ candidate ដែលបំពេញតាម latency p95, error-rate និង
-  cost SLO ដែលជាជម្រើស
-- `lkgp` — ដាក់ provider ដែលមានស្ថានភាពល្អចុងក្រោយនៅមុនគេ
+- `rules` — ការដាក់ពិន្ទុតាមទម្ងន់លំនាំដើម
+- `score` — ជ្រើសរើសពិន្ទុតាមទម្ងន់ដែលបានកំណត់ខ្ពស់បំផុត។ ក្នុងករណីស្មើគ្នា វានឹងរក្សាលំដាប់ candidate ដែលបានកំណត់; `explorationRate` ដែលមានស្រាប់នឹងធ្វើការសាកល្បង (sample) ពី pool ដែលបានរៀបលំដាប់ពេញលេញ។
+- `cost` / `eco` — provider ដែលមានសុខភាពល្អ (healthy) និងមានតម្លៃថោកបំផុត
+- `latency` / `fast` — p95 latency ទាបបំផុត ជាមួយនឹងការពិន័យលើភាពជឿជាក់ (reliability penalty)
+- `sla-aware` / `sla` — ពេញចិត្តចំពោះ candidates ដែលបំពេញតាម p95 latency, error-rate និង cost SLOs ដែលជាជម្រើសបន្ថែម
+- `lkgp` — ជ្រើសរើស last known good provider មុនគេ
+- `nadir` — សួរ API ការសម្រេចចិត្តរបស់ [Nadir](https://getnadir.com) ថា តើ model មួយណាដែល prompt ត្រូវការ; ជាជម្រើស opt-in, បើបរាជ័យនឹងត្រឡប់ទៅប្រើ `rules` វិញ
 
-### ព័ត៌មានលម្អិតអំពី router strategy
+### Router strategies in detail
 
-ម៉ាស៊ីន auto-combo ផ្ដល់ implementation **RouterStrategy** ដែលអាចដោតប្រើបានចំនួន 6 ដែល
-អ្នកអាចប្ដូរតាមរយៈ `config.routerStrategy` (ឬ `config.auto.routerStrategy` ចាស់)។
-Strategy នីមួយៗជ្រើសរើស provider មួយពី candidate pool ដោយផ្អែកលើ `RoutingContext`
-(ប្រភេទ task, សញ្ញាបង្ហាញ tool/vision, ការប៉ាន់ប្រមាណ token, គោលការណ៍ SLA ជាជម្រើស និង
-provider ដែលមានស្ថានភាពល្អចុងក្រោយជាជម្រើស)។
+Auto-combo engine បង្ហាញពីការអនុវត្ត (implementations) នៃ **RouterStrategy** ចំនួន 7 ដែលអាចដោតភ្ជាប់បាន (pluggable) ដែលអ្នកអាចផ្លាស់ប្តូរបានតាមរយៈ `config.routerStrategy` (ឬ `config.auto.routerStrategy` ដែលជា legacy)។ យុទ្ធសាស្ត្រនីមួយៗជ្រើសរើស provider មួយពី candidate pool ដោយផ្អែកលើ `RoutingContext` (ប្រភេទកិច្ចការ, ការណែនាំអំពីឧបករណ៍/ចក្ខុវិស័យ, ការប៉ាន់ប្រមាណ token, គោលនយោបាយ SLA ស្រេចចិត្ត, last-known-good provider ស្រេចចិត្ត)។
 
-#### 1. `rules` (លំនាំដើម) — ការដាក់ពិន្ទុដោយមាន weight ចំនួន 16 កត្តា
+#### 1. `rules` (default) — 16-factor weighted scoring
 
-រុំជុំវិញម៉ាស៊ីនដាក់ពិន្ទុដែលមានស្រាប់។ ច្រោះ candidate របស់ circuit-breaker ដែលមានស្ថានភាព `OPEN`
-ចេញ បន្ទាប់មកដំណើរការ `scorePool()` ជាមួយប្រភេទ task បច្ចុប្បន្ន និង `getTaskFitness()`
-ហើយជ្រើសរើស provider ដែលមានពិន្ទុខ្ពស់បំផុត។
+រុំព័ទ្ធ (wraps) scoring engine ដែលមានស្រាប់។ ត្រងយក candidates ដែលមាន circuit-breaker ជា `OPEN` ចេញ បន្ទាប់មកដំណើរការ `scorePool()` ជាមួយនឹងប្រភេទកិច្ចការបច្ចុប្បន្ន និង `getTaskFitness()` ដោយជ្រើសរើស provider ដែលមានពិន្ទុខ្ពស់បំផុត។
 
 ```ts
 class RulesStrategyImpl implements RouterStrategy {
@@ -548,16 +506,15 @@ class RulesStrategyImpl implements RouterStrategy {
 }
 ```
 
-**ពេលដែលគួរប្រើ**៖ លំនាំដើម។ ប្រើនៅពេលអ្នកចង់បានតុល្យភាពរវាង signal ទាំងអស់។
+**ពេលណាត្រូវប្រើ**: លំនាំដើម។ ប្រើនៅពេលអ្នកចង់បានតុល្យភាពរវាងសញ្ញាទាំងអស់។
 
-**Alias**៖ `rules` (គ្មាន alias)
+**Alias**: `rules` (គ្មាន alias)
 
 ---
 
-#### 2. `cost` / `eco` — provider ដែលមានស្ថានភាពល្អ និងតម្លៃទាបបំផុត
+#### 2. `cost` / `eco` — cheapest healthy provider
 
-តម្រៀប candidate pool តាម `costPer1MTokens` (ពីតូចទៅធំ) ហើយជ្រើសរើសមួយដែលមានតម្លៃទាបបំផុត។
-ច្រោះ candidate ដែលមានស្ថានភាព `OPEN` ចេញជាមុន។
+តម្រៀប candidate pool តាម `costPer1MTokens` (តាមលំដាប់កើនឡើង) ហើយជ្រើសរើសមួយដែលមានតម្លៃថោកបំផុត។ ត្រងយក candidates ដែលមាន `OPEN` ចេញជាមុនសិន។
 
 ```ts
 class CostStrategyImpl implements RouterStrategy {
@@ -572,16 +529,15 @@ class CostStrategyImpl implements RouterStrategy {
 }
 ```
 
-**ពេលដែលគួរប្រើ**៖ Workload ដែលផ្ដោតលើការសន្សំថ្លៃដើម, batch processing ឬ background job។
+**ពេលណាត្រូវប្រើ**: ការងារដែលគិតគូរពីតម្លៃ, ការដំណើរការជាបាច់ (batch processing), ឬការងារនៅផ្ទៃខាងក្រោយ (background jobs)។
 
-**Alias**៖ `cost`, `eco`
+**Aliases**: `cost`, `eco`
 
 ---
 
-#### 3. `latency` / `fast` — latency p95 ទាបបំផុត ជាមួយ reliability penalty
+#### 3. `latency` / `fast` — lowest p95 latency with reliability penalty
 
-តម្រៀបតាម `p95LatencyMs + (errorRate * 1000)`។ ពិន័យអត្រាកំហុសធានាថា
-អ្នកផ្តល់សេវាដែលមិនគួរឱ្យទុកចិត្តត្រូវបានដាក់ចំណាត់ថ្នាក់ទាបជាង ទោះបីជាឡាតង់ស៊ីដែលបានបញ្ជាក់របស់ពួកគេទាបក៏ដោយ។
+តម្រៀបតាម `p95LatencyMs + (errorRate * 1000)`។ ការពិន័យលើ error-rate ធានាថា providers ដែលមិនគួរឱ្យទុកចិត្តនឹងត្រូវបានដាក់ចំណាត់ថ្នាក់ទាបជាង ទោះបីជា latency ធម្មតារបស់ពួកគេទាបក៏ដោយ។
 
 ```ts
 class LatencyStrategyImpl implements RouterStrategy {
@@ -598,28 +554,27 @@ class LatencyStrategyImpl implements RouterStrategy {
 }
 ```
 
-**ពេលណាគួរប្រើ**៖ បន្ទុកការងារដែលប្រកាន់ខ្ជាប់ឡាតង់ស៊ី ដូចជា ការជជែកតាមពេលវេលាជាក់ស្តែង ការបំពេញដោយស្វ័យប្រវត្តិ ឬ
-ជំនួយការសរសេរកូដអន្តរកម្ម។
+**ពេលណាត្រូវប្រើ**: ការងារដែលគិតគូរពី latency ដូចជាការជជែកផ្ទាល់ (real-time chat), ការបំពេញស្វ័យប្រវត្តិ (autocomplete), ឬជំនួយការសរសេរកូដអន្តរកម្ម។
 
-**ឈ្មោះហៅក្រៅ**៖ `latency`, `fast`
+**Aliases**: `latency`, `fast`
 
 ---
 
-#### 4. `sla-aware` / `sla` — ការអនុលោមតាម SLO នៃឡាតង់ស៊ី/កំហុស/ថ្លៃចំណាយ
+#### 4. `sla-aware` / `sla` — latency/error/cost SLO compliance
 
-ដាក់ពិន្ទុបេក្ខជននីមួយៗដោយផ្អែកលើកម្រិតដែលវាបំពេញគោលការណ៍ SLO ដែលបានកំណត់៖
+ដាក់ពិន្ទុ candidate នីមួយៗដោយផ្អែកលើកម្រិតនៃការបំពេញតាមគោលនយោបាយ SLO ដែលបានកំណត់៖
 
-| កត្តា           | ទម្ងន់ | រូបមន្ត                                            |
-| --------------- | ------ | -------------------------------------------------- |
-| ពិន្ទុឡាតង់ស៊ី  | 35%    | `threshold / max(value, ε)`                        |
-| ពិន្ទុកំហុស     | 35%    | `threshold / max(value, ε)`                        |
-| ពិន្ទុសុខភាព    | 15%    | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)  |
-| ពិន្ទុថ្លៃចំណាយ | 10%    | `threshold / max(value, ε)` ឬធ្វើឱ្យធម្មតាបញ្ច្រាស |
-| ពិន្ទុស្ថិរភាព  | 5%     | គម្លាតស្តង់ដារឡាតង់ស៊ីដែលបានធ្វើឱ្យធម្មតាបញ្ច្រាស  |
+| កត្តា                      | ទម្ងន់ | រូបមន្ត                                           |
+| -------------------------- | ------ | ------------------------------------------------- |
+| ពិន្ទុភាពយឺត (Latency)     | 35%    | `threshold / max(value, ε)`                       |
+| ពិន្ទុភាពខុស (Error)       | 35%    | `threshold / max(value, ε)`                       |
+| ពិន្ទុសុខភាព (Health)      | 15%    | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN) |
+| ពិន្ទុថ្លៃដើម (Cost)       | 10%    | `threshold / max(value, ε)` ឬ inverse normalized  |
+| ពិន្ទុស្ថិរភាព (Stability) | 5%     | inverse normalized latency stddev                 |
 
-នៅពេល `hardConstraints: true` បេក្ខជនត្រូវបានតម្រៀបជាចម្បងតាម **ពិន្ទុការបំពាន**
-(កម្រិតដែលពួកគេលើសពី SLO ណាមួយ) បន្ទាប់មកតាមពិន្ទុសមាសធាតុ។ បើមិនដូច្នោះទេ វាប្រើតែ
-ពិន្ទុសមាសធាតុប៉ុណ្ណោះ។
+នៅពេល `hardConstraints: true` បេក្ខភាពត្រូវបានតម្រៀបជាចម្បងតាម **ពិន្ទុរំលោភបំពាន**
+(កម្រិតដែលពួកគេលើសពី SLO ណាមួយ) បន្ទាប់មកតាមពិន្ទុចម្រុះ។ បើមិនដូច្នោះទេ វាគ្រាន់តែជា
+ពិន្ទុចម្រុះប៉ុណ្ណោះ។
 
 ```ts
 class SLAStrategyImpl implements RouterStrategy {
@@ -628,12 +583,12 @@ class SLAStrategyImpl implements RouterStrategy {
     "Selects the provider most likely to satisfy latency, error-rate, and cost SLOs";
 
   select(pool, context) {
-    // ... ដាក់ពិន្ទុបេក្ខជននីមួយៗធៀបនឹងគោលការណ៍៖ { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
+    // ... scores each candidate against policy: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
   }
 }
 ```
 
-**វាល SLA** (កំណត់នៅលើការកំណត់រចនាសម្ព័ន្ធបន្សំ)៖
+**វាល SLA** (កំណត់នៅលើការកំណត់រចនាសម្ព័ន្ធ combo):
 
 ```json
 {
@@ -648,17 +603,16 @@ class SLAStrategyImpl implements RouterStrategy {
 }
 ```
 
-**ពេលណាគួរប្រើ**៖ បន្ទុកការងារផលិតកម្មដែលមានថវិកាឡាតង់ស៊ី អត្រាកំហុស ឬថ្លៃចំណាយតឹងរ៉ឹង។
+**ពេលណាត្រូវប្រើ**: បន្ទុកការងារផលិតកម្មដែលមានថវិកាភាពយឺត អត្រាកំហុស ឬថ្លៃដើមយ៉ាងតឹងរ៉ឹង។
 
-**ឈ្មោះហៅក្រៅ**៖ `sla-aware`, `sla`
+**ឈ្មោះក្លែងក្លាយ (Aliases)**: `sla-aware`, `sla`
 
 ---
 
-#### 5. `lkgp` — អ្នកផ្តល់សេវាដែលបានដឹងថាល្អចុងក្រោយជាមុន
+#### 5. `lkgp` — អ្នកផ្តល់សេវាល្អចុងក្រោយដែលបានស្គាល់មុនគេ
 
-សាកល្បង **អ្នកផ្តល់សេវាដែលបានដឹងថាល្អចុងក្រោយ** (ប្រសិនបើបានកំណត់) ជាមុន បន្ទាប់មកប្រើយុទ្ធសាស្ត្រ
-`rules` ជាជម្រើសបម្រុង។ មានប្រយោជន៍សម្រាប់ការរក្សាសម័យជាប់លាប់ — អ្នកផ្តល់សេវាដដែលដោះស្រាយ
-សំណើបន្តបន្ទាប់នៅក្នុងការសន្ទនា។
+សាកល្បង **អ្នកផ្តល់សេវាល្អចុងក្រោយដែលបានស្គាល់** (ប្រសិនបើបានកំណត់) ជាមុនសិន បន្ទាប់មកត្រឡប់ទៅប្រើយុទ្ធសាស្ត្រ
+`rules` វិញ។ មានប្រយោជន៍សម្រាប់ភាពជាប់លាប់នៃសម័យ (session stickiness) — អ្នកផ្តល់សេវាតែមួយដោះស្រាយសំណើបន្តបន្ទាប់នៅក្នុងការសន្ទនា។
 
 ```ts
 class LKGPStrategyImpl implements RouterStrategy {
@@ -679,20 +633,49 @@ class LKGPStrategyImpl implements RouterStrategy {
       }
     }
 
-    // ប្រើយុទ្ធសាស្ត្រ rules ជាជម្រើសបម្រុង
+    // Fallback to rules strategy
     return getStrategy("rules").select(pool, context);
   }
 }
 ```
 
-**ពេលណាគួរប្រើ**៖ ការសន្ទនាច្រើនវេនដែលអ្នកចង់ឱ្យអ្នកផ្តល់សេវាដដែលដោះស្រាយ
-សំណើបន្តបន្ទាប់ (ឧ. សម្រាប់ការរក្សាទុកក្នុងឃ្លាំងសម្ងាត់ ភាពបន្តនៃបរិបទ ឬស្ថិរភាពនៃតម្លៃ)។
+**ពេលណាត្រូវប្រើ**: ការសន្ទនាច្រើនជុំ (Multi-turn) ដែលអ្នកចង់ឱ្យអ្នកផ្តល់សេវាតែមួយដោះស្រាយសំណើបន្តបន្ទាប់ (ឧទាហរណ៍៖ សម្រាប់ការរក្សាទុកក្នុងឃ្លាំងសម្ងាត់ (caching) ភាពជាប់លាប់នៃបរិបទ ឬភាពជាប់លាប់នៃតម្លៃ)។
 
-**ឈ្មោះហៅក្រៅ**៖ `lkgp` (គ្មានឈ្មោះហៅក្រៅ)
+**ឈ្មោះក្លែងក្លាយ (Alias)**: `lkgp` (គ្មានឈ្មោះក្លែងក្លាយ)
 
 ---
 
-### យុទ្ធសាស្ត្ររ៉ោតទ័រផ្ទាល់ខ្លួន
+#### 6. `nadir` — ការជ្រើសរើសម៉ូដែលដែលដឹងពីប្រអប់បញ្ចូល (prompt-aware) តាមរយៈ Nadir
+
+យុទ្ធសាស្ត្រនីមួយៗខាងលើដាក់ចំណាត់ថ្នាក់បេក្ខភាពដោយផ្អែកលើទិន្នន័យតេឡេម៉េទ្រីផ្ទាល់ខ្លួនរបស់ពួកគេ។ គ្មានយុទ្ធសាស្ត្រណាមួយអានសំណើនោះទេ។ `nadir` ផ្ញើវេនអ្នកប្រើប្រាស់ចុងក្រោយបូករួមទាំងលេខសម្គាល់ម៉ូដែលនៃក្រុម (pool) ទៅកាន់ API សម្រេចចិត្តរបស់ [Nadir](https://getnadir.com) (`POST /v1/bucket`) ហើយបញ្ជូនទៅកាន់ម៉ូដែលដែល Nadir ជ្រើសរើសពីម៉ឺនុយនោះ (`simple` → ម៉ូដែលដែលមានសមត្ថភាពថោកបំផុត, `complex` → ម៉ូដែលទំនើបបំផុត)។ ការតភ្ជាប់ដែលបម្រើម៉ូដែលនោះនៅតែត្រូវបានជ្រើសរើសដោយ `rules` ដូច្នេះកូតា សុខភាព និងថ្លៃដើមនៅតែជាអ្នកសម្រេចចិត្តថាតើគណនីមួយណាដែលត្រូវប្រើ។
+
+```json
+{
+  "strategy": "auto",
+  "config": {
+    "routerStrategy": "nadir",
+    "nadir": {
+      "apiKey": "ndr_...",
+      "baseUrl": "https://api.getnadir.com",
+      "timeoutMs": 2000
+    }
+  }
+}
+```
+
+`OMNIROUTE_NADIR_API_KEY` និង `OMNIROUTE_NADIR_BASE_URL` គឺជាការកំណត់បរិស្ថានជំនួស (env fallbacks) សម្រាប់ខ្សែអក្សរទាំងពីរ។ `baseUrl` ត្រូវការតែសម្រាប់ Nadir ដែលបង្ហោះដោយខ្លួនឯងប៉ុណ្ណោះ (ការបន្ថែម `/v1` នៅខាងចុងត្រូវបានអនុញ្ញាត)។ ការហៅទូរសព្ទដោយគ្មានសោ (Keyless calls) នឹងចូលទៅក្នុងកម្រិតអនាមិករបស់ Nadir ដែលត្រូវបានកំណត់អត្រា (rate-limited) តាម IP។
+
+អ្វីដែលចេញពីប្រអប់៖ អត្ថបទនៃសារអ្នកប្រើប្រាស់ចុងក្រោយ (តួអក្សរ 16k ដំបូង) លេខសម្គាល់ម៉ូដែលបេក្ខភាព និងស្លាកឆានែល `source: "omniroute"`។ គ្មានប្រអប់បញ្ចូលប្រព័ន្ធ (system prompt) ប្រវត្តិ ឧបករណ៍ ឬបឋមកថា (headers) ទេ។
+
+ឥរិយាបថនៅពេលបរាជ័យគឺ fail-open៖ ការអស់ពេល (លំនាំដើម 2000 ms) ការឆ្លើយតបមិនមែន 2xx ម៉ាស៊ីនដែលមិនអាចចូលដំណើរការបាន ការឆ្លើយតបដែលខូចទ្រង់ទ្រាយ ឬការជ្រើសរើសនៅខាងក្រៅក្រុម (pool) នឹងដោះស្រាយទៅជាការសម្រេចចិត្តរបស់ `rules` ហើយហេតុផលត្រូវបានដាក់បុព្វបទ `NadirStrategy: fallback (…)`។ បន្ទាប់ពីការហៅទូរសព្ទដែលបរាជ័យ យុទ្ធសាស្ត្រនឹងរំលងបណ្តាញរយៈពេល 30 វិនាទី ដូច្នេះការដាច់សេវាចំណាយពេលអស់ពេលមួយដងក្នុងរយៈពេល 30 វិនាទី ជំនួសឱ្យមួយដងក្នុងមួយសំណើ។ ព្រឹត្តិការណ៍បញ្ជូនបន្តរាយការណ៍ `strategy: "nadir"` លុះត្រាតែ Nadir បានធ្វើការជ្រើសរើសពិតប្រាកដប៉ុណ្ណោះ។
+
+**ពេលណាត្រូវប្រើ**: ចរាចរណ៍ដែលមានកម្រិតពិបាកចម្រុះនៅលើក្រុម (pool) ដែលមានម៉ូដែលច្រើនកម្រិត (ម៉ូដែលតូច មធ្យម និងទំនើប) ដែលកន្លែងដែលអ្នកចង់កាត់បន្ថយថ្លៃដើម។
+
+**ឈ្មោះក្លែងក្លាយ (Alias)**: `nadir` (គ្មានឈ្មោះក្លែងក្លាយ)
+
+---
+
+### យុទ្ធសាស្ត្របញ្ជូនបន្តផ្ទាល់ខ្លួន (Custom router strategies)
 
 អ្នកអាចចុះឈ្មោះការអនុវត្ត `RouterStrategy` ផ្ទាល់ខ្លួនរបស់អ្នកតាមរយៈ API សាធារណៈ៖
 
@@ -707,7 +690,7 @@ class MyCustomStrategy implements RouterStrategy {
   readonly description = "My custom routing strategy";
 
   select(pool, context) {
-    // តក្កវិជ្ជាកំណត់ផ្លូវរបស់អ្នកនៅទីនេះ
+    // Your routing logic here
     return {
       provider: pool[0].provider,
       model: pool[0].model,
@@ -735,17 +718,18 @@ registerStrategy("my-custom", new MyCustomStrategy());
 
 ---
 
-### មគ្គុទ្ទេសក៍ជ្រើសរើសយុទ្ធសាស្ត្ររ៉ោតទ័រ
+### មគ្គុទ្ទេសក៍ជ្រើសរើសយុទ្ធសាស្ត្របញ្ជូនបន្ត (Router strategy selection guide)
 
-| ករណីប្រើប្រាស់          | យុទ្ធសាស្ត្រ | មូលហេតុ                                            |
-| ----------------------- | ------------ | -------------------------------------------------- |
-| បន្ទុកការងារមានតុល្យភាព | `rules`      | លំនាំដើម — ពិចារណាកត្តាទាំងអស់                     |
-| កាត់បន្ថយថ្លៃចំណាយ      | `cost`       | តែងតែជ្រើសរើសជម្រើសថោកបំផុត                        |
-| កាត់បន្ថយឡាតង់ស៊ី       | `latency`    | ជ្រើសរើសអ្នកផ្តល់សេវាដែលលឿន និងគួរឱ្យទុកចិត្តបំផុត |
-| SLO តឹងរ៉ឹង             | `sla-aware`  | ត្រងតាមកម្រិតកំណត់ p95/កំហុស/ថ្លៃចំណាយ             |
-| ការជជែកច្រើនវេន         | `lkgp`       | ការរក្សាសម័យជាប់លាប់                               |
+| ករណីប្រើប្រាស់               | យុទ្ធសាស្ត្រ | មូលហេតុ                                        |
+| ---------------------------- | ------------ | ---------------------------------------------- |
+| បន្ទុកការងារមានតុល្យភាព      | `rules`      | លំនាំដើម — ពិចារណាកត្តាទាំងអស់                 |
+| កាត់បន្ថយថ្លៃដើម             | `cost`       | ជ្រើសរើសយកថោកបំផុតជានិច្ច                      |
+| កាត់បន្ថយភាពយឺត              | `latency`    | ជ្រើសរើសអ្នកផ្តល់សេវាដែលអាចទុកចិត្តបានលឿនបំផុត |
+| SLOs តឹងរ៉ឹង                 | `sla-aware`  | ត្រងតាមកម្រិតកំណត់ p95/កំហុស/ថ្លៃដើម           |
+| ការជជែកច្រើនជុំ (Multi-turn) | `lkgp`       | ភាពជាប់លាប់នៃសម័យ (Session stickiness)         |
+| កម្រិតពិបាកចម្រុះ            | `nadir`      | ជ្រើសរើសកម្រិតម៉ូដែលតាមប្រអប់បញ្ចូល (prompt)   |
 
-វាលដែលយល់ដឹងអំពី SLA៖
+វាល SLA-aware:
 
 ```json
 {
@@ -822,15 +806,15 @@ Smoke test ទាំងនេះសាកល្បងផ្លូវទំនា
 
 ## ឯកសារ
 
-| ឯកសារ                                                     | គោលបំណង                                                                                                              |
-| :-------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------- |
-| `open-sse/services/autoCombo/scoring.ts`                  | អនុគមន៍ដាក់ពិន្ទុដោយផ្អែកលើកត្តា 16, `DEFAULT_WEIGHTS`, ន័រមរបស់ pool                                                |
-| `open-sse/services/autoCombo/taskFitness.ts`              | តារាងស្វែងរកភាពសមស្របរវាងម៉ូដែល × កិច្ចការ                                                                           |
-| `open-sse/services/autoCombo/engine.ts`                   | តក្កវិជ្ជាជ្រើសរើស, bandit, កម្រិតថវិកាអតិបរមា                                                                       |
-| `open-sse/services/autoCombo/selfHealing.ts`              | ការដកចេញ, ការស្ទង់សាកល្បង, របៀបឧប្បត្តិហេតុ                                                                          |
-| `open-sse/services/autoCombo/modePacks.ts`                | ទម្រង់ទម្ងន់ 6 (បញ្ជូនលឿន, សន្សំសំចៃថ្លៃដើម, គុណភាពជាចម្បង, ងាយស្រួលប្រើក្រៅបណ្ដាញ, ភាពជឿទុកចិត្តជាចម្បង, របៀបចលាចល) |
-| `open-sse/services/autoCombo/autoPrefix.ts`               | ឧបករណ៍ញែកបុព្វបទ `auto/` + វ៉ារ្យ៉ង់ 6                                                                               |
-| `open-sse/services/autoCombo/virtualFactory.ts`           | បង្កើត `AutoComboConfig` ក្នុងអង្គចងចាំពីការតភ្ជាប់ដែលកំពុងដំណើរការ                                                  |
-| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | ចំណុចភ្ជាប់សម្រាប់ការធ្វើតេស្ត ដើម្បីចម្លង provider registry                                                         |
-| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (យុទ្ធសាស្ត្រ 19)                                                                          |
-| `src/sse/handlers/chat.ts`                                | ការរួមបញ្ចូល៖ ការបង្វែរផ្លូវខ្លីតាមបុព្វបទ auto                                                                      |
+| ឯកសារ                                                     | គោលបំណង                                                                                                     |
+| :-------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- |
+| `open-sse/services/autoCombo/scoring.ts`                  | មុខងារដាក់ពិន្ទុ 16 កត្តា, `DEFAULT_WEIGHTS`, pool norm                                                     |
+| `open-sse/services/autoCombo/taskFitness.ts`              | ការស្វែងរកភាពសមស្រប (fitness) នៃ Model × task                                                               |
+| `open-sse/services/autoCombo/engine.ts`                   | តក្កវិជ្ជាជ្រើសរើស, bandit, កម្រិតថវិកា (budget cap)                                                        |
+| `open-sse/services/autoCombo/selfHealing.ts`              | ការដកចេញ (Exclusion), probes, របៀបដោះស្រាយឧប្បត្តិហេតុ (incident mode)                                      |
+| `open-sse/services/autoCombo/modePacks.ts`                | ទម្រង់ទម្ងន់ចំនួន 6 (ship-fast, cost-saver, quality-first, offline-friendly, reliability-first, chaos-mode) |
+| `open-sse/services/autoCombo/autoPrefix.ts`               | `auto/` prefix parser + 6 ប្រភេទ                                                                            |
+| `open-sse/services/autoCombo/virtualFactory.ts`           | បង្កើត `AutoComboConfig` ក្នុងអង្គចងចាំ (in-memory) ពីការតភ្ជាប់ផ្ទាល់                                      |
+| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Test hook សម្រាប់ធ្វើការ mock provider registry                                                             |
+| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (20 យុទ្ធសាស្ត្រ)                                                                 |
+| `src/sse/handlers/chat.ts`                                | ការរួមបញ្ចូល (Integration): auto-prefix short-circuit                                                       |

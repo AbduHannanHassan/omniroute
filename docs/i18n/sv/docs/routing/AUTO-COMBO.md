@@ -51,15 +51,15 @@ Alla giltiga `auto/<category>[:<tier>]` matchas vid behov; en utvald delmängd a
 **Så här använder du funktionen:**
 
 ```bash
-# Valfri IDE eller valfritt CLI-verktyg som stöder OpenAI-formatet
-Bas-URL: http://localhost:20128/v1
-API-nyckel:  <din-slutpunktsnyckel>
+# Any IDE or CLI tool that supports OpenAI format
+Base URL: http://localhost:20128/v1
+API Key:  <your-endpoint-key>
 
-# Ange modellen så här i din kod/konfiguration:
-model: "auto"                 # balanserat standardvärde
-model: "auto/coding"          # bäst för kodningsuppgifter
-model: "auto/fast"            # snabbast tillgängliga
-model: "auto/cheap"           # billigast per token
+# In your code/config, set model to:
+model: "auto"                 # balanced default
+model: "auto/coding"          # best for coding tasks
+model: "auto/fast"            # fastest available
+model: "auto/cheap"           # cheapest per token
 ```
 
 **Detta händer:**
@@ -110,15 +110,15 @@ modellen med en enda klientorganisation.
 **Bakom kulisserna:**
 
 ```txt
-Begäran: { model: "auto/coding" }
+Request: { model: "auto/coding" }
    ↓
-src/sse/handlers/chat.ts identifierar prefixet
+src/sse/handlers/chat.ts detects prefix
    ↓
-createVirtualAutoCombo('coding') → candidatePool från aktiva anslutningar
+createVirtualAutoCombo('coding') → candidatePool from active connections
    ↓
-handleComboChat (samma motor som för beständiga kombinationer)
+handleComboChat (same engine as persisted combos)
    ↓
-Automatisk poängsättning väljer bästa leverantör/modell per begäran
+Auto-scoring selects best provider/model per request
 ```
 
 **Implementationsfiler:**
@@ -153,13 +153,7 @@ Att skapa eller byta namn på en combo så att dess namn överskuggar ett verkli
 modell-id:
 
 ```json
-{
-  "warning": {
-    "code": "COMBO_NAME_SHADOWS_MODEL",
-    "modelId": "gpt-5.5",
-    "providerId": "openai"
-  }
-}
+{ "warning": { "code": "COMBO_NAME_SHADOWS_MODEL", "modelId": "gpt-5.5", "providerId": "openai" } }
 ```
 
 Vid uppstart loggar `scanComboModelNameCollisionsAtBoot()`
@@ -279,7 +273,7 @@ när headern saknas.
 | `X-OmniRoute-Effort`          | `auto` (andra värden är reserverade)                                                                                                                                                                 | Adaptiv beräkningsbudget: när begäran **inte** innehåller något resonemangsfält i någon form (`reasoning_effort`, `reasoning`, `thinking`) omvandlar gatewayen `auto` till `low`/`medium`/`high` utifrån deterministiska signaler från begärans struktur (längden på det senaste användarmeddelandet, kontextstorleken fram till och med det senaste användarmeddelandet, tidigare verktygsresultat, verktygsslingans djup). Signalerna är begränsade till den aktuella turen — allt efter det senaste användarmeddelandet ignoreras — så varje begäran i en verktygsslinga får samma nivå (tillståndslös låsning per tur, inget sessionstillstånd och ingen eskalering mitt i slingan som skulle bryta prefixen i den uppströms promptcachen). Ett explicit resonemangsfält från klienten har alltid företräde. Begränsat till begäranden vars uppströmsdirigering använder formatet OpenAI Chat Completions (`targetFormat === FORMATS.OPENAI`) — `reasoning_effort` är ett fält i OpenAI-format, så headern har ingen effekt på en begäran riktad till Claude eller Gemini (se `open-sse/handlers/chatCore/adaptiveEffortWiring.ts`). |
 
 ```bash
-# Tvinga fram den snabbaste profilen, begränsa denna begäran till 0,05 USD och blockera helt i stället för att överskrida budgeten
+# Force the fastest profile, cap this request at $0.05, and hard-block instead of overspending
 curl -sS http://localhost:20128/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-OmniRoute-Mode: fast" \
@@ -293,70 +287,61 @@ de upplösta värdena matas in i motorns befintliga indata `config.modePack` / `
 `config.budgetFallback`. En kombinations lagrade `config.budgetFallback` ("strict" |
 "cheapest") anger den beständiga policyn; headern åsidosätter den för en enskild begäran.
 
-## Alla routningsstrategier
+## Alla routingsstrategier
 
-OmniRoutes combo-motor stöder **19 routningsstrategier** (deklarerade i `src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`). Själva Auto Combo-motorn exponeras under strategin `auto`; de övriga är tillgängliga för sparade combos.
+OmniRoutes kombo-motor stöder **20 routingsstrategier** (deklarerade i `src/shared/constants/routingStrategies.ts` → `ROUTING_STRATEGY_VALUES`). Själva Auto Combo-motorn exponeras under strategin `auto`; de andra är tillgängliga för persistenta kombinationer.
 
-| Strategi            | Beskrivning                                                                                                                                                                                      |
-| :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `priority`          | Ordrad lista från första målet med explicit prioritet                                                                                                                                            |
-| `weighted`          | Viktad slumpmässig fördelning baserad på vikt per mål                                                                                                                                            |
-| `round-robin`       | Stega igenom målen i ordning (batchad; se nedan)                                                                                                                                                 |
-| `context-relay`     | Lämna över kontext mellan mål (långa konversationer)                                                                                                                                             |
-| `fill-first`        | Fyll varje måls kvot innan nästa påbörjas                                                                                                                                                        |
-| `p2c`               | Slumpmässig lastbalansering via "Power-of-2-choices"                                                                                                                                             |
-| `random`            | Enhetligt slumpmässigt val                                                                                                                                                                       |
-| `least-used`        | Välj målet med lägst aktuell belastning                                                                                                                                                          |
-| `cost-optimized`    | Minimera $ per förfrågan utifrån katalogpriser                                                                                                                                                   |
-| `reset-aware` ⭐    | Prioritera efter tid för kvotåterställning — korta återställningsfönster rankas högre                                                                                                            |
-| `reset-window`      | Föredra mål vars kvotfönster återställs snarast                                                                                                                                                  |
-| `headroom`          | Välj målet med störst återstående kvotmarginal                                                                                                                                                   |
-| `strict-random`     | Slumpmässigt val utan deduplicering av upprepningar                                                                                                                                              |
-| `auto`              | Använd Auto Combo-poängsättning (16 faktorer) — **rekommenderas**                                                                                                                                |
-| `lkgp`              | Senast kända fungerande väg / Last-Known-Good Path (låser till den senaste lyckade leverantören, faller sedan tillbaka på regler)                                                                |
-| `context-optimized` | Välj det mål som passar bäst för aktuell kontextstorlek                                                                                                                                          |
-| `cache-optimized`   | Sortera om målen efter prompt-cache-affinitet — anslutningen som mest sannolikt redan har denna förfrågans cachade prefix provas först (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
-| `fusion` 🧬         | Skicka parallellt till en panel av modeller och syntetisera sedan ett svar via en bedömare (se nedan)                                                                                            |
-| `pipeline`          | Kör mål sekventiellt och skicka varje stegs utdata som indata till nästa steg; endast det slutgiltiga svaret returneras (#6396)                                                                  |
+| Strategi            | Beskrivning                                                                                                                                                                                    |
+| :------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `priority`          | Första mål-sorterad lista med explicit prioritet                                                                                                                                               |
+| `weighted`          | Viktat slumpmässigt baserat på vikt per mål                                                                                                                                                    |
+| `round-robin`       | Cykla genom mål i ordning (batchat; se nedan)                                                                                                                                                  |
+| `context-relay`     | Överlämna kontext mellan mål (långa konversationer)                                                                                                                                            |
+| `fill-first`        | Fyll varje måls kvot innan du går vidare till nästa                                                                                                                                            |
+| `p2c`               | Power-of-2-choices slumpmässig lastbalansering                                                                                                                                                 |
+| `random`            | Enhetligt slumpmässigt urval                                                                                                                                                                   |
+| `least-used`        | Välj mål med lägst aktuell belastning                                                                                                                                                          |
+| `cost-optimized`    | Minimera $ per förfrågan givet katalogprissättning                                                                                                                                             |
+| `reset-aware` ⭐    | Prioritera efter kvotåterställningstid — korta återställningsfönster rankas högre                                                                                                              |
+| `reset-window`      | Föredra mål vars kvotfönster återställs snarast                                                                                                                                                |
+| `headroom`          | Välj målet med mest kvarvarande kvotutrymme                                                                                                                                                    |
+| `quota-weighted`    | Hoppa över uttömda konton, välj sedan bland resten i proportion till kvarvarande kvot dividerat med pågående belastning; befintliga konversationer förblir låsta                               |
+| `strict-random`     | Slumpmässigt utan deduplicering av upprepningar                                                                                                                                                |
+| `auto`              | Använd Auto Combo-poängsättning (16-faktor) — **rekommenderas**                                                                                                                                |
+| `lkgp`              | Last-Known-Good Path (låser till den senast lyckade leverantören, faller sedan tillbaka på regler)                                                                                             |
+| `context-optimized` | Välj mål som passar bäst för aktuell kontextstorlek                                                                                                                                            |
+| `cache-optimized`   | Sortera om mål efter prompt-cache-affinitet — anslutningen som mest sannolikt redan har denna förfrågans cachade prefix provas först (`open-sse/services/combo/promptCacheAffinity.ts`, #8008) |
+| `fusion` 🧬         | Sprid ut till en panel av modeller parallellt, syntetisera sedan ett svar via en domare (se nedan)                                                                                             |
+| `pipeline`          | Kör mål sekventiellt, tråda varje stegs utdata till nästa stegs indata; endast det slutgiltiga svaret returneras (#6396)                                                                       |
 
 ⭐ = Nytt i v3.8.0 · 🧬 = Nytt i v3.8.36
 
-### Semantik för `weighted`
+### `weighted`-semantik
 
-`weighted` är ett **proportionellt slumpmässigt drag per förfrågan**
+`weighted` är ett **proportionellt slumpmässigt urval per förfrågan**
 (`open-sse/services/combo/targetSorters.ts` → `selectWeightedTarget`), inte en utjämnare:
 
 - Varje förfrågan drar **ett** steg med sannolikheten `weight / totalWeight`; de återstående stegen
-  ordnas efter fallande vikt som reservkedja (fallback) för den förfrågan.
+  sorteras efter fallande vikt som fallback-kedja för den förfrågan.
 - Ett steg vars vikt är `0` (eller saknas) **dras aldrig** så länge något annat steg har en
-  vikt > 0 — det kan endast fungera som reserv efter att det dragna steget misslyckas. Endast när **alla**
-  vikter är 0 blir valet enhetligt.
-- Steg vars mål alla är otillgängliga — leverantörens kretsbrytare (circuit breaker) är `OPEN`, anslutningskarenstid
-  (cooldown), modellspärr — tas bort från dragningen innan den sker
-  (`open-sse/services/combo/targetResolution.ts`), vilket innebär att ett enda fungerande steg tillfälligt
-  kan vinna varje förfrågan.
-- `stickyWeightedLimit` (combo-konfiguration, standardvärde `1` = av) låser det dragna steget för så många
-  på varandra följande framgångar innan en ny dragning görs.
+  vikt > 0 — det kan endast fungera som en fallback efter att det dragna steget misslyckas. Endast när **alla**
+  vikter är 0 blir urvalet enhetligt.
+- Steg vars mål alla är otillgängliga — leverantörens kretsbrytare `OPEN`, anslutningsnedkylning,
+  modellspärr — tas bort från dragningen innan den sker
+  (`open-sse/services/combo/targetResolution.ts`), så ett enskilt friskt steg kan tillfälligt
+  vinna varje förfrågan.
+- `stickyWeightedLimit` (kombo-konfiguration, standard `1` = av) låser det dragna steget för så många
+  på varandra följande lyckade försök innan ny dragning sker.
 
-För strikt rotation, använd `round-robin`; lika vikter i `weighted` ger statistisk — inte
-strikt — balans.
+För strikt rotation, använd `round-robin`; lika vikter i `weighted` ger statistisk — inte strikt — balans.
 
-### Agentiskt pipeline-läge
+### Agentiskt pipelineläge
 
-En tvåstegs `pipeline`-kombo kan aktivera planner/executor-dirigering med
-`config.agenticOrchestration.enabled`. Det första målet ansvarar för planering och slutgiltiga svar;
-det andra målet genererar klient-inbyggda verktygsanrop. OmniRoute upptäcker fortsättningar
-med verktygsresultat från förfrågningsprotokollet, frågar plannern om ytterligare en verktygsrunda
-behövs och gör dynamiskt antingen executorn eller plannern till det klientvända sista
-steget.
+En `pipeline`-kombination med minst två modeller kan välja att använda planerare/utförare-routing med `config.agenticOrchestration.enabled`. Det första målet ansvarar för planering och slutgiltiga svar; det andra målet avger klient-inbyggda verktygsanrop. OmniRoute detekterar fortsättningar av verktygsresultat från förfrågningsprotokollet, frågar planeraren om ytterligare en verktygsrunda behövs, och gör dynamiskt antingen utföraren eller planeraren till det klientvända slutsteget.
 
-Vid fortsättningar med verktygsresultat stoppar OmniRoute även exekveringen när två på varandra följande
-slutförda rundor upprepar samma verktygsanrop med oförändrade resultat, eller när varje
-uttryckligen markerat resultat i två på varandra följande rundor misslyckades. Ändrade resultat tillåter
-upprepade anrop (till exempel polling). Skyddet återställs vid en ny användarförfrågan,
-grupperar parallella anrop till en runda och stöder historik för Anthropic, Chat Completions,
-Responses och Gemini. Plannern tar emot orsaken och ansvarar för det slutgiltiga
-svaret även om den begär ytterligare en verktygsrunda.
+Vid fortsättningar av verktygsresultat stoppar OmniRoute även exekveringen när två på varandra följande slutförda rundor upprepar samma verktygsanrop med oförändrade resultat, eller när varje explicit markerat resultat i två på varandra följande rundor misslyckades. Ändrade resultat tillåter upprepade anrop (till exempel polling). Skyddsmekanismen återställs vid en ny användarförfrågan, grupperar parallella anrop i en runda och stöder historik för Anthropic, Chat Completions, Responses och Gemini. Planeraren tar emot orsaken och ansvarar för det slutgiltiga svaret även om den begär ytterligare en verktygsrunda.
+
+Ytterligare modeller efter det andra målet är ordnade utförar-backuper. Ett misslyckat HTTP-svar eller transportundantag går vidare till nästa utförare, med samma planeringsbeslut och inbyggda verktyg men med den utförarens egna steg-prompt och upplösta anslutning. Det första lyckade svaret returneras oförändrat, inklusive SSE-streaming; fel som uppstår efter att en lyckad ström har startat kan inte göras om här. Om alla utförare misslyckas returneras det sista felet. Klientavbrott stoppar utskick.
 
 ```json
 {
@@ -368,35 +353,17 @@ svaret även om den begär ytterligare en verktygsrunda.
 }
 ```
 
-Executorn kan generera flera oberoende anrop i ett enda svar. Beroende anrop
-hanteras i senare klientomgångar med verktygsresultat, där plannern granskar varje resultat.
-`maxToolRounds` är som standard `8` och accepterar `1`–`32`; när gränsen nås måste plannern
-producera det bästa tillgängliga slutgiltiga svaret. Interna planner-beslut buffras, medan
-det valda klientvända svaret bevarar den ursprungliga inställningen för strömning.
+Utföraren kan avge flera oberoende anrop i ett svar. Beroende anrop hanteras i senare klient-verktygsresultat-turer, där planeraren granskar varje resultat. `maxToolRounds` har standardvärdet `8` och accepterar `1`–`32`; när detta nås måste planeraren producera det bästa tillgängliga slutgiltiga svaret. Interna planeringsbeslut buffras, medan det valda klientvända svaret bevarar den ursprungliga streaming-preferensen.
 
-### `round-robin` sticky-batch och kontoutökning
+### `round-robin` sticky batch och kontoexpansion
 
 Round-robin är batchad, inte en-förfrågan-per-steg:
 
-- `stickyRoundRobinLimit` (kombo-konfiguration, därefter `comboStickyRoundRobinLimit`, därefter
-  `settings.stickyRoundRobinLimit`, standard **3**) behåller samma mål under så många
-  på varandra följande lyckade anrop innan rotering sker. Sätt kombo-åsidosättningen till `1` för
-  rotering vid varje förfrågan. Kombo-editorn visar det effektiva värdet och från vilket lager det kom.
-- `connectionAwareExpansion` (kombo-konfiguration, därefter inställningar, standard **false**) utökar
-  varje steg på leverantörsnivå till mål per konto före rotering. Grupp B-strategier
-  (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp,
-  fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion,
-  pipeline) behåller en vy på leverantörsnivå tills detta är aktiverat. Kombo-editorn tillhandahåller
-  inherit / on / off; inherit använder det globala standardvärdet (off).
-- Lokalitetsdirigering för prompt-cache (`promptCacheAffinityEnabled`, standard **true**) omordnar
-  fästa anslutningar så att matchande cachenycklar stannar på ett konto. Detta har företräde framför
-  round-robin och viktad rotering över fästa steg per konto. Stäng av det under
-  Settings → Combo defaults om du behöver strikt rotering. Det finns ingen åsidosättning per kombo.
+- `stickyRoundRobinLimit` (kombinationskonfiguration, sedan `comboStickyRoundRobinLimit`, sedan `settings.stickyRoundRobinLimit`, standard **3**) behåller samma mål för så många på varandra följande framgångar innan rotation sker. Ställ in kombinationsåsidosättningen till `1` för rotation per förfrågan. Kombinationsredigeraren visar det effektiva värdet och vilket lager det kom ifrån.
+- `connectionAwareExpansion` (kombinationskonfiguration, sedan inställningar, standard **false**) expanderar varje steg på leverantörsnivå till mål per konto före rotation. Grupp-B-strategier (priority, weighted, round-robin, random, p2c, least-used, cost-optimized, lkgp, fill-first, strict-random, context-optimized, cache-optimized, context-relay, fusion, pipeline) behåller en vy på leverantörsnivå tills detta är aktiverat. Kombinationsredigeraren exponerar inherit / on / off; inherit använder den globala standarden (off).
+- Prompt-cache locality routing (`promptCacheAffinityEnabled`, standard **true**) omordnar fastlåsta anslutningar så att matchande cache-nycklar stannar på ett konto. Det har företräde framför round-robin och viktad rotation över fastlåsta steg per konto. Stäng av det under Settings → Combo defaults om du behöver strikt rotation. Det finns ingen åsidosättning per kombination.
 
-För fler-kontorotering på en modell, föredra **ett dynamiskt kontosteg** (tom
-`connectionId`, hela poolen) med sticky-gräns `1`, inte tre fästa `connectionId`:n.
-Fästa steg tillsammans med affinitet slås samman till samma konto även medan RR-räknaren
-stegar framåt.
+För rotation mellan flera konton på en modell, föredra **ett dynamiskt kontosteg** (tom `connectionId`, hela poolen) med sticky limit `1`, inte tre fastlåsta `connectionId`n. Fastlåsta steg plus affinitet kollapsar på samma konto även medan RR-räknaren avancerar.
 
 ## Fusionsstrategi
 
@@ -498,54 +465,46 @@ Det innebär att **om en ny leverantör läggs till med `auto/*` aktiverat utök
 
 ## API
 
-Det finns **ingen särskild slutpunkt `POST /api/combos/auto`** — Auto-Combo används på två sätt:
+Det finns **ingen dedikerad `POST /api/combos/auto` endpoint** — Auto-Combo konsumeras på två sätt:
 
-1. **Utan konfiguration (rekommenderas):** Skicka valfri begäran om chattkomplettering med `model: "auto"` eller `model: "auto/<variant>"`. Den virtuella fabriken skapar kombinationen för varje begäran — ingen beständig lagring och inga API-anrop krävs.
+1. **Zero-config (rekommenderas):** Skicka vilken chat completion-förfrågan som helst med `model: "auto"` eller `model: "auto/<variant>"`. Den virtuella fabriken bygger kombinationen per förfrågan — ingen persistens, inga API-anrop behövs.
 
-2. **Beständigt lagrad kombination med `strategy: "auto"`:** Skapa en vanlig kombination via `POST /api/combos` och ange `strategy: "auto"` samt `config.auto.weights` / `config.auto.candidatePool`. Samma poängsättningsmotor används; kombinationen lagras i `combos` och kan återanvändas via ID.
+2. **Persisterad kombination med `strategy: "auto"`:** Skapa en vanlig kombination via `POST /api/combos` och ställ in `strategy: "auto"` plus `config.auto.weights` / `config.auto.candidatePool`. Samma poängmotor används; kombinationen lagras i `combos` och är återanvändbar via ID.
 
-För identifiering listar `GET /api/combos/auto` varje variant med dess upplösta kandidatpool samt `context_length` / `max_output_tokens` — MAX-värdet för fönstren i kandidatpoolen. Klienter (t.ex. opencode-insticksprogrammet) måste annonsera dessa värden i stället för `0`: en kontext på noll inaktiverar opencodes automatiska komprimering helt, vilket gör att sessioner växer tills gatewayens historikrensning förstör kontexten. Det är säkert att annonsera MAX eftersom Auto-Combos kontextförfilter dirigerar överdimensionerade begäranden till kandidater med stora fönster.
+För upptäckt listar `GET /api/combos/auto` varje variant med dess lösta kandidatpool plus `context_length` / `max_output_tokens` — MAX över kandidatpoolens fönster. Klienter (t.ex. opencode-pluginet) måste annonsera dessa värden istället för `0`: en nollkontext inaktiverar opencode's auto-komprimering helt, vilket låter sessioner växa tills gatewayens historikrensning förstör kontexten. MAX är säkert att annonsera eftersom auto-kombinationens kontext-förfilter dirigerar för stora förfrågningar till kandidater med stora fönster.
 
 ```bash
-# Användning utan konfiguration (ingen kombination skapas)
+# Zero-config usage (no combo creation)
 curl -X POST http://localhost:20128/v1/chat/completions \
   -H "Authorization: Bearer <key>" \
   -H "Content-Type: application/json" \
   -d '{"model":"auto/coding","messages":[{"role":"user","content":"Hello"}]}'
 
-# Beständigt lagrad automatisk kombination via den vanliga slutpunkten för kombinationer
+# Persisted auto combo via the regular combos endpoint
 curl -X POST http://localhost:20128/api/combos \
   -H "Content-Type: application/json" \
   -d '{"id":"my-auto","name":"Auto Coder","strategy":"auto","config":{"auto":{"candidatePool":["anthropic","google","openai"],"weights":{"quota":0.15,"health":0.3,"costInv":0.05,"latencyInv":0.35,"taskFit":0.1,"stability":0,"tierPriority":0.05}}}}'
 ```
 
-### Strategier för automatisk dirigering
+### Auto router-strategier
 
-Beständigt lagrade kombinationer med `strategy: "auto"` kan ställa in `config.routerStrategy` (eller äldre
-`config.auto.routerStrategy`) på något av följande:
+Persisterade `strategy: "auto"`-kombinationer kan ställa in `config.routerStrategy` (eller legacy `config.auto.routerStrategy`) till en av:
 
-- `rules` — viktad standardpoängsättning
-- `score` — väljer den högsta konfigurerade viktade poängen. Vid exakt lika resultat bevaras den konfigurerade
-  kandidatordningen; befintliga `explorationRate` samplar från hela den rangordnade poolen.
-- `cost` / `eco` — billigaste friska leverantören
-- `latency` / `fast` — lägsta p95-latens med tillförlitlighetsavdrag
-- `sla-aware` / `sla` — prioritera kandidater som uppfyller SLO:er för p95-latens, felfrekvens och valfri
-  kostnad
+- `rules` — standard viktad poängsättning
+- `score` — väljer den högsta konfigurerade viktade poängen. Exakta oavgjorda resultat bevarar konfigurerad kandidatordning; den befintliga `explorationRate` samplar från hela den rankade poolen.
+- `cost` / `eco` — billigaste friska leverantör
+- `latency` / `fast` — lägsta p95-latens med tillförlitlighetsstraff
+- `sla-aware` / `sla` — föredra kandidater som uppfyller p95-latens, felmarginal och valfria kostnads-SLO:er
 - `lkgp` — senast kända fungerande leverantör först
+- `nadir` — fråga [Nadir](https://getnadir.com)'s besluts-API vilken modell i poolen som prompten behöver; opt-in, fail-open till `rules`
 
-### Dirigeringsstrategier i detalj
+### Router-strategier i detalj
 
-Auto-Combo-motorn tillhandahåller 6 utbytbara **RouterStrategy**-implementationer som
-du kan växla mellan via `config.routerStrategy` (eller den äldre `config.auto.routerStrategy`).
-Varje strategi väljer en leverantör ur kandidatpoolen utifrån en `RoutingContext`
-(uppgiftstyp, verktygs-/visionstips, tokenuppskattning, valfri SLA-policy och valfri
-senast kända fungerande leverantör).
+Auto-kombinationsmotorn exponerar 7 pluggbara **RouterStrategy**-implementationer som du kan byta via `config.routerStrategy` (eller legacy `config.auto.routerStrategy`). Varje strategi väljer en leverantör från kandidatpoolen, givet en `RoutingContext` (uppgiftstyp, verktygs-/visions-tips, token-estimat, valfri SLA-policy, valfri senast kända fungerande leverantör).
 
-#### 1. `rules` (standard) — viktad poängsättning med 16 faktorer
+#### 1. `rules` (standard) — 16-faktor viktad poängsättning
 
-Omsluter den befintliga poängsättningsmotorn. Filtrerar bort kandidater vars kretsbrytare har statusen `OPEN`
-och kör sedan `scorePool()` med den aktuella uppgiftstypen och `getTaskFitness()`,
-varefter leverantören med högst poäng väljs.
+Omsluter den befintliga poängmotorn. Filtrerar bort `OPEN` circuit-breaker-kandidater, kör sedan `scorePool()` med den aktuella uppgiftstypen och `getTaskFitness()`, och väljer den högst poängsatta leverantören.
 
 ```ts
 class RulesStrategyImpl implements RouterStrategy {
@@ -565,16 +524,15 @@ class RulesStrategyImpl implements RouterStrategy {
 }
 ```
 
-**När den ska användas**: Standardalternativet. Använd när du vill ha en balanserad avvägning mellan alla signaler.
+**När ska den användas**: Standard. Använd när du vill ha en balanserad avvägning över alla signaler.
 
 **Alias**: `rules` (inget alias)
 
 ---
 
-#### 2. `cost` / `eco` — billigaste friska leverantören
+#### 2. `cost` / `eco` — billigaste friska leverantör
 
-Sorterar kandidatpoolen efter `costPer1MTokens` (stigande) och väljer den billigaste.
-Filtrerar först bort kandidater med statusen `OPEN`.
+Sorterar kandidatpoolen efter `costPer1MTokens` (stigande) och väljer den billigaste. Filtrerar bort `OPEN`-kandidater först.
 
 ```ts
 class CostStrategyImpl implements RouterStrategy {
@@ -589,16 +547,15 @@ class CostStrategyImpl implements RouterStrategy {
 }
 ```
 
-**När den ska användas**: Kostnadskänsliga arbetslaster, batchbearbetning eller bakgrundsjobb.
+**När ska den användas**: Kostnadskänsliga arbetslaster, batchbearbetning eller bakgrundsjobb.
 
 **Alias**: `cost`, `eco`
 
 ---
 
-#### 3. `latency` / `fast` — lägsta p95-latens med tillförlitlighetsavdrag
+#### 3. `latency` / `fast` — lägsta p95-latens med tillförlitlighetsstraff
 
-Sorterar efter `p95LatencyMs + (errorRate * 1000)`. Straffet för felfrekvens säkerställer att
-otillförlitliga leverantörer rankas lägre även om deras nominella latens är låg.
+Sorterar efter `p95LatencyMs + (errorRate * 1000)`. Felmarginalstraffet säkerställer att opålitliga leverantörer rankas lägre även om deras nominella latens är låg.
 
 ```ts
 class LatencyStrategyImpl implements RouterStrategy {
@@ -615,27 +572,26 @@ class LatencyStrategyImpl implements RouterStrategy {
 }
 ```
 
-**När den bör användas**: Latenskänsliga arbetslaster som realtidschatt, automatisk komplettering eller
-interaktiva kodningsassistenter.
+**När ska den användas**: Latenskänsliga arbetslaster som realtidschatt, autokomplettering eller interaktiva kodningsassistenter.
 
 **Alias**: `latency`, `fast`
 
 ---
 
-#### 4. `sla-aware` / `sla` — efterlevnad av SLO för latens/fel/kostnad
+#### 4. `sla-aware` / `sla` — latens/fel/kostnad SLO-efterlevnad
 
-Poängsätter varje kandidat efter hur väl den uppfyller den konfigurerade SLO-policyn:
+Poängsätter varje kandidat baserat på hur väl den uppfyller den konfigurerade SLO-policyn:
 
 | Faktor           | Vikt | Formel                                                |
 | ---------------- | ---- | ----------------------------------------------------- |
 | Latenspoäng      | 35%  | `threshold / max(value, ε)`                           |
 | Felpoäng         | 35%  | `threshold / max(value, ε)`                           |
 | Hälsopoäng       | 15%  | `1.0` (CLOSED) / `0.5` (HALF_OPEN) / `0.0` (OPEN)     |
-| Kostnadspoäng    | 10%  | `threshold / max(value, ε)` eller omvänt normaliserad |
-| Stabilitetspoäng | 5%   | omvänt normaliserad standardavvikelse för latens      |
+| Kostnadspoäng    | 10%  | `threshold / max(value, ε)` eller invers normaliserad |
+| Stabilitetspoäng | 5%   | invers normaliserad latens stddev                     |
 
-När `hardConstraints: true` sorteras kandidaterna i första hand efter **överträdelsepoäng**
-(hur mycket de överskrider en SLO), och därefter efter sammansatt poäng. Annars används endast
+När `hardConstraints: true` är aktiverat sorteras kandidater främst efter **överträdelsepoäng**
+(hur mycket de överskrider ett SLO), och därefter efter sammansatt poäng. Annars används endast
 den sammansatta poängen.
 
 ```ts
@@ -645,7 +601,7 @@ class SLAStrategyImpl implements RouterStrategy {
     "Selects the provider most likely to satisfy latency, error-rate, and cost SLOs";
 
   select(pool, context) {
-    // ... poängsätter varje kandidat mot policyn: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
+    // ... scores each candidate against policy: { targetP95Ms, maxErrorRate, maxCostPer1MTokens, hardConstraints }
   }
 }
 ```
@@ -665,7 +621,7 @@ class SLAStrategyImpl implements RouterStrategy {
 }
 ```
 
-**När den bör användas**: Produktionsarbetslaster med strikta budgetar för latens, felfrekvens eller kostnad.
+**När ska den användas**: Produktionsarbetslaster med strikta budgetar för latens, felfrekvens eller kostnad.
 
 **Alias**: `sla-aware`, `sla`
 
@@ -673,8 +629,8 @@ class SLAStrategyImpl implements RouterStrategy {
 
 #### 5. `lkgp` — senast kända fungerande leverantör först
 
-Provar först den **senast kända fungerande leverantören** (om en sådan har angetts) och faller sedan tillbaka på
-strategin `rules`. Användbart för sessionsaffinitet — samma leverantör hanterar
+Försöker först med den **senast kända fungerande leverantören** (om inställd), och faller sedan tillbaka på
+`rules`-strategin. Användbart för sessionsstickiness — samma leverantör hanterar
 uppföljningsförfrågningar i en konversation.
 
 ```ts
@@ -696,22 +652,68 @@ class LKGPStrategyImpl implements RouterStrategy {
       }
     }
 
-    // Faller tillbaka på strategin rules
+    // Fallback to rules strategy
     return getStrategy("rules").select(pool, context);
   }
 }
 ```
 
-**När den bör användas**: Konversationer med flera turer där samma leverantör ska hantera
-uppföljningsförfrågningar (t.ex. för cachning, kontextkontinuitet eller konsekvent prissättning).
+**När ska den användas**: Konversationer med flera turer där du vill att samma leverantör ska hantera
+uppföljningsförfrågningar (t.ex. för cachelagring, kontextkontinuitet eller priskonsistens).
 
-**Alias**: `lkgp` (inget annat alias)
+**Alias**: `lkgp` (inget alias)
 
 ---
 
-### Anpassade routerstrategier
+#### 6. `nadir` — prompt-medvetet modellval via Nadir
 
-Du kan registrera en egen implementation av `RouterStrategy` via det publika API:et:
+Varje strategi ovan rangordnar kandidaterna utifrån sin egen telemetri; ingen av dem läser
+själva förfrågan. `nadir` skickar den senaste användarturen plus poolens modell-id:n till
+[Nadir](https://getnadir.com)s besluts-API (`POST /v1/bucket`) och dirigerar till den modell
+Nadir väljer från menyn (`simple` → den billigaste kapabla modellen, `complex` → den mest avancerade modellen).
+Anslutningen som betjänar den modellen väljs fortfarande av `rules`, så kvot, hälsa och kostnad
+fortsätter att avgöra vilket konto som används.
+
+```json
+{
+  "strategy": "auto",
+  "config": {
+    "routerStrategy": "nadir",
+    "nadir": {
+      "apiKey": "ndr_...",
+      "baseUrl": "https://api.getnadir.com",
+      "timeoutMs": 2000
+    }
+  }
+}
+```
+
+`OMNIROUTE_NADIR_API_KEY` och `OMNIROUTE_NADIR_BASE_URL` är miljövariabel-fallbacks för de två
+strängarna. `baseUrl` behövs endast för en självhostad Nadir (ett avslutande `/v1` tolereras).
+Nyckellösa anrop hamnar på Nadirs anonyma nivå, som är hastighetsbegränsad per IP.
+
+Vad som lämnar lådan: texten från det senaste användarmeddelandet (första 16k tecknen),
+kandidatmodellernas id:n och en `source: "omniroute"`-kanaltagg. Ingen system-prompt, historik,
+verktyg eller headers.
+
+Felbeteendet är fail-open: en timeout (standard 2000 ms), ett icke-2xx-svar, en oåtkomlig värd,
+ett felaktigt formaterat svar eller ett val utanför poolen löses upp till `rules`-beslutet och
+anledningen prefixas med `NadirStrategy: fallback (…)`. Efter ett misslyckat anrop hoppar
+strategin över nätverket i 30 s, så ett avbrott kostar en timeout per 30 s snarare än en
+per förfrågan. Routing-händelser rapporterar `strategy: "nadir"` endast när Nadir faktiskt
+gjorde valet.
+
+**När ska den användas**: trafik med blandad svårighetsgrad på en pool som spänner över
+modellnivåer (en liten, en medelstor och en avancerad modell), där du vill minska kostnaden
+för att alltid använda den mest avancerade modellen.
+
+**Alias**: `nadir` (inget alias)
+
+---
+
+### Anpassade router-strategier
+
+Du kan registrera din egen `RouterStrategy`-implementering via det publika API:et:
 
 ```ts
 import {
@@ -724,7 +726,7 @@ class MyCustomStrategy implements RouterStrategy {
   readonly description = "My custom routing strategy";
 
   select(pool, context) {
-    // Din routningslogik här
+    // Your routing logic here
     return {
       provider: pool[0].provider,
       model: pool[0].model,
@@ -752,15 +754,16 @@ Använd den sedan:
 
 ---
 
-### Guide för val av routerstrategi
+### Guide för val av router-strategi
 
-| Användningsfall       | Strategi    | Orsak                                             |
-| --------------------- | ----------- | ------------------------------------------------- |
-| Balanserad arbetslast | `rules`     | Standard — tar hänsyn till alla faktorer          |
-| Minimera kostnad      | `cost`      | Väljer alltid den billigaste                      |
-| Minimera latens       | `latency`   | Väljer den snabbaste pålitliga leverantören       |
-| Strikta SLO:er        | `sla-aware` | Filtrerar efter tröskelvärden för p95/fel/kostnad |
-| Chatt med flera turer | `lkgp`      | Sessionsaffinitet                                 |
+| Användningsfall        | Strategi    | Anledning                                |
+| ---------------------- | ----------- | ---------------------------------------- |
+| Balanserad arbetslast  | `rules`     | Standard — tar hänsyn till alla faktorer |
+| Minimera kostnad       | `cost`      | Väljer alltid billigaste                 |
+| Minimera latens        | `latency`   | Väljer snabbaste pålitliga leverantör    |
+| Strikta SLO:er         | `sla-aware` | Filtrerar efter p95/fel/kostnadströsklar |
+| Chatt med flera turer  | `lkgp`      | Sessionsstickiness                       |
+| Blandad svårighetsgrad | `nadir`     | Väljer modellnivå per prompt             |
 
 SLA-medvetna fält:
 
@@ -833,15 +836,15 @@ Dessa röktester testar den verkliga kommunikationsvägen (kombination → lever
 
 ## Filer
 
-| Fil                                                       | Syfte                                                                                                               |
-| :-------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------ |
-| `open-sse/services/autoCombo/scoring.ts`                  | Poängsättningsfunktion med 16 faktorer, `DEFAULT_WEIGHTS`, poolnorm                                                 |
-| `open-sse/services/autoCombo/taskFitness.ts`              | Uppslagning av lämplighet för modell × uppgift                                                                      |
-| `open-sse/services/autoCombo/engine.ts`                   | Urvalslogik, bandit, budgettak                                                                                      |
-| `open-sse/services/autoCombo/selfHealing.ts`              | Exkludering, sonderingar, incidentläge                                                                              |
-| `open-sse/services/autoCombo/modePacks.ts`                | 6 viktprofiler (snabb leverans, kostnadsbesparing, kvalitet först, offlinevänlig, tillförlitlighet först, kaosläge) |
-| `open-sse/services/autoCombo/autoPrefix.ts`               | Parser för prefixet `auto/` + 6 varianter                                                                           |
-| `open-sse/services/autoCombo/virtualFactory.ts`           | Skapar `AutoComboConfig` i minnet från aktiva anslutningar                                                          |
-| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Testkrok för att mocka leverantörsregistret                                                                         |
-| `src/shared/constants/routingStrategies.ts`               | `ROUTING_STRATEGY_VALUES` (19 strategier)                                                                           |
-| `src/sse/handlers/chat.ts`                                | Integration: kortslutning för auto-prefix                                                                           |
+| Fil                                                       | Syfte                                                                                                  |
+| :-------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| `open-sse/services/autoCombo/scoring.ts`                  | 16-faktors poängsättningsfunktion, DEFAULT_WEIGHTS, pool-norm                                          |
+| `open-sse/services/autoCombo/taskFitness.ts`              | Uppslag för modell × uppgiftslämplighet                                                                |
+| `open-sse/services/autoCombo/engine.ts`                   | Urvalslogik, bandit, budgettak                                                                         |
+| `open-sse/services/autoCombo/selfHealing.ts`              | Exkludering, sonder, incidentläge                                                                      |
+| `open-sse/services/autoCombo/modePacks.ts`                | 6 viktprofiler (ship-fast, cost-saver, quality-first, offline-friendly, reliability-first, chaos-mode) |
+| `open-sse/services/autoCombo/autoPrefix.ts`               | auto/-prefix-parser + 6 varianter                                                                      |
+| `open-sse/services/autoCombo/virtualFactory.ts`           | Bygger AutoComboConfig i minnet från aktiva anslutningar                                               |
+| `open-sse/services/autoCombo/providerRegistryAccessor.ts` | Testhook för att mocka provider-register                                                               |
+| `src/shared/constants/routingStrategies.ts`               | ROUTING_STRATEGY_VALUES (20 strategier)                                                                |
+| `src/sse/handlers/chat.ts`                                | Integration: auto-prefix-kortslutning                                                                  |
