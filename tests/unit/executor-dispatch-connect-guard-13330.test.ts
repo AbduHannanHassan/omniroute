@@ -358,7 +358,7 @@ test(
 test("guarded dispatcher passes modern handlers and HTTP2 options through unchanged", () => {
   const originalDispatch = Agent.prototype.dispatch;
   const handler: Dispatcher.DispatchHandler = { onRequestStart() {} };
-  const options: Dispatcher.DispatchOptions = {
+  const options: Dispatcher.DispatchOptions & { allowH2: boolean } = {
     origin: "https://modern.invalid",
     path: "/",
     method: "GET",
