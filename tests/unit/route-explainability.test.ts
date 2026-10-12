@@ -11,6 +11,7 @@ const core = await import("../../src/lib/db/core.ts");
 const combosDb = await import("../../src/lib/db/combos.ts");
 const providersDb = await import("../../src/lib/db/providers.ts");
 const callLogs = await import("../../src/lib/usage/callLogs.ts");
+const usageHistory = await import("../../src/lib/usage/usageHistory.ts");
 const routeExplain = await import("../../src/lib/usage/routeExplain.ts");
 const route = await import("../../src/app/api/usage/route-explain/[id]/route.ts");
 const { normalizeComboStep } = await import("../../src/lib/combos/steps.ts");
@@ -229,6 +230,15 @@ test("route explainability replays why a combo target was selected", async () =>
       comboStepId: fastStep.id,
       comboExecutionKey: fastStep.id,
     });
+    await usageHistory.saveRequestUsage({
+      provider: "openai",
+      model: "gpt-4o-mini",
+      connectionId: "route-replay-fast",
+      timestamp: new Date(Date.now() - index * 60_000).toISOString(),
+      success: true,
+      latencyMs: 120,
+      tokens: { input: 100, output: 50 },
+    });
     await callLogs.saveCallLog({
       id: index === 0 ? "route-replay-related" : `route-replay-slow-${index}`,
       timestamp: new Date(Date.now() - index * 60_000).toISOString(),
@@ -244,6 +254,15 @@ test("route explainability replays why a combo target was selected", async () =>
       comboName: comboInput.name,
       comboStepId: slowStep.id,
       comboExecutionKey: slowStep.id,
+    });
+    await usageHistory.saveRequestUsage({
+      provider: "anthropic",
+      model: "claude-3-haiku",
+      connectionId: "route-replay-slow",
+      timestamp: new Date(Date.now() - index * 60_000).toISOString(),
+      success: false,
+      latencyMs: 2_000,
+      tokens: { input: 100, output: 0 },
     });
   }
 

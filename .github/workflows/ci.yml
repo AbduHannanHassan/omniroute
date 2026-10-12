@@ -973,7 +973,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
         run: |
           rm -rf coverage-shard coverage-shard-report
-          npx c8 \
+          npx c8 --merge-async \
             --temp-directory=coverage-shard \
             --reports-dir=coverage-shard-report \
             --reporter=json \

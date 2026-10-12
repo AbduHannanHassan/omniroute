@@ -101,7 +101,14 @@ test("exhaustion lines carry the request id", async (t) => {
               property.initializer.getText(ast) === "result.response.headers"
           )
         ) {
-          fallbackProperties = new Set(properties.map((property) => property.name.getText(ast)));
+          fallbackProperties = new Set(
+            node.arguments[1].properties
+              .filter(
+                (property) =>
+                  ts.isPropertyAssignment(property) || ts.isShorthandPropertyAssignment(property)
+              )
+              .map((property) => property.name.getText(ast))
+          );
         }
       }
       ts.forEachChild(node, visit);

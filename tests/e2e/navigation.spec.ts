@@ -26,12 +26,14 @@ test.describe("Dashboard Navigation", () => {
     });
 
     await gotoDashboardRoute(page, "/home");
-    await expect(page.getByRole("link", { name: /providers/i }).first()).toBeVisible();
+    // The home sidebar may show icons only; route identity does not depend on its label.
+    const providersLink = page.locator('a[href="/dashboard/providers"]').first();
+    await expect(providersLink).toBeVisible();
     await page.waitForTimeout(500);
 
     expect(speculativeRequests).toEqual([]);
 
-    await page.getByRole("link", { name: /providers/i }).first().click();
+    await providersLink.click();
     await expect(page).toHaveURL(/\/dashboard\/providers/);
   });
 
