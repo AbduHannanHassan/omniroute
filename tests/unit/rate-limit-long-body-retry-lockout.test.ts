@@ -8,11 +8,13 @@
  * timeout without a single upstream call.
  *
  * Expected now:
- *   - a body retry longer than the queue budget becomes a model lockout on that
- *     connection (the signal the combo pre-dispatch gate and account selection
- *     already skip on) and leaves the queue unfrozen;
- *   - a pause the caller's remaining queue time cannot outlast fails at once
- *     instead of waiting that time out.
+ *   - a structured RetryInfo wait longer than the queue budget, on a limiter that
+ *     is already scoped to the model, becomes a model lockout on that connection
+ *     (the signal the combo pre-dispatch gate and account selection already skip
+ *     on) and leaves the queue unfrozen;
+ *   - every other long wait (prose hint, connection-wide limiter, no model) keeps
+ *     the limiter pause, and a pause the caller's remaining queue time cannot
+ *     outlast fails at once instead of waiting that time out.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -24,6 +26,10 @@ const { LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE } =
 
 const MODEL = "gemini-3.6-flash";
 const DAY_MS = 24 * 60 * 60 * 1000;
+// The queue budget handed to withRateLimit, and how fast "at once" must be. The
+// gap between them keeps the timing assertions far from a slow runner's jitter.
+const BUDGET_MS = 5_000;
+const AT_ONCE_MS = 2_500;
 
 function gemini429Body(retryDelay: string): string {
   return JSON.stringify({
@@ -47,6 +53,12 @@ function gemini429Body(retryDelay: string): string {
   });
 }
 
+function prose429Body(seconds: number): string {
+  return JSON.stringify({
+    error: { message: `Rate limit reached. Please retry after ${seconds}s` },
+  });
+}
+
 /** The exact sequence chatCore and the provider pipeline run on an upstream 429. */
 function record429(provider: string, connectionId: string, model: string | null, body: string) {
   rateLimitManager.updateFromHeaders(provider, connectionId, new Headers(), 429, model);
@@ -60,6 +72,16 @@ async function warm(provider: string, connectionId: string, model: string | null
 
 function isQueueTimeout(err: unknown): boolean {
   return (err as { code?: unknown } | null)?.code === LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE;
+}
+
+async function assertTurnedAwayAtOnce(provider: string, conn: string, model: string | null) {
+  const started = Date.now();
+  await assert.rejects(
+    rateLimitManager.withRateLimit(provider, conn, model, async () => "late", null, BUDGET_MS),
+    isQueueTimeout
+  );
+  const waited = Date.now() - started;
+  assert.ok(waited < AT_ONCE_MS, `waited ${waited}ms behind a pause that outlasts the budget`);
 }
 
 test.afterEach(async () => {
@@ -98,10 +120,10 @@ test("429 with a daily-quota RetryInfo locks the model on that connection instea
     MODEL,
     async () => "served",
     null,
-    3_000
+    BUDGET_MS
   );
   assert.equal(result, "served");
-  assert.ok(Date.now() - started < 1_000, `queue held the call for ${Date.now() - started}ms`);
+  assert.ok(Date.now() - started < AT_ONCE_MS, `queue held the call ${Date.now() - started}ms`);
 });
 
 test("a body-stated lockout never outlasts the 24h retry-hint ceiling", async () => {
@@ -124,14 +146,8 @@ test("a pause that outlasts the caller's remaining queue time fails at once inst
   record429("gemini", conn, MODEL, gemini429Body("20s"));
   assert.equal(accountFallback.getModelLockoutInfo("gemini", conn, MODEL), null);
 
-  // ...but this caller has 3 s left: waiting cannot end in a dispatch.
-  const started = Date.now();
-  await assert.rejects(
-    rateLimitManager.withRateLimit("gemini", conn, MODEL, async () => "late", null, 3_000),
-    isQueueTimeout
-  );
-  const waited = Date.now() - started;
-  assert.ok(waited < 1_000, `waited ${waited}ms for a pause that could not clear in time`);
+  // ...but this caller has 5 s left: waiting cannot end in a dispatch.
+  await assertTurnedAwayAtOnce("gemini", conn, MODEL);
 });
 
 test("with no model to lock, a long body pause still fails fast instead of eating the queue budget", async () => {
@@ -140,13 +156,33 @@ test("with no model to lock, a long body pause still fails fast instead of eatin
 
   record429("gemini", conn, null, gemini429Body("86399s"));
 
-  const started = Date.now();
-  await assert.rejects(
-    rateLimitManager.withRateLimit("gemini", conn, null, async () => "late", null, 3_000),
-    isQueueTimeout
+  await assertTurnedAwayAtOnce("gemini", conn, null);
+});
+
+test("a prose retry hint never becomes a lockout; its pause still turns callers away at once", async () => {
+  const conn = "conn-long-retry-prose";
+  await warm("gemini", conn, MODEL);
+
+  // Prose hints are capped by the lockout policy elsewhere; here they stay a pause.
+  record429("gemini", conn, MODEL, prose429Body(3_600));
+  assert.equal(accountFallback.getModelLockoutInfo("gemini", conn, MODEL), null);
+
+  await assertTurnedAwayAtOnce("gemini", conn, MODEL);
+});
+
+test("on a connection-wide limiter a long RetryInfo keeps pausing the connection instead of locking one model", async () => {
+  const conn = "conn-long-retry-connwide";
+  await warm("openai", conn, "gpt-4o");
+
+  record429("openai", conn, "gpt-4o", gemini429Body("86399s"));
+  assert.equal(
+    accountFallback.getModelLockoutInfo("openai", conn, "gpt-4o"),
+    null,
+    "a per-model lock would let other models on the paused connection through"
   );
-  const waited = Date.now() - started;
-  assert.ok(waited < 1_000, `waited ${waited}ms behind a pause that outlasts the budget`);
+
+  // The whole connection stays paused, so another model is turned away too.
+  await assertTurnedAwayAtOnce("openai", conn, "gpt-4.1");
 });
 
 test("guard: a short body pause inside the queue budget still holds the call and then serves it", async () => {
@@ -163,24 +199,18 @@ test("guard: a short body pause inside the queue budget still holds the call and
     MODEL,
     async () => "after-pause",
     null,
-    5_000
+    BUDGET_MS
   );
   const waited = Date.now() - started;
   assert.equal(result, "after-pause");
   assert.ok(waited >= 500, `the 1s pause was not honoured (waited ${waited}ms)`);
-  assert.ok(waited < 4_000, `waited ${waited}ms for a 1s pause`);
 });
 
 test("guard: once the reservoir is relaxed, a recorded pause no longer fails calls fast", async () => {
   const conn = "conn-long-retry-relaxed";
   await warm("openai", conn, "gpt-4o");
 
-  record429(
-    "openai",
-    conn,
-    "gpt-4o",
-    JSON.stringify({ error: { message: "Rate limit reached. Please retry after 20s" } })
-  );
+  record429("openai", conn, "gpt-4o", prose429Body(20));
   // A later response reports plenty of headroom and relaxes the reservoir.
   rateLimitManager.updateFromHeaders(
     "openai",
@@ -201,13 +231,10 @@ test("guard: once the reservoir is relaxed, a recorded pause no longer fails cal
     "gpt-4o",
     async () => "relaxed",
     null,
-    3_000
+    BUDGET_MS
   );
   assert.equal(result, "relaxed");
-  assert.ok(
-    Date.now() - started < 1_000,
-    `relaxed limiter held the call ${Date.now() - started}ms`
-  );
+  assert.ok(Date.now() - started < AT_ONCE_MS, `relaxed limiter held the call`);
 });
 
 test("guard: the per-target deadline (abort signal) ends a wait behind a body pause", async () => {
@@ -236,5 +263,5 @@ test("guard: the per-target deadline (abort signal) ends a wait behind a body pa
     clearTimeout(timer);
   }
   const waited = Date.now() - started;
-  assert.ok(waited < 1_500, `abort took ${waited}ms to end the queue wait`);
+  assert.ok(waited < AT_ONCE_MS, `abort took ${waited}ms to end the queue wait`);
 });

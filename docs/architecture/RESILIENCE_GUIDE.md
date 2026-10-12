@@ -482,14 +482,20 @@ many callers may be queued at once.
 is pacing: the limiter empties its reservoir for that long and queued calls
 dispatch when it refills. A wait longer than `maxWaitMs` is not something the
 queue can sit out — Gemini answers an exhausted daily quota with
-`retryDelay: "86399s"` — so on a 429 it becomes a model lockout on that
-connection instead (`lockModelForLongBodyRetry` in
+`retryDelay: "86399s"`. When such a wait comes from Google's structured
+`RetryInfo` and the key's limiter is already scoped to the model (see
+`getLimiterKey`), the 429 becomes a model lockout on that connection instead
+(`lockModelForLongBodyRetry` in
 `open-sse/services/rateLimitManager/bodyRetryPause.ts`, capped at 24h), the
 signal the combo pre-dispatch gate and account selection already skip on via
-`isModelLocked()`. The limiter is left unpaused. When the limiter does pause,
-a caller whose remaining queue time ends before the pause does is turned away
-at once with the queue-timeout code (`checkLimiterPause`) rather than waiting
-that time out. Covered by `tests/unit/rate-limit-long-body-retry-lockout.test.ts`.
+`isModelLocked()`, and the limiter is left unpaused. A prose hint, or a
+limiter shared by the whole connection, keeps the pause. When the limiter the
+429 path just rebuilt does pause, a caller whose remaining queue time ends
+before the pause does is turned away at once with the queue-timeout code
+(`checkLimiterPause`) rather than waiting that time out; any later change to
+the reservoir forgets the pause. Covered by
+`tests/unit/rate-limit-long-body-retry-lockout.test.ts` and
+`tests/unit/rate-limit-body-retry-pause.test.ts`.
 
 **`maxQueueDepth` — opt-in admission cap (new).** `resilienceSettings.requestQueue.maxQueueDepth`
 bounds how many requests may sit queued (not yet dispatched) for one

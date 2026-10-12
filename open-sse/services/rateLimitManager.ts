@@ -278,7 +278,7 @@ function updateLimiterSettings(
 ): Bottleneck {
   const effective = limiterEffectiveSettings.get(limiter) ?? {};
   limiterEffectiveSettings.set(limiter, { ...effective, ...updates });
-  if ("reservoir" in updates) bodyRetryPause.forgetLimiterPause(limiter);
+  bodyRetryPause.noteLimiterUpdate(limiter, updates);
   return limiter.updateSettings(updates);
 }
 
@@ -1262,15 +1262,12 @@ export function updateFromResponseBody(provider, connectionId, responseBody, sta
   const { retryAfterMs, reason } = parseRetryAfterFromBody(responseBody);
 
   if (retryAfterMs && retryAfterMs > 0) {
-    const queueBudgetMs = resolveRequestQueueMaxWaitMs(provider, undefined, connectionId);
-    const lock = { provider, connectionId, model, status, retryAfterMs, queueBudgetMs, reason };
-    const lockMs = bodyRetryPause.lockModelForLongBodyRetry(lock);
-    if (lockMs !== null) {
-      logRateLimit(
-        `🔒 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason}) exceeds the ${queueBudgetMs}ms queue budget; locking ${model} on this connection for ${Math.ceil(lockMs / 1000)}s instead of pausing its queue`
-      );
-    } else {
-      const fresh = !limiters.has(getLimiterKey(provider, connectionId, model));
+    const key = getLimiterKey(provider, connectionId, model);
+    const scopedModel = key === getLimiterKey(provider, connectionId) ? null : model;
+    const budgetMs = resolveRequestQueueMaxWaitMs(provider, undefined, connectionId);
+    const retry = { provider, connectionId, scopedModel, status, retryAfterMs, reason };
+    if (!bodyRetryPause.lockModelForLongBodyRetry(retry, budgetMs, responseBody, logRateLimit)) {
+      const fresh = !limiters.has(key);
       const limiter = getLimiter(provider, connectionId, model);
       logRateLimit(
         `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason})`
