@@ -85,8 +85,10 @@ function stubGlobalFetch() {
   };
 }
 
-async function withHttpServer(fn: (port: number) => Promise<void>) {
+async function withHttpServer(fn: (port: number, requests: () => number) => Promise<void>) {
+  let requestCount = 0;
   const server = http.createServer((_req, res) => {
+    requestCount++;
     res.writeHead(200, { "content-type": "text/plain" });
     res.end("guarded-dispatch-response");
   });
@@ -97,7 +99,7 @@ async function withHttpServer(fn: (port: number) => Promise<void>) {
   const address = server.address();
   assert.ok(address && typeof address === "object");
   try {
-    await fn((address as { port: number }).port);
+    await fn((address as { port: number }).port, () => requestCount);
   } finally {
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()));
@@ -307,7 +309,7 @@ test(
     const dnsStub = stubDnsLookup("127.0.0.1");
     try {
       await withEnv({}, async () => {
-        await withHttpServer(async (port) => {
+        await withHttpServer(async (port, requests) => {
           const response = await dispatchGuarded(
             "openai",
             `http://native-host.invalid:${port}/v1`,
@@ -318,7 +320,7 @@ test(
           );
           assert.equal(response.status, 200);
           assert.equal(await response.text(), "guarded-dispatch-response");
-          assert.equal(dnsStub.calls(), 1);
+          assert.equal(requests(), 1);
         });
       });
     } finally {

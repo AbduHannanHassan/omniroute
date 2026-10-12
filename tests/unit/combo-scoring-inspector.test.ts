@@ -82,7 +82,8 @@ async function seedAutoCombo(comboOverrides: Record<string, unknown> = {}) {
     index: 1,
   });
 
-  for (let index = 0; index < 4; index += 1) {
+  // Live candidate latency requires ten observations before using history.
+  for (let index = 0; index < 10; index += 1) {
     await callLogs.saveCallLog({
       id: `scoring-fast-${index}`,
       timestamp: new Date(Date.now() - index * 60_000).toISOString(),
@@ -101,7 +102,7 @@ async function seedAutoCombo(comboOverrides: Record<string, unknown> = {}) {
     });
   }
 
-  for (let index = 0; index < 4; index += 1) {
+  for (let index = 0; index < 10; index += 1) {
     await callLogs.saveCallLog({
       id: `scoring-slow-${index}`,
       timestamp: new Date(Date.now() - index * 60_000).toISOString(),
@@ -297,10 +298,9 @@ test("configured auto preview uses live evaluation scores and zero quota contrib
     assert.equal(quota?.source, "runtime");
     assert.equal(quota?.weight, 0);
     assert.equal(quota?.contribution, 0);
-    assert.equal(
-      target.score,
-      Number(target.factors.reduce((sum, factor) => sum + factor.contribution, 0).toFixed(4))
-    );
+    // Displayed contributions are independently rounded to four decimals.
+    const displayedSum = target.factors.reduce((sum, factor) => sum + factor.contribution, 0);
+    assert.ok(Math.abs(target.score - displayedSum) <= (target.factors.length + 1) * 0.00005);
   }
 });
 
