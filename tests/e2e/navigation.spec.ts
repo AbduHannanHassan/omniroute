@@ -25,8 +25,11 @@ test.describe("Dashboard Navigation", () => {
       if (isRscPrefetch) speculativeRequests.push(request.url());
     });
 
+    // Home activation closes unpinned sections; keep the navigation target mounted.
+    await page.addInitScript(() => {
+      localStorage.setItem("sidebar-pinned-sections", JSON.stringify(["omni-proxy"]));
+    });
     await gotoDashboardRoute(page, "/home");
-    // The home sidebar may show icons only; route identity does not depend on its label.
     const providersLink = page.locator('a[href="/dashboard/providers"]').first();
     await expect(providersLink).toBeVisible();
     await page.waitForTimeout(500);
