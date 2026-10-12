@@ -37,16 +37,7 @@ export function resolveImageBaseUrl(
   endpoint: "generations" | "edits" = "generations",
   failClosed = false
 ): string {
-  const psd = credentials?.providerSpecificData;
-  const psdBaseUrl =
-    psd && typeof psd === "object" && typeof psd.baseUrl === "string" && psd.baseUrl.trim()
-      ? psd.baseUrl.trim()
-      : null;
-  const topLevelBaseUrl =
-    typeof credentials?.baseUrl === "string" && credentials.baseUrl.trim()
-      ? credentials.baseUrl.trim()
-      : null;
-  const nodeBaseUrl = psdBaseUrl || topLevelBaseUrl;
+  const nodeBaseUrl = resolveConfiguredImageBaseUrl(credentials);
 
   if (!nodeBaseUrl) return failClosed ? "" : fallback;
 
@@ -113,16 +104,7 @@ export function extractImageInputs(body) {
     for (const candidate of body.image_urls) pushCandidate(candidate);
   }
 
-  if (Array.isArray(body?.messages)) {
-    for (const msg of body.messages) {
-      if (!Array.isArray(msg?.content)) continue;
-      for (const part of msg.content) {
-        if (part?.type === "image_url") {
-          pushCandidate(part?.image_url?.url);
-        }
-      }
-    }
-  }
+  collectMessageImageInputs(body, pushCandidate);
 
   return {
     imageUrl: imageUrls[0] || null,
@@ -232,21 +214,8 @@ export async function normalizeProviderImagePayload(payload, body, log, defaultF
     candidates.push(value);
   };
 
-  if (Array.isArray(payload?.data)) {
-    for (const item of payload.data) pushCandidate(item);
-  }
-
-  if (Array.isArray(payload?.images)) {
-    for (const item of payload.images) pushCandidate(item);
-  }
-
-  if (payload?.image) pushCandidate({ b64_json: payload.image });
-  if (payload?.url) pushCandidate({ url: payload.url });
-  if (payload?.sample) pushCandidate({ url: payload.sample });
-  if (payload?.result?.sample) pushCandidate({ url: payload.result.sample });
-  if (Array.isArray(payload?.result?.images)) {
-    for (const item of payload.result.images) pushCandidate(item);
-  }
+  collectProviderImageArrays(payload, pushCandidate);
+  collectProviderImageFields(payload, pushCandidate);
 
   const normalized = [];
   for (const candidate of candidates) {
@@ -266,24 +235,7 @@ export async function normalizeProviderImagePayload(payload, body, log, defaultF
 
 async function normalizeProviderImageCandidate(candidate, body, defaultFormat) {
   const wantsBase64 = body?.response_format === "b64_json" || defaultFormat === "b64_json";
-  let url = null;
-  let b64 = null;
-
-  if (typeof candidate === "string") {
-    const dataUriMatch = /^data:[^;]+;base64,(.+)$/i.exec(candidate);
-    if (dataUriMatch) {
-      b64 = dataUriMatch[1];
-    } else if (isHttpUrl(candidate)) {
-      url = candidate;
-    } else {
-      b64 = candidate;
-    }
-  } else if (candidate && typeof candidate === "object") {
-    url =
-      firstString(candidate.url, candidate.image_url, candidate.sample, candidate.file_url) || null;
-    b64 =
-      firstString(candidate.b64_json, candidate.image, candidate.base64, candidate.data) || null;
-  }
+  let { url, b64 } = parseProviderImageCandidate(candidate);
 
   if (wantsBase64 && !b64 && url) {
     b64 = (await resolveImageSource(url)).base64;
@@ -402,22 +354,8 @@ export async function fetchImageEndpoint(url, headers, body, provider, log) {
         timeoutMs: getConfiguredTimeout(),
       });
     } catch (err: unknown) {
-      const isAbortError =
-        typeof err === "object" &&
-        err !== null &&
-        "name" in err &&
-        (err as { name?: unknown }).name === "AbortError";
-      if (err instanceof FetchTimeoutError || isAbortError) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (log) {
-          log.error("IMAGE", `${provider} fetch error: ${message}`);
-        }
-        return {
-          success: false,
-          status: 504,
-          error: `Image provider error: ${sanitizeErrorMessage(message || err)}`,
-        };
-      }
+      const timeoutResult = getImageFetchTimeoutResult(err, provider, log);
+      if (timeoutResult) return timeoutResult;
       throw err;
     }
 
@@ -489,4 +427,93 @@ export function normalizePositiveNumber(value, fallback) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return fallback;
   return Math.floor(n);
+}
+
+function resolveConfiguredImageBaseUrl(credentials) {
+  const psd = credentials?.providerSpecificData;
+  const psdBaseUrl =
+    psd && typeof psd === "object" && typeof psd.baseUrl === "string" && psd.baseUrl.trim()
+      ? psd.baseUrl.trim()
+      : null;
+  const topLevelBaseUrl =
+    typeof credentials?.baseUrl === "string" && credentials.baseUrl.trim()
+      ? credentials.baseUrl.trim()
+      : null;
+  return psdBaseUrl || topLevelBaseUrl;
+}
+
+function collectMessageImageInputs(body, pushCandidate) {
+  if (Array.isArray(body?.messages)) {
+    for (const msg of body.messages) {
+      if (!Array.isArray(msg?.content)) continue;
+      for (const part of msg.content) {
+        if (part?.type === "image_url") {
+          pushCandidate(part?.image_url?.url);
+        }
+      }
+    }
+  }
+}
+
+function collectProviderImageArrays(payload, pushCandidate) {
+  if (Array.isArray(payload?.data)) {
+    for (const item of payload.data) pushCandidate(item);
+  }
+
+  if (Array.isArray(payload?.images)) {
+    for (const item of payload.images) pushCandidate(item);
+  }
+}
+
+function collectProviderImageFields(payload, pushCandidate) {
+  if (payload?.image) pushCandidate({ b64_json: payload.image });
+  if (payload?.url) pushCandidate({ url: payload.url });
+  if (payload?.sample) pushCandidate({ url: payload.sample });
+  if (payload?.result?.sample) pushCandidate({ url: payload.result.sample });
+  if (Array.isArray(payload?.result?.images)) {
+    for (const item of payload.result.images) pushCandidate(item);
+  }
+}
+
+function parseProviderImageCandidate(candidate) {
+  let url = null;
+  let b64 = null;
+
+  if (typeof candidate === "string") {
+    const dataUriMatch = /^data:[^;]+;base64,(.+)$/i.exec(candidate);
+    if (dataUriMatch) {
+      b64 = dataUriMatch[1];
+    } else if (isHttpUrl(candidate)) {
+      url = candidate;
+    } else {
+      b64 = candidate;
+    }
+  } else if (candidate && typeof candidate === "object") {
+    url =
+      firstString(candidate.url, candidate.image_url, candidate.sample, candidate.file_url) || null;
+    b64 =
+      firstString(candidate.b64_json, candidate.image, candidate.base64, candidate.data) || null;
+  }
+
+  return { url, b64 };
+}
+
+function getImageFetchTimeoutResult(err: unknown, provider, log) {
+  const isAbortError =
+    typeof err === "object" &&
+    err !== null &&
+    "name" in err &&
+    (err as { name?: unknown }).name === "AbortError";
+  if (err instanceof FetchTimeoutError || isAbortError) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (log) {
+      log.error("IMAGE", `${provider} fetch error: ${message}`);
+    }
+    return {
+      success: false,
+      status: 504,
+      error: `Image provider error: ${sanitizeErrorMessage(message || err)}`,
+    };
+  }
+  return null;
 }

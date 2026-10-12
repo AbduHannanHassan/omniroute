@@ -159,12 +159,85 @@ export async function handleKieImageGeneration({
     });
   }
 
-  // Check if model is a Market model (unified API)
-  const fullRegistry = getImageProvider(provider);
-  const modelEntry = fullRegistry?.models?.find((m) => m.id === model);
-  const isFluxKontext = Boolean(modelEntry?.kieFluxKontextModel);
-  const isMarket = !isFluxKontext && (modelEntry?.isMarket || model.includes("/"));
+  const { modelEntry, isFluxKontext, isMarket } = classifyKieImageModel(provider, model);
 
+  const { baseUrl, payload } = prepareKieImageRequest({
+    model,
+    providerConfig,
+    body,
+    prompt,
+    size,
+    modelEntry,
+    isFluxKontext,
+    isMarket,
+  });
+
+  logKieImageRequest(log, body, provider, model, isFluxKontext, isMarket);
+
+  try {
+    const createData = await createKieImageTask({
+      isFluxKontext,
+      isMarket,
+      baseUrl,
+      providerConfig,
+      token,
+      payload,
+    });
+    const taskId = getKieTaskId(createData);
+    if (!taskId) {
+      return saveKieCreateTaskError({ createData, provider, model, startTime, payload, log });
+    }
+    const statusUrl = resolveKieImageStatusUrl({
+      isFluxKontext,
+      isMarket,
+      providerConfig,
+      baseUrl,
+    });
+
+    const { data: recordData, state } = await kieExecutor.pollTask({
+      statusUrl,
+      taskId: String(taskId),
+      token,
+      timeoutMs,
+      pollIntervalMs,
+    });
+
+    return finishKieImageTask({
+      recordData,
+      state,
+      taskId,
+      prompt,
+      provider,
+      model,
+      startTime,
+      payload,
+      log,
+    });
+  } catch (err: unknown) {
+    return saveKieImageFailure(err, provider, model, startTime);
+  }
+}
+
+function saveKieImageFailure(err: unknown, provider: string, model: string, startTime: number) {
+  return saveImageErrorResult({
+    provider,
+    model,
+    status: getKieErrorStatus(err, 502),
+    startTime,
+    error: `Image provider error: ${getKieErrorMessage(err, "KIE image generation failed")}`,
+  });
+}
+
+function prepareKieImageRequest({
+  model,
+  providerConfig,
+  body,
+  prompt,
+  size,
+  modelEntry,
+  isFluxKontext,
+  isMarket,
+}) {
   const { imageUrl } = extractImageInputs(body);
   let baseUrl = "";
   let payload: Record<string, unknown> = {};
@@ -206,112 +279,127 @@ export async function handleKieImageGeneration({
     };
   }
 
+  return { baseUrl, payload };
+}
+
+async function createKieImageTask({
+  isFluxKontext,
+  isMarket,
+  baseUrl,
+  providerConfig,
+  token,
+  payload,
+}) {
+  const endpoint = isFluxKontext
+    ? "/api/v1/flux/kontext/generate"
+    : isMarket
+      ? "/api/v1/jobs/createTask"
+      : new URL(baseUrl).pathname;
+  const createBaseUrl =
+    isFluxKontext || isMarket ? providerConfig.baseUrl : baseUrl.replace(endpoint, "");
+  return kieExecutor.createTask({
+    baseUrl: createBaseUrl,
+    token,
+    payload,
+    endpoint,
+  });
+}
+
+function saveKieCreateTaskError({ createData, provider, model, startTime, payload, log }) {
+  const errorMessage =
+    createData?.msg ||
+    createData?.message ||
+    createData?.error ||
+    "KIE image generation did not return taskId";
+  if (log) {
+    log.error("IMAGE", `KIE createTask failed: ${JSON.stringify(createData)}`);
+  }
+  return saveImageErrorResult({
+    provider,
+    model,
+    status: 502,
+    startTime,
+    error: errorMessage,
+    requestBody: payload,
+  });
+}
+
+function resolveKieImageStatusUrl({ isFluxKontext, isMarket, providerConfig, baseUrl }) {
+  // Use statusUrl from providerConfig if available, fallback to dynamic derivation
+  return isFluxKontext
+    ? `${providerConfig.baseUrl.replace(/\/$/, "")}/api/v1/flux/kontext/record-info`
+    : isMarket
+      ? `${providerConfig.baseUrl.replace(/\/$/, "")}/api/v1/jobs/recordInfo`
+      : providerConfig.statusUrl && !providerConfig.statusUrl.includes("jobs/recordInfo")
+        ? providerConfig.statusUrl
+        : baseUrl.replace(/\/generate$/, "/record-info");
+}
+
+function finishKieImageTask({
+  recordData,
+  state,
+  taskId,
+  prompt,
+  provider,
+  model,
+  startTime,
+  payload,
+  log,
+}) {
+  const kieUrls = state === "success" ? normalizeKieImageResult(recordData) : [];
+  // #14335 LEDGER-13: a "success" state with zero usable urls falls through to
+  // the failure branch below instead of a fake HTTP-200 success with data:[].
+  if (kieUrls.length > 0) {
+    if (log) {
+      log.info("IMAGE", `KIE poll success for task ${taskId}`);
+    }
+    const images = kieUrls.map((url: string) => ({ url, revised_prompt: prompt }));
+
+    return saveImageSuccessResult({
+      provider,
+      model,
+      startTime,
+      requestBody: payload,
+      responseBody: { images_count: images.length },
+      images,
+    });
+  }
+
+  const record = isJsonObject(recordData) ? recordData : {};
+  const recordDataBody = isJsonObject(record.data) ? record.data : {};
+  const errorMessage =
+    recordDataBody.errorMessage || recordDataBody.failMsg || record.msg || "KIE image task failed";
+
+  if (log) {
+    log.error("IMAGE", `KIE poll failed for task ${taskId}: ${JSON.stringify(recordData)}`);
+  }
+
+  return saveImageErrorResult({
+    provider,
+    model,
+    status: 502,
+    startTime,
+    error: String(errorMessage),
+    requestBody: payload,
+  });
+}
+
+function classifyKieImageModel(provider, model) {
+  // Check if model is a Market model (unified API)
+  const fullRegistry = getImageProvider(provider);
+  const modelEntry = fullRegistry?.models?.find((m) => m.id === model);
+  const isFluxKontext = Boolean(modelEntry?.kieFluxKontextModel);
+  const isMarket = !isFluxKontext && (modelEntry?.isMarket || model.includes("/"));
+
+  return { modelEntry, isFluxKontext, isMarket };
+}
+
+function logKieImageRequest(log, body, provider, model, isFluxKontext, isMarket) {
   if (log) {
     const promptPreview = String(body.prompt ?? "").slice(0, 60);
     log.info(
       "IMAGE",
       `${provider}/${model} (${isFluxKontext ? "flux-kontext" : isMarket ? "market" : "direct"}) | prompt: "${promptPreview}..."`
     );
-  }
-
-  try {
-    const endpoint = isFluxKontext
-      ? "/api/v1/flux/kontext/generate"
-      : isMarket
-        ? "/api/v1/jobs/createTask"
-        : new URL(baseUrl).pathname;
-    const createBaseUrl =
-      isFluxKontext || isMarket ? providerConfig.baseUrl : baseUrl.replace(endpoint, "");
-    const createData = await kieExecutor.createTask({
-      baseUrl: createBaseUrl,
-      token,
-      payload,
-      endpoint,
-    });
-    const taskId = getKieTaskId(createData);
-
-    if (!taskId) {
-      const errorMessage =
-        createData?.msg ||
-        createData?.message ||
-        createData?.error ||
-        "KIE image generation did not return taskId";
-      if (log) {
-        log.error("IMAGE", `KIE createTask failed: ${JSON.stringify(createData)}`);
-      }
-      return saveImageErrorResult({
-        provider,
-        model,
-        status: 502,
-        startTime,
-        error: errorMessage,
-        requestBody: payload,
-      });
-    }
-
-    // Use statusUrl from providerConfig if available, fallback to dynamic derivation
-    const statusUrl = isFluxKontext
-      ? `${providerConfig.baseUrl.replace(/\/$/, "")}/api/v1/flux/kontext/record-info`
-      : isMarket
-        ? `${providerConfig.baseUrl.replace(/\/$/, "")}/api/v1/jobs/recordInfo`
-        : providerConfig.statusUrl && !providerConfig.statusUrl.includes("jobs/recordInfo")
-          ? providerConfig.statusUrl
-          : baseUrl.replace(/\/generate$/, "/record-info");
-
-    const { data: recordData, state } = await kieExecutor.pollTask({
-      statusUrl,
-      taskId: String(taskId),
-      token,
-      timeoutMs,
-      pollIntervalMs,
-    });
-
-    const kieUrls = state === "success" ? normalizeKieImageResult(recordData) : [];
-    // #14335 LEDGER-13: a "success" state with zero usable urls falls through to
-    // the failure branch below instead of a fake HTTP-200 success with data:[].
-    if (kieUrls.length > 0) {
-      if (log) {
-        log.info("IMAGE", `KIE poll success for task ${taskId}`);
-      }
-      const images = kieUrls.map((url: string) => ({ url, revised_prompt: prompt }));
-
-      return saveImageSuccessResult({
-        provider,
-        model,
-        startTime,
-        requestBody: payload,
-        responseBody: { images_count: images.length },
-        images,
-      });
-    }
-
-    const record = isJsonObject(recordData) ? recordData : {};
-    const recordDataBody = isJsonObject(record.data) ? record.data : {};
-    const errorMessage =
-      recordDataBody.errorMessage ||
-      recordDataBody.failMsg ||
-      record.msg ||
-      "KIE image task failed";
-
-    if (log) {
-      log.error("IMAGE", `KIE poll failed for task ${taskId}: ${JSON.stringify(recordData)}`);
-    }
-
-    return saveImageErrorResult({
-      provider,
-      model,
-      status: 502,
-      startTime,
-      error: String(errorMessage),
-      requestBody: payload,
-    });
-  } catch (err: unknown) {
-    return saveImageErrorResult({
-      provider,
-      model,
-      status: getKieErrorStatus(err, 502),
-      startTime,
-      error: `Image provider error: ${getKieErrorMessage(err, "KIE image generation failed")}`,
-    });
   }
 }

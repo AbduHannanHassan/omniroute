@@ -43,17 +43,9 @@ export async function POST(request, { params }) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, `Unknown image provider: ${rawProvider}`);
   }
 
-  let rawBody;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid JSON body");
-  }
-  const validation = validateBody(v1ImageGenerationSchema, rawBody);
-  if (isValidationFailure(validation)) {
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, validation.error.message);
-  }
-  const body = validation.data;
+  const input = await readImageProviderBody(request);
+  if ("rejection" in input) return input.rejection;
+  const body = input.body;
 
   // Ensure model has provider prefix
   if (!body.model.includes("/")) {
@@ -117,17 +109,40 @@ export async function POST(request, { params }) {
   });
   credentials = execution.credentials;
   const result = execution.result;
+  return imageProviderResultResponse(result, credentials);
+}
 
+async function imageProviderResultResponse(
+  result: Awaited<ReturnType<typeof handleImageGeneration>>,
+  credentials: Parameters<typeof clearRecoveredProviderState>[0]
+): Promise<Response> {
   if (result.success) {
     await clearRecoveredProviderState(credentials);
-    return new Response(JSON.stringify((result as any).data), {
+    return new Response(JSON.stringify("data" in result ? result.data : undefined), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const errorPayload = toJsonErrorPayload((result as any).error, "Image generation provider error");
-  const message = extractErrorMessage("error" in errorPayload ? errorPayload.error : errorPayload)
-    ?? "Image generation provider error";
-  return errorResponse((result as any).status, message);
+  const errorPayload = toJsonErrorPayload(
+    "error" in result ? result.error : undefined,
+    "Image generation provider error"
+  );
+  const message =
+    extractErrorMessage("error" in errorPayload ? errorPayload.error : errorPayload) ??
+    "Image generation provider error";
+  return errorResponse("status" in result ? result.status : undefined, message);
+}
+
+async function readImageProviderBody(request: Request) {
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return { rejection: errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid JSON body") };
+  }
+  const validation = validateBody(v1ImageGenerationSchema, rawBody);
+  if (isValidationFailure(validation))
+    return { rejection: errorResponse(HTTP_STATUS.BAD_REQUEST, validation.error.message) };
+  return { body: validation.data };
 }

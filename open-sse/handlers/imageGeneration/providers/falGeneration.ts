@@ -1,6 +1,15 @@
 import { sanitizeErrorMessage } from "../../../utils/error.ts";
 
-import { extractImageInputs, normalizeRequestedImageFormat, normalizeProviderImagePayload, saveImageSuccessResult, saveImageErrorResult, mapFalImageSize, mapFalAspectRatio, normalizeRecraftStyle } from "../shared.ts";
+import {
+  extractImageInputs,
+  normalizeRequestedImageFormat,
+  normalizeProviderImagePayload,
+  saveImageSuccessResult,
+  saveImageErrorResult,
+  mapFalImageSize,
+  mapFalAspectRatio,
+  normalizeRecraftStyle,
+} from "../shared.ts";
 export async function handleFalAIImageGeneration({
   model,
   provider,
@@ -12,44 +21,7 @@ export async function handleFalAIImageGeneration({
   const startTime = Date.now();
   const token = credentials.apiKey || credentials.accessToken;
   const falModel = model.startsWith("fal-ai/") ? model : `fal-ai/${model}`;
-  const { imageUrl, imageUrls } = extractImageInputs(body);
-  const upstreamBody: Record<string, unknown> = {
-    prompt: body.prompt,
-    sync_mode: body.sync_mode ?? true,
-  };
-
-  if (body.n !== undefined) upstreamBody.num_images = Number(body.n) || 1;
-  if (body.negative_prompt) upstreamBody.negative_prompt = body.negative_prompt;
-  if (body.seed !== undefined) upstreamBody.seed = body.seed;
-  if (body.style) upstreamBody.style = normalizeRecraftStyle(body.style);
-
-  const outputFormat = normalizeRequestedImageFormat(body, "png");
-  if (outputFormat) upstreamBody.output_format = outputFormat;
-
-  if (model.includes("flux-pro/v1.1") && !model.includes("ultra")) {
-    upstreamBody.image_size = mapFalImageSize(body.size, "landscape_4_3");
-  } else if (
-    model.includes("bytedance/") ||
-    model.includes("stable-diffusion") ||
-    model.includes("ideogram") ||
-    model.includes("recraft/v3")
-  ) {
-    upstreamBody.image_size = mapFalImageSize(body.size, "square_hd");
-  } else {
-    upstreamBody.aspect_ratio = body.aspect_ratio || mapFalAspectRatio(body.size, "1:1");
-  }
-
-  if (body.quality === "hd" && model.includes("ultra")) {
-    upstreamBody.raw = true;
-  }
-
-  if (imageUrl && model.includes("flux-pro/v1.1-ultra")) {
-    upstreamBody.image_url = imageUrl;
-  }
-
-  if (imageUrls.length > 0 && model.includes("ideogram")) {
-    upstreamBody.image_urls = imageUrls;
-  }
+  const upstreamBody = prepareFalImageRequest(model, body);
 
   if (log) {
     const promptPreview = String(body.prompt ?? "").slice(0, 60);
@@ -103,3 +75,48 @@ export async function handleFalAIImageGeneration({
   }
 }
 
+function prepareFalImageRequest(model, body) {
+  const upstreamBody: Record<string, unknown> = {
+    prompt: body.prompt,
+    sync_mode: body.sync_mode ?? true,
+  };
+
+  if (body.n !== undefined) upstreamBody.num_images = Number(body.n) || 1;
+  if (body.negative_prompt) upstreamBody.negative_prompt = body.negative_prompt;
+  if (body.seed !== undefined) upstreamBody.seed = body.seed;
+  if (body.style) upstreamBody.style = normalizeRecraftStyle(body.style);
+
+  const outputFormat = normalizeRequestedImageFormat(body, "png");
+  if (outputFormat) upstreamBody.output_format = outputFormat;
+
+  applyFalImageOptions(model, body, upstreamBody);
+  return upstreamBody;
+}
+
+function applyFalImageOptions(model, body, upstreamBody) {
+  const { imageUrl, imageUrls } = extractImageInputs(body);
+  if (model.includes("flux-pro/v1.1") && !model.includes("ultra")) {
+    upstreamBody.image_size = mapFalImageSize(body.size, "landscape_4_3");
+  } else if (
+    model.includes("bytedance/") ||
+    model.includes("stable-diffusion") ||
+    model.includes("ideogram") ||
+    model.includes("recraft/v3")
+  ) {
+    upstreamBody.image_size = mapFalImageSize(body.size, "square_hd");
+  } else {
+    upstreamBody.aspect_ratio = body.aspect_ratio || mapFalAspectRatio(body.size, "1:1");
+  }
+
+  if (body.quality === "hd" && model.includes("ultra")) {
+    upstreamBody.raw = true;
+  }
+
+  if (imageUrl && model.includes("flux-pro/v1.1-ultra")) {
+    upstreamBody.image_url = imageUrl;
+  }
+
+  if (imageUrls.length > 0 && model.includes("ideogram")) {
+    upstreamBody.image_urls = imageUrls;
+  }
+}

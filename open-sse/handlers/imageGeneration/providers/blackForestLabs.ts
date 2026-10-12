@@ -1,7 +1,17 @@
 import { sleep } from "../../../utils/sleep.ts";
 import { sanitizeErrorMessage } from "../../../utils/error.ts";
 import { mapImageSize } from "../../../translator/image/sizeMapper.ts";
-import { extractImageInputs, resolveImageSource, normalizeRequestedImageFormat, normalizeProviderImagePayload, saveImageSuccessResult, saveImageErrorResult, normalizePositiveNumber, parseSizeToDimensions, isHttpUrl } from "../shared.ts";
+import {
+  extractImageInputs,
+  resolveImageSource,
+  normalizeRequestedImageFormat,
+  normalizeProviderImagePayload,
+  saveImageSuccessResult,
+  saveImageErrorResult,
+  normalizePositiveNumber,
+  parseSizeToDimensions,
+  isHttpUrl,
+} from "../shared.ts";
 const BFL_MODEL_ENDPOINTS = {
   "flux-2-max": "/v1/flux-2-max",
   "flux-2-pro": "/v1/flux-2-pro",
@@ -53,36 +63,8 @@ export async function handleBlackForestLabsImageGeneration({
   };
 
   try {
-    if (BFL_EDIT_MODELS.has(model) && imageUrl) {
-      upstreamBody.input_image = (await resolveImageSource(imageUrl)).base64;
-    } else if (imageUrl && isHttpUrl(imageUrl)) {
-      upstreamBody.image_url = imageUrl;
-    }
-
-    if (maskUrl && (model === "flux-pro-1.0-fill" || model === "flux-kontext-pro")) {
-      upstreamBody.mask = (await resolveImageSource(maskUrl)).base64;
-    }
-
-    if (model === "flux-kontext-pro" || model === "flux-kontext-max") {
-      upstreamBody.aspect_ratio = body.aspect_ratio || mapImageSize(body.size);
-    } else if (typeof body.size === "string" && body.size.includes("x")) {
-      const { width, height } = parseSizeToDimensions(body.size, 1024);
-      upstreamBody.width = width;
-      upstreamBody.height = height;
-    }
-
-    if (body.seed !== undefined) upstreamBody.seed = body.seed;
-    if (body.n !== undefined && model.includes("ultra"))
-      upstreamBody.num_images = Number(body.n) || 1;
-    if (body.quality === "hd" && model.includes("ultra")) upstreamBody.raw = true;
-    if (body.left !== undefined) upstreamBody.left = body.left;
-    if (body.right !== undefined) upstreamBody.right = body.right;
-    if (body.top !== undefined) upstreamBody.top = body.top;
-    if (body.bottom !== undefined) upstreamBody.bottom = body.bottom;
-    if (body.steps !== undefined) upstreamBody.steps = body.steps;
-    if (body.guidance !== undefined) upstreamBody.guidance = body.guidance;
-    if (body.grow_mask !== undefined) upstreamBody.grow_mask = body.grow_mask;
-    if (body.safety_tolerance !== undefined) upstreamBody.safety_tolerance = body.safety_tolerance;
+    await prepareBflImageInputs(model, body, imageUrl, maskUrl, upstreamBody);
+    applyBflImageOptions(model, body, upstreamBody);
 
     if (log) {
       const promptPreview = String(body.prompt ?? "").slice(0, 60);
@@ -113,15 +95,7 @@ export async function handleBlackForestLabsImageGeneration({
       });
     }
 
-    const initialPayload = await response.json();
-    const finalPayload = initialPayload.polling_url
-      ? await pollBlackForestLabsResult({
-          pollingUrl: initialPayload.polling_url,
-          token,
-          body,
-          log,
-        })
-      : initialPayload;
+    const finalPayload = await parseBflGenerationResponse(response, token, body, log);
 
     const images = await normalizeProviderImagePayload(finalPayload, body, log, "url");
     return saveImageSuccessResult({
@@ -184,3 +158,49 @@ async function pollBlackForestLabsResult({ pollingUrl, token, body, log }) {
   throw new Error(`BFL polling timed out after ${timeoutMs}ms`);
 }
 
+async function prepareBflImageInputs(model, body, imageUrl, maskUrl, upstreamBody) {
+  if (BFL_EDIT_MODELS.has(model) && imageUrl) {
+    upstreamBody.input_image = (await resolveImageSource(imageUrl)).base64;
+  } else if (imageUrl && isHttpUrl(imageUrl)) {
+    upstreamBody.image_url = imageUrl;
+  }
+
+  if (maskUrl && (model === "flux-pro-1.0-fill" || model === "flux-kontext-pro")) {
+    upstreamBody.mask = (await resolveImageSource(maskUrl)).base64;
+  }
+
+  if (model === "flux-kontext-pro" || model === "flux-kontext-max") {
+    upstreamBody.aspect_ratio = body.aspect_ratio || mapImageSize(body.size);
+  } else if (typeof body.size === "string" && body.size.includes("x")) {
+    const { width, height } = parseSizeToDimensions(body.size, 1024);
+    upstreamBody.width = width;
+    upstreamBody.height = height;
+  }
+}
+
+function applyBflImageOptions(model, body, upstreamBody) {
+  if (body.seed !== undefined) upstreamBody.seed = body.seed;
+  if (body.n !== undefined && model.includes("ultra"))
+    upstreamBody.num_images = Number(body.n) || 1;
+  if (body.quality === "hd" && model.includes("ultra")) upstreamBody.raw = true;
+  if (body.left !== undefined) upstreamBody.left = body.left;
+  if (body.right !== undefined) upstreamBody.right = body.right;
+  if (body.top !== undefined) upstreamBody.top = body.top;
+  if (body.bottom !== undefined) upstreamBody.bottom = body.bottom;
+  if (body.steps !== undefined) upstreamBody.steps = body.steps;
+  if (body.guidance !== undefined) upstreamBody.guidance = body.guidance;
+  if (body.grow_mask !== undefined) upstreamBody.grow_mask = body.grow_mask;
+  if (body.safety_tolerance !== undefined) upstreamBody.safety_tolerance = body.safety_tolerance;
+}
+
+async function parseBflGenerationResponse(response, token, body, log) {
+  const initialPayload = await response.json();
+  return initialPayload.polling_url
+    ? await pollBlackForestLabsResult({
+        pollingUrl: initialPayload.polling_url,
+        token,
+        body,
+        log,
+      })
+    : initialPayload;
+}

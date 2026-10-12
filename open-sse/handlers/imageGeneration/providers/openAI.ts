@@ -62,56 +62,13 @@ export async function handleOpenAIImageGeneration({
 }) {
   const startTime = Date.now();
 
-  // Summarized request for call log
-  const logRequestBody = {
-    model: body.model,
-    prompt:
-      typeof body.prompt === "string"
-        ? body.prompt.slice(0, 200)
-        : String(body.prompt ?? "").slice(0, 200),
-    size: body.size || "default",
-    n: body.n || 1,
-    quality: body.quality || undefined,
-  };
+  const logRequestBody = summarizeOpenAIImageRequest(body);
 
-  // Build upstream request (OpenAI-compatible format)
-  const upstreamBody: Record<string, unknown> =
-    providerConfig.format === "agnes-image"
-      ? buildAgnesImageRequestBody(model, body)
-      : {
-          model,
-          prompt: body.prompt,
-        };
-
-  if (providerConfig.format === "xai-image") {
-    const request = buildXaiImageRequest(model, body);
-    if ("error" in request) return { success: false, status: 400, error: request.error };
-    Object.assign(upstreamBody, request.body);
-  } else if (providerConfig.format !== "agnes-image") {
-    // Pass optional parameters for ordinary OpenAI-compatible providers.
-    if (body.n !== undefined) upstreamBody.n = body.n;
-    if (body.size !== undefined) upstreamBody.size = body.size;
-    if (body.quality !== undefined) upstreamBody.quality = body.quality;
-    if (body.response_format !== undefined) upstreamBody.response_format = body.response_format;
-    if (body.style !== undefined) upstreamBody.style = body.style;
-
-    const { imageUrl } = extractImageInputs(body);
-    if (imageUrl && OPENAI_IMAGE_TO_IMAGE_MODELS.has(model)) {
-      upstreamBody.image_url = imageUrl;
-    }
-  }
-
-  // Build headers
-  let headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-
+  const request = prepareOpenAIImageRequest(model, providerConfig, body);
+  if ("error" in request) return { success: false, status: 400, error: request.error };
+  const upstreamBody = request.body;
   const token = credentials.apiKey || credentials.accessToken;
-  if (token && providerConfig.authHeader === "bearer") {
-    headers["Authorization"] = `Bearer ${token}`;
-  } else if (token && providerConfig.authHeader === "x-api-key") {
-    headers["x-api-key"] = token;
-  }
+  let headers = buildOpenAIImageHeaders(token, providerConfig);
 
   // #8085 — keyless Pollinations image requests (the common free case) get
   // no Authorization header above. Mirror the chat executor's anonymous
@@ -171,22 +128,14 @@ export async function handleOpenAIImageGeneration({
   }
 
   // Save call log after result is determined
-  saveCallLog({
-    method: "POST",
+  saveOpenAIImageCallLog({
     path: "/v1/images/generations",
-    status: result.status || (result.success ? 200 : 502),
-    model: `${provider}/${model}`,
+    result,
     provider,
-    duration: Date.now() - startTime,
-    tokens: { prompt_tokens: 0, completion_tokens: 0 },
-    error: result.success
-      ? null
-      : typeof result.error === "string"
-        ? result.error.slice(0, 500)
-        : null,
+    model,
+    startTime,
     requestBody: logRequestBody,
-    responseBody: result.success ? { images_count: result.data?.data?.length || 0 } : null,
-  }).catch(() => {});
+  });
 
   return result;
 }
@@ -237,36 +186,15 @@ export async function handleOpenAIImageEdit({
     "edits"
   );
 
-  // Build the multipart body as a Buffer with an explicit boundary instead of a global
-  // `FormData`. In production `globalThis.fetch` is patched with node_modules/undici's fetch,
-  // whose `FormData` class differs from `globalThis.FormData` — passing a native FormData
-  // makes undici serialize it as the string "[object FormData]" (text/plain), dropping every
-  // field (including `model`, which reaches the upstream empty). A Buffer body is accepted
-  // verbatim by any fetch implementation. (#3273)
-  const boundary = `----OmniRouteImageEdit${randomUUID().replace(/-/g, "")}`;
-  const CRLF = "\r\n";
-  const partBuffers: Buffer[] = [];
-  const appendField = (name: string, value: string) => {
-    partBuffers.push(
-      Buffer.from(
-        `--${boundary}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${value}${CRLF}`
-      )
-    );
-  };
-  appendField("model", model);
-  appendField("prompt", prompt);
-  if (size) appendField("size", size);
-  if (responseFormat) appendField("response_format", responseFormat);
-  appendField("n", String(n || 1));
-  partBuffers.push(
-    Buffer.from(
-      `--${boundary}${CRLF}Content-Disposition: form-data; name="image"; filename="image.png"${CRLF}` +
-        `Content-Type: ${imageMime || "image/png"}${CRLF}${CRLF}`
-    )
-  );
-  partBuffers.push(imageBytes);
-  partBuffers.push(Buffer.from(`${CRLF}--${boundary}--${CRLF}`));
-  const multipartBody = Buffer.concat(partBuffers);
+  const { boundary, multipartBody } = buildOpenAIImageEditBody({
+    model,
+    prompt,
+    imageBytes,
+    imageMime,
+    size,
+    responseFormat,
+    n,
+  });
 
   const headers: Record<string, string> = {
     "Content-Type": `multipart/form-data; boundary=${boundary}`,
@@ -289,22 +217,14 @@ export async function handleOpenAIImageEdit({
     log
   );
 
-  saveCallLog({
-    method: "POST",
+  saveOpenAIImageCallLog({
     path: "/v1/images/edits",
-    status: result.status || (result.success ? 200 : 502),
-    model: `${provider}/${model}`,
+    result,
     provider,
-    duration: Date.now() - startTime,
-    tokens: { prompt_tokens: 0, completion_tokens: 0 },
-    error: result.success
-      ? null
-      : typeof result.error === "string"
-        ? result.error.slice(0, 500)
-        : null,
+    model,
+    startTime,
     requestBody: { model, prompt: prompt.slice(0, 200), size: size || "default", n: n || 1 },
-    responseBody: result.success ? { images_count: result.data?.data?.length || 0 } : null,
-  }).catch(() => {});
+  });
 
   return result;
 }
@@ -347,13 +267,7 @@ export async function handleOpenRouterImageEdit({
   log?: { info: (tag: string, message: string) => void } | null;
 }) {
   const startTime = Date.now();
-  let url = baseUrl.trim();
-  while (url.endsWith("/")) url = url.slice(0, -1);
-  if (url.endsWith("/images/generations")) {
-    url = url.slice(0, -"/images/generations".length) + "/images";
-  } else if (!url.endsWith("/images")) {
-    url += "/images";
-  }
+  const url = resolveOpenRouterImageEditUrl(baseUrl);
 
   const mime = imageMime || "image/png";
   const upstreamBody: Record<string, unknown> = {
@@ -390,22 +304,156 @@ export async function handleOpenRouterImageEdit({
     log
   );
 
+  saveOpenAIImageCallLog({
+    path: "/v1/images/edits",
+    result,
+    provider,
+    model,
+    startTime,
+    requestBody: { model, prompt: prompt.slice(0, 200), size: size || "default", n: n || 1 },
+  });
+
+  return result;
+}
+
+function prepareOpenAIImageRequest(model, providerConfig, body) {
+  // Build upstream request (OpenAI-compatible format)
+  const upstreamBody: Record<string, unknown> =
+    providerConfig.format === "agnes-image"
+      ? buildAgnesImageRequestBody(model, body)
+      : {
+          model,
+          prompt: body.prompt,
+        };
+
+  if (providerConfig.format === "xai-image") {
+    const request = buildXaiImageRequest(model, body);
+    if ("error" in request) return request;
+    Object.assign(upstreamBody, request.body);
+  } else if (providerConfig.format !== "agnes-image") {
+    applyOpenAIImageOptions(model, body, upstreamBody);
+  }
+
+  return { body: upstreamBody };
+}
+
+function buildOpenAIImageHeaders(token, providerConfig) {
+  // Build headers
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  if (token && providerConfig.authHeader === "bearer") {
+    headers["Authorization"] = `Bearer ${token}`;
+  } else if (token && providerConfig.authHeader === "x-api-key") {
+    headers["x-api-key"] = token;
+  }
+
+  return headers;
+}
+
+function buildOpenAIImageEditBody({
+  model,
+  prompt,
+  imageBytes,
+  imageMime,
+  size,
+  responseFormat,
+  n,
+}) {
+  // Build the multipart body as a Buffer with an explicit boundary instead of a global
+  // `FormData`. In production `globalThis.fetch` is patched with node_modules/undici's fetch,
+  // whose `FormData` class differs from `globalThis.FormData` — passing a native FormData
+  // makes undici serialize it as the string "[object FormData]" (text/plain), dropping every
+  // field (including `model`, which reaches the upstream empty). A Buffer body is accepted
+  // verbatim by any fetch implementation. (#3273)
+  const boundary = `----OmniRouteImageEdit${randomUUID().replace(/-/g, "")}`;
+  const CRLF = "\r\n";
+  const partBuffers: Buffer[] = [];
+  const appendField = (name: string, value: string) => {
+    partBuffers.push(
+      Buffer.from(
+        `--${boundary}${CRLF}Content-Disposition: form-data; name="${name}"${CRLF}${CRLF}${value}${CRLF}`
+      )
+    );
+  };
+  appendField("model", model);
+  appendField("prompt", prompt);
+  if (size) appendField("size", size);
+  if (responseFormat) appendField("response_format", responseFormat);
+  appendField("n", String(n || 1));
+  partBuffers.push(
+    Buffer.from(
+      `--${boundary}${CRLF}Content-Disposition: form-data; name="image"; filename="image.png"${CRLF}` +
+        `Content-Type: ${imageMime || "image/png"}${CRLF}${CRLF}`
+    )
+  );
+  partBuffers.push(imageBytes);
+  partBuffers.push(Buffer.from(`${CRLF}--${boundary}--${CRLF}`));
+  const multipartBody = Buffer.concat(partBuffers);
+
+  return { boundary, multipartBody };
+}
+
+function resolveOpenRouterImageEditUrl(baseUrl) {
+  let url = baseUrl.trim();
+  while (url.endsWith("/")) url = url.slice(0, -1);
+  if (url.endsWith("/images/generations")) {
+    url = url.slice(0, -"/images/generations".length) + "/images";
+  } else if (!url.endsWith("/images")) {
+    url += "/images";
+  }
+
+  return url;
+}
+
+function getOpenAIImageLogError(result) {
+  return result.success
+    ? null
+    : typeof result.error === "string"
+      ? result.error.slice(0, 500)
+      : null;
+}
+
+function summarizeOpenAIImageRequest(body) {
+  // Summarized request for call log
+  return {
+    model: body.model,
+    prompt:
+      typeof body.prompt === "string"
+        ? body.prompt.slice(0, 200)
+        : String(body.prompt ?? "").slice(0, 200),
+    size: body.size || "default",
+    n: body.n || 1,
+    quality: body.quality || undefined,
+  };
+}
+
+function saveOpenAIImageCallLog({ path, result, provider, model, startTime, requestBody }) {
   saveCallLog({
     method: "POST",
-    path: "/v1/images/edits",
+    path,
     status: result.status || (result.success ? 200 : 502),
     model: `${provider}/${model}`,
     provider,
     duration: Date.now() - startTime,
     tokens: { prompt_tokens: 0, completion_tokens: 0 },
-    error: result.success
-      ? null
-      : typeof result.error === "string"
-        ? result.error.slice(0, 500)
-        : null,
-    requestBody: { model, prompt: prompt.slice(0, 200), size: size || "default", n: n || 1 },
+    error: getOpenAIImageLogError(result),
+    requestBody,
     responseBody: result.success ? { images_count: result.data?.data?.length || 0 } : null,
   }).catch(() => {});
+}
 
-  return result;
+function applyOpenAIImageOptions(model, body, upstreamBody) {
+  // Pass optional parameters for ordinary OpenAI-compatible providers.
+  if (body.n !== undefined) upstreamBody.n = body.n;
+  if (body.size !== undefined) upstreamBody.size = body.size;
+  if (body.quality !== undefined) upstreamBody.quality = body.quality;
+  if (body.response_format !== undefined) upstreamBody.response_format = body.response_format;
+  if (body.style !== undefined) upstreamBody.style = body.style;
+
+  const { imageUrl } = extractImageInputs(body);
+  if (imageUrl && OPENAI_IMAGE_TO_IMAGE_MODELS.has(model)) {
+    upstreamBody.image_url = imageUrl;
+  }
 }
