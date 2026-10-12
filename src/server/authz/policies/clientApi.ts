@@ -1,5 +1,9 @@
 import { isDashboardSessionAuthenticated } from "@/shared/utils/apiAuth.ts";
 import { isRequireApiKeyEnabled } from "@/shared/utils/featureFlags";
+import {
+  isSessionExemptClientApiPath,
+  isStrictApiKeyEnforced,
+} from "@/shared/utils/clientApiRouteAuth";
 import { extractApiKey } from "@/sse/services/auth.ts";
 import { extractGoogApiKeyHeader } from "@/sse/services/googApiKeyAuth.ts";
 import type { AuthOutcome, PolicyContext, RoutePolicy } from "../context";
@@ -67,6 +71,21 @@ export const clientApiPolicy: RoutePolicy = {
       }
 
       if (await isDashboardSessionAuthenticated(ctx.request)) {
+        // Strict mode (REQUIRE_API_KEY_STRICT + REQUIRE_API_KEY): a dashboard
+        // session is not a substitute for an API key on routes that dispatch
+        // to providers — otherwise a stolen session can burn upstream quota
+        // with no key in the audit trail. The read-only model catalog stays
+        // session-accessible so the dashboard UI keeps working.
+        if (
+          isStrictApiKeyEnforced() &&
+          !isSessionExemptClientApiPath(ctx.classification.normalizedPath)
+        ) {
+          return reject(
+            401,
+            "AUTH_002",
+            "Authentication required: this endpoint requires a valid API key"
+          );
+        }
         return allow({ kind: "dashboard_session", id: "dashboard" });
       }
 

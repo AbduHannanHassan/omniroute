@@ -73,6 +73,26 @@ export function isRequireApiKeyEnabled(): boolean {
   }
 }
 
+/**
+ * Strict API-key enforcement for inference.
+ *
+ * When true (and REQUIRE_API_KEY is enabled), a dashboard session is no longer
+ * sufficient for API routes that dispatch to providers — only a valid API key
+ * is accepted. Fail-closed like the base flag: an unreadable flag store keeps
+ * enforcement on.
+ */
+export function isStrictApiKeyEnabled(): boolean {
+  try {
+    return isFeatureFlagEnabled("REQUIRE_API_KEY_STRICT");
+  } catch (error) {
+    console.error(
+      "[featureFlags] Failed to resolve REQUIRE_API_KEY_STRICT, defaulting to strict:",
+      error instanceof Error ? error.message : error
+    );
+    return true;
+  }
+}
+
 export function isCcCompatibleProviderEnabled(): boolean {
   return isFeatureFlagEnabled("ENABLE_CC_COMPATIBLE_PROVIDER");
 }

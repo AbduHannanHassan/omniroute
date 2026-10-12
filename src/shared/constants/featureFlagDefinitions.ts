@@ -25,6 +25,18 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "caution",
   },
   {
+    key: "REQUIRE_API_KEY_STRICT",
+    label: "Strict API Key Enforcement",
+    description:
+      "When enabled together with Require API Key, a dashboard session is no longer sufficient for API routes that dispatch to providers — only a valid API key is accepted, so nothing can be upstreamed without one. The read-only model catalog (/v1/models) stays session-accessible so the dashboard UI keeps working. The dashboard playground and other session-based inference are disabled while strict mode is on.",
+    descriptionI18nKey: "featureFlagRequireApiKeyStrictDescription",
+    category: "security",
+    defaultValue: "false",
+    type: "boolean",
+    requiresRestart: false,
+    warningLevel: "caution",
+  },
+  {
     key: "INPUT_SANITIZER_ENABLED",
     label: "Input Sanitizer",
     description: "Enable input sanitization for all requests",
