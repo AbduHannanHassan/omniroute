@@ -174,3 +174,52 @@ test("strict on but REQUIRE_API_KEY off: session allowed (strict is moot)", asyn
   );
   assert.equal(out.allow, true);
 });
+
+// --- enforceClientApiRouteAuth (handler-level defense-in-depth) ----------------
+// These are the checks the route handlers run directly, so a proxy-matcher
+// bypass (e.g. uppercase /V1/ aliases) still hits authentication.
+
+async function routeRequest(pathname: string, headers?: HeadersInit): Promise<Request> {
+  return new Request(`http://localhost${pathname}`, {
+    method: "POST",
+    headers: new Headers(headers),
+  });
+}
+
+test("handler guard: keyless inference request rejected (proxy-bypass safety net)", async () => {
+  const { enforceClientApiRouteAuth } =
+    await import("../../../src/shared/utils/clientApiRouteAuth.ts");
+  const rejection = await enforceClientApiRouteAuth(await routeRequest("/api/v1/chat/completions"));
+  assert.ok(rejection, "keyless request must be rejected at the handler");
+  assert.equal(rejection.status, 401);
+});
+
+test("handler guard: session accepted when strict off (existing behavior)", async () => {
+  const { enforceClientApiRouteAuth } =
+    await import("../../../src/shared/utils/clientApiRouteAuth.ts");
+  const rejection = await enforceClientApiRouteAuth(
+    await routeRequest("/api/v1/chat/completions", { cookie: await dashboardCookie() })
+  );
+  assert.equal(rejection, null);
+});
+
+test("handler guard: session rejected on inference when strict on", async () => {
+  enableStrict();
+  const { enforceClientApiRouteAuth } =
+    await import("../../../src/shared/utils/clientApiRouteAuth.ts");
+  const rejection = await enforceClientApiRouteAuth(
+    await routeRequest("/api/v1/chat/completions", { cookie: await dashboardCookie() })
+  );
+  assert.ok(rejection, "session must be rejected in strict mode");
+  assert.equal(rejection.status, 401);
+});
+
+test("handler guard: session accepted on models catalog when strict on", async () => {
+  enableStrict();
+  const { enforceClientApiRouteAuth } =
+    await import("../../../src/shared/utils/clientApiRouteAuth.ts");
+  const rejection = await enforceClientApiRouteAuth(
+    await routeRequest("/api/v1/models", { cookie: await dashboardCookie() })
+  );
+  assert.equal(rejection, null);
+});
