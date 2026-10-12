@@ -44,6 +44,7 @@ import {
 } from "./rateLimitManager/errors";
 import { LimiterWedgeWatchdog, WATCHDOG_INTERVAL_MS } from "./rateLimitManager/wedgeWatchdog";
 import { createCancellableJob } from "./rateLimitManager/queuedJobCancel";
+import * as bodyRetryPause from "./rateLimitManager/bodyRetryPause";
 import { toNumber } from "@/shared/utils/numeric";
 import type { ConnectionRateLimitOverrides } from "@/lib/db/providers/columns";
 import {
@@ -277,6 +278,7 @@ function updateLimiterSettings(
 ): Bottleneck {
   const effective = limiterEffectiveSettings.get(limiter) ?? {};
   limiterEffectiveSettings.set(limiter, { ...effective, ...updates });
+  if ("reservoir" in updates) bodyRetryPause.forgetLimiterPause(limiter);
   return limiter.updateSettings(updates);
 }
 
@@ -765,6 +767,10 @@ export async function withRateLimit(
     LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE
   );
   if (!queueWaitDisabled && queueRemainingMs <= 0) throw queueTimeoutErr;
+  const pauseErr = queueWaitDisabled
+    ? null
+    : bodyRetryPause.checkLimiterPause(limiter, queueRemainingMs, `${provider}/${model ?? ""}`);
+  if (pauseErr) throw pauseErr;
   const timeoutPromise = new Promise<never>((_, reject) => {
     if (queueWaitDisabled) return; // sentinel: never fires
     delayId = setTimeout(() => {
@@ -930,11 +936,11 @@ export function updateFromHeaders(provider, connectionId, headers, status, model
 
   // Handle 429 — rate limited
   if (status === 429) {
-    const retryAfterMs = parseResetTime(retryAfterStr) || 60000; // Default 60s
+    const retryAfterMs = parseResetTime(retryAfterStr);
     const counts = limiter.counts();
     const limiterKey = getLimiterKey(provider, connectionId, model);
     logRateLimit(
-      `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — 429 received, pausing for ${Math.ceil(retryAfterMs / 1000)}s, dropping ${counts.QUEUED} queued request(s)`
+      `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — 429 received (${retryAfterMs ? `retry-after ${Math.ceil(retryAfterMs / 1000)}s` : "no retry-after header"}), resetting the limiter (headers set no local pause), dropping ${counts.QUEUED} queued request(s)`
     );
 
     // Evict from the cache so follow-up learning from the same error body
@@ -1256,16 +1262,26 @@ export function updateFromResponseBody(provider, connectionId, responseBody, sta
   const { retryAfterMs, reason } = parseRetryAfterFromBody(responseBody);
 
   if (retryAfterMs && retryAfterMs > 0) {
-    const limiter = getLimiter(provider, connectionId, model);
-    logRateLimit(
-      `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason})`
-    );
-
-    updateLimiterSettings(limiter, {
-      reservoir: 0,
-      reservoirRefreshAmount: 60,
-      reservoirRefreshInterval: retryAfterMs,
-    });
+    const queueBudgetMs = resolveRequestQueueMaxWaitMs(provider, undefined, connectionId);
+    const lock = { provider, connectionId, model, status, retryAfterMs, queueBudgetMs, reason };
+    const lockMs = bodyRetryPause.lockModelForLongBodyRetry(lock);
+    if (lockMs !== null) {
+      logRateLimit(
+        `🔒 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason}) exceeds the ${queueBudgetMs}ms queue budget; locking ${model} on this connection for ${Math.ceil(lockMs / 1000)}s instead of pausing its queue`
+      );
+    } else {
+      const fresh = !limiters.has(getLimiterKey(provider, connectionId, model));
+      const limiter = getLimiter(provider, connectionId, model);
+      logRateLimit(
+        `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason})`
+      );
+      updateLimiterSettings(limiter, {
+        reservoir: 0,
+        reservoirRefreshAmount: 60,
+        reservoirRefreshInterval: retryAfterMs,
+      });
+      if (fresh) bodyRetryPause.rememberLimiterPause(limiter, Date.now() + retryAfterMs);
+    }
   }
 
   if (status !== 429) return;
