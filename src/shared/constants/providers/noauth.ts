@@ -32,6 +32,7 @@ export const NOAUTH_PROVIDERS = {
     noAuth: true,
     hasFree: true,
     serviceKinds: ["llm"],
+    toolCalling: "emulated",
     authHint:
       "No API key required — OpenCode's free tier can only be used from within OpenCode (client-contract requests).",
     freeNote:
