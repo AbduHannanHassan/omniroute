@@ -90,8 +90,6 @@ export async function handleBlackForestLabsImageGeneration({
     }
 
     if (body.seed !== undefined) upstreamBody.seed = body.seed;
-    if (body.n !== undefined && model.includes("ultra"))
-      upstreamBody.num_images = Number(body.n) || 1;
     if (body.quality === "hd" && model.includes("ultra")) upstreamBody.raw = true;
     if (body.left !== undefined) upstreamBody.left = body.left;
     if (body.right !== undefined) upstreamBody.right = body.right;

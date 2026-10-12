@@ -73,6 +73,12 @@ import * as codexImages from "./imageGeneration/providers/codexImages.ts";
 import { handleZenmuxImageGeneration } from "./imageGeneration/providers/zenmux.ts";
 import { handleBlackForestLabsImageGeneration } from "./imageGeneration/providers/blackForestLabs.ts";
 import {
+  fanOutSingleImageCalls,
+  IMAGE_FANOUT_MAX_N,
+  resolveRequestedImageCount,
+  SINGLE_IMAGE_FANOUT_FORMATS,
+} from "./imageGeneration/fanOut.ts";
+import {
   applyPollinationsAnonymousFallback,
   reportPollinationsAnonOutcome,
 } from "./imageGeneration/pollinationsAnonAuth.ts";
@@ -498,6 +504,30 @@ export async function handleImageGeneration({
       body,
       credentials,
       log,
+    });
+  }
+
+  const requestedCount = resolveRequestedImageCount(body.n);
+  if (requestedCount > 1 && SINGLE_IMAGE_FANOUT_FORMATS.has(providerConfig.format)) {
+    const count = Math.min(requestedCount, IMAGE_FANOUT_MAX_N);
+    if (count < requestedCount && typeof log?.warn === "function")
+      log.warn("IMAGE", `n=${requestedCount} clamped to ${IMAGE_FANOUT_MAX_N}`);
+    return fanOutSingleImageCalls({
+      body,
+      count,
+      label: `${provider}/${model}`,
+      log,
+      signal,
+      generateOne: (taskBody) =>
+        handleImageGeneration({
+          body: taskBody,
+          credentials,
+          log,
+          resolvedProvider,
+          signal,
+          clientHeaders,
+          peerLocality,
+        }),
     });
   }
 
