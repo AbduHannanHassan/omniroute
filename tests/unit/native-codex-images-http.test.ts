@@ -431,8 +431,26 @@ test(
       testStatus: "active",
       providerSpecificData: { workspacePlanType: "plus" },
     });
-    const blocked = await generate(request());
+    refreshCalls = 0;
+    const unavailable = await generate(request());
+    assert.equal(unavailable.status, 400);
+    assert.match(
+      (await unavailable.json()).error.message,
+      /No credentials for image provider: codex/
+    );
+    assert.equal(calls, 0);
+    assert.equal(refreshCalls, 0);
+    const blockedKey = await createApiKey("fixture-blocked-image-key", "fixture-machine", [], {
+      allowedConnections: ["fixture-unconfigured-connection"],
+      allowedCombos: [comboName],
+    });
+    const blocked = await generate(
+      new Request(request(), {
+        headers: { ...headers, authorization: `Bearer ${blockedKey.key}` },
+      })
+    );
     assert.equal(blocked.status, 403);
     assert.equal(calls, 0);
+    assert.equal(refreshCalls, 0);
   }
 );
