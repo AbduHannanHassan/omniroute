@@ -1,5 +1,5 @@
 import dns from "node:dns";
-import { Agent, type Dispatcher } from "undici";
+import { Agent, Dispatcher1Wrapper, type Dispatcher } from "undici";
 import {
   isCloudMetadataHost,
   isPrivateHost,
@@ -66,6 +66,19 @@ export function createGuardedLookup(
   };
 }
 
+class CompatibleGuardedDispatcher extends Dispatcher1Wrapper {
+  constructor(private readonly agent: Dispatcher) {
+    super(agent);
+  }
+
+  dispatch(options: Dispatcher.DispatchOptions, handler: Dispatcher.DispatchHandler): boolean {
+    // Modern consumers retain HTTP2; only Node's legacy callbacks need the official bridge.
+    return typeof handler?.onRequestStart === "function"
+      ? this.agent.dispatch(options, handler)
+      : super.dispatch(options, handler);
+  }
+}
+
 const guardedDispatchers = new Map<ConnectGuardMode, Dispatcher>();
 
 /**
@@ -88,6 +101,7 @@ export function getGuardedDispatcher(guard: ConnectGuardMode): Dispatcher {
         lookup: createGuardedLookup(guard),
       } as never,
     });
+    dispatcher = new CompatibleGuardedDispatcher(dispatcher);
     guardedDispatchers.set(guard, dispatcher);
   }
   return dispatcher;
