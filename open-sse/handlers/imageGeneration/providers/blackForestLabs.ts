@@ -44,6 +44,54 @@ const BFL_EDIT_MODELS = new Set([
 
 const BFL_FAILURE_STATUSES = new Set(["Error", "Failed", "Content Moderated", "Request Moderated"]);
 
+// Request fields forwarded to api.bfl.ai unchanged when the client sets them.
+const BFL_PASSTHROUGH_FIELDS = [
+  "seed",
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "steps",
+  "guidance",
+  "grow_mask",
+  "safety_tolerance",
+] as const;
+
+async function addBlackForestLabsImageInputs(upstreamBody, model, body) {
+  const { imageUrl, maskUrl } = extractImageInputs(body);
+  if (BFL_EDIT_MODELS.has(model) && imageUrl) {
+    upstreamBody.input_image = (await resolveImageSource(imageUrl)).base64;
+  } else if (imageUrl && isHttpUrl(imageUrl)) {
+    upstreamBody.image_url = imageUrl;
+  }
+
+  if (maskUrl && (model === "flux-pro-1.0-fill" || model === "flux-kontext-pro")) {
+    upstreamBody.mask = (await resolveImageSource(maskUrl)).base64;
+  }
+}
+
+function applyBlackForestLabsSize(upstreamBody, model, body) {
+  if (model === "flux-kontext-pro" || model === "flux-kontext-max") {
+    upstreamBody.aspect_ratio = body.aspect_ratio || mapImageSize(body.size);
+  } else if (typeof body.size === "string" && body.size.includes("x")) {
+    const { width, height } = parseSizeToDimensions(body.size, 1024);
+    upstreamBody.width = width;
+    upstreamBody.height = height;
+  }
+}
+
+function submitBlackForestLabsTask(url, token, upstreamBody) {
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "x-key": token,
+    },
+    body: JSON.stringify(upstreamBody),
+  });
+}
+
 export async function handleBlackForestLabsImageGeneration({
   model,
   provider,
@@ -64,56 +112,26 @@ export async function handleBlackForestLabsImageGeneration({
     };
   }
 
-  const { imageUrl, maskUrl } = extractImageInputs(body);
   const upstreamBody: Record<string, unknown> = {
     prompt: body.prompt,
     output_format: normalizeRequestedImageFormat(body, "png"),
   };
 
   try {
-    if (BFL_EDIT_MODELS.has(model) && imageUrl) {
-      upstreamBody.input_image = (await resolveImageSource(imageUrl)).base64;
-    } else if (imageUrl && isHttpUrl(imageUrl)) {
-      upstreamBody.image_url = imageUrl;
-    }
-
-    if (maskUrl && (model === "flux-pro-1.0-fill" || model === "flux-kontext-pro")) {
-      upstreamBody.mask = (await resolveImageSource(maskUrl)).base64;
-    }
-
-    if (model === "flux-kontext-pro" || model === "flux-kontext-max") {
-      upstreamBody.aspect_ratio = body.aspect_ratio || mapImageSize(body.size);
-    } else if (typeof body.size === "string" && body.size.includes("x")) {
-      const { width, height } = parseSizeToDimensions(body.size, 1024);
-      upstreamBody.width = width;
-      upstreamBody.height = height;
-    }
-
-    if (body.seed !== undefined) upstreamBody.seed = body.seed;
+    await addBlackForestLabsImageInputs(upstreamBody, model, body);
+    applyBlackForestLabsSize(upstreamBody, model, body);
     if (body.quality === "hd" && model.includes("ultra")) upstreamBody.raw = true;
-    if (body.left !== undefined) upstreamBody.left = body.left;
-    if (body.right !== undefined) upstreamBody.right = body.right;
-    if (body.top !== undefined) upstreamBody.top = body.top;
-    if (body.bottom !== undefined) upstreamBody.bottom = body.bottom;
-    if (body.steps !== undefined) upstreamBody.steps = body.steps;
-    if (body.guidance !== undefined) upstreamBody.guidance = body.guidance;
-    if (body.grow_mask !== undefined) upstreamBody.grow_mask = body.grow_mask;
-    if (body.safety_tolerance !== undefined) upstreamBody.safety_tolerance = body.safety_tolerance;
+    for (const key of BFL_PASSTHROUGH_FIELDS) {
+      if (body[key] !== undefined) upstreamBody[key] = body[key];
+    }
 
     if (log) {
       const promptPreview = String(body.prompt ?? "").slice(0, 60);
       log.info("IMAGE", `${provider}/${model} (black-forest-labs) | prompt: "${promptPreview}..."`);
     }
 
-    const response = await fetch(`${providerConfig.baseUrl.replace(/\/$/, "")}${endpoint}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "x-key": token,
-      },
-      body: JSON.stringify(upstreamBody),
-    });
+    const url = `${providerConfig.baseUrl.replace(/\/$/, "")}${endpoint}`;
+    const response = await submitBlackForestLabsTask(url, token, upstreamBody);
 
     if (!response.ok) {
       const errorText = await response.text();
