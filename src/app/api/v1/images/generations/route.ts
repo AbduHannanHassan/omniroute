@@ -367,9 +367,11 @@ async function postHandler(request, context) {
       ? runWithProxyContext(proxyInfo?.proxy || null, generateImage).catch((err: any) => ({
           success: false,
           status: dedicatedCodexImages ? 503 : err.statusCode || 500,
-          error: dedicatedCodexImages
-            ? "Codex Images proxy or transport failed; do not resubmit an unknown outcome"
-            : sanitizeErrorMessage(err.message),
+          error: sanitizeErrorMessage(
+            dedicatedCodexImages
+              ? "Codex Images proxy or transport failed; do not resubmit an unknown outcome"
+              : err.message
+          ),
           ...(dedicatedCodexImages ? { retryable: false } : {}),
         }))
       : generateImage();

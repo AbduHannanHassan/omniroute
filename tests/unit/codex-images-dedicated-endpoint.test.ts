@@ -174,6 +174,7 @@ test("Codex Images errors keep plan guards, terminal outcomes, and privacy", asy
     log: null,
   });
   assert.equal(freePlan.success, false);
+  assert.equal(freePlan.status, 403);
   assert.equal(freePlan.retryable, false);
   assert.equal(fetchCalls, 0);
 
@@ -190,6 +191,7 @@ test("Codex Images errors keep plan guards, terminal outcomes, and privacy", asy
     credentials: { accessToken: "codex-token" },
     log: null,
   });
+  assert.equal(accessError.success, false);
   assert.equal(accessError.status, 400);
   assert.equal(accessError.retryable, false);
 
@@ -203,6 +205,7 @@ test("Codex Images errors keep plan guards, terminal outcomes, and privacy", asy
     credentials: { accessToken: "codex-token" },
     log: null,
   });
+  assert.equal(upstreamError.success, false);
   assert.equal(upstreamError.status, 403);
   assert.equal(upstreamError.retryable, false);
   assert.doesNotMatch(JSON.stringify(upstreamError.error), /upstream-secret/);
@@ -213,7 +216,9 @@ test("Codex Images errors keep plan guards, terminal outcomes, and privacy", asy
     credentials: { accessToken: "codex-token" },
     log: null,
   });
+  assert.equal(empty.success, false);
   assert.equal(empty.status, 502);
+  assert.equal(empty.retryable, false);
   assert.match(String(empty.error), /no usable image data/);
 
   globalThis.fetch = async () =>
