@@ -42,6 +42,9 @@
   "plugins": ["@stryker-mutator/tap-runner"],
   "tap": {
     "testFiles": [
+      "tests/unit/copilot-learned-catalog-15634.test.ts",
+      "tests/unit/copilot-rejection-cache-15634.test.ts",
+      "tests/unit/valid-empty-stop-dispatch-16072.test.ts",
       "tests/unit/route-guard-local-only-sweep.test.ts",
       "tests/unit/characterization-oauth.test.ts",
       "tests/unit/responses-refusal-preservation.test.ts",
