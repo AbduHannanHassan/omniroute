@@ -806,7 +806,11 @@ export function createDisconnectAwareStream(
           noteClientChunk(value);
         } catch (error) {
           if (!streamController.isConnected()) {
-            reader.cancel(new Error("Downstream disconnected")).catch(() => { });
+            // A bounded disconnect drain may already own the inner reader; cancelling
+            // it here would drop the late usage that drain is waiting for.
+            if (!disconnectDrainStarted) {
+              reader.cancel(new Error("Downstream disconnected")).catch(() => {});
+            }
             try {
               controller.close();
             } catch {
@@ -817,7 +821,7 @@ export function createDisconnectAwareStream(
 
           if (clientTerminalSeen) {
             streamController.handleComplete();
-            reader.cancel(new Error("Client terminal seen")).catch(() => { });
+            reader.cancel(new Error("Client terminal seen")).catch(() => {});
             try {
               controller.close();
             } catch {
