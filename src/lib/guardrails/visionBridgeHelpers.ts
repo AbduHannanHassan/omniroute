@@ -7,6 +7,7 @@ import { fetchRemoteImage } from "@/shared/network/remoteImageFetch";
 import { getRuntimePorts } from "@/lib/runtime/ports";
 import { resolveSelfLoopBearer } from "@/shared/middleware/chatBodyAdmission";
 import { getBestVisionModel, getFallbackModels, recordLatency } from "./visionBridgeRouter";
+import { combineCredentialChecks } from "./visionBridgeKeyScope";
 import { REGISTRY } from "@omniroute/open-sse/config/providers";
 import { fetch as undiciFetch } from "undici";
 /**
@@ -356,7 +357,16 @@ export interface VisionModelConfig {
   fetchImpl?: typeof fetch;
   /** Receives the actual successful model while the public return value remains a string. */
   onModelUsed?: (model: string) => void;
+  /**
+   * Caller API-key scope. Model selection is limited to what the key may use,
+   * and the describe call goes through the OmniRoute self-loop carrying the key
+   * id so the key's connection/model policy is enforced on the sub-request.
+   */
+  keyScope?: import("./visionBridgeKeyScope").VisionBridgeKeyScope;
 }
+
+/** Self-loop header that scopes an internal describe call to the caller's API key. */
+export const SELF_LOOP_KEY_ID_HEADER = "x-omniroute-self-loop-key-id";
 
 /** Task-aware focus hint (codex-vision-proxy pattern): steer the description
  * toward what the user actually asked, instead of a generic caption. */
@@ -385,6 +395,18 @@ export async function callVisionModel(
 ): Promise<string> {
   if (config.signal?.aborted) {
     throw new Error("Vision model call aborted");
+  }
+
+  // A key-scoped call selects (and falls back) only among models the key may
+  // use, in its own selection-cache partition.
+  if (config.keyScope) {
+    routerConfig = { ...routerConfig, cacheScope: config.keyScope.cacheScope };
+    deps = {
+      ...deps,
+      hasUsableCredentials: deps?.hasUsableCredentials
+        ? combineCredentialChecks(deps.hasUsableCredentials, config.keyScope)
+        : config.keyScope.hasUsableCredentials,
+    };
   }
 
   // Auto-select the best vision model. `deps` is the router's existing
@@ -675,7 +697,9 @@ async function callVisionModelSingle(
   // body reaches the backend as a data URI (the OpenAI→claude translator only
   // preserves data URIs as base64; remote URLs become source.url which these
   // backends reject).
-  const routeThroughOmniRoute = config.routeThroughOmniRoute === true;
+  // A key-scoped describe always goes through the self-loop: direct provider
+  // calls with operator env keys would bypass the key's connection policy.
+  const routeThroughOmniRoute = config.routeThroughOmniRoute === true || Boolean(config.keyScope);
   const isAnthropic = !routeThroughOmniRoute && config.model.startsWith("anthropic/");
   const requiresBase64 = isAnthropic || isClaudeWireFormatModel(config.model);
 
@@ -797,6 +821,10 @@ async function callVisionModelSingle(
         // this header when the bearer is the self-loop bearer (set above), so
         // external clients cannot use it to bypass admission.
         headers["x-omniroute-admission-bypass"] = "internal";
+        // Scope the sub-request to the caller's key: the receiving chat request
+        // applies that key's connection/model policy (honored only alongside the
+        // self-loop bearer, so it can only narrow access).
+        if (config.keyScope) headers[SELF_LOOP_KEY_ID_HEADER] = config.keyScope.apiKeyId;
       }
 
       response = await fetchImpl(`${baseUrl}/chat/completions`, {
