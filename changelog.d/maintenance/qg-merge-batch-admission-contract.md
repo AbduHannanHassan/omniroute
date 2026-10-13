@@ -1,0 +1,1 @@
+Version the batch-merge workflow alongside the shared quality contracts and detect missing or drifted installations. Combined focused validation remains diagnostic; each actual landing follows current-candidate admission and contributor-credit rules without administrative or blanket rebaseline exceptions.
