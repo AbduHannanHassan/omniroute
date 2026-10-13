@@ -119,7 +119,13 @@ function findModelPricing(
   return null;
 }
 
-function resolveModelPricing(
+export type PricingResolutionContext = {
+  cache: Map<string, Record<string, unknown> | null>;
+  reverseAlias: Record<string, string>;
+  misses?: { count: number };
+};
+
+function resolveModelPricingUncached(
   pricingByProvider: PricingByProvider,
   providerAliasMap: Record<string, string>,
   providerRaw: string,
@@ -146,13 +152,46 @@ function resolveModelPricing(
   return null;
 }
 
+function resolveModelPricing(
+  pricingByProvider: PricingByProvider,
+  providerAliasMap: Record<string, string>,
+  provider: string,
+  model: string,
+  normalizeModelName: (model: string) => string,
+  serviceTier: string,
+  context?: PricingResolutionContext
+): Record<string, unknown> | null {
+  if (!context) {
+    return resolveModelPricingUncached(
+      pricingByProvider,
+      providerAliasMap,
+      provider,
+      model,
+      normalizeModelName
+    );
+  }
+  const key = `${provider}\n${model}\n${serviceTier}`;
+  if (context.cache.has(key)) return context.cache.get(key) ?? null;
+  const resolved = resolveModelPricingUncached(
+    pricingByProvider,
+    context.reverseAlias,
+    provider,
+    model,
+    normalizeModelName
+  );
+  context.cache.set(key, resolved);
+  if (context.misses) context.misses.count += 1;
+  return resolved;
+}
+
 export function computeUsageRowCost(
   row: Record<string, unknown>,
   pricingByProvider: PricingByProvider,
   providerAliasMap: Record<string, string>,
   normalizeModelName: (model: string) => string,
   computeCostFromPricing: ComputeCostFromPricing,
-  flatRateAsZero = true
+  flatRateAsZero = true,
+  pricingContext?: PricingResolutionContext
 ): number {
   const provider = toStringValue(row.provider);
   const model = toStringValue(row.model);
@@ -174,7 +213,9 @@ export function computeUsageRowCost(
     providerAliasMap,
     provider,
     model,
-    normalizeModelName
+    normalizeModelName,
+    serviceTier,
+    pricingContext
   );
   if (!pricing) return 0;
 
@@ -202,7 +243,8 @@ export function computeUsageRowStandardCost(
   providerAliasMap: Record<string, string>,
   normalizeModelName: (model: string) => string,
   computeCostFromPricing: ComputeCostFromPricing,
-  flatRateAsZero = true
+  flatRateAsZero = true,
+  pricingContext?: PricingResolutionContext
 ): number {
   return computeUsageRowCost(
     {
@@ -218,7 +260,8 @@ export function computeUsageRowStandardCost(
     providerAliasMap,
     normalizeModelName,
     computeCostFromPricing,
-    flatRateAsZero
+    flatRateAsZero,
+    pricingContext
   );
 }
 
