@@ -185,3 +185,63 @@ test("extractApiKey skips the path-scoped token when allowUrl is false (manageme
   });
   assert.equal(extractApiKey(withHeader, { allowUrl: false }), "sk-header-wins");
 });
+
+// JetBrains Air's local BYOK proxy forwards the Claude engine's requests as
+// `Authorization: Bearer acp-proxy` plus the user's real key in `x-api-key`
+// (Anthropic-style, so `anthropic-version` is present). The literal bearer is
+// a placeholder that only satisfies the SDK; it must not shadow the real key.
+test("extractApiKey prefers the Anthropic x-api-key over the Air 'acp-proxy' placeholder Bearer", () => {
+  const req = makeRequest({
+    Authorization: "Bearer acp-proxy",
+    "x-api-key": "sk-real-key",
+    ...ANTHROPIC,
+  });
+  assert.equal(extractApiKey(req), "sk-real-key");
+});
+
+test("extractApiKey matches the placeholder case-insensitively and ignores padding", () => {
+  const req = makeRequest({
+    Authorization: "bearer   ACP-Proxy  ",
+    "x-api-key": "sk-real-key",
+    ...ANTHROPIC,
+  });
+  assert.equal(extractApiKey(req), "sk-real-key");
+});
+
+test("extractApiKey honours the placeholder override for claude-cli / Anthropic user agents too", () => {
+  const req = makeRequest({
+    Authorization: "Bearer acp-proxy",
+    "x-api-key": "sk-real-key",
+    "user-agent": "claude-cli/2.1.293 (external, sdk-ts, agent-sdk/0.3.293)",
+  });
+  assert.equal(extractApiKey(req), "sk-real-key");
+});
+
+test("extractApiKey keeps the placeholder Bearer when x-api-key is not eligible (no anthropic-version / UA gate)", () => {
+  const req = makeRequest({ Authorization: "Bearer acp-proxy", "x-api-key": "placeholder-key" });
+  assert.equal(extractApiKey(req), "acp-proxy");
+});
+
+test("extractApiKey keeps the placeholder Bearer when there is no x-api-key to fall back to", () => {
+  assert.equal(
+    extractApiKey(makeRequest({ Authorization: "Bearer acp-proxy", ...ANTHROPIC })),
+    "acp-proxy"
+  );
+  assert.equal(
+    extractApiKey(
+      makeRequest({ Authorization: "Bearer acp-proxy", "x-api-key": "   ", ...ANTHROPIC })
+    ),
+    "acp-proxy"
+  );
+});
+
+test("extractApiKey still lets every other Bearer win over x-api-key (placeholder match is exact)", () => {
+  for (const bearer of ["sk-real-bearer", "acp-proxy-2", "my-acp-proxy", "acp_proxy"]) {
+    const req = makeRequest({
+      Authorization: `Bearer ${bearer}`,
+      "x-api-key": "sk-other-key",
+      ...ANTHROPIC,
+    });
+    assert.equal(extractApiKey(req), bearer, `Bearer ${bearer} must keep priority`);
+  }
+});

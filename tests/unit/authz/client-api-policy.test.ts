@@ -285,6 +285,60 @@ test("clientApiPolicy: existing x-api-key still wins over x-goog-api-key when bo
   }
 });
 
+// JetBrains Air's local BYOK proxy forwards the Claude engine's requests as
+// `Authorization: Bearer acp-proxy` (an SDK placeholder) plus the user's real
+// key in `x-api-key`. The placeholder must not shadow the real key.
+test("clientApiPolicy: Air placeholder Bearer + valid x-api-key authenticates with the x-api-key", async () => {
+  const created = await apiKeysDb.createApiKey("policy-test-air-proxy", "machine-air-1234");
+  assert.ok(created?.key, "createApiKey must return a key");
+
+  const policy = await loadPolicy();
+  const headers = new Headers({
+    authorization: "Bearer acp-proxy",
+    "x-api-key": created.key,
+    "anthropic-version": "2023-06-01",
+  });
+  const out = await policy.evaluate(ctx(headers));
+  assert.equal(out.allow, true);
+  if (out.allow) {
+    assert.equal(out.subject.kind, "client_api_key");
+    assert.match(out.subject.id, /^key_/);
+  }
+});
+
+test("clientApiPolicy: Air placeholder Bearer + invalid x-api-key is still rejected", async () => {
+  const policy = await loadPolicy();
+  const headers = new Headers({ authorization: "Bearer acp-proxy", "x-api-key": "sk-invalid-air" });
+  const out = await policy.evaluate(ctx(headers));
+  assert.equal(out.allow, false);
+  if (!out.allow) {
+    assert.equal(out.status, 401);
+    assert.equal(out.code, "AUTH_002");
+  }
+});
+
+test("clientApiPolicy: placeholder Bearer alone is rejected like any other invalid bearer", async () => {
+  const policy = await loadPolicy();
+  const out = await policy.evaluate(ctx(new Headers({ authorization: "Bearer acp-proxy" })));
+  assert.equal(out.allow, false);
+  if (!out.allow) assert.equal(out.status, 401);
+});
+
+test("clientApiPolicy: a real Bearer keeps priority over a different x-api-key", async () => {
+  const bearer = await apiKeysDb.createApiKey("policy-test-bearer-wins", "machine-bw-1234");
+  assert.ok(bearer?.key, "createApiKey must return a key");
+
+  const policy = await loadPolicy();
+  const out = await policy.evaluate(
+    ctx(new Headers({ authorization: `Bearer ${bearer.key}`, "x-api-key": "sk-invalid-other" }))
+  );
+  assert.equal(out.allow, true);
+  const rejected = await policy.evaluate(
+    ctx(new Headers({ authorization: "Bearer sk-invalid-bearer", "x-api-key": bearer.key }))
+  );
+  assert.equal(rejected.allow, false, "an invalid real Bearer must not fall back to x-api-key");
+});
+
 test("clientApiPolicy: invalid x-goog-api-key is rejected with 401 AUTH_002 (#7034)", async () => {
   const policy = await loadPolicy();
   const headers = new Headers({ "x-goog-api-key": "sk-invalid-goog-key" });

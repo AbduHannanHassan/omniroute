@@ -5,6 +5,10 @@ import { randomUUID } from "crypto";
 import { getProviderSearchPool } from "@omniroute/open-sse/services/providerConnectionPool.ts";
 import { hydrateConnectionProviderSpecificData } from "./compatibleNodeBaseUrl.ts"; // #13452
 import { extractGoogApiKeyHeader } from "./googApiKeyAuth.ts";
+import {
+  extractAnthropicApiKeyHeader,
+  resolveAuthorizationBearer,
+} from "./clientPlaceholderBearer.ts";
 import { describeUpstreamFailure } from "@/shared/utils/upstreamError";
 import { buildAllExpiredCredentials } from "./authExpiredCredentials.ts";
 import { pickExpiryFirstConnection } from "./expiryFirstAccountSelection.ts";
@@ -3536,32 +3540,13 @@ export function extractApiKey(request: AuthRequestLike, opts?: { allowUrl?: bool
   const authHeader =
     readHeaderValue(request?.headers, "Authorization") ||
     readHeaderValue(request?.headers, "authorization");
-  if (typeof authHeader === "string") {
-    const trimmedHeader = authHeader.trim();
-    if (trimmedHeader.toLowerCase().startsWith("bearer ")) {
-      return trimmedHeader.slice(7).trim() || null;
-    }
-  }
+  // A client placeholder Bearer (JetBrains Air's `acp-proxy`) yields to x-api-key; see helper.
+  const bearer = resolveAuthorizationBearer(authHeader, request?.headers);
+  if (bearer !== undefined) return bearer;
 
-  // Issue #2225: Anthropic Messages API clients authenticate via x-api-key.
-  // Gate the fallback on anthropic-version OR a claude-code/anthropic user-agent so we
-  // don't trip up local-mode requests from non-Anthropic clients that send placeholder
-  // x-api-key values (which would otherwise be rejected as Invalid API key).
-  const anthropicVersion =
-    readHeaderValue(request?.headers, "anthropic-version") ||
-    readHeaderValue(request?.headers, "Anthropic-Version");
-  const userAgent =
-    readHeaderValue(request?.headers, "user-agent") ||
-    readHeaderValue(request?.headers, "User-Agent");
-  if (anthropicVersion || (userAgent && /claude-code|claude-cli|anthropic/i.test(userAgent))) {
-    const xApiKey =
-      readHeaderValue(request?.headers, "x-api-key") ||
-      readHeaderValue(request?.headers, "X-Api-Key");
-    if (typeof xApiKey === "string") {
-      const trimmed = xApiKey.trim();
-      if (trimmed.length > 0) return trimmed;
-    }
-  }
+  // Issue #2225: Anthropic Messages API clients authenticate via x-api-key (gated, see helper).
+  const xApiKey = extractAnthropicApiKeyHeader(request?.headers);
+  if (xApiKey) return xApiKey;
 
   const xGoogApiKey = extractGoogApiKeyHeader(request?.headers); // Issue #7034
   if (xGoogApiKey) return xGoogApiKey;
