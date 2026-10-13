@@ -31,10 +31,10 @@ import { NextResponse } from "next/server";
 import { load as yamlLoad } from "js-yaml";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 
-export const CONFIG_UNPARSEABLE_CODE = "config_unparseable";
+const CONFIG_UNPARSEABLE_CODE = "config_unparseable";
 
 /** `~/.codex/auth.json` for files under the home directory, the basename otherwise. */
-export function displayConfigPath(filePath: string): string {
+function displayConfigPath(filePath: string): string {
   const home = os.homedir();
   const relative = home ? path.relative(home, filePath) : "";
   if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
