@@ -257,7 +257,10 @@ function createVideoResultCacheIdentity(
   return {
     analysisMode: analysis.analysisMode,
     cacheVersion: VIDEO_BRIDGE_RESULT_CACHE_VERSION,
-    dedupCandidateFrameCount: resolveVideoDedupCandidateFrameCount(runtime.frameCount),
+    dedupCandidateFrameCount: resolveVideoDedupCandidateFrameCount(
+      runtime.frameCount,
+      runtime.samplingPolicy
+    ),
     dedupPolicyVersion: VIDEO_DEDUP_POLICY_VERSION,
     dedupThreshold: VIDEO_DEDUP_THRESHOLD,
     extractorVersion: VIDEO_BRIDGE_RESULT_CACHE_VERSION,
