@@ -1087,6 +1087,8 @@ async function postHandler(request: Request, _context?: unknown) {
       provider: parsed.provider,
       requestedModel: resolvedModel,
       credentials,
+      // GHSA-3w2r: account fallback stays inside the key's connection scope.
+      allowedConnections,
       execute: (creds) =>
         handleImageGeneration({
           body: {

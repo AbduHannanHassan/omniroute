@@ -2,6 +2,7 @@ import { getAllCustomModels } from "@/lib/db/models";
 import { parseVideoModel } from "@omniroute/open-sse/config/videoRegistry.ts";
 import { getProviderCredentialsWithQuotaPreflight } from "@/sse/services/auth";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
+import { withoutKeyScopeBlocked } from "@/sse/services/keyConnectionScope";
 
 export type VideoModelTarget = {
   provider: string | null;
@@ -73,8 +74,15 @@ export function isVideoPromptOptional(parsed: { provider: string | null; model: 
  * by the direct route and the combo executor so a configured ComfyUI base URL
  * is honored the same way regardless of which path dispatched the request.
  */
-export async function resolveLocalOverrideCredentials(provider: string) {
-  const localCredentials = await getProviderCredentialsWithQuotaPreflight(provider);
+export async function resolveLocalOverrideCredentials(
+  provider: string,
+  allowedConnections: string[] | null = null
+) {
+  // GHSA-3w2r: a connection outside the caller key's scope is never used for
+  // the override; the provider then runs on its zero-configuration default.
+  const localCredentials = withoutKeyScopeBlocked(
+    await getProviderCredentialsWithQuotaPreflight(provider, null, allowedConnections)
+  );
   return localCredentials && !isAllRateLimitedCredentials(localCredentials)
     ? localCredentials
     : null;

@@ -18,7 +18,12 @@ import { resolveDynamicAudioProviders } from "@/app/api/v1/_shared/audioProvider
 import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
-import { intersectAllowedConnectionIds } from "@/sse/handlers/chat/connectionConstraints";
+import {
+  createComboTargetKeyGate,
+  isKeyScopeBlockedCredentials,
+  keyScopeBlockedResponse,
+  resolveKeyConnectionScope,
+} from "@/sse/services/keyConnectionScope";
 import {
   isAllRateLimitedCredentials,
   rateLimitedProviderResponse,
@@ -131,8 +136,9 @@ async function transcribeWithModel(
     );
     // Prefix match wins (`deepgram/nova-3` → native Deepgram). If that
     // provider has no credentials, retry gateways that list the same nested
-    // model id (e.g. OpenRouter's `deepgram/nova-3`).
-    if (!credentials) {
+    // model id (e.g. OpenRouter's `deepgram/nova-3`). A pool emptied by the
+    // key's scope may still be served by an in-scope gateway.
+    if (!credentials || isKeyScopeBlockedCredentials(credentials)) {
       const candidates = audioModelAliasCandidates(modelStr, provider, resolvedModel);
       const alternate = findAlternateAudioProvider(
         AUDIO_TRANSCRIPTION_PROVIDERS,
@@ -145,7 +151,11 @@ async function transcribeWithModel(
           null,
           allowedConnections
         );
-        if (alternateCredentials && !isAllRateLimitedCredentials(alternateCredentials)) {
+        if (
+          alternateCredentials &&
+          !isAllRateLimitedCredentials(alternateCredentials) &&
+          !isKeyScopeBlockedCredentials(alternateCredentials)
+        ) {
           provider = alternate.provider;
           resolvedModel = alternate.model;
           providerConfig = alternate.config;
@@ -162,6 +172,9 @@ async function transcribeWithModel(
           listAlternateAudioModelIds(AUDIO_TRANSCRIPTION_PROVIDERS, provider, candidates)
         )
       );
+    }
+    if (isKeyScopeBlockedCredentials(credentials)) {
+      return keyScopeBlockedResponse(provider, credentials);
     }
     if (isAllRateLimitedCredentials(credentials)) {
       return rateLimitedProviderResponse(provider, credentials);
@@ -256,10 +269,9 @@ export async function POST(request) {
   // GHSA-3w2r: credential selection stays on the key's allowed connections
   // (for the internal self-loop bearer, the Audio Bridge's narrowed scope —
   // see applySelfLoopConnectionScope). null = the key is not connection-scoped.
-  const allowedConnections = intersectAllowedConnectionIds(
-    policy.apiKeyInfo?.allowedConnections ?? null,
-    null
-  );
+  const scope = await resolveKeyConnectionScope(policy.apiKeyInfo);
+  if (scope.rejection) return scope.rejection;
+  const { allowedConnections } = scope;
 
   // A bare name (no "/") may be a combo. /v1/models advertises combos, and chat and
   // embeddings both resolve them — resolving here too keeps the catalog honest and
@@ -289,7 +301,7 @@ export async function POST(request) {
               apiKeyName,
               allowedConnections
             ),
-          isModelAvailable: undefined,
+          isModelAvailable: createComboTargetKeyGate(policy, modelStr),
           log,
           settings,
           allCombos: allCombos as any,

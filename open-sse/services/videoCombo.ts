@@ -24,6 +24,12 @@ import {
   clearRecoveredProviderState,
 } from "@/sse/services/auth";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
+import {
+  comboTargetsNotAllowedResponse,
+  filterComboTargetsForKey,
+  isKeyScopeBlockedCredentials,
+  type ComboKeyScope,
+} from "@/sse/services/keyConnectionScope";
 import { handleVideoGeneration } from "@omniroute/open-sse/handlers/videoGeneration.ts";
 import {
   isMediaGenerationFailure,
@@ -51,6 +57,8 @@ export async function executeVideoCombo(
   auth: {
     request: Request;
     policy: { apiKeyInfo?: { id?: string; name?: string } | null };
+    /** GHSA-3w2r: the caller key's scope; omitted = unrestricted (unchanged). */
+    keyScope?: ComboKeyScope;
   },
   startTime: number,
   log: typeof logger
@@ -61,10 +69,13 @@ export async function executeVideoCombo(
   }
 
   const allCombos = await getCombos();
-  const targets = resolveComboTargets(combo as never, allCombos as never);
-  if (!targets || targets.length === 0) {
+  const resolvedTargets = resolveComboTargets(combo as never, allCombos as never);
+  if (!resolvedTargets || resolvedTargets.length === 0) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, `Combo "${comboName}" has no usable targets`);
   }
+  const allowedConnections = auth.keyScope?.allowedConnections ?? null;
+  const targets = await filterComboTargetsForKey(resolvedTargets, auth.keyScope?.isTargetAllowed);
+  if (targets.length === 0) return comboTargetsNotAllowedResponse(comboName);
 
   // Resolve every target once — built-in registry first, then custom
   // OpenAI-compatible provider nodes tagged with the "videos" endpoint —
@@ -140,7 +151,9 @@ export async function executeVideoCombo(
       if (providerConfig && providerConfig.authType !== "none") {
         try {
           credentials = await getProviderCredentialsWithQuotaPreflight(
-            resolveVideoCredentialProvider(targetProvider)
+            resolveVideoCredentialProvider(targetProvider),
+            null,
+            allowedConnections
           );
         } catch {
           lastError = { status: 502, error: `Failed to resolve credentials for ${targetProvider}` };
@@ -157,6 +170,15 @@ export async function executeVideoCombo(
           return;
         }
 
+        if (isKeyScopeBlockedCredentials(credentials)) {
+          lastError = {
+            status: 403,
+            error: `[${targetProvider}] No connection allowed for this API key`,
+          };
+          fallbackCount += 1;
+          return;
+        }
+
         if (isAllRateLimitedCredentials(credentials)) {
           lastError = { status: 429, error: `[${targetProvider}] All accounts rate limited` };
           fallbackCount += 1;
@@ -167,7 +189,7 @@ export async function executeVideoCombo(
           credentials = await getProviderCredentialsWithQuotaPreflight(
             targetProvider,
             null,
-            null,
+            allowedConnections,
             targetModel
           );
         } catch {
@@ -185,13 +207,22 @@ export async function executeVideoCombo(
           return;
         }
 
+        if (isKeyScopeBlockedCredentials(credentials)) {
+          lastError = {
+            status: 403,
+            error: `[${targetProvider}] No connection allowed for this API key`,
+          };
+          fallbackCount += 1;
+          return;
+        }
+
         if (isAllRateLimitedCredentials(credentials)) {
           lastError = { status: 429, error: `[${targetProvider}] All accounts rate limited` };
           fallbackCount += 1;
           return;
         }
       } else if (providerConfig?.authType === "none") {
-        credentials = await resolveLocalOverrideCredentials(targetProvider);
+        credentials = await resolveLocalOverrideCredentials(targetProvider, allowedConnections);
       }
 
       const result: MediaGenerationResultLike = await handleVideoGeneration({

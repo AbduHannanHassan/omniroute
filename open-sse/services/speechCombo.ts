@@ -20,6 +20,12 @@ import {
   clearRecoveredProviderState,
 } from "@/sse/services/auth";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
+import {
+  comboTargetsNotAllowedResponse,
+  filterComboTargetsForKey,
+  isKeyScopeBlockedCredentials,
+  type ComboKeyScope,
+} from "@/sse/services/keyConnectionScope";
 import { handleAudioSpeech } from "@omniroute/open-sse/handlers/audioSpeech.ts";
 import { attachOmniRouteMetaToResponse } from "@/domain/omnirouteResponseMeta";
 import { generateRequestId } from "@/shared/utils/requestId";
@@ -30,11 +36,16 @@ import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
 
 /**
  * Execute a full combo strategy for a text-to-speech request.
+ *
+ * `keyScope` (GHSA-3w2r) keeps the fan-out inside the caller API key's scope:
+ * targets its model policy refuses are dropped and every credential lookup is
+ * bounded by its allowed connections. Omitted = unrestricted (unchanged).
  */
 export async function executeSpeechCombo(
   comboName: string,
   body: Record<string, unknown>,
-  startTime: number
+  startTime: number,
+  keyScope: ComboKeyScope = {}
 ): Promise<Response> {
   const combo = await getComboByName(comboName);
   if (!combo) {
@@ -42,10 +53,12 @@ export async function executeSpeechCombo(
   }
 
   const allCombos = await getCombos();
-  const targets = resolveComboTargets(combo as never, allCombos as never);
-  if (!targets || targets.length === 0) {
+  const resolvedTargets = resolveComboTargets(combo as never, allCombos as never);
+  if (!resolvedTargets || resolvedTargets.length === 0) {
     return errorResponse(HTTP_STATUS.BAD_REQUEST, `Combo "${comboName}" has no usable targets`);
   }
+  const targets = await filterComboTargetsForKey(resolvedTargets, keyScope.isTargetAllowed);
+  if (targets.length === 0) return comboTargetsNotAllowedResponse(comboName);
 
   // Dynamic provider nodes are resolved once and reused for every target, the
   // same list the direct route builds.
@@ -98,9 +111,22 @@ export async function executeSpeechCombo(
     if (providerConfig && providerConfig.authType !== "none") {
       const credentialKey = providerConfig.credentialProviderId || targetProvider;
       try {
-        credentials = await getProviderCredentialsWithQuotaPreflight(credentialKey);
+        credentials = await getProviderCredentialsWithQuotaPreflight(
+          credentialKey,
+          null,
+          keyScope.allowedConnections ?? null
+        );
       } catch {
         lastError = { status: 502, error: `Failed to resolve credentials for ${targetProvider}` };
+        fallbackCount += 1;
+        continue;
+      }
+
+      if (isKeyScopeBlockedCredentials(credentials)) {
+        lastError = {
+          status: 403,
+          error: `[${targetProvider}] No connection allowed for this API key`,
+        };
         fallbackCount += 1;
         continue;
       }
