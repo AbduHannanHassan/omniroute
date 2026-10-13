@@ -15,7 +15,7 @@ process.env.DATA_DIR = TEST_DATA_DIR;
 const core = await import("../../src/lib/db/core.ts");
 const { handleChatCore } = await import("../../open-sse/handlers/chatCore.ts");
 const { dropForeignServerToolUseBlocks } =
-  await import("../../open-sse/handlers/chatCore/passthroughHelpers.ts");
+  await import("../../open-sse/handlers/chatCore/anthropicPassthroughHistory.ts");
 
 const originalFetch = globalThis.fetch;
 
