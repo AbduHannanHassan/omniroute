@@ -11,6 +11,7 @@ const CONTRACTS = [
   "green-prs/SKILL.md",
   "sweep-reds/SKILL.md",
   "merge-prs/SKILL.md",
+  "merge-batch/SKILL.md",
   "_shared/merge-gates.md",
   "_shared/validation-gate.md",
 ];

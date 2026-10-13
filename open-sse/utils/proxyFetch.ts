@@ -799,10 +799,10 @@ async function patchedFetchUnrecorded(
   // #13593: a hop back to this listener carries the process self-hop token
   // so admission does not shed it with public traffic.
   stampOwnListenerSelfHop(input, options);
-  // Explicit direct contexts must win even when a caller supplied a stale
-  // dispatcher. Native fetch preserves direct streaming semantics.
+  // Explicit direct contexts discard stale dispatchers and preserve native streaming.
   if (proxyContext.getStore() === DIRECT_PROXY_CONTEXT) {
-    return originalFetch(input, options);
+    const { dispatcher: _dispatcher, ...directOptions } = options;
+    return originalFetch(input, directOptions);
   }
 
   if (options?.dispatcher) {

@@ -1,0 +1,1 @@
+- Fail the file-size gate when the requested Git base cannot be read, and read source/test baseline blobs in batches from one resolved commit. Preserve existing size ceilings and base-relative growth checks.

@@ -1,0 +1,1 @@
+Explicit direct fetch contexts now discard a caller-supplied dispatcher before using native fetch. This prevents incompatible or stale dispatchers from overriding the direct route, preserves request options without mutating the caller's object, and leaves ordinary dispatcher-based routing unchanged.

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { inspectSkillContracts } from "../../../scripts/quality/check-skill-contract.mjs";
 
-test("all admission consumers and shared merge rules are covered by the drift contract", () => {
+test("versioned admission consumers and shared merge rules are covered by the drift contract", () => {
   const expected = [
     "quality-scan/SKILL.md",
     "validate-release-green/SKILL.md",
@@ -13,6 +13,7 @@ test("all admission consumers and shared merge rules are covered by the drift co
     "green-prs/SKILL.md",
     "sweep-reds/SKILL.md",
     "merge-prs/SKILL.md",
+    "merge-batch/SKILL.md",
     "_shared/merge-gates.md",
     "_shared/validation-gate.md",
   ];
@@ -41,6 +42,32 @@ test("the skill contract distinguishes installed, drifted and missing instructio
     const missing = inspectSkillContracts(root);
     assert.equal(missing.ok, false);
     assert.equal(missing.files.find((f) => f.path === "quality-scan/SKILL.md")?.status, "MISSING");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the batch-merge consumer cannot be omitted or independently changed", () => {
+  const dir = mkdtempSync(join(tmpdir(), "omniroute-batch-contract-"));
+  const root = join(dir, "skills");
+  try {
+    cpSync("config/quality/skill-templates", root, { recursive: true });
+    const file = join(root, "merge-batch/SKILL.md");
+    const approved = readFileSync(file, "utf8");
+    rmSync(file);
+    const missing = inspectSkillContracts(root);
+    assert.equal(missing.ok, false);
+    assert.equal(
+      missing.files.find((entry) => entry.path === "merge-batch/SKILL.md")?.status,
+      "MISSING"
+    );
+    writeFileSync(file, approved + "\nUnreviewed local batch exception.\n");
+    const drifted = inspectSkillContracts(root);
+    assert.equal(drifted.ok, false);
+    assert.deepEqual(
+      drifted.files.filter((entry) => entry.status === "DRIFT").map((entry) => entry.path),
+      ["merge-batch/SKILL.md"]
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

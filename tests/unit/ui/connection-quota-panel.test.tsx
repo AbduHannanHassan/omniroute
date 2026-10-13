@@ -273,6 +273,39 @@ describe("ConnectionRow quota gating", () => {
     };
   }
 
+  it.each([
+    { automatic: true, manual: false, protected: true },
+    { automatic: false, manual: false, protected: false },
+    { automatic: undefined, manual: false, protected: false },
+    { automatic: undefined, manual: true, protected: true },
+  ])(
+    "shows protection for automatic=$automatic/manual=$manual without changing the manual toggle",
+    ({ automatic, manual, protected: shielded }) => {
+      const connection: ConnectionRowConnection = {
+        id: "protected-key",
+        provider: "openai",
+        name: "OpenAI",
+        isActive: true,
+        testStatus: "active",
+        rateLimitProtection: manual,
+        rateLimitAutoProtected: automatic,
+      };
+      const onToggleRateLimit = vi.fn();
+      const el = mount(
+        <ConnectionRow {...rowProps(connection)} onToggleRateLimit={onToggleRateLimit} />
+      );
+      const title = manual ? "disableRateLimitProtection" : "enableRateLimitProtection";
+      const toggle = el.querySelector<HTMLButtonElement>(`button[title='${title}']`);
+
+      expect(toggle).not.toBeNull();
+      expect(toggle?.textContent).toContain(
+        shielded ? "rateLimitProtected" : "rateLimitUnprotected"
+      );
+      act(() => toggle?.click());
+      expect(onToggleRateLimit).toHaveBeenCalledExactlyOnceWith(!manual);
+    }
+  );
+
   it("renders the quota strip and the plan badge for a supported provider", () => {
     const el = mount(
       React.createElement(ConnectionRow, {
