@@ -12,6 +12,7 @@ import {
 } from "../../config/constants.ts";
 import { incrementTokenUsage } from "../../services/geminiRateLimitTracker.ts";
 import { requestTtftMs, streamEmittedOutput } from "../../utils/streamTiming.ts";
+import { readStreamPartialUsage } from "../../utils/streamPartialUsage.ts";
 import { clearPostOutputFailureStreak } from "../../services/accountFallback/postOutputFailureStreak.ts";
 import {
   createRoutingEvent,
@@ -354,6 +355,7 @@ export async function runStreamingTail(deps: StreamingTailDeps) {
     firstOutputMs,
     itlMs: streamItlMs,
     interrupted: _streamInterrupted,
+    partialUsage: streamPartialUsage,
   }) => {
     const ttft = requestTtftMs(streamTimingOriginOffsetMs, firstOutputMs);
     const normalizedStreamStatus = streamStatus || 200;
@@ -503,7 +505,9 @@ export async function runStreamingTail(deps: StreamingTailDeps) {
     persistAttemptLogs({
       status: normalizedStreamStatus,
       error: streamError || undefined,
-      tokens: streamUsage || {},
+      // A stream that ended early (499 / mid-stream failure) has no `usage`, but its call log
+      // still shows the tokens already generated (estimates are flagged via `estimated`).
+      tokens: streamUsage || streamPartialUsage || {},
       responseBody: streamResponseBody ?? undefined,
       providerRequest: finalBody || translatedBody,
       providerResponse: providerPayload,
@@ -602,6 +606,7 @@ export async function runStreamingTail(deps: StreamingTailDeps) {
     persistFailureUsage,
     onStreamFailure,
     hasEmittedOutput: () => streamEmittedOutput(transformStream),
+    readPartialUsage: () => readStreamPartialUsage(transformStream),
   });
   const handleStreamFailure = streamFailureFinalizers.handleStreamFailure;
   onPipelineStreamError = streamFailureFinalizers.onPipelineStreamError;
