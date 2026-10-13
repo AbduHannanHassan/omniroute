@@ -306,6 +306,21 @@ test("clientApiPolicy: Air placeholder Bearer + valid x-api-key authenticates wi
   }
 });
 
+test("clientApiPolicy: placeholder Bearer only yields to an x-api-key that extractApiKey would also accept", async () => {
+  // extractApiKey() (what the route handlers use after this policy) ignores x-api-key
+  // without anthropic-version / a claude UA. The policy must pick the same credential,
+  // otherwise it would authenticate a key the handler never sees.
+  const created = await apiKeysDb.createApiKey("policy-test-air-gate", "machine-airgate-1234");
+  assert.ok(created?.key, "createApiKey must return a key");
+
+  const policy = await loadPolicy();
+  const out = await policy.evaluate(
+    ctx(new Headers({ authorization: "Bearer acp-proxy", "x-api-key": created.key }))
+  );
+  assert.equal(out.allow, false);
+  if (!out.allow) assert.equal(out.status, 401);
+});
+
 test("clientApiPolicy: Air placeholder Bearer + invalid x-api-key is still rejected", async () => {
   const policy = await loadPolicy();
   const headers = new Headers({ authorization: "Bearer acp-proxy", "x-api-key": "sk-invalid-air" });
