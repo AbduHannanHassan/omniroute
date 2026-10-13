@@ -10,6 +10,10 @@ on:
       - "src/app/api/services/managed-proxy/**"
       - "src/shared/components/ProxyCustomFields.tsx"
       - "tests/unit/managedProxy*.test.ts"
+      - "tests/unit/managedProxy*.test.tsx"
+      - "tests/_setup/managedProxyFixture.mjs"
+      - "tests/fixtures/managedProxyChild.mjs"
+      - "scripts/test/*managed-proxy*.mjs"
       - "scripts/test/check-managed-proxy-native.ts"
       - ".github/workflows/managed-proxy-cores.yml"
   workflow_dispatch:
@@ -45,4 +49,28 @@ jobs:
           USERPROFILE: ${{ runner.temp }}/managed-core-home
           APPDATA: ${{ runner.temp }}/managed-core-home
           LOCALAPPDATA: ${{ runner.temp }}/managed-core-home
+          HOOKMAKER_MAX_TEST_WORKERS: "1"
+  isolated-runtime:
+    # Actual supervisor child lifecycle and management seams; no core listener/upstream traffic.
+    needs: native-config
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Verify isolated lifecycle, rollback, deletion and existing-field save
+        timeout-minutes: 5
+        run: node scripts/test/run-managed-proxy-runtime.mjs
+        env:
           HOOKMAKER_MAX_TEST_WORKERS: "1"

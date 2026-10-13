@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { renderManagedConfig, sourceOutbound } from "../../src/lib/services/managedProxy/config.ts";
+import { assertManagedFixture } from "../_setup/managedProxyFixture.mjs";
+assertManagedFixture();
+const { renderManagedConfig, sourceOutbound } =
+  await import("../../src/lib/services/managedProxy/config.ts");
 
 const UUID = "11111111-1111-4111-8111-111111111111";
 

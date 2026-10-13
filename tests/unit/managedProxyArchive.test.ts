@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import AdmZip from "adm-zip";
-import { archiveExecutable } from "../../src/lib/services/managedProxy/install.ts";
-import { officialRelease } from "../../src/lib/services/managedProxy/releases.ts";
+import { assertManagedFixture } from "../_setup/managedProxyFixture.mjs";
+assertManagedFixture();
+const { archiveExecutable } = await import("../../src/lib/services/managedProxy/install.ts");
+const { officialRelease } = await import("../../src/lib/services/managedProxy/releases.ts");
 
 test(
   "core archive extraction returns only expected binary and rejects traversal or symlink",
