@@ -12,6 +12,13 @@
  * - `newPassword`: password rotation. Handled by the same gate so the
  *   password-verify only fires ONCE per PATCH.
  * - `oidcEnabled` / `oidcDisablePasswordLogin` / `oidcClientSecret`: OIDC login.
+ * - `oidcIssuer` / `oidcClientId` / `oidcAllowedSubjects` / `oidcRedirectPath` /
+ *   `oidcScopes`: the OIDC identity config — which IdP's ID tokens are trusted, the
+ *   audience they must carry, where the authorization code is sent and which subjects
+ *   may log in. Changing them without re-auth would let a stolen session or management
+ *   credential point dashboard login at an attacker-controlled IdP or allowlist the
+ *   attacker's own subject. Every `oidc*` key of the settings schema belongs here
+ *   (pinned by `tests/unit/oidc-settings-reauth.test.ts`).
  */
 export const SECURITY_IMPACTING_SETTINGS_KEYS = [
   "localOnlyManageScopeBypassEnabled",
@@ -21,6 +28,11 @@ export const SECURITY_IMPACTING_SETTINGS_KEYS = [
   "oidcEnabled",
   "oidcDisablePasswordLogin",
   "oidcClientSecret",
+  "oidcIssuer",
+  "oidcClientId",
+  "oidcAllowedSubjects",
+  "oidcRedirectPath",
+  "oidcScopes",
 ] as const;
 
 /**
