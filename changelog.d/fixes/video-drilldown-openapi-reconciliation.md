@@ -1,0 +1,1 @@
+- Fix duplicate Video Bridge drill-down OpenAPI declarations while preserving authenticated bounded GET/DELETE contracts and generated inference references.

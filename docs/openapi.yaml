@@ -13783,21 +13783,6 @@ paths:
       responses:
         "200":
           description: OK
-  /api/v1/video-bridge/drilldown:
-    delete:
-      tags:
-        - V1 Video-bridge
-      summary: "DELETE video bridge › drilldown"
-      responses:
-        "200":
-          description: OK
-    get:
-      tags:
-        - V1 Video-bridge
-      summary: "GET video bridge › drilldown"
-      responses:
-        "200":
-          description: OK
   /api/v1/videos/generations:
     get:
       tags:
