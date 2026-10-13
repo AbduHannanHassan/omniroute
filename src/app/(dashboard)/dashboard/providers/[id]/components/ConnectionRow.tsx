@@ -42,6 +42,8 @@ export interface ConnectionRowConnection {
   displayName?: string;
   rateLimitedUntil?: string;
   rateLimitProtection?: boolean;
+  /** Set by GET /api/providers when the connection is auto-protected (isConnectionAutoProtected). */
+  rateLimitAutoProtected?: boolean;
   testStatus?: string;
   isActive?: boolean;
   priority?: number;
