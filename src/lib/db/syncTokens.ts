@@ -9,9 +9,9 @@ export interface SyncTokenRecord {
   name: string;
   tokenHash: string;
   syncApiKeyId: string | null;
-  /** Kind of principal that issued the token (`session`, `cli`, …); null for pre-206 rows. */
+  /** Kind of principal that issued the token (`session`, `cli`, …); null for rows written before these columns existed. */
   issuedBy: string | null;
-  /** ISO timestamp after which the token is dead; null for pre-206 rows (no expiry). */
+  /** ISO timestamp after which the token is dead; null for rows written before these columns existed (no expiry). */
   expiresAt: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
