@@ -13,6 +13,7 @@ import {
 } from "./videoBridgeAudioOrchestration";
 import { extractVideoFramesViaBroker } from "./videoBridgeBrokerClient";
 import { describeVideoPart, type DescribeVideoDependencies } from "./videoBridgeHelpers";
+import type { VisionBridgeKeyScope } from "./visionBridgeKeyScope";
 
 export interface VideoSttAdapterDependencies {
   extractAudio?: VideoAudioOrchestrationOptions["extractAudio"];
@@ -23,6 +24,8 @@ export interface VideoSttAdapterDependencies {
 export function createVideoSttAdapter(input: {
   cache: BridgeCacheStore | null;
   dependencies: VideoSttAdapterDependencies;
+  /** GHSA-3w2r: the caller API key's policy; null when the key is unrestricted. */
+  keyScope?: Pick<VisionBridgeKeyScope, "check" | "allowedConnectionIds"> | null;
   principalId: unknown;
   settings: Record<string, unknown>;
 }): typeof describeVideoPart {
@@ -45,6 +48,12 @@ export function createVideoSttAdapter(input: {
           cache: input.cache,
           cacheKeyRef,
           extractAudio: input.dependencies.extractAudio,
+          ...(input.keyScope
+            ? {
+                hasUsableCredentials: input.keyScope.check,
+                allowedConnectionIds: input.keyScope.allowedConnectionIds,
+              }
+            : {}),
           model: audio.model || "auto",
           operatorOptIn: operator.enabled,
           requestOptIn: part.audioTranscription === true,

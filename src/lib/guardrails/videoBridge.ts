@@ -31,6 +31,12 @@ import { getSharedVideoResultCacheFor } from "./videoBridgeResultCache";
 import { type VisionModelConfig } from "./visionBridgeHelpers";
 import { getBestVisionModel } from "./visionBridgeRouter";
 import { createVideoSttAdapter, type VideoSttAdapterDependencies } from "./videoBridgeSttAdapter";
+import { hasUsableCredentialsForModel } from "./visionBridgeCredentials";
+import {
+  resolveVisionBridgeKeyScope,
+  type VisionBridgeKeyInfo,
+  type VisionBridgeKeyScopeDeps,
+} from "./visionBridgeKeyScope";
 
 export type { VideoAnalysisContext } from "./videoBridgePipeline";
 
@@ -114,6 +120,10 @@ export interface VideoBridgeDependencies extends VideoSttAdapterDependencies {
   fetchRemote?: DescribeVideoDependencies["fetchRemote"];
   resultCache?: BridgeCacheStore;
   selectVisionModel?: (fixedModel?: string) => Promise<string | null>;
+  /** Base credential check the API-key policy scope narrows (GHSA-3w2r). */
+  hasUsableCredentials?: (model: string) => Promise<boolean | null>;
+  /** Seams for the caller API-key policy filter (GHSA-3w2r). */
+  keyScope?: VisionBridgeKeyScopeDeps;
   callVisionModel?: (
     imageDataUri: string,
     config: VisionModelConfig,
@@ -186,12 +196,34 @@ export class VideoBridgeGuardrail extends BaseGuardrail {
       ? (this.deps.resultCache ?? getSharedVideoResultCacheFor(runtime))
       : null;
     const successfulModels = new Set<string>();
+    // GHSA-3w2r: frames are described (and the soundtrack transcribed) on
+    // behalf of the caller's API key, so every vision / STT model and
+    // connection the bridge picks must be one that key could use itself.
+    const keyScope = resolveVisionBridgeKeyScope(
+      (context.apiKeyInfo ?? null) as VisionBridgeKeyInfo | null,
+      this.deps.hasUsableCredentials ?? hasUsableCredentialsForModel,
+      this.deps.keyScope
+    );
     let selectedModelPromise: Promise<string | null> | null = null;
     const selectVideoModel = (): Promise<string | null> => {
       if (!selectedModelPromise) {
         const select =
           this.deps.selectVisionModel ??
-          ((fixedModel?: string) => getBestVisionModel({ fixedModel }));
+          ((fixedModel?: string) =>
+            keyScope
+              ? getBestVisionModel(
+                  {
+                    // A virtual `auto/*` model is resolved to a concrete member,
+                    // since the key policy is checked against the model called.
+                    fixedModel:
+                      fixedModel === "auto" || fixedModel?.startsWith("auto/")
+                        ? undefined
+                        : fixedModel,
+                    cacheScope: keyScope.cacheScope,
+                  },
+                  { hasUsableCredentials: keyScope.check }
+                )
+              : getBestVisionModel({ fixedModel }));
         selectedModelPromise = select(configuredModel || undefined);
       }
       return selectedModelPromise;
@@ -206,6 +238,7 @@ export class VideoBridgeGuardrail extends BaseGuardrail {
         describePart: createVideoSttAdapter({
           cache,
           dependencies: this.deps,
+          keyScope,
           principalId: context.apiKeyInfo?.id,
           settings: persisted,
         }),
@@ -216,6 +249,17 @@ export class VideoBridgeGuardrail extends BaseGuardrail {
       selectVideoModel,
       overrideDescribePart: this.deps.describePart,
       callVisionModel: this.deps.callVisionModel,
+      ...(keyScope
+        ? {
+            visionKeyScope: {
+              credentialCheck: keyScope.check,
+              cacheScope: keyScope.cacheScope,
+              ...(keyScope.allowedConnectionIds
+                ? { allowedConnectionIds: keyScope.allowedConnectionIds }
+                : {}),
+            },
+          }
+        : {}),
     };
 
     const startedAt = Date.now();
