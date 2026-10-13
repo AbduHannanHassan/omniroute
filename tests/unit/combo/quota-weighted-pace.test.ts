@@ -14,6 +14,8 @@ const dbCore = await import("../../../src/lib/db/core.ts");
 const { createProviderConnection } = await import("../../../src/lib/db/providers.ts");
 const quotaCache = await import("../../../src/domain/quotaCache.ts");
 const { registerQuotaFetcher } = await import("../../../open-sse/services/quotaPreflight.ts");
+const { convertUsageToQuotaInfo } =
+  await import("../../../open-sse/services/genericQuotaFetcher.ts");
 const { orderTargetsByQuotaWeighted } =
   await import("../../../open-sse/services/combo/quotaStrategies.ts");
 const { resolveResetAwareConfig, scoreResetAwareQuota, getResetAwareRemainingPercent } =
@@ -70,12 +72,16 @@ function quotaAt(weeklyHours: number, percentUsed = 0.5, sessionUsed = percentUs
   };
 }
 
-async function seedTargets(quotas: Array<QuotaInfo | null>): Promise<ResolvedComboTarget[]> {
+async function seedTargets(
+  quotas: Array<QuotaInfo | null>,
+  provider = "codex",
+  model = "gpt-5-codex"
+): Promise<ResolvedComboTarget[]> {
   const snapshots = new Map<string, QuotaInfo | null>();
   const targets: ResolvedComboTarget[] = [];
   for (const quota of quotas) {
     const row = await createProviderConnection({
-      provider: "codex",
+      provider,
       name: `pace-${targets.length}`,
       isActive: true,
       testStatus: "active",
@@ -86,16 +92,16 @@ async function seedTargets(quotas: Array<QuotaInfo | null>): Promise<ResolvedCom
     targets.push({
       kind: "model",
       stepId: `step-${connectionId}`,
-      executionKey: `codex/gpt-5-codex@${connectionId}`,
-      modelStr: "codex/gpt-5-codex",
-      provider: "codex",
-      providerId: "codex",
+      executionKey: `${provider}/${model}@${connectionId}`,
+      modelStr: `${provider}/${model}`,
+      provider,
+      providerId: provider,
       connectionId,
       weight: 1,
       label: null,
     });
   }
-  registerQuotaFetcher("codex", async (id) => snapshots.get(id) ?? null);
+  registerQuotaFetcher(provider, async (id) => snapshots.get(id) ?? null);
   return targets;
 }
 
@@ -127,17 +133,18 @@ function closeTo(actual: number, expected: number) {
 }
 
 test("leftover characterization: absent and explicit leftover keep scores, draws and remainder", async () => {
-  const quotas = [quotaAt(336, 0.2), quotaAt(336, 0.5), quotaAt(336, 0.8)];
+  const quotas = [quotaAt(336, 0.8), quotaAt(336, 0.2), quotaAt(336, 0.5)];
   for (const quota of quotas) quota.window5h!.resetAt = resetAt(10);
   const scores = quotas.map(
     (quota) => scoreResetAwareQuota(quota, resolveResetAwareConfig({})).score
   );
-  scores.forEach((score, i) => closeTo(score, [0.256, 0.16, 0.064][i]));
+  scores.forEach((score, i) => closeTo(score, [0.064, 0.256, 0.16][i]));
   const targets = await seedTargets(quotas);
   for (const config of [{}, { quotaWeightedScoring: "leftover" }]) {
     for (const [random, winner] of [
       [0, 0],
-      [0.5, 0],
+      [0.2, 1],
+      [0.5, 1],
       [0.6, 1],
       [0.9, 2],
     ]) {
@@ -148,17 +155,20 @@ test("leftover characterization: absent and explicit leftover keep scores, draws
         return random;
       });
       const ordered = await orderTargetsByQuotaWeighted(targets, "leftover", config, log, null);
-      assertOrder(ordered, [targets[winner], ...targets.filter((_, i) => i !== winner)]);
+      assertOrder(ordered, [
+        targets[winner],
+        ...[1, 2, 0].filter((i) => i !== winner).map((i) => targets[i]),
+      ]);
       assert.equal(draws, 1);
       assert.equal(getInflight(targets[winner].connectionId!), 1);
     }
     _clearInflightForTest();
-    incrementInflight(targets[0].connectionId!);
-    _setSecureRandomFloatSource(() => 0.4);
+    incrementInflight(targets[1].connectionId!);
+    _setSecureRandomFloatSource(() => 0.6);
     assertOrder(await orderTargetsByQuotaWeighted(targets, "loaded", config, log, null), [
+      targets[2],
       targets[1],
       targets[0],
-      targets[2],
     ]);
   }
 });
@@ -185,6 +195,119 @@ test("pace score: inner exhaustion guard damps without replacing outer remaining
   closeTo(await paceScore(quota, { resetAwareExhaustionGuardPercent: 0 }), 0.8 / 24);
   closeTo(await paceScore(quotaAt(24, 0.2, 0.999)), (0.8 / 24) * 0.05);
   closeTo(await paceScore(quotaAt(24, 0.2, 0.9)), 0.8 / 24);
+});
+
+test("pace review regression: invalid canonical reset cannot shadow a finite weekly alias", async () => {
+  closeTo(
+    await paceScore({
+      percentUsed: 0.5,
+      window5h: { percentUsed: 0.5, resetAt: resetAt(2) },
+      window7d: { percentUsed: 0.5, resetAt: "invalid" },
+      windowWeekly: { percentUsed: 0.5, resetAt: resetAt(120) },
+    }),
+    0.5 / 120
+  );
+});
+
+test("pace review regression: normalized same-family model windows select the right account", async () => {
+  const context = { provider: "antigravity", requestedModel: "gemini-3-flash" };
+  const quota = convertUsageToQuotaInfo(
+    {
+      quotas: {
+        "gemini-3-flash": { remainingPercentage: 50, resetAt: resetAt(12) },
+        "gemini-3-pro": { remainingPercentage: 80, resetAt: resetAt(120) },
+        "claude-sonnet-5": { remainingPercentage: 1, resetAt: resetAt(1000) },
+      },
+    },
+    context
+  );
+  const peer = convertUsageToQuotaInfo(
+    { quotas: { "gemini-3-flash": { remainingPercentage: 50, resetAt: resetAt(24) } } },
+    context
+  );
+  assert.ok(quota && peer);
+  assert.equal(quota.window5h?.resetAt, resetAt(12));
+  assert.deepEqual(Object.keys(quota.windows!), ["gemini-3-flash", "gemini-3-pro"]);
+  const targets = await seedTargets([quota, peer], "antigravity", "gemini-3-flash");
+  // The collapsed collector gives the first account 2/3 of the draw; its actual
+  // outer-window pace is lower than the peer's, so RNG 0.5 must pick the peer.
+  assertOrder(await draw(targets, { quotaWeightedScoring: "pace" }, 0.5), [targets[1], targets[0]]);
+  closeTo(await paceScore(quota), 0.8 / 120);
+  closeTo(await paceScore(peer), 0.5 / 24);
+});
+
+test("pace review regression: every named weekly entry competes for the outer reset", async () => {
+  const entries = [
+    ["weekly (a)", { percentUsed: 50, resetAt: resetAt(12) }],
+    ["weekly (z)", { percentUsed: 20, resetAt: resetAt(120) }],
+  ] as const;
+  for (const windows of [Object.fromEntries(entries), Object.fromEntries([...entries].reverse())]) {
+    closeTo(
+      await paceScore({
+        percentUsed: 0.5,
+        window5h: { percentUsed: 0.5, resetAt: resetAt(2) },
+        windows,
+      }),
+      0.8 / 120
+    );
+  }
+});
+
+test("pace window union: exact outer mirrors do not become inner exhaustion guards", async () => {
+  const quota = {
+    window7d: { percentUsed: 0.95, resetAt: resetAt(120) },
+    windows: {
+      "weekly (mirror)": { percentUsed: 95, resetAt: String((NOW + 120 * HOUR) / 1000) },
+    },
+  };
+  closeTo(await paceScore(quota), 0.05 / 120);
+});
+
+test("pace window union: equal reset or remaining alone cannot hide distinct inner telemetry", async () => {
+  for (const [percentUsed, hours, damping] of [
+    [0.95, 120, 0.5],
+    [0.5, 12, 1],
+  ]) {
+    closeTo(
+      await paceScore({
+        window7d: { percentUsed: 0.5, resetAt: resetAt(120) },
+        windows: { "model-inner": { percentUsed, resetAt: resetAt(hours) } },
+      }),
+      (0.5 / 120) * damping
+    );
+  }
+  closeTo(
+    await paceScore({
+      window7d: { percentUsed: 0.95, resetAt: resetAt(120) },
+      windows: { "model-inner": { percentUsed: 95, resetAt: resetAt(12) } },
+    }),
+    (0.05 / 120) * 0.5
+  );
+});
+
+test("pace window union: unknown resets still use all scoped windows for minimum leftover", async () => {
+  closeTo(
+    await paceScore({
+      window5h: { percentUsed: 0.5, resetAt: "invalid" },
+      window7d: { resetAt: null },
+      windows: { "model-outer": { percentUsed: 80, resetAt: null } },
+    }),
+    0.2 / 168
+  );
+});
+
+test("pace window union: Codex allWindows sibling scopes are never read", async () => {
+  closeTo(
+    await paceScore({
+      window5h: { percentUsed: 0.5, resetAt: resetAt(2) },
+      windows: { "weekly (spark)": { percentUsed: 50, resetAt: resetAt(120) } },
+      allWindows: {
+        weekly: { percentUsed: 1, resetAt: resetAt(1000) },
+        session: { percentUsed: 1, resetAt: resetAt(1) },
+      },
+    }),
+    0.5 / 120
+  );
 });
 
 test("pace draw: guard damping changes the draw but an exhausted session stays ineligible", async () => {
@@ -268,10 +391,11 @@ test("pace score: canonical monthly/weekly aliases and generic model windows sha
       percentUsed: 0.25,
       windows: {
         weekly: { resetAt: resetAt(12) },
-        "ignored-model": { percentUsed: 1, resetAt: resetAt(1000) },
+        // A named weekly window must not hide a later model-keyed outer window.
+        "model-outer": { percentUsed: 1, resetAt: resetAt(1000) },
       },
     }),
-    0.75 / 12
+    0
   );
   closeTo(await paceScore({ window7d: { percentUsed: 2, resetAt: resetAt(12) } }), 0);
   closeTo(await paceScore({ window7d: { percentUsed: -1, resetAt: resetAt(12) } }), 1 / 12);

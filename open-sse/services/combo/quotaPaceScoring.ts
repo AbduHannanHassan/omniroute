@@ -5,15 +5,14 @@ import {
   getQuotaWindowEntries,
   getResetAwareRemainingPercent,
   parseResetTimeMs,
-  resolveQuotaWindowByName,
   type resolveResetAwareConfig,
 } from "./quotaScoring.ts";
-import { RESET_WINDOW_NAMES } from "./types.ts";
 
 const UNKNOWN_RESET_HOURS = 168;
 const HOUR_MS = 3_600_000;
 
 type PaceWindow = { remaining: number; resetMs: number };
+type PaceWindowSnapshot = { percentUsed: number | null; resetAt: string | null };
 
 export function resolveQuotaWeightedScoring(
   configSource: Record<string, unknown> | null | undefined
@@ -21,20 +20,46 @@ export function resolveQuotaWeightedScoring(
   return configSource?.quotaWeightedScoring === "pace" ? "pace" : "leftover";
 }
 
+function getCanonicalPaceWindow(window: unknown): PaceWindowSnapshot | null {
+  if (!isRecord(window)) return null;
+  // Structural fields use fractions, not the map's 0-1 / 0-100 normalization.
+  // Preserve the shared resolver's Number coercion, including null -> zero.
+  const percentUsed = Number(window.percentUsed);
+  const rawResetAt = window.resetAt;
+  const resetAt =
+    typeof rawResetAt === "string"
+      ? rawResetAt.trim()
+      : typeof rawResetAt === "number" && Number.isFinite(rawResetAt)
+        ? String(rawResetAt)
+        : null;
+  return { percentUsed: Number.isFinite(percentUsed) ? percentUsed : null, resetAt };
+}
+
 function resolvePaceWindows(quota: Record<string, unknown>): PaceWindow[] {
-  const windows = RESET_WINDOW_NAMES.map((name) => resolveQuotaWindowByName(quota, name)).filter(
-    (window) => window !== null
-  );
-  if (windows.length === 0) {
-    for (const { window } of getQuotaWindowEntries(quota)) windows.push(window);
-  }
+  // A synthesized window5h or one weekly alias must not hide distinct telemetry.
+  // Fetchers already scope quota.windows to the request; never read allWindows.
+  const windows = ["window5h", "window7d", "windowWeekly", "windowMonthly"]
+    .map((key) => getCanonicalPaceWindow(quota[key]))
+    .filter((window) => window !== null);
+  for (const { window } of getQuotaWindowEntries(quota)) windows.push(window);
   // Match resolveWindowRemaining's finite-number coercion and missing-percent fallback.
   const overallPercentUsed = Number(quota.percentUsed);
   const fallback = Number.isFinite(overallPercentUsed) ? clamp01(overallPercentUsed) : 0.5;
-  return windows.map((window) => ({
-    remaining: clamp01(1 - (window.percentUsed ?? fallback)),
-    resetMs: parseResetTimeMs(window.resetAt),
-  }));
+  const seen = new Set<string>();
+  return windows
+    .map((window) => ({
+      remaining: clamp01(1 - (window.percentUsed ?? fallback)),
+      resetMs: parseResetTimeMs(window.resetAt),
+    }))
+    .filter((window) => {
+      // Only identical parsed instants AND remaining values are mirrors. Unknown
+      // resets cannot establish identity; keep them as separate inner signals.
+      if (!Number.isFinite(window.resetMs)) return true;
+      const key = `${window.resetMs}:${window.remaining}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 /**
