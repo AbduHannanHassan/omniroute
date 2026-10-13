@@ -81,6 +81,7 @@ export const SPAWN_CAPABLE_PREFIXES: ReadonlyArray<string> = [
   "/api/cli-tools/jcode-settings", // GET probes the `jcode` binary via getCliRuntimeStatus()
   "/dashboard/providers/services/", // reverse proxy into embedded service UIs — Hard Rule #17 pairs it with /api/services/
   "/api/discovery/", // not a spawn, but declared strict-loopback with no manage-scope bypass (outbound provider probes, SSRF-adjacent)
+  "/api/issue-agent/", // local triage executor surface, held loopback/LAN "until sandbox + audit hardening is complete" — not opt-in remote until then
 ];
 
 /**

@@ -61,6 +61,7 @@ const CODE_EXEC_ROUTES: ReadonlyArray<{ prefix: string; sample: string }> = [
   { prefix: "/api/cli-tools/jcode-settings", sample: "/api/cli-tools/jcode-settings" },
   { prefix: "/dashboard/providers/services/", sample: "/dashboard/providers/services/x/embed/" },
   { prefix: "/api/discovery/", sample: "/api/discovery/scan" },
+  { prefix: "/api/issue-agent/", sample: "/api/issue-agent/runs" },
   { prefix: "/api/providers/validate", sample: "/api/providers/validate" },
   { prefix: "/api/providers/import", sample: "/api/providers/import" },
   { prefix: "/api/providers/bulk", sample: "/api/providers/bulk" },
@@ -182,7 +183,6 @@ test("import-json does not write the password-gated security settings", async ()
 const REVIEWED_BYPASS_ELIGIBLE = new Map<string, string>([
   ["/api/mcp/", "default carve-out (manage or mcp:connect scope)"],
   ["/api/copilot/", "in-process LLM driver; documented opt-in remote access"],
-  ["/api/issue-agent/", "recorded triage; calls chat completions in-process"],
   ["/api/jobs", "JobRegistry admin; runs only built-in job handlers"],
   ["/api/jobs/", "JobRegistry admin children"],
   ["/api/oauth/kiro/auto-import", "reads host-local Kiro credential files; no spawn"],

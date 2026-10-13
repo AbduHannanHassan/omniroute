@@ -127,6 +127,7 @@ test("SPAWN_CAPABLE_PREFIXES is defined in the server-free constants leaf with t
     "/api/cli-tools/jcode-settings",
     "/dashboard/providers/services/",
     "/api/discovery/",
+    "/api/issue-agent/",
   ]) {
     assert.ok(
       SPAWN_CAPABLE_PREFIXES.includes(prefix),
@@ -134,7 +135,7 @@ test("SPAWN_CAPABLE_PREFIXES is defined in the server-free constants leaf with t
     );
   }
   // 20 at extraction time + 14 (GHSA-35fw-cv32-2373) + 2 (GHSA-jx89-f37j-pq89) + 1 (version-manager)
-  // + 13 LOCAL_ONLY spawn / code-exec routes that had never been mirrored here.
+  // + 14 LOCAL_ONLY spawn / code-exec routes that had never been mirrored here.
   // qwen-settings is the one pre-existing entry not enumerated above.
-  assert.equal(SPAWN_CAPABLE_PREFIXES.length, 50);
+  assert.equal(SPAWN_CAPABLE_PREFIXES.length, 51);
 });
