@@ -64,6 +64,14 @@ test(
     assert.equal(analytics.summary.cachedInputTokens, 60);
     assert.equal(analytics.byModel[0].cachedInputTokens, 60);
     assert.equal(analytics.summary.cachedInputTokensComplete, true);
+    const route = await import("../../src/app/api/usage/analytics/route.ts");
+    const response = await route.GET(new Request("http://localhost/api/usage/analytics?range=all"));
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.summary.promptTokens, 100);
+    assert.equal(body.summary.cachedInputTokens, 60);
+    assert.equal(body.byModel[0].model, "fixture-model");
+    assert.equal(body.byModel[0].cachedInputTokens, 60);
     for (const breakdown of [
       result.byProvider,
       result.byModel,
