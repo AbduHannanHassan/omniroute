@@ -37,8 +37,8 @@ function isSelfLoopBearerRequest(request: Request): boolean {
  */
 export function applySelfLoopConnectionScope<T extends { allowedConnections?: string[] }>(
   request: Request,
-  apiKeyInfo: T | null
-): T | null {
+  apiKeyInfo: T
+): T {
   if (!apiKeyInfo) return apiKeyInfo;
   const requested = parseConnectionIds(request.headers.get(SELF_LOOP_ALLOWED_CONNECTIONS_HEADER));
   if (requested.length === 0 || !isSelfLoopBearerRequest(request)) return apiKeyInfo;
