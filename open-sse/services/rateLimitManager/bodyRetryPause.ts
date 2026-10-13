@@ -9,25 +9,31 @@
  * in a local 503, while nothing told the combo to stop picking the key.
  *
  * When the wait comes from Google's structured `RetryInfo` (an authoritative
- * hint, like the ones that bypass the lockout `maxCooldownMs` cap) and the key's
- * limiter is already scoped to the model, it becomes a model lockout on the
- * connection instead: the same scope the pause would have had, but visible and
- * honoured by the combo pre-dispatch gate and account selection. Prose hints and
- * connection-wide limiters keep the pause.
+ * hint, the `google_rpc_retry_info` provenance that may bypass the lockout
+ * `maxCooldownMs` cap) and the key's limiter is already scoped to the model, it
+ * becomes a model lockout on the connection instead: the same scope the pause
+ * would have had, but visible, cleared by the resilience reset, and honoured by
+ * the combo pre-dispatch gate and account selection. The name the caller asked
+ * for is locked too when an alias resolved it to that model, as chatCore's
+ * quota path does, because those routers check the requested name. Prose hints,
+ * untyped fields and connection-wide limiters keep the pause.
  *
  * A pause the limiter does take is remembered per limiter instance, so a caller
  * whose remaining queue time ends before the pause does fails at once instead of
- * waiting that time out. Any later change to the reservoir or its refresh
- * schedule forgets it, and only a pause set on a limiter built for it is
- * recorded: an older limiter's refresh clock may refill the reservoir sooner, and
- * an overstated pause would turn away a request the queue could still serve.
+ * waiting that time out. Only a pause set on a limiter built for it is recorded,
+ * from a time taken before the build: Bottleneck starts the refresh clock when
+ * the limiter is constructed, so the recorded end never runs past the real
+ * refill. An older limiter's clock may refill sooner, and an overstated pause
+ * would turn away a request the queue could still serve. Any later change to the
+ * reservoir or its refresh schedule forgets the record.
  *
  * @module services/rateLimitManager/bodyRetryPause
  */
 
 import { lockModel } from "../accountFallback.ts";
-import { MAX_SHORT_RETRY_HINT_MS } from "../retryAfterJson.ts";
+import { retryInfoDetailsMs } from "../retryAfterJson.ts";
 import { LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE, markLocalRateLimitError } from "./errors";
+import { logRateLimit } from "./log";
 
 const pausedUntil = new WeakMap<object, number>();
 
@@ -36,52 +42,51 @@ export interface BodyRetry {
   connectionId: string;
   /** The model when the key's limiter is scoped to it; null for a connection-wide limiter. */
   scopedModel: string | null | undefined;
+  /** The model name the caller asked for, before alias resolution. */
+  requestedModel?: string | null;
   status: number;
-  retryAfterMs: number;
   reason: string;
 }
 
 /**
- * True when the body carries a structured `RetryInfo.retryDelay`, the field
- * `parseRetryAfterFromBody` reads before falling back to prose.
+ * The wait a body states in a typed Google `RetryInfo` detail (capped at 24h),
+ * read exactly as `parseDetailedRetryHintFromJsonBody` reads its
+ * `google_rpc_retry_info` provenance; null when there is none.
  */
-export function hasRetryInfoDelay(responseBody: unknown): boolean {
+export function retryInfoDelayMs(responseBody: unknown): number | null {
   let body: unknown = responseBody;
   if (typeof body === "string") {
     try {
       body = JSON.parse(body);
     } catch {
-      return false;
+      return null;
     }
   }
   const root = (body ?? {}) as { error?: { details?: unknown }; details?: unknown };
-  const details = root.error?.details || root.details;
-  return (
-    Array.isArray(details) &&
-    details.some((d) => Boolean((d as { retryDelay?: unknown } | null)?.retryDelay))
-  );
+  return retryInfoDetailsMs(root.error?.details ?? root.details);
 }
 
 /**
- * Lock the model on the connection (capped at 24h) when a 429's `RetryInfo`
- * wait exceeds the queue budget, and return true. Returns false when the wait
- * stays a limiter pause: it fits the budget, it came from prose, the limiter is
+ * Lock the model on the connection (and the requested name, when it differs)
+ * for the `RetryInfo` wait when a 429 states one longer than the queue budget,
+ * and return true. Returns false when the wait stays a limiter pause: it fits
+ * the budget, it did not come from a typed `RetryInfo`, the limiter is
  * connection-wide, or the queue has no wait deadline (`maxWaitMs` 0, #12902).
  */
 export function lockModelForLongBodyRetry(
   retry: BodyRetry,
   queueBudgetMs: number,
-  responseBody: unknown,
-  log: (message: string) => void = () => {}
+  responseBody: unknown
 ): boolean {
-  const { provider, connectionId, scopedModel, status, retryAfterMs, reason } = retry;
-  if (status !== 429 || !scopedModel) return false;
-  if (queueBudgetMs <= 0 || retryAfterMs <= queueBudgetMs) return false;
-  if (!hasRetryInfoDelay(responseBody)) return false;
-  const lockMs = Math.min(retryAfterMs, MAX_SHORT_RETRY_HINT_MS);
+  const { provider, connectionId, scopedModel, requestedModel, status, reason } = retry;
+  if (status !== 429 || !scopedModel || queueBudgetMs <= 0) return false;
+  const lockMs = retryInfoDelayMs(responseBody);
+  if (lockMs === null || lockMs <= queueBudgetMs) return false;
   lockModel(provider, connectionId, scopedModel, reason, lockMs);
-  log(
-    `🔒 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason}) exceeds the ${queueBudgetMs}ms queue budget; locking ${scopedModel} on this connection for ${Math.ceil(lockMs / 1000)}s instead of pausing its queue`
+  const alias = requestedModel && requestedModel !== scopedModel ? requestedModel : null;
+  if (alias) lockModel(provider, connectionId, alias, reason, lockMs);
+  logRateLimit(
+    `🔒 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — RetryInfo retry ${Math.ceil(lockMs / 1000)}s (${reason}) exceeds the ${queueBudgetMs}ms queue budget; locking ${scopedModel}${alias ? ` (requested as ${alias})` : ""} on this connection instead of pausing its queue`
   );
   return true;
 }

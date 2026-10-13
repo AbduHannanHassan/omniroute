@@ -3598,7 +3598,8 @@ async function handleChatCoreInner({
         errorConnectionId,
         upstreamErrorBody,
         statusCode,
-        targetModel
+        targetModel,
+        model
       );
     }
   };

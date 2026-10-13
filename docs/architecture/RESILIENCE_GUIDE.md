@@ -482,18 +482,21 @@ many callers may be queued at once.
 is pacing: the limiter empties its reservoir for that long and queued calls
 dispatch when it refills. A wait longer than `maxWaitMs` is not something the
 queue can sit out — Gemini answers an exhausted daily quota with
-`retryDelay: "86399s"`. When such a wait comes from Google's structured
-`RetryInfo` and the key's limiter is already scoped to the model (see
-`getLimiterKey`), the 429 becomes a model lockout on that connection instead
-(`lockModelForLongBodyRetry` in
+`retryDelay: "86399s"`. When such a wait comes from a typed Google `RetryInfo`
+detail (the `google_rpc_retry_info` provenance) and the key's limiter is
+already scoped to the model (see `getLimiterKey`), the 429 becomes a model
+lockout on that connection instead (`lockModelForLongBodyRetry` in
 `open-sse/services/rateLimitManager/bodyRetryPause.ts`, capped at 24h), the
 signal the combo pre-dispatch gate and account selection already skip on via
-`isModelLocked()`, and the limiter is left unpaused. A prose hint, or a
-limiter shared by the whole connection, keeps the pause. When the limiter the
+`isModelLocked()`, and the limiter is left unpaused. The name the client asked
+for is locked too when an alias resolved it to that model, because those
+routers check the requested name. A prose hint, an untyped `retryDelay`, or a
+limiter shared by the whole connection keeps the pause. When the limiter the
 429 path just rebuilt does pause, a caller whose remaining queue time ends
 before the pause does is turned away at once with the queue-timeout code
-(`checkLimiterPause`) rather than waiting that time out; any later change to
-the reservoir forgets the pause. Covered by
+(`checkLimiterPause`) rather than waiting that time out; the recorded end is
+anchored before the limiter is built, where Bottleneck starts its refresh
+clock, and any later change to the reservoir forgets it. Covered by
 `tests/unit/rate-limit-long-body-retry-lockout.test.ts` and
 `tests/unit/rate-limit-body-retry-pause.test.ts`.
 

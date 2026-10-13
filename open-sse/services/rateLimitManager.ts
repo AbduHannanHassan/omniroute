@@ -45,6 +45,7 @@ import {
 import { LimiterWedgeWatchdog, WATCHDOG_INTERVAL_MS } from "./rateLimitManager/wedgeWatchdog";
 import { createCancellableJob } from "./rateLimitManager/queuedJobCancel";
 import * as bodyRetryPause from "./rateLimitManager/bodyRetryPause";
+import { errorRateLimit, logRateLimit, warnRateLimit } from "./rateLimitManager/log";
 import { toNumber } from "@/shared/utils/numeric";
 import type { ConnectionRateLimitOverrides } from "@/lib/db/providers/columns";
 import {
@@ -79,22 +80,6 @@ type JsonRecord = Record<string, unknown>;
 
 function toRecord(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
-}
-
-function isNodeTestRunnerChild(): boolean {
-  return typeof process.env.NODE_TEST_CONTEXT === "string";
-}
-
-function logRateLimit(...args: unknown[]): void {
-  if (!isNodeTestRunnerChild()) console.log(...args);
-}
-
-function warnRateLimit(...args: unknown[]): void {
-  if (!isNodeTestRunnerChild()) console.warn(...args);
-}
-
-function errorRateLimit(...args: unknown[]): void {
-  if (!isNodeTestRunnerChild()) console.error(...args);
 }
 
 // Store limiters keyed by "provider:connectionId" (and optionally ":model")
@@ -1255,8 +1240,16 @@ async function loadPersistedLimits() {
  * @param {string|object} responseBody - Response body (string or parsed JSON)
  * @param {number} status - HTTP status code
  * @param {string} model - Model name (for per-model lockouts)
+ * @param {string} requestedModel - Model name before alias resolution (locked with `model`)
  */
-export function updateFromResponseBody(provider, connectionId, responseBody, status, model = null) {
+export function updateFromResponseBody(
+  provider,
+  connectionId,
+  responseBody,
+  status,
+  model = null,
+  requestedModel = null
+) {
   if (!enabledConnections.has(connectionId)) return;
 
   const { retryAfterMs, reason } = parseRetryAfterFromBody(responseBody);
@@ -1265,9 +1258,10 @@ export function updateFromResponseBody(provider, connectionId, responseBody, sta
     const key = getLimiterKey(provider, connectionId, model);
     const scopedModel = key === getLimiterKey(provider, connectionId) ? null : model;
     const budgetMs = resolveRequestQueueMaxWaitMs(provider, undefined, connectionId);
-    const retry = { provider, connectionId, scopedModel, status, retryAfterMs, reason };
-    if (!bodyRetryPause.lockModelForLongBodyRetry(retry, budgetMs, responseBody, logRateLimit)) {
+    const retry = { provider, connectionId, scopedModel, requestedModel, status, reason };
+    if (!bodyRetryPause.lockModelForLongBodyRetry(retry, budgetMs, responseBody)) {
       const fresh = !limiters.has(key);
+      const pausedAt = Date.now(); // Bottleneck's refresh clock starts when the limiter is built
       const limiter = getLimiter(provider, connectionId, model);
       logRateLimit(
         `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — body-parsed retry: ${Math.ceil(retryAfterMs / 1000)}s (${reason})`
@@ -1277,7 +1271,7 @@ export function updateFromResponseBody(provider, connectionId, responseBody, sta
         reservoirRefreshAmount: 60,
         reservoirRefreshInterval: retryAfterMs,
       });
-      if (fresh) bodyRetryPause.rememberLimiterPause(limiter, Date.now() + retryAfterMs);
+      if (fresh) bodyRetryPause.rememberLimiterPause(limiter, pausedAt + retryAfterMs);
     }
   }
 

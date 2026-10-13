@@ -8,13 +8,15 @@
  * timeout without a single upstream call.
  *
  * Expected now:
- *   - a structured RetryInfo wait longer than the queue budget, on a limiter that
- *     is already scoped to the model, becomes a model lockout on that connection
+ *   - a typed RetryInfo wait longer than the queue budget, on a limiter that is
+ *     already scoped to the model, becomes a model lockout on that connection
  *     (the signal the combo pre-dispatch gate and account selection already skip
- *     on) and leaves the queue unfrozen;
- *   - every other long wait (prose hint, connection-wide limiter, no model) keeps
- *     the limiter pause, and a pause the caller's remaining queue time cannot
- *     outlast fails at once instead of waiting that time out.
+ *     on), for the requested name too when an alias resolved it, and leaves the
+ *     queue unfrozen;
+ *   - every other long wait (prose hint, untyped field, connection-wide limiter,
+ *     no model) keeps the limiter pause, and a pause the caller's remaining queue
+ *     time cannot outlast fails at once instead of waiting that time out — but
+ *     never one the limiter's own refresh would serve in time.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -23,6 +25,7 @@ const rateLimitManager = await import("../../open-sse/services/rateLimitManager.
 const accountFallback = await import("../../open-sse/services/accountFallback.ts");
 const { LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE } =
   await import("../../open-sse/services/rateLimitManager/errors.ts");
+const Bottleneck = (await import("bottleneck")).default;
 
 const MODEL = "gemini-3.6-flash";
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -170,6 +173,21 @@ test("a prose retry hint never becomes a lockout; its pause still turns callers 
   await assertTurnedAwayAtOnce("gemini", conn, MODEL);
 });
 
+test("a retryDelay outside a typed RetryInfo detail never becomes a lockout; its pause still turns callers away at once", async () => {
+  const conn = "conn-long-retry-untyped";
+  await warm("gemini", conn, MODEL);
+
+  record429(
+    "gemini",
+    conn,
+    MODEL,
+    JSON.stringify({ error: { details: [{ retryDelay: "86399s" }] } })
+  );
+  assert.equal(accountFallback.getModelLockoutInfo("gemini", conn, MODEL), null);
+
+  await assertTurnedAwayAtOnce("gemini", conn, MODEL);
+});
+
 test("on a connection-wide limiter a long RetryInfo keeps pausing the connection instead of locking one model", async () => {
   const conn = "conn-long-retry-connwide";
   await warm("openai", conn, "gpt-4o");
@@ -183,6 +201,29 @@ test("on a connection-wide limiter a long RetryInfo keeps pausing the connection
 
   // The whole connection stays paused, so another model is turned away too.
   await assertTurnedAwayAtOnce("openai", conn, "gpt-4.1");
+});
+
+test("the requested name is locked with the resolved model, so a combo target naming an alias skips the key", async () => {
+  const conn = "conn-long-retry-alias";
+  await warm("gemini", conn, MODEL);
+
+  // chatCore hands over the resolved model and the name the client asked for.
+  rateLimitManager.updateFromHeaders("gemini", conn, new Headers(), 429, MODEL);
+  rateLimitManager.updateFromResponseBody(
+    "gemini",
+    conn,
+    gemini429Body("86399s"),
+    429,
+    MODEL,
+    "my-flash-alias"
+  );
+
+  assert.equal(accountFallback.isModelLocked("gemini", conn, MODEL), true);
+  assert.equal(
+    accountFallback.isModelLocked("gemini", conn, "my-flash-alias"),
+    true,
+    "the combo gate and account selection check the requested name"
+  );
 });
 
 test("guard: a short body pause inside the queue budget still holds the call and then serves it", async () => {
@@ -264,4 +305,33 @@ test("guard: the per-target deadline (abort signal) ends a wait behind a body pa
   }
   const waited = Date.now() - started;
   assert.ok(waited < AT_ONCE_MS, `abort took ${waited}ms to end the queue wait`);
+});
+
+test("guard: a recorded pause never outlasts the refresh clock of the limiter it was set on", async () => {
+  const conn = "conn-long-retry-anchor";
+  await warm("gemini", conn, MODEL);
+
+  // Bottleneck starts the refresh clock when the limiter is built. A build that
+  // stalls (slow logging, a busy event loop) must not stretch the recorded pause
+  // past that clock, or the fail-fast would turn away a call the refill serves.
+  const STALL_MS = 2_500;
+  rateLimitManager.__setLimiterFactoryForTests((options) => {
+    const limiter = new Bottleneck(options);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, STALL_MS);
+    return limiter;
+  });
+  record429("gemini", conn, MODEL, gemini429Body("4s"));
+
+  // About 1.5 s of the 4 s pause are left, well inside a 3 s budget.
+  const started = Date.now();
+  const result = await rateLimitManager.withRateLimit(
+    "gemini",
+    conn,
+    MODEL,
+    async () => "refilled",
+    null,
+    3_000
+  );
+  assert.equal(result, "refilled");
+  assert.ok(Date.now() - started >= 1_000, "the call waited for the refill");
 });

@@ -16,15 +16,15 @@ type BodyRetry = Parameters<typeof bodyRetryPause.lockModelForLongBodyRetry>[0];
 
 const MODEL = "gemini-3.6-flash";
 const NOW = 1_000_000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const RETRY_INFO_TYPE = "type.googleapis.com/google.rpc.RetryInfo";
+
+function errorBody(details: unknown[]): string {
+  return JSON.stringify({ error: { code: 429, status: "RESOURCE_EXHAUSTED", details } });
+}
 
 function retryInfoBody(retryDelay: string): string {
-  return JSON.stringify({
-    error: {
-      code: 429,
-      status: "RESOURCE_EXHAUSTED",
-      details: [{ "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay }],
-    },
-  });
+  return errorBody([{ "@type": RETRY_INFO_TYPE, retryDelay }]);
 }
 
 function proseBody(seconds: number): string {
@@ -81,46 +81,71 @@ test("noteLimiterUpdate forgets the pause on a reservoir or refresh change, not 
   assert.ok(bodyRetryPause.checkLimiterPause(limiter, 5_000, "p/m", NOW), "pacing keeps it");
 });
 
-test("lockModelForLongBodyRetry locks only a 429 RetryInfo wait past the budget on a model-scoped limiter", () => {
+test("lockModelForLongBodyRetry locks only a 429 typed RetryInfo wait past the budget on a model-scoped limiter", () => {
   const base: BodyRetry = {
     provider: "gemini",
     connectionId: "conn-decision",
     scopedModel: MODEL,
     status: 429,
-    retryAfterMs: 86_399_000,
     reason: "rate_limit_exceeded",
   };
-  const retryInfo = retryInfoBody("86399s");
-  const logged: string[] = [];
-  const decide = (overrides: Partial<BodyRetry>, budgetMs = 30_000, body: unknown = retryInfo) =>
-    bodyRetryPause.lockModelForLongBodyRetry({ ...base, ...overrides }, budgetMs, body, (m) =>
-      logged.push(m)
-    );
+  const decide = (
+    overrides: Partial<BodyRetry>,
+    budgetMs = 30_000,
+    body: unknown = retryInfoBody("86399s")
+  ) => bodyRetryPause.lockModelForLongBodyRetry({ ...base, ...overrides }, budgetMs, body);
 
   assert.equal(decide({ status: 503 }), false, "only 429s convert");
   assert.equal(decide({ scopedModel: null }), false, "a connection-wide limiter keeps the pause");
-  assert.equal(decide({ retryAfterMs: 30_000 }), false, "a wait that fits the budget is pacing");
+  assert.equal(decide({}, 30_000, retryInfoBody("30s")), false, "a wait that fits is pacing");
   assert.equal(decide({}, 0), false, "maxWaitMs 0 means the queue has no wait deadline");
   assert.equal(decide({}, 30_000, proseBody(86_399)), false, "a prose hint is not authoritative");
+  const untyped = errorBody([{ retryDelay: "86399s" }]);
+  assert.equal(decide({}, 30_000, untyped), false, "an untyped retryDelay is not RetryInfo");
+  const otherType = errorBody([
+    { "@type": "type.googleapis.com/google.rpc.QuotaFailure", retryDelay: "86399s" },
+  ]);
+  assert.equal(decide({}, 30_000, otherType), false, "nor is one under another @type");
   assert.equal(accountFallback.getModelLockoutInfo("gemini", "conn-decision", MODEL), null);
-  assert.deepEqual(logged, [], "only a lockout is logged here; the caller logs the pause");
 
   assert.equal(decide({}), true);
   const lock = accountFallback.getModelLockoutInfo("gemini", "conn-decision", MODEL);
   assert.ok(lock && lock.remainingMs > 86_390_000 && lock.remainingMs <= 86_399_000);
-  assert.match(logged.join("\n"), /86399s .* exceeds the 30000ms queue budget; locking gemini/);
 
-  assert.equal(decide({ connectionId: "conn-ceiling", retryAfterMs: 999_999_000 }), true);
+  assert.equal(decide({ connectionId: "conn-ceiling" }, 30_000, retryInfoBody("999999s")), true);
   const capped = accountFallback.getModelLockoutInfo("gemini", "conn-ceiling", MODEL);
-  assert.ok(capped && capped.remainingMs <= 24 * 60 * 60 * 1000, "capped at the 24h hint ceiling");
+  assert.ok(capped && capped.remainingMs <= DAY_MS, "capped at the 24h hint ceiling");
 });
 
-test("hasRetryInfoDelay reads the field parseRetryAfterFromBody prefers over prose", () => {
-  assert.equal(bodyRetryPause.hasRetryInfoDelay(retryInfoBody("5s")), true);
-  assert.equal(bodyRetryPause.hasRetryInfoDelay(JSON.parse(retryInfoBody("5s"))), true);
-  assert.equal(bodyRetryPause.hasRetryInfoDelay({ details: [{ retryDelay: "5s" }] }), true);
-  assert.equal(bodyRetryPause.hasRetryInfoDelay(proseBody(5)), false);
-  assert.equal(bodyRetryPause.hasRetryInfoDelay("not json"), false);
-  assert.equal(bodyRetryPause.hasRetryInfoDelay(null), false);
-  assert.equal(bodyRetryPause.hasRetryInfoDelay({ error: { details: [{}] } }), false);
+test("lockModelForLongBodyRetry also locks the requested name an alias resolved to the model", () => {
+  const retry: BodyRetry = {
+    provider: "gemini",
+    connectionId: "conn-alias",
+    scopedModel: MODEL,
+    requestedModel: "my-flash-alias",
+    status: 429,
+    reason: "rate_limit_exceeded",
+  };
+  assert.equal(
+    bodyRetryPause.lockModelForLongBodyRetry(retry, 30_000, retryInfoBody("86399s")),
+    true
+  );
+  assert.equal(accountFallback.isModelLocked("gemini", "conn-alias", MODEL), true);
+  assert.equal(accountFallback.isModelLocked("gemini", "conn-alias", "my-flash-alias"), true);
+  assert.equal(accountFallback.isModelLocked("gemini", "conn-alias", "gemini-2.5-pro"), false);
+});
+
+test("retryInfoDelayMs reads only a typed RetryInfo detail, like the google_rpc_retry_info provenance", () => {
+  assert.equal(bodyRetryPause.retryInfoDelayMs(retryInfoBody("5s")), 5_000);
+  assert.equal(bodyRetryPause.retryInfoDelayMs(JSON.parse(retryInfoBody("5s"))), 5_000);
+  assert.equal(
+    bodyRetryPause.retryInfoDelayMs({ details: [{ "@type": RETRY_INFO_TYPE, retryDelay: "5s" }] }),
+    5_000
+  );
+  assert.equal(bodyRetryPause.retryInfoDelayMs(retryInfoBody("999999s")), DAY_MS);
+  assert.equal(bodyRetryPause.retryInfoDelayMs({ details: [{ retryDelay: "5s" }] }), null);
+  assert.equal(bodyRetryPause.retryInfoDelayMs(proseBody(5)), null);
+  assert.equal(bodyRetryPause.retryInfoDelayMs("not json"), null);
+  assert.equal(bodyRetryPause.retryInfoDelayMs(null), null);
+  assert.equal(bodyRetryPause.retryInfoDelayMs({ error: "Rate limited" }), null);
 });
