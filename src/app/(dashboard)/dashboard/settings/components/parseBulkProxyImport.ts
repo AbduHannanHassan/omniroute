@@ -179,6 +179,16 @@ function parseShorthandLine(
     return false;
   }
 
+  return parseLegacyShorthandLine(working, lineNum, type, entries, errors);
+}
+
+function parseLegacyShorthandLine(
+  working: string,
+  lineNum: number,
+  type: string,
+  entries: ParsedProxyEntry[],
+  errors: ParseError[]
+): boolean {
   // Check for user:pass@host:port format (after protocol stripped)
   const atIdx = working.indexOf("@");
   if (atIdx > 0) {
