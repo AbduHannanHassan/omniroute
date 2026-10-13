@@ -3,24 +3,23 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/shared/utils/cn";
+import {
+  buildHttpProxySnippets,
+  HTTP_PROXY_SNIPPET_LANGS,
+  type HttpProxySnippetLang,
+} from "./httpProxySnippets";
 
 interface HttpProxySnippetCardProps {
   port: number;
   onClose: () => void;
 }
 
-type Lang = "bash" | "python" | "node";
-
 export function HttpProxySnippetCard({ port, onClose }: HttpProxySnippetCardProps) {
   const t = useTranslations("trafficInspector");
-  const [lang, setLang] = useState<Lang>("bash");
+  const [lang, setLang] = useState<HttpProxySnippetLang>("bash");
   const [copied, setCopied] = useState(false);
 
-  const snippets: Record<Lang, string> = {
-    bash: `export HTTP_PROXY=http://127.0.0.1:${port}\nexport HTTPS_PROXY=http://127.0.0.1:${port}\nexport NODE_TLS_REJECT_UNAUTHORIZED=0\n# then run your command:\ncurl https://api.openai.com/v1/models`,
-    python: `import os\nos.environ["HTTP_PROXY"] = "http://127.0.0.1:${port}"\nos.environ["HTTPS_PROXY"] = "http://127.0.0.1:${port}"\nos.environ["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"\n# then use requests or httpx as usual`,
-    node: `process.env.HTTP_PROXY = "http://127.0.0.1:${port}";\nprocess.env.HTTPS_PROXY = "http://127.0.0.1:${port}";\nprocess.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";\n// then use fetch / axios / undici as usual`,
-  };
+  const snippets = buildHttpProxySnippets(port);
 
   const copy = async () => {
     await navigator.clipboard.writeText(snippets[lang]);
@@ -48,7 +47,7 @@ export function HttpProxySnippetCard({ port, onClose }: HttpProxySnippetCardProp
         </div>
 
         <div className="flex gap-1 mb-3">
-          {(["bash", "python", "node"] as Lang[]).map((l) => (
+          {HTTP_PROXY_SNIPPET_LANGS.map((l) => (
             <button
               key={l}
               type="button"
@@ -68,6 +67,13 @@ export function HttpProxySnippetCard({ port, onClose }: HttpProxySnippetCardProp
         <pre className="rounded bg-bg-subtle border border-border p-3 text-xs font-mono text-text-main overflow-x-auto whitespace-pre">
           {snippets[lang]}
         </pre>
+
+        <p className="mt-3 flex gap-1.5 text-xs text-text-muted">
+          <span className="material-symbols-outlined text-[14px] text-amber-400" aria-hidden="true">
+            lock
+          </span>
+          <span>{t("httpProxyTlsNote")}</span>
+        </p>
 
         <div className="mt-3 flex justify-end">
           <button
