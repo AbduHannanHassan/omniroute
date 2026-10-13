@@ -20,6 +20,7 @@ import namespaces from "@/i18n/routeNamespaces.generated.json";
 import { pickMessages } from "@/i18n/pickMessages";
 import CachedInputTokens from "@/shared/components/CachedInputTokens";
 import UsageOverview from "@/shared/components/UsageOverview";
+import { ModelTable } from "@/shared/components/analytics/ModelTable";
 
 function renderUsage(children: React.ReactNode) {
   return renderToStaticMarkup(
@@ -109,6 +110,30 @@ describe("provider cached input reporting", () => {
     expect(html).toContain("60");
     expect(html).toContain(messages.stats.outputTokens);
     expect(html).not.toContain(">160<");
+  }, 1_000);
+
+  it("model table preserves legacy input cells but renders measured and explicitly unknown cache fields", () => {
+    const base = {
+      model: "fixture-model",
+      requests: 1,
+      promptTokens: 100,
+      completionTokens: 10,
+      totalTokens: 110,
+      cost: 0,
+    };
+    const legacy = renderUsage(<ModelTable byModel={[base]} />);
+    const known = renderUsage(
+      <ModelTable byModel={[{ ...base, cachedInputTokens: 60, cachedInputTokensComplete: true }]} />
+    );
+    const unknown = renderUsage(
+      <ModelTable
+        byModel={[{ ...base, cachedInputTokens: null, cachedInputTokensComplete: false }]}
+      />
+    );
+    expect(legacy).not.toContain("cached-input-tokens");
+    expect(known).toContain("Cache Read Tokens");
+    expect(known).toContain("60");
+    expect(unknown).toContain("No data available");
   }, 1_000);
 
   it("does not display missing historical cache counts as measured zero", () => {

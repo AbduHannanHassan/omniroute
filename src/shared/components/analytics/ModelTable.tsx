@@ -137,10 +137,12 @@ export function ModelTable({ byModel, summary, displayMode = "compact" }: ModelT
                   }
                 >
                   {displayMode === "exact" ? fmtFull(m.promptTokens) : fmt(m.promptTokens)}
-                  <CachedInputTokens
-                    value={m.cachedInputTokens as number | null}
-                    complete={m.cachedInputTokensComplete as boolean}
-                  />
+                  {m.cachedInputTokens !== undefined && (
+                    <CachedInputTokens
+                      value={m.cachedInputTokens as number | null}
+                      complete={m.cachedInputTokensComplete as boolean}
+                    />
+                  )}
                 </td>
                 <td
                   className="px-4 py-2.5 text-right font-mono text-emerald-500"
