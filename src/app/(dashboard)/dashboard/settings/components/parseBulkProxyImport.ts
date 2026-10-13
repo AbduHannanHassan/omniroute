@@ -137,12 +137,16 @@ function parseShorthandLine(
     working = protocolMatch[2];
   }
 
+  // Preserve legacy user-info URIs before considering the custom host-first syntax.
+  const lastAt = working.lastIndexOf("@");
+  const legacyUserinfo = lastAt > 0 && /^(\[[^\]]+\]|[^:\s]+):\d+$/.test(working.slice(lastAt + 1));
   // The named host-first format is not a URI: @ is valid in its raw credentials.
-  const namedMatch = protocolMatch
-    ? working.match(
-        /^(\[[^\]\r\n]{1,255}\]|[^:@\[\]\r\n]{1,255}):([^:\r\n]{0,10}):([^:\r\n]*):([^:\r\n]*):([^:\r\n]*)$/
-      )
-    : null;
+  const namedMatch =
+    protocolMatch && !legacyUserinfo
+      ? working.match(
+          /^(\[[^\]\r\n]{1,255}\]|[^:@\[\]\r\n]{1,255}):([^:\r\n]{0,10}):([^:\r\n]*):([^:\r\n]*):([^:\r\n]*)$/
+        )
+      : null;
   if (namedMatch) {
     const [, rawHost, rawPort, rawUser, rawPassword, rawName] = namedMatch;
     const host = rawHost.trim().replace(/^\[|\]$/g, "");
@@ -167,6 +171,11 @@ function parseShorthandLine(
       type,
       name
     );
+  }
+
+  if (protocolMatch && !legacyUserinfo && working.split(":").length >= 5) {
+    errors.push({ line: lineNum, reason: "bulkImportErrorMissingHost" });
+    return false;
   }
 
   // Check for user:pass@host:port format (after protocol stripped)

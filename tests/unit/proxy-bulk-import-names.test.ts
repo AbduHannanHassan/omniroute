@@ -76,6 +76,7 @@ test(
       "socks5://gateway.example.invalid:12000:fixture-user:fixture:password:UK",
       "socks5://:12000:fixture-user:fixture-password:UK",
       "vless://gateway.example.invalid:12000:fixture-user:fixture-password:UK",
+      "socks5://gateway.example.invalid:1080:user@example.invalid:pass:UK:1234",
     ]) {
       const result = parseBulkImportText(row);
       assert.deepEqual(result.entries, []);
@@ -115,5 +116,12 @@ test(
     assert.equal(result.entries[5].notes, "note");
     assert.equal(result.entries[6].username, "user");
     assert.equal(result.entries[6].password, "colon:password");
+    for (const password of ["one:two:three", "123:two:three"]) {
+      const legacy = parseBulkImportText(`socks5://user:${password}@gateway.example.invalid:8080`);
+      assert.deepEqual(legacy.errors, []);
+      assert.equal(legacy.entries[0].host, "gateway.example.invalid");
+      assert.equal(legacy.entries[0].username, "user");
+      assert.equal(legacy.entries[0].password, password);
+    }
   }
 );
