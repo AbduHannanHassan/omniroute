@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 
 import { forwardOpencodeClientHeaders } from "../../open-sse/utils/opencodeHeaders.ts";
 
-// Helper: create a fresh empty headers record
-function h(): Record<string, string> {
-  return {};
+// Helper: create a fresh headers record, optionally seeded (e.g. registry statics)
+function h(seed: Record<string, string> = {}): Record<string, string> {
+  return { ...seed };
 }
 
 // ── User-Agent forwarding ───────────────────────────────────────────────────
@@ -150,6 +150,54 @@ describe("forwardOpencodeClientHeaders – X-Session-ID / X-Title", () => {
     forwardOpencodeClientHeaders(headers, clientHeaders);
     assert.equal(headers["x-session-id"], "sess-1");
     assert.equal(headers["X-Random-Other"], undefined);
+  });
+});
+
+// ── app attribution (HTTP-Referer) + case-variant dedup ────────────────────
+// OpenRouter publisher gates (e.g. thinkingmachines/inkling:free "only available
+// on agentic harnesses" 403) key on app attribution: HTTP-Referer / X-Title.
+// The openrouter registry ships static defaults ("HTTP-Referer"/"X-Title"); a
+// client value under a different case used to survive alongside them, and undici
+// then comma-joined both spellings into one garbage header value.
+
+describe("forwardOpencodeClientHeaders – HTTP-Referer attribution", () => {
+  it("forwards HTTP-Referer from client headers", () => {
+    const headers = h();
+    const clientHeaders = { "HTTP-Referer": "https://claude.ai" };
+    forwardOpencodeClientHeaders(headers, clientHeaders);
+    assert.equal(headers["http-referer"], "https://claude.ai");
+  });
+
+  it("replaces a differently-cased static HTTP-Referer instead of comma-joining", () => {
+    const headers = h({ "HTTP-Referer": "https://endpoint-proxy.local" });
+    const clientHeaders = { "HTTP-Referer": "https://claude.ai" };
+    forwardOpencodeClientHeaders(headers, clientHeaders);
+    assert.deepEqual(
+      Object.keys(headers).filter((k) => k.toLowerCase() === "http-referer"),
+      ["http-referer"]
+    );
+    assert.equal(headers["http-referer"], "https://claude.ai");
+  });
+
+  it("replaces a differently-cased static X-Title instead of comma-joining", () => {
+    const headers = h({ "X-Title": "Endpoint Proxy" });
+    const clientHeaders = { "X-Title": "My Agent" };
+    forwardOpencodeClientHeaders(headers, clientHeaders);
+    assert.deepEqual(
+      Object.keys(headers).filter((k) => k.toLowerCase() === "x-title"),
+      ["x-title"]
+    );
+    assert.equal(headers["x-title"], "My Agent");
+  });
+
+  it("keeps the static attribution when the client sends none", () => {
+    const headers = h({
+      "HTTP-Referer": "https://endpoint-proxy.local",
+      "X-Title": "Endpoint Proxy",
+    });
+    forwardOpencodeClientHeaders(headers, {});
+    assert.equal(headers["HTTP-Referer"], "https://endpoint-proxy.local");
+    assert.equal(headers["X-Title"], "Endpoint Proxy");
   });
 });
 

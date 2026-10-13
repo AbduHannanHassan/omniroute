@@ -132,7 +132,7 @@ const OPENCODE_HEADER_KEYS = [
  * Added for 9router#2413 — these were previously dropped for every client
  * outside the OpenCode allowlist.
  */
-const AGENT_METADATA_HEADER_KEYS = ["x-session-id", "x-title"] as const;
+const AGENT_METADATA_HEADER_KEYS = ["x-session-id", "x-title", "http-referer"] as const;
 
 /**
  * Case-insensitive lookup for a header in a headers record.
@@ -148,8 +148,10 @@ function findHeader(headers: Record<string, string>, name: string): string | und
  * 1. Forwards User-Agent from clientHeaders via `setUserAgentHeader()`
  * 2. Forwards x-opencode-session, x-opencode-request, x-opencode-project,
  *    x-opencode-client headers (case-insensitive match)
- * 3. Forwards x-session-id, x-title agent-metadata headers (case-insensitive
- *    match) — common conventions used by non-OpenCode agent clients (9router#2413)
+ * 3. Forwards x-session-id, x-title and http-referer agent-metadata headers
+ *    (case-insensitive match) — common conventions used by non-OpenCode agent
+ *    clients (9router#2413); http-referer carries app attribution upstreams
+ *    such as OpenRouter key publisher access control on.
  *
  * @param headers - The outbound headers record to mutate
  * @param clientHeaders - The client-provided headers to forward from
@@ -201,12 +203,18 @@ export function forwardOpencodeClientHeaders(
     }
   }
 
-  // 2b. Forward agent-metadata headers (x-session-id, x-title) — 9router#2413
+  // 2b. Forward agent-metadata headers (x-session-id, x-title, http-referer) — 9router#2413.
+  // http-referer carries app attribution OpenRouter publisher gates key on (e.g. the
+  // thinkingmachines/inkling:free "agentic harnesses" 403). Delete same-name entries
+  // under any case first: a registry static like "X-Title"/"HTTP-Referer" plus the
+  // lowercase forwarded key would be comma-joined into one garbage value by undici.
   for (const headerName of AGENT_METADATA_HEADER_KEYS) {
     const value = findHeader(clientHeaders, headerName);
-    if (value) {
-      headers[headerName] = value;
+    if (!value) continue;
+    for (const existing of Object.keys(headers)) {
+      if (existing.toLowerCase() === headerName) delete headers[existing];
     }
+    headers[headerName] = value;
   }
 
   // 3. OpencodeExecutor-only: synthesize session/request id from fallback headers
