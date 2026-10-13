@@ -24,6 +24,7 @@ import {
   comboTargetsNotAllowedResponse,
   filterComboTargetsForKey,
   isKeyScopeBlockedCredentials,
+  keylessProviderRejection,
   type ComboKeyScope,
 } from "@/sse/services/keyConnectionScope";
 import { handleAudioSpeech } from "@omniroute/open-sse/handlers/audioSpeech.ts";
@@ -139,6 +140,27 @@ export async function executeSpeechCombo(
 
       if (isAllRateLimitedCredentials(credentials)) {
         lastError = { status: 429, error: `[${targetProvider}] All accounts rate limited` };
+        fallbackCount += 1;
+        continue;
+      }
+    } else if (providerConfig) {
+      // GHSA-3w2r: keyless targets follow chat's #9057 rule for the caller key.
+      const keylessCredentialKey = providerConfig.credentialProviderId || targetProvider;
+      const keylessRejection = await keylessProviderRejection(
+        targetProvider,
+        keyScope.allowedConnections,
+        () =>
+          getProviderCredentialsWithQuotaPreflight(
+            keylessCredentialKey,
+            null,
+            keyScope.allowedConnections ?? null
+          )
+      );
+      if (keylessRejection) {
+        lastError = {
+          status: keylessRejection.status,
+          error: `[${targetProvider}] No connection allowed for this API key`,
+        };
         fallbackCount += 1;
         continue;
       }

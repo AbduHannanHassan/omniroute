@@ -222,7 +222,16 @@ export async function executeVideoCombo(
           return;
         }
       } else if (providerConfig?.authType === "none") {
-        credentials = await resolveLocalOverrideCredentials(targetProvider, allowedConnections);
+        const local = await resolveLocalOverrideCredentials(targetProvider, allowedConnections);
+        if (local.rejection) {
+          lastError = {
+            status: local.rejection.status,
+            error: `[${targetProvider}] No connection allowed for this API key`,
+          };
+          fallbackCount += 1;
+          return;
+        }
+        credentials = local.credentials;
       }
 
       const result: MediaGenerationResultLike = await handleVideoGeneration({

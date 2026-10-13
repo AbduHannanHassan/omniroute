@@ -24,6 +24,7 @@ import {
   createComboTargetKeyGate,
   isKeyScopeBlockedCredentials,
   keyScopeBlockedResponse,
+  keylessProviderRejection,
   narrowConnectionScope,
   resolveKeyConnectionScope,
   withoutKeyScopeBlocked,
@@ -337,15 +338,22 @@ async function postHandler(request, context) {
     // #6928: best-effort per-connection base-URL override lookup for local
     // no-auth media providers (ComfyUI). A connection is optional here — unlike
     // the authType !== "none" branch above, we never 400 when none exists.
-    // A connection outside the key's scope is never used for the override.
-    const localCredentials = withoutKeyScopeBlocked(
-      await getProviderCredentialsWithQuotaPreflight(
-        provider,
-        null,
-        allowedConnections,
-        requestedModel
-      )
+    // A connection outside the key's scope is never used for the override, and
+    // a connection-scoped key reaches the zero-config default only when its
+    // allowlist admits keyless providers (chat's #9057 rule).
+    const lookup = await getProviderCredentialsWithQuotaPreflight(
+      provider,
+      null,
+      allowedConnections,
+      requestedModel
     );
+    const keylessRejection = await keylessProviderRejection(
+      provider,
+      allowedConnections,
+      async () => lookup
+    );
+    if (keylessRejection) return keylessRejection;
+    const localCredentials = withoutKeyScopeBlocked(lookup);
     if (localCredentials && !isAllRateLimitedCredentials(localCredentials)) {
       credentials = localCredentials;
     }

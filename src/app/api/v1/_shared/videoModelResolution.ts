@@ -2,7 +2,10 @@ import { getAllCustomModels } from "@/lib/db/models";
 import { parseVideoModel } from "@omniroute/open-sse/config/videoRegistry.ts";
 import { getProviderCredentialsWithQuotaPreflight } from "@/sse/services/auth";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
-import { withoutKeyScopeBlocked } from "@/sse/services/keyConnectionScope";
+import {
+  keylessProviderRejection,
+  withoutKeyScopeBlocked,
+} from "@/sse/services/keyConnectionScope";
 
 export type VideoModelTarget = {
   provider: string | null;
@@ -77,13 +80,23 @@ export function isVideoPromptOptional(parsed: { provider: string | null; model: 
 export async function resolveLocalOverrideCredentials(
   provider: string,
   allowedConnections: string[] | null = null
-) {
+): Promise<{ credentials: Record<string, unknown> | null; rejection: Response | null }> {
   // GHSA-3w2r: a connection outside the caller key's scope is never used for
-  // the override; the provider then runs on its zero-configuration default.
-  const localCredentials = withoutKeyScopeBlocked(
-    await getProviderCredentialsWithQuotaPreflight(provider, null, allowedConnections)
+  // the override, and a connection-scoped key reaches the zero-configuration
+  // default only when its allowlist admits keyless providers (chat's #9057).
+  const lookup = await getProviderCredentialsWithQuotaPreflight(provider, null, allowedConnections);
+  const rejection = await keylessProviderRejection(
+    provider,
+    allowedConnections,
+    async () => lookup
   );
-  return localCredentials && !isAllRateLimitedCredentials(localCredentials)
-    ? localCredentials
-    : null;
+  if (rejection) return { credentials: null, rejection };
+  const localCredentials = withoutKeyScopeBlocked(lookup);
+  return {
+    credentials:
+      localCredentials && !isAllRateLimitedCredentials(localCredentials)
+        ? (localCredentials as Record<string, unknown>)
+        : null,
+    rejection: null,
+  };
 }

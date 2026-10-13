@@ -19,6 +19,7 @@ import {
 import {
   isKeyScopeBlockedCredentials,
   keyScopeBlockedResponse,
+  keylessProviderRejection,
   narrowConnectionScope,
   withoutKeyScopeBlocked,
 } from "@/sse/services/keyConnectionScope";
@@ -453,6 +454,17 @@ export async function createEmbeddingResponse(
         };
       }
     }
+  }
+
+  // GHSA-3w2r: a run without any connection (local default, private-host node)
+  // is keyless. A connection-scoped key reaches it only when its allowlist
+  // admits keyless providers or an in-scope connection serves the provider —
+  // chat's #9057 rule. Unscoped callers are not affected.
+  if (!credentials && providerConfig.authType === "none") {
+    const keylessRejection = await keylessProviderRejection(provider, keyConnections, () =>
+      getProviderCredentials(credentialsProviderId, null, keyConnections)
+    );
+    if (keylessRejection) return keylessRejection;
   }
 
   // Alibaba's embedding endpoint is connection-scoped: workspace and region

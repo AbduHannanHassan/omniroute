@@ -33,6 +33,7 @@ import {
 } from "@/sse/services/auth";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
 import {
+  keyAdmitsKeylessProviders,
   resolveKeyConnectionScope,
   withoutKeyScopeBlocked,
 } from "@/sse/services/keyConnectionScope";
@@ -189,7 +190,14 @@ async function resolveExplicitTarget(
   // Anonymous-capable providers never hard-fail on credential problems: the
   // anonymous tier does not consume key quota, so a rate-limited (or absent)
   // key degrades to an anonymous attempt instead of a 429/400.
-  if (ANONYMOUS_CAPABLE_PROVIDERS.has(providerId)) {
+  // GHSA-3w2r: the anonymous tier sends the URL to a party the key's
+  // connection allowlist did not approve, so a connection-scoped key uses it
+  // only when the allowlist names `noauth` (chat's #9057 rule).
+  if (
+    ANONYMOUS_CAPABLE_PROVIDERS.has(providerId) &&
+    (keyAdmitsKeylessProviders(allowedConnections) ||
+      (creds && !isAllRateLimitedCredentials(creds)))
+  ) {
     return {
       ok: true,
       provider: providerId,

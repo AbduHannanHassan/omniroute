@@ -13,6 +13,7 @@ import * as log from "@/sse/utils/logger";
 import { toJsonErrorPayload } from "@/shared/utils/upstreamError";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
 import {
+  keyAdmitsKeylessProviders,
   resolveKeyConnectionScope,
   withoutKeyScopeBlocked,
 } from "@/sse/services/keyConnectionScope";
@@ -117,8 +118,14 @@ async function resolveAlphaSearchProvider(
 
   // Last resort: free, no-key DuckDuckGo search — same free fallback /v1/search
   // promotes when no credentialed provider is configured.
+  // GHSA-3w2r: the keyless fallback sends the query to a party the key's
+  // connection allowlist did not approve — only when it names `noauth`.
   const fallback = getSearchProvider("duckduckgo-free");
-  if (fallback && !isProviderBlockedByIdOrAlias(fallback.id, blockedProviders)) {
+  if (
+    fallback &&
+    keyAdmitsKeylessProviders(allowedConnections) &&
+    !isProviderBlockedByIdOrAlias(fallback.id, blockedProviders)
+  ) {
     return { providerConfig: fallback, credentials: {} };
   }
 

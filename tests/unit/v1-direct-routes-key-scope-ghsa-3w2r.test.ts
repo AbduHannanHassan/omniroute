@@ -124,7 +124,13 @@ async function makeKey(
 }
 
 /** Records every outbound call and answers 400 so no handler polls or retries. */
-function stubUpstream() {
+function stubUpstream(
+  reply: () => Response = () =>
+    new Response(JSON.stringify({ error: { message: "stubbed upstream" } }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    })
+) {
   const originalFetch = globalThis.fetch;
   const calls: string[] = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
@@ -135,10 +141,7 @@ function stubUpstream() {
     });
     const body = typeof init.body === "string" ? init.body : "";
     calls.push(`${url} ${JSON.stringify(headers)} ${body}`);
-    return new Response(JSON.stringify({ error: { message: "stubbed upstream" } }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return reply();
   }) as typeof fetch;
   return {
     calls,
@@ -184,12 +187,6 @@ type RouteCase = {
   /** Provider whose connections the route selects. */
   provider: string | (() => string);
   call: (bearer: string) => Promise<Response>;
-  /**
-   * The route has a keyless fallback that uses no connection (DuckDuckGo free
-   * search), so a key scoped elsewhere may still be answered — just never by a
-   * connection outside its scope.
-   */
-  keylessFallback?: true;
 };
 
 const ROUTE_CASES: RouteCase[] = [
@@ -288,7 +285,6 @@ const ROUTE_CASES: RouteCase[] = [
   },
   {
     name: "POST /v1/alpha/search",
-    keylessFallback: true,
     provider: () => selectProvider(undefined, "web")!.id,
     call: (bearer) =>
       alphaSearchRoute.POST(
@@ -300,7 +296,6 @@ const ROUTE_CASES: RouteCase[] = [
   },
   {
     name: "POST /v1/search",
-    keylessFallback: true,
     provider: () => selectProvider(undefined, "web")!.id,
     call: (bearer) =>
       searchRoute.POST(jsonRequest("/v1/search", bearer, { query: "lighthouse" }), noContext),
@@ -424,12 +419,13 @@ for (const routeCase of ROUTE_CASES) {
     const upstream = stubUpstream();
     try {
       const response = await routeCase.call(disjointKey);
-      if (!routeCase.keylessFallback) {
-        assert.notEqual(response.status, 200, "no allowed connection → no success");
-      }
+      assert.notEqual(response.status, 200, "no allowed connection → no success");
       const body = await response.text();
       assert.ok(!body.includes("at /"), "no stack trace leaks");
       assert.deepEqual(upstream.secretsSeen(), [], "no connection outside the key's scope is used");
+      // Nor a keyless third party (e.g. the DuckDuckGo search fallback): the
+      // request must not leave the process at all.
+      assert.deepEqual(upstream.calls, [], "nothing reaches any upstream");
     } finally {
       upstream.restore();
     }
@@ -536,6 +532,179 @@ test("GHSA-3w2r combos: the per-target model gate follows chat's combo policy", 
   );
   assert.ok(granted);
   assert.equal(await granted(target), true);
+});
+
+// ── keyless / zero-config providers (chat's #9057 rule) ─────────────────────
+
+type KeylessCase = { name: string; call: (bearer: string) => Promise<Response> };
+
+const KEYLESS_CASES: KeylessCase[] = [
+  {
+    name: "POST /v1/images/generations (sdwebui)",
+    call: (bearer) =>
+      imagesRoute.POST(
+        jsonRequest("/v1/images/generations", bearer, {
+          model: "sdwebui/sdxl-base-1.0",
+          prompt: "a lighthouse",
+        }),
+        noContext
+      ),
+  },
+  {
+    name: "POST /v1/videos/generations (comfyui)",
+    call: (bearer) =>
+      videosRoute.POST(
+        jsonRequest("/v1/videos/generations", bearer, {
+          model: "comfyui/animatediff",
+          prompt: "a lighthouse at dusk",
+        }),
+        noContext
+      ),
+  },
+  {
+    name: "POST /v1/music/generations (comfyui)",
+    call: (bearer) =>
+      musicRoute.POST(
+        jsonRequest("/v1/music/generations", bearer, {
+          model: "comfyui/musicgen-medium",
+          prompt: "calm piano",
+        }),
+        noContext
+      ),
+  },
+  {
+    name: "POST /v1/audio/speech (coqui)",
+    call: (bearer) =>
+      speechRoute.POST(
+        jsonRequest("/v1/audio/speech", bearer, {
+          model: "coqui/tts_models/en/ljspeech/tacotron2-DDC",
+          input: "hello",
+          voice: "default",
+        }),
+        noContext
+      ),
+  },
+  {
+    name: "POST /v1/embeddings (ollama-local)",
+    call: (bearer) =>
+      embeddingsRoute.POST(
+        jsonRequest("/v1/embeddings", bearer, {
+          model: "ollama-local/nomic-embed-text",
+          input: "hello",
+        }),
+        noContext
+      ),
+  },
+  {
+    name: "POST /v1/search (explicit duckduckgo-free)",
+    call: (bearer) =>
+      searchRoute.POST(
+        jsonRequest("/v1/search", bearer, {
+          query: "lighthouse keyless",
+          provider: "duckduckgo-free",
+        }),
+        noContext
+      ),
+  },
+  {
+    name: "POST /v1/web/fetch (anonymous context7 tier)",
+    call: (bearer) =>
+      webFetchRoute.POST(
+        jsonRequest("/v1/web/fetch", bearer, {
+          url: "https://context7.com/reactjs/react.dev",
+          provider: "context7",
+        })
+      ),
+  },
+];
+
+for (const keylessCase of KEYLESS_CASES) {
+  test(`GHSA-3w2r ${keylessCase.name}: a connection-scoped key never reaches a keyless provider`, async () => {
+    const openai = await seedPair("openai");
+    const scopedKey = await makeKey({ allowedConnections: [openai.aId] });
+
+    const upstream = stubUpstream();
+    try {
+      const response = await keylessCase.call(scopedKey);
+      assert.notEqual(response.status, 200);
+      const body = await response.text();
+      assert.ok(!body.includes("at /"), "no stack trace leaks");
+      assert.deepEqual(upstream.calls, [], "the keyless provider is never contacted");
+    } finally {
+      upstream.restore();
+    }
+  });
+
+  test(`GHSA-3w2r ${keylessCase.name}: keyless stays available when the allowlist admits noauth`, async () => {
+    const noauthKey = await makeKey({ allowedConnections: ["noauth"] });
+    const openKey = await makeKey();
+
+    const upstream = stubUpstream();
+    try {
+      await (await keylessCase.call(noauthKey)).text();
+      assert.ok(upstream.calls.length > 0, "an allowlist naming noauth admits keyless providers");
+      upstream.calls.length = 0;
+      await (await keylessCase.call(openKey)).text();
+      assert.ok(upstream.calls.length > 0, "an unrestricted key keeps today's behavior");
+    } finally {
+      upstream.restore();
+    }
+  });
+}
+
+test("GHSA-3w2r keyless: chat's answer when no connection serves a scoped key", async () => {
+  const openai = await seedPair("openai");
+  const scopedKey = await makeKey({ allowedConnections: [openai.aId] });
+  const response = await KEYLESS_CASES[0].call(scopedKey);
+  assert.equal(response.status, 404);
+  const body = (await response.json()) as { error?: { message?: string } };
+  assert.match(body.error?.message ?? "", /No active credentials for provider: sdwebui/);
+});
+
+// ── /v1/search cache partitioned by the key's connection scope ──────────────
+
+test("GHSA-3w2r search cache: a scoped key never gets a result fetched through another connection", async () => {
+  const provider = selectProvider(undefined, "web")!.id;
+  const pair = await seedPair(provider);
+  const openKey = await makeKey();
+  const scopedKey = await makeKey({ allowedConnections: [pair.aId] });
+  const query = "ghsa3w2r cache partition probe";
+
+  const upstream = stubUpstream(
+    () =>
+      new Response(
+        JSON.stringify({
+          results: [{ title: "Lighthouse", url: "https://example.com/l", content: "beam" }],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+  );
+  try {
+    const first = await searchRoute.POST(jsonRequest("/v1/search", openKey, { query }), noContext);
+    assert.equal(first.status, 200, await first.clone().text());
+    await first.text();
+    assert.deepEqual(upstream.secretsSeen(), [pair.bSecret], "the unrestricted key is served by B");
+
+    upstream.calls.length = 0;
+    const second = await searchRoute.POST(
+      jsonRequest("/v1/search", scopedKey, { query }),
+      noContext
+    );
+    assert.equal(second.status, 200, await second.clone().text());
+    await second.text();
+    assert.deepEqual(
+      upstream.secretsSeen(),
+      [pair.aSecret],
+      "the scoped key is a cache miss and is served by its own connection"
+    );
+
+    upstream.calls.length = 0;
+    const repeat = await searchRoute.POST(jsonRequest("/v1/search", openKey, { query }), noContext);
+    await repeat.text();
+    assert.deepEqual(upstream.calls, [], "an unrestricted key keeps hitting its own cache entry");
+  } finally {
+    upstream.restore();
+  }
 });
 
 // ── shared scope helper (same narrowing chat applies) ───────────────────────

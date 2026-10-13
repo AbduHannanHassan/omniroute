@@ -165,7 +165,9 @@ async function postHandler(request, context) {
       return rateLimitedProviderResponse(provider, credentials);
     }
   } else if (providerConfig?.authType === "none") {
-    credentials = await resolveLocalOverrideCredentials(provider, allowedConnections);
+    const local = await resolveLocalOverrideCredentials(provider, allowedConnections);
+    if (local.rejection) return local.rejection;
+    credentials = local.credentials;
   }
 
   const result: MediaGenerationResultLike = await handleVideoGeneration({

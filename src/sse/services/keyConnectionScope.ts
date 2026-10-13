@@ -16,12 +16,17 @@
  *     the "every connection was hidden by the key's scope" sentinel that
  *     `getProviderCredentials` returns, which callers must never treat as
  *     usable credentials;
- *   - {@link createComboTargetKeyGate} — the combo per-target model check.
+ *   - {@link createComboTargetKeyGate} — the combo per-target model check;
+ *   - {@link keylessProviderRejection} — chat's #9057 rule for keyless /
+ *     zero-config providers (local ComfyUI/Ollama defaults, DuckDuckGo free
+ *     search, …): a connection-scoped key reaches them only when its allowlist
+ *     names the synthetic `noauth` connection or an in-scope connection serves
+ *     the provider.
  *
  * Unrestricted keys and keyless/local callers get `allowedConnections: null`
  * and no combo gate, so their selection is exactly what it was before.
  */
-import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
+import { errorResponse, unavailableResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import { isModelAllowedForKey } from "@/lib/db/apiKeys";
 import { constrainConnectionsToQuota, resolveQuotaKeyScope } from "@/lib/quota/quotaKey";
@@ -31,6 +36,7 @@ import {
   type ComboTargetKeyPolicyInfo,
 } from "@/sse/handlers/chat/comboTargetKeyPolicy";
 import { hasApiKeyModelRestrictions } from "@/shared/utils/resolvedModelAccess";
+import { allowlistPermitsSyntheticNoAuth } from "@/sse/services/noAuthAllowlist";
 import * as log from "@/sse/utils/logger";
 
 /**
@@ -200,4 +206,60 @@ export function comboTargetsNotAllowedResponse(comboName: string): Response {
     HTTP_STATUS.FORBIDDEN,
     `No target of combo "${comboName}" is allowed for this API key`
   );
+}
+
+/**
+ * Whether the key may reach a provider without using any connection — chat's
+ * #9057 rule for the synthetic keyless connection: always for an unscoped key,
+ * otherwise only when the allowlist names `noauth` explicitly.
+ */
+export function keyAdmitsKeylessProviders(
+  allowedConnections: string[] | null | undefined
+): boolean {
+  return allowlistPermitsSyntheticNoAuth(allowedConnections ?? null);
+}
+
+/** Chat's answer when no connection serves the request (`handleNoCredentials`). */
+export function noActiveCredentialsResponse(provider: string): Response {
+  return errorResponse(HTTP_STATUS.NOT_FOUND, `No active credentials for provider: ${provider}`);
+}
+
+/**
+ * Gate a keyless / zero-config provider run for the caller key. `lookup` is the
+ * in-scope connection lookup for that provider (a connection may carry e.g. a
+ * local base-URL override); it is only consulted when the key's allowlist does
+ * not admit keyless providers. Returns null when the run may proceed, otherwise
+ * the response chat gives for the same situation.
+ */
+export async function keylessProviderRejection(
+  provider: string,
+  allowedConnections: string[] | null | undefined,
+  lookup: () => Promise<unknown>
+): Promise<Response | null> {
+  if (keyAdmitsKeylessProviders(allowedConnections)) return null;
+  let credentials: unknown = null;
+  try {
+    credentials = await lookup();
+  } catch {
+    credentials = null;
+  }
+  if (isKeyScopeBlockedCredentials(credentials)) {
+    return keyScopeBlockedResponse(provider, credentials);
+  }
+  const record = credentials as {
+    allRateLimited?: boolean;
+    allExpired?: boolean;
+    retryAfter?: string | number | Date | null;
+    retryAfterHuman?: string;
+  } | null;
+  if (record?.allRateLimited) {
+    return unavailableResponse(
+      HTTP_STATUS.RATE_LIMITED,
+      `[${provider}] All accounts rate limited`,
+      record.retryAfter,
+      record.retryAfterHuman
+    );
+  }
+  if (record && typeof record === "object" && !record.allExpired) return null;
+  return noActiveCredentialsResponse(provider);
 }

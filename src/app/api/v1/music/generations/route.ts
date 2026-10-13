@@ -9,11 +9,11 @@ import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import * as log from "@/sse/utils/logger";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
+import { resolveLocalOverrideCredentials } from "@/app/api/v1/_shared/videoModelResolution";
 import {
   isKeyScopeBlockedCredentials,
   keyScopeBlockedResponse,
   resolveKeyConnectionScope,
-  withoutKeyScopeBlocked,
 } from "@/sse/services/keyConnectionScope";
 import {
   isAllRateLimitedCredentials,
@@ -46,25 +46,6 @@ export async function GET(request?: Request) {
     "/v1/music/generations",
     (model) => model.type === "music"
   );
-}
-
-/**
- * #6928: best-effort per-connection base-URL override lookup for local no-auth
- * media providers (ComfyUI). Returns null instead of failing when no connection
- * exists — local providers must keep working with zero configuration.
- */
-async function resolveLocalOverrideCredentials(
-  provider: string,
-  allowedConnections: string[] | null
-) {
-  // GHSA-3w2r: a connection outside the caller key's scope is never used for
-  // the override; the provider then runs on its zero-configuration default.
-  const localCredentials = withoutKeyScopeBlocked(
-    await getProviderCredentialsWithQuotaPreflight(provider, null, allowedConnections)
-  );
-  return localCredentials && !isAllRateLimitedCredentials(localCredentials)
-    ? localCredentials
-    : null;
 }
 
 /**
@@ -122,7 +103,11 @@ async function postHandler(request, context) {
       return rateLimitedProviderResponse(provider, credentials);
     }
   } else if (providerConfig?.authType === "none") {
-    credentials = await resolveLocalOverrideCredentials(provider, scope.allowedConnections);
+    // #6928 + GHSA-3w2r: the shared local-override lookup (also used by the
+    // video route) keeps the override and the zero-config default in scope.
+    const local = await resolveLocalOverrideCredentials(provider, scope.allowedConnections);
+    if (local.rejection) return local.rejection;
+    credentials = local.credentials;
   }
 
   const result = await handleMusicGeneration({ body, credentials, log });

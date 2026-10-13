@@ -17,6 +17,7 @@ import {
   createComboTargetKeyGate,
   isKeyScopeBlockedCredentials,
   keyScopeBlockedResponse,
+  keylessProviderRejection,
   resolveKeyConnectionScope,
 } from "@/sse/services/keyConnectionScope";
 import {
@@ -111,6 +112,15 @@ async function translateWithModel(
     if (isAllRateLimitedCredentials(credentials)) {
       return rateLimitedProviderResponse(provider, credentials);
     }
+  } else if (providerConfig) {
+    // GHSA-3w2r: a keyless provider (local default or a keyless remote) is
+    // reachable by a connection-scoped key only when its allowlist admits
+    // keyless providers or an in-scope connection serves it (chat's #9057).
+    const keylessCredentialKey = providerConfig.credentialProviderId || provider;
+    const keylessRejection = await keylessProviderRejection(provider, allowedConnections, () =>
+      getProviderCredentialsWithQuotaPreflight(keylessCredentialKey, null, allowedConnections)
+    );
+    if (keylessRejection) return keylessRejection;
   }
 
   let response = await handleAudioTranslation({
