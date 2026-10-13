@@ -139,7 +139,8 @@ function parseShorthandLine(
 
   // Preserve legacy user-info URIs before considering the custom host-first syntax.
   const lastAt = working.lastIndexOf("@");
-  const legacyUserinfo = lastAt > 0 && /^(\[[^\]]+\]|[^:\s]+):\d+$/.test(working.slice(lastAt + 1));
+  const legacyUserinfo =
+    lastAt > 0 && /^(\[[^\]]+\]|[^:\s]+)\s*:\s*\d+$/.test(working.slice(lastAt + 1).trim());
   // The named host-first format is not a URI: @ is valid in its raw credentials.
   const namedMatch =
     protocolMatch && !legacyUserinfo
