@@ -107,6 +107,16 @@ test("migration 206 removes stale OpenCode Free provider state, keeps opencode-z
       "VALUES ('modelCompatOverrides', 'opencode-zen', '{}')"
   ).run();
 
+  // A Zen key pasted into the old OpenCode Free card must survive as an
+  // opencode-zen connection instead of being silently dropped.
+  for (const provider of ["opencode", "oc"]) {
+    db.prepare(
+      "INSERT INTO provider_connections " +
+        "(id, provider, auth_type, name, api_key, is_active, created_at, updated_at) " +
+        "VALUES (?, ?, 'apikey', ?, ?, 1, datetime('now'), datetime('now'))"
+    ).run(`${provider}-keyed`, provider, `${provider}-keyed`, `sk-zen-${provider}`);
+  }
+
   const sql = fs.readFileSync(
     path.join(process.cwd(), "src/lib/db/migrations/206_remove_opencode_free_provider.sql"),
     "utf8"
@@ -174,6 +184,17 @@ test("migration 206 removes stale OpenCode Free provider state, keeps opencode-z
     assert.ok(
       db.prepare("SELECT id FROM call_logs WHERE provider = ?").get(provider),
       `${provider} historical call logs must be preserved`
+    );
+  }
+
+  for (const provider of ["opencode", "oc"]) {
+    const migrated = db
+      .prepare("SELECT provider, api_key FROM provider_connections WHERE id = ?")
+      .get(`${provider}-keyed`) as { provider: string; api_key: string } | undefined;
+    assert.deepEqual(
+      migrated,
+      { provider: "opencode-zen", api_key: `sk-zen-${provider}` },
+      `${provider} connection carrying a key must be moved to opencode-zen`
     );
   }
 

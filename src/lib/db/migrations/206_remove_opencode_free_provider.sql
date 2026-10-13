@@ -1,11 +1,20 @@
 -- 206_remove_opencode_free_provider.sql
 -- The keyless "OpenCode Free" provider (id `opencode`, alias `oc`) was removed
 -- from OmniRoute (see docs/reference/REMOVED_PROVIDERS.md). Clean up any
--- locally stored configuration for it. The paid `opencode-zen` and
--- `opencode-go` providers are separate ids and are not touched.
+-- locally stored configuration for it. Keyed connections are moved to the paid
+-- `opencode-zen` provider; `opencode-zen` and `opencode-go` rows are not touched.
 --
 -- Historical request, usage, and call-log records are intentionally preserved
 -- (same principle as 152_remove_puter_provider.sql).
+
+-- A connection that carries an API key on the old card is a paid Zen key the
+-- user pasted there (the OpenCode Free tier itself was keyless). Move it to
+-- `opencode-zen` so the key is not lost; drop only the keyless rows.
+UPDATE provider_connections
+SET provider = 'opencode-zen', updated_at = datetime('now')
+WHERE provider IN ('opencode', 'oc')
+  AND api_key IS NOT NULL
+  AND trim(api_key) <> '';
 
 DELETE FROM provider_connections
 WHERE provider IN ('opencode', 'oc');
