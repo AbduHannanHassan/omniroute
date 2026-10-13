@@ -42,6 +42,7 @@ export interface ConnectionRowConnection {
   displayName?: string;
   rateLimitedUntil?: string;
   rateLimitProtection?: boolean;
+  rateLimitAutoProtected?: boolean;
   testStatus?: string;
   isActive?: boolean;
   priority?: number;
