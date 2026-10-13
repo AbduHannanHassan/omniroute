@@ -322,6 +322,82 @@ test("pace window union: decimal mirror representative is stable across map orde
   assert.equal(reversed, forward);
 });
 
+test("pace window union: a non-transitive mirror chain groups by tolerance closure", async () => {
+  const entries = [
+    ["model-a", { percentUsed: 0.95, resetAt: resetAt(24) }],
+    ["model-b", { percentUsed: 0.94999999925, resetAt: resetAt(24) }],
+    ["model-c", { percentUsed: 0.9499999985, resetAt: resetAt(24) }],
+  ] as const;
+  const forward = await paceScore({ windows: Object.fromEntries(entries) });
+  const reversed = await paceScore({ windows: Object.fromEntries([...entries].reverse()) });
+  assert.equal(forward, reversed);
+  closeTo(forward, 0.05 / 24);
+});
+
+test("pace window union: unknown-reset entries do not disturb mirror closure", async () => {
+  const entries = [
+    ["model-a", { percentUsed: 0.95, resetAt: resetAt(24) }],
+    ["unknown", { percentUsed: 0.2, resetAt: null }],
+    ["model-b", { percentUsed: 0.94999999925, resetAt: resetAt(24) }],
+    ["model-c", { percentUsed: 0.9499999985, resetAt: resetAt(24) }],
+  ] as const;
+  for (const ordered of [entries, [...entries].reverse()]) {
+    // The unknown window (80% remaining) is kept but sits above the guard, so the
+    // only possible damping is a falsely split a-b-c chain.
+    closeTo(await paceScore({ windows: Object.fromEntries(ordered) }), 0.05 / 24);
+  }
+});
+
+test("pace window union: all permutations of a three-window chain score identically", async () => {
+  const entries = [
+    ["model-a", { percentUsed: 0.95, resetAt: resetAt(24) }],
+    ["model-b", { percentUsed: 0.94999999925, resetAt: resetAt(24) }],
+    ["model-c", { percentUsed: 0.9499999985, resetAt: resetAt(24) }],
+  ] as const;
+  const permutations = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+  ];
+  const scores = [] as number[];
+  for (const permutation of permutations) {
+    scores.push(
+      await paceScore({ windows: Object.fromEntries(permutation.map((i) => entries[i])) })
+    );
+  }
+  for (const score of scores) assert.equal(score, scores[0]);
+  closeTo(scores[0], 0.05 / 24);
+});
+
+test("pace draw: mirror-chain grouping keeps the chain account ahead in either map order", async () => {
+  const chainEntries = [
+    ["model-a", { percentUsed: 0.95, resetAt: resetAt(24) }],
+    ["model-b", { percentUsed: 0.94999999925, resetAt: resetAt(24) }],
+    ["model-c", { percentUsed: 0.9499999985, resetAt: resetAt(24) }],
+  ] as const;
+  const chainQuota = (orderedEntries: ReadonlyArray<(typeof chainEntries)[number]>) =>
+    ({
+      percentUsed: 0.94999999925,
+      window7d: { percentUsed: 0.94999999925, resetAt: resetAt(24) },
+      windows: Object.fromEntries(orderedEntries),
+    }) as unknown as QuotaInfo;
+  const peer = { window7d: { percentUsed: 0.96, resetAt: resetAt(24) } } as QuotaInfo;
+  // seedTargets replaces the provider fetcher, so draw each pair before seeding the next.
+  for (const [orderedEntries, names] of [
+    [chainEntries, ["pace-chain-forward", "pace-peer-forward"]],
+    [[...chainEntries].reverse(), ["pace-chain-reversed", "pace-peer-reversed"]],
+  ] as const) {
+    const targets = await seedTargets([chainQuota(orderedEntries), peer], "codex", "gpt-5-codex", [
+      ...names,
+    ]);
+    // Closure keeps the chain undamped (0.05/24 vs 0.04/24), so RNG 0.5 lands on it.
+    assertOrder(await draw(targets, { quotaWeightedScoring: "pace" }, 0.5), targets);
+  }
+});
+
 test("pace window union: a 0.001 remaining difference stays distinct and damps", async () => {
   closeTo(
     await paceScore({
@@ -330,6 +406,32 @@ test("pace window union: a 0.001 remaining difference stays distinct and damps",
     }),
     (0.05 / 24) * 0.49
   );
+});
+
+test("pace window union: a gap beyond epsilon stays in two deterministic groups", async () => {
+  const entries = [
+    ["model-a", { percentUsed: 0.95, resetAt: resetAt(24) }],
+    ["model-b", { percentUsed: 0.94999999925, resetAt: resetAt(24) }],
+    ["model-c", { percentUsed: 0.949999997, resetAt: resetAt(24) }],
+  ] as const;
+  const permutations = [
+    [0, 1, 2],
+    [0, 2, 1],
+    [1, 0, 2],
+    [1, 2, 0],
+    [2, 0, 1],
+    [2, 1, 0],
+  ];
+  const scores = [] as number[];
+  for (const permutation of permutations) {
+    scores.push(
+      await paceScore({ windows: Object.fromEntries(permutation.map((i) => entries[i])) })
+    );
+  }
+  for (const score of scores) {
+    assert.ok(score < 0.05 / 24);
+    closeTo(score, (0.05 / 24) * 0.50000003);
+  }
 });
 
 test("pace window union: equal reset or remaining alone cannot hide distinct inner telemetry", async () => {

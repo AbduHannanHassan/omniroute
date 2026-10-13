@@ -38,27 +38,42 @@ function getCanonicalPaceWindow(window: unknown): PaceWindowSnapshot | null {
 }
 
 function dedupePaceWindowMirrors(windows: PaceWindow[]): PaceWindow[] {
-  const deduped: PaceWindow[] = [];
-  for (const window of windows) {
-    // Unknown resets cannot establish mirror identity; keep every inner signal.
-    if (!Number.isFinite(window.resetMs)) {
-      deduped.push(window);
+  // Tolerance equality is not transitive (A~B, B~C, A!~C), so greedy matching
+  // against a running representative depends on encounter order. Group by
+  // closure instead: value-sort each finite reset and chain adjacent gaps.
+  const known = windows
+    .map((window, slot) => ({ window, slot }))
+    .filter(({ window }) => Number.isFinite(window.resetMs))
+    .sort(
+      (a, b) =>
+        a.window.resetMs - b.window.resetMs ||
+        a.window.remaining - b.window.remaining ||
+        a.slot - b.slot
+    );
+  const representativeBySlot = new Map<number, PaceWindow>();
+  let groupStart = 0;
+  for (let i = 1; i <= known.length; i++) {
+    const previous = known[i - 1].window;
+    const next = known[i]?.window;
+    if (
+      next &&
+      next.resetMs === previous.resetMs &&
+      next.remaining - previous.remaining <= PACE_WINDOW_MIRROR_EPSILON
+    ) {
       continue;
     }
-    const mirrorIndex = deduped.findIndex(
-      (candidate) =>
-        candidate.resetMs === window.resetMs &&
-        Math.abs(candidate.remaining - window.remaining) <= PACE_WINDOW_MIRROR_EPSILON
-    );
-    if (mirrorIndex < 0) {
-      deduped.push(window);
-    } else if (window.remaining < deduped[mirrorIndex].remaining) {
-      // Keep the minimum remaining mirror in the same slot: cross-scale input
-      // order cannot change its value or distinct-window outer-reset ties.
-      deduped[mirrorIndex] = window;
-    }
+    const group = known.slice(groupStart, i);
+    // The sorted head holds the minimum remaining. Emit it in the group's earliest
+    // slot so input order cannot change its value or distinct-window outer-reset ties.
+    representativeBySlot.set(Math.min(...group.map(({ slot }) => slot)), group[0].window);
+    groupStart = i;
   }
-  return deduped;
+  // Unknown resets cannot establish mirror identity; keep every inner signal.
+  return windows.flatMap((window, slot) => {
+    if (!Number.isFinite(window.resetMs)) return [window];
+    const representative = representativeBySlot.get(slot);
+    return representative ? [representative] : [];
+  });
 }
 
 function resolvePaceWindows(quota: Record<string, unknown>): PaceWindow[] {
