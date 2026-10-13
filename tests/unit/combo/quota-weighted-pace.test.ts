@@ -75,14 +75,15 @@ function quotaAt(weeklyHours: number, percentUsed = 0.5, sessionUsed = percentUs
 async function seedTargets(
   quotas: Array<QuotaInfo | null>,
   provider = "codex",
-  model = "gpt-5-codex"
+  model = "gpt-5-codex",
+  names: string[] = []
 ): Promise<ResolvedComboTarget[]> {
   const snapshots = new Map<string, QuotaInfo | null>();
   const targets: ResolvedComboTarget[] = [];
   for (const quota of quotas) {
     const row = await createProviderConnection({
       provider,
-      name: `pace-${targets.length}`,
+      name: names[targets.length] ?? `pace-${targets.length}`,
       isActive: true,
       testStatus: "active",
       authType: "apikey",
@@ -261,6 +262,74 @@ test("pace window union: exact outer mirrors do not become inner exhaustion guar
     },
   };
   closeTo(await paceScore(quota), 0.05 / 120);
+});
+
+test("pace window union: decimal cross-scale mirrors use the exact expected score", async () => {
+  closeTo(
+    await paceScore({
+      window7d: { percentUsed: 0.949, resetAt: "2026-10-14T00:00:00Z" },
+      windows: {
+        weekly: { percentUsed: 94.9, resetAt: "2026-10-14T00:00:00Z" },
+      },
+    }),
+    0.002125000000000002
+  );
+});
+
+test("pace window union: additional decimal cross-scale mirrors stay undamped", async () => {
+  for (const [fraction, percent] of [
+    [0.07, 7],
+    [0.123, 12.3],
+    [0.29, 29],
+    [0.57, 57],
+  ]) {
+    closeTo(
+      await paceScore(
+        {
+          window7d: { percentUsed: fraction, resetAt: resetAt(24) },
+          windows: { weekly: { percentUsed: percent, resetAt: resetAt(24) } },
+        },
+        { resetAwareExhaustionGuardPercent: 100 }
+      ),
+      (1 - fraction) / 24
+    );
+  }
+});
+
+test("pace draw: decimal mirror keeps the 5.1%-remaining account ahead of a 4% peer", async () => {
+  const mirrored = {
+    window7d: { percentUsed: 0.949, resetAt: "2026-10-14T00:00:00Z" },
+    windows: { weekly: { percentUsed: 94.9, resetAt: "2026-10-14T00:00:00Z" } },
+  } as unknown as QuotaInfo;
+  const peer = {
+    window7d: { percentUsed: 0.96, resetAt: "2026-10-14T00:00:00Z" },
+  } as QuotaInfo;
+  const targets = await seedTargets([mirrored, peer], "codex", "gpt-5-codex", [
+    "pace-decimal-mirror",
+    "pace-unmirrored-peer",
+  ]);
+  assertOrder(await draw(targets, { quotaWeightedScoring: "pace" }, 0.5), targets);
+});
+
+test("pace window union: decimal mirror representative is stable across map order", async () => {
+  const entries = [
+    ["weekly (fraction)", { percentUsed: 0.949, resetAt: resetAt(24) }],
+    ["weekly (percent)", { percentUsed: 94.9, resetAt: resetAt(24) }],
+  ] as const;
+  const forward = await paceScore({ windows: Object.fromEntries(entries) });
+  const reversed = await paceScore({ windows: Object.fromEntries([...entries].reverse()) });
+  closeTo(forward, 0.002125000000000002);
+  assert.equal(reversed, forward);
+});
+
+test("pace window union: a 0.001 remaining difference stays distinct and damps", async () => {
+  closeTo(
+    await paceScore({
+      window7d: { percentUsed: 0.95, resetAt: resetAt(24) },
+      windows: { weekly: { percentUsed: 95.1, resetAt: resetAt(24) } },
+    }),
+    (0.05 / 24) * 0.49
+  );
 });
 
 test("pace window union: equal reset or remaining alone cannot hide distinct inner telemetry", async () => {

@@ -10,6 +10,8 @@ import {
 
 const UNKNOWN_RESET_HOURS = 168;
 const HOUR_MS = 3_600_000;
+// Absorb percent/fraction conversion roundoff, not meaningful quota differences.
+const PACE_WINDOW_MIRROR_EPSILON = 1e-9;
 
 type PaceWindow = { remaining: number; resetMs: number };
 type PaceWindowSnapshot = { percentUsed: number | null; resetAt: string | null };
@@ -35,6 +37,30 @@ function getCanonicalPaceWindow(window: unknown): PaceWindowSnapshot | null {
   return { percentUsed: Number.isFinite(percentUsed) ? percentUsed : null, resetAt };
 }
 
+function dedupePaceWindowMirrors(windows: PaceWindow[]): PaceWindow[] {
+  const deduped: PaceWindow[] = [];
+  for (const window of windows) {
+    // Unknown resets cannot establish mirror identity; keep every inner signal.
+    if (!Number.isFinite(window.resetMs)) {
+      deduped.push(window);
+      continue;
+    }
+    const mirrorIndex = deduped.findIndex(
+      (candidate) =>
+        candidate.resetMs === window.resetMs &&
+        Math.abs(candidate.remaining - window.remaining) <= PACE_WINDOW_MIRROR_EPSILON
+    );
+    if (mirrorIndex < 0) {
+      deduped.push(window);
+    } else if (window.remaining < deduped[mirrorIndex].remaining) {
+      // Keep the minimum remaining mirror in the same slot: cross-scale input
+      // order cannot change its value or distinct-window outer-reset ties.
+      deduped[mirrorIndex] = window;
+    }
+  }
+  return deduped;
+}
+
 function resolvePaceWindows(quota: Record<string, unknown>): PaceWindow[] {
   // A synthesized window5h or one weekly alias must not hide distinct telemetry.
   // Fetchers already scope quota.windows to the request; never read allWindows.
@@ -45,21 +71,12 @@ function resolvePaceWindows(quota: Record<string, unknown>): PaceWindow[] {
   // Match resolveWindowRemaining's finite-number coercion and missing-percent fallback.
   const overallPercentUsed = Number(quota.percentUsed);
   const fallback = Number.isFinite(overallPercentUsed) ? clamp01(overallPercentUsed) : 0.5;
-  const seen = new Set<string>();
-  return windows
-    .map((window) => ({
+  return dedupePaceWindowMirrors(
+    windows.map((window) => ({
       remaining: clamp01(1 - (window.percentUsed ?? fallback)),
       resetMs: parseResetTimeMs(window.resetAt),
     }))
-    .filter((window) => {
-      // Only identical parsed instants AND remaining values are mirrors. Unknown
-      // resets cannot establish identity; keep them as separate inner signals.
-      if (!Number.isFinite(window.resetMs)) return true;
-      const key = `${window.resetMs}:${window.remaining}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  );
 }
 
 /**
