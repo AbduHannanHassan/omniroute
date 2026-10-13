@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import * as prettier from "prettier";
+import { z } from "zod";
 import { sectionHashes, splitSections, stripTopHeading } from "../i18n/run-translation.mjs";
 
 const base = "b0d53251b30b0ad556c3e33bc8c9cc42d84372e9";
@@ -15,6 +16,7 @@ const state = JSON.parse(await fs.readFile(statePath, "utf8"));
 const sha = (value) => createHash("sha256").update(value).digest("hex");
 const now = new Date().toISOString();
 const changes = [];
+const localeCode = z.string().regex(/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/);
 const specs = [
   {
     rel: "docs/architecture/QUALITY_GATES.md",
@@ -67,6 +69,7 @@ for (const spec of specs) {
   const currentSourceHash = sha(current);
   const hashes = sectionHashes(splitSections(stripTopHeading(current)));
   for (const [locale, info] of Object.entries(entry.locales)) {
+    localeCode.parse(locale); // Never allow a state key to escape docs/i18n/.
     assert.equal(info.source_hash, sha(previous), "locale already has different source provenance");
     const target = path.join(root, "docs", "i18n", locale, spec.rel);
     const oldText = await fs.readFile(target, "utf8");
