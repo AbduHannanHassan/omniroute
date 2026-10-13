@@ -26,22 +26,7 @@ export function getCachedInputAnalytics(
   const rows = db
     .prepare(`SELECT model, ${columns} FROM ${unifiedSource} AS _u GROUP BY model`)
     .all(unifiedParams) as MeasurementRow[];
-  // Key-filtered history omits archives because they contain no key identity.
-  const archiveConditions = ["date < @cutoff", "total_requests > 0"];
-  const archiveParams: Record<string, string> = { cutoff: options.rawCutoffDate };
-  if (options.sinceIso) {
-    archiveConditions.push("date >= @since");
-    archiveParams.since = options.sinceIso.slice(0, 10);
-  }
-  if (options.untilIso) {
-    archiveConditions.push("date <= @until");
-    archiveParams.until = options.untilIso.slice(0, 10);
-  }
-  const filteredHistoryMissing =
-    !!options.apiKeyWhere &&
-    !!db
-      .prepare(`SELECT 1 FROM daily_usage_summary WHERE ${archiveConditions.join(" AND ")} LIMIT 1`)
-      .get(archiveParams);
+  const filteredHistoryMissing = keyFilteredHistoryMissing(options);
   const models = new Map<string, CachedInputMeasurement & { model: string }>();
   for (const row of rows) {
     const model = normalizeModel((row.model ?? "unknown").toLowerCase());
@@ -63,4 +48,24 @@ export function getCachedInputAnalytics(
     },
     byModel: Array.from(models.values()),
   };
+}
+
+// Key-filtered history omits archives because they contain no key identity.
+function keyFilteredHistoryMissing(options: BuildUnifiedSourceOptions): boolean {
+  const archiveConditions = ["date < @cutoff", "total_requests > 0"];
+  const archiveParams: Record<string, string> = { cutoff: options.rawCutoffDate };
+  if (options.sinceIso) {
+    archiveConditions.push("date >= @since");
+    archiveParams.since = options.sinceIso.slice(0, 10);
+  }
+  if (options.untilIso) {
+    archiveConditions.push("date <= @until");
+    archiveParams.until = options.untilIso.slice(0, 10);
+  }
+  return (
+    !!options.apiKeyWhere &&
+    !!getDbInstance()
+      .prepare(`SELECT 1 FROM daily_usage_summary WHERE ${archiveConditions.join(" AND ")} LIMIT 1`)
+      .get(archiveParams)
+  );
 }

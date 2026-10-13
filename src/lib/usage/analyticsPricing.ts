@@ -75,6 +75,50 @@ function getPricingModelCandidates(
   ]);
 }
 
+function resolveProviderPricing(
+  pricingByProvider: PricingByProvider,
+  providerAliasMap: Record<string, string>,
+  providerRaw: string
+): Record<string, unknown> | null {
+  const lower = providerRaw.toLowerCase();
+  const direct = findKeyInsensitive(pricingByProvider, lower);
+  if (direct) return direct;
+  const aliasPricing = findKeyInsensitive(pricingByProvider, providerAliasMap[lower]);
+  if (aliasPricing) return aliasPricing;
+  const reversePricing = findReverseProviderPricing(pricingByProvider, providerAliasMap, lower);
+  if (reversePricing) return reversePricing;
+  const withoutRegion = lower.replace(/-cn$/, "");
+  const regionPricing =
+    withoutRegion !== lower ? findKeyInsensitive(pricingByProvider, withoutRegion) : null;
+  if (regionPricing) return regionPricing;
+  return lower === "antigravity" ? (findKeyInsensitive(pricingByProvider, "ag") ?? null) : null;
+}
+
+function findReverseProviderPricing(
+  pricingByProvider: PricingByProvider,
+  providerAliasMap: Record<string, string>,
+  provider: string
+): Record<string, unknown> | null {
+  for (const [id, alias] of Object.entries(providerAliasMap)) {
+    if (alias.toLowerCase() !== provider) continue;
+    const pricing = findKeyInsensitive(pricingByProvider, id);
+    if (pricing) return pricing;
+  }
+  return null;
+}
+
+function findModelPricing(
+  providerPricing: Record<string, unknown> | null | undefined,
+  candidates: string[]
+): Record<string, unknown> | null {
+  if (!providerPricing || typeof providerPricing !== "object") return null;
+  for (const candidate of candidates) {
+    const pricing = findKeyInsensitive(providerPricing, candidate);
+    if (pricing) return pricing;
+  }
+  return null;
+}
+
 function resolveModelPricing(
   pricingByProvider: PricingByProvider,
   providerAliasMap: Record<string, string>,
@@ -82,81 +126,24 @@ function resolveModelPricing(
   model: string,
   normalizeModelName: (model: string) => string
 ): Record<string, unknown> | null {
-  const pLower = (providerRaw || "").toLowerCase();
-
-  let providerPricing = findKeyInsensitive(pricingByProvider, pLower);
-
-  if (!providerPricing) {
-    // providerAliasMap maps ID -> ALIAS. So if pLower is "codex", alias is "cx".
-    const alias = providerAliasMap[pLower];
-    if (alias) {
-      providerPricing = findKeyInsensitive(pricingByProvider, alias);
-    }
-  }
-
-  if (!providerPricing) {
-    // In case pLower was ALIAS and we want to try the ID (reverse search values)
-    for (const [id, alias] of Object.entries(providerAliasMap)) {
-      if (alias.toLowerCase() === pLower) {
-        providerPricing = findKeyInsensitive(pricingByProvider, id);
-        if (providerPricing) break;
-      }
-    }
-  }
-
-  if (!providerPricing) {
-    const np = pLower.replace(/-cn$/, "");
-    if (np && np !== pLower) {
-      providerPricing = findKeyInsensitive(pricingByProvider, np);
-    }
-  }
-
-  // Hardcoded known fallbacks
-  if (!providerPricing) {
-    if (pLower === "antigravity") providerPricing = findKeyInsensitive(pricingByProvider, "ag");
-  }
-
-  const modelCandidates = getPricingModelCandidates(model, normalizeModelName);
-
-  const tryFind = (prov: Record<string, unknown> | null | undefined) => {
-    if (!prov || typeof prov !== "object") return null;
-    for (const candidate of modelCandidates) {
-      const pricing = findKeyInsensitive(prov as Record<string, unknown>, candidate);
-      if (pricing) return pricing;
-    }
-    return null;
-  };
-
-  let pricing = providerPricing ? tryFind(providerPricing) : null;
-
+  const providerPricing = resolveProviderPricing(pricingByProvider, providerAliasMap, providerRaw);
+  const candidates = getPricingModelCandidates(model, normalizeModelName);
+  let pricing = findModelPricing(providerPricing, candidates);
   if (!pricing) {
-    // Global fallback: search all providers for this exact model (helps with aliases)
-    for (const prov of Object.values(pricingByProvider)) {
-      const found = tryFind(prov as Record<string, unknown>);
-      if (found) {
-        pricing = found;
-        break;
-      }
+    for (const provider of Object.values(pricingByProvider)) {
+      pricing = findModelPricing(provider, candidates);
+      if (pricing) break;
     }
   }
-
-  // Short-circuit :free models to $0 (they have no pricing entry → should not fall back to arbitrary rates)
-  if (!pricing && model.endsWith(":free")) {
-    return null;
-  }
-
-  // Last resort fallback for historical usage (e.g. "gpt-4" missing, matches "gpt-4.1")
-  if (!pricing && providerPricing && typeof providerPricing === "object") {
-    for (const [key, val] of Object.entries(providerPricing as Record<string, unknown>)) {
-      const lm = model.toLowerCase();
-      if (key.includes(lm) || lm.includes(key)) {
-        pricing = val;
-        break;
-      }
+  if (pricing || model.endsWith(":free")) return pricing;
+  if (providerPricing && typeof providerPricing === "object") {
+    const lowerModel = model.toLowerCase();
+    for (const [key, value] of Object.entries(providerPricing)) {
+      if (key.includes(lowerModel) || lowerModel.includes(key))
+        return value as Record<string, unknown>;
     }
   }
-
-  return pricing as Record<string, unknown> | null;
+  return null;
 }
 
 export function computeUsageRowCost(
