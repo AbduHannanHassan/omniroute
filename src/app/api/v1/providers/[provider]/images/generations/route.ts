@@ -9,6 +9,11 @@ import { getImageProvider } from "@omniroute/open-sse/config/imageRegistry.ts";
 import * as log from "@/sse/utils/logger";
 import { toJsonErrorPayload } from "@/shared/utils/upstreamError";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
+import {
+  isKeyScopeBlockedCredentials,
+  keyScopeBlockedResponse,
+  resolveKeyConnectionScope,
+} from "@/sse/services/keyConnectionScope";
 import { v1ImageGenerationSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { enforceClientApiRouteAuth } from "@/shared/utils/clientApiRouteAuth";
@@ -65,6 +70,10 @@ export async function POST(request, { params }) {
   // Enforce API key policies (model restrictions + budget limits)
   const policy = await enforceApiKeyPolicy(request, body.model);
   if (policy.rejection) return policy.rejection;
+  // GHSA-3w2r: credential selection stays inside the key's connection scope,
+  // the same scope chat applies.
+  const scope = await resolveKeyConnectionScope(policy.apiKeyInfo);
+  if (scope.rejection) return scope.rejection;
 
   // Validate provider match
   const modelProvider = body.model.split("/")[0];
@@ -79,7 +88,7 @@ export async function POST(request, { params }) {
   let credentials = await getProviderCredentialsWithQuotaPreflight(
     rawProvider,
     null,
-    null,
+    scope.allowedConnections,
     requestedModel
   );
   if (!credentials) {
@@ -87,6 +96,9 @@ export async function POST(request, { params }) {
       HTTP_STATUS.BAD_REQUEST,
       `No credentials for image provider: ${rawProvider}`
     );
+  }
+  if (isKeyScopeBlockedCredentials(credentials)) {
+    return keyScopeBlockedResponse(rawProvider, credentials);
   }
   if (credentials.allRateLimited) {
     return unavailableResponse(
@@ -101,6 +113,7 @@ export async function POST(request, { params }) {
     provider: rawProvider,
     requestedModel,
     credentials,
+    allowedConnections: scope.allowedConnections,
     execute: (attemptCredentials) =>
       runWithCallLogApiKeyContext(
         {

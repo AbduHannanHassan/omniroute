@@ -16,6 +16,12 @@ import {
   clearRecoveredProviderState,
 } from "@/sse/services/auth";
 import { isAllRateLimitedCredentials } from "@/app/api/v1/_shared/rateLimit";
+import {
+  comboTargetsNotAllowedResponse,
+  filterComboTargetsForKey,
+  isKeyScopeBlockedCredentials,
+  type ComboKeyScope,
+} from "@/sse/services/keyConnectionScope";
 import { handleImageGeneration } from "@omniroute/open-sse/handlers/imageGeneration.ts";
 import { attachOmniRouteMetaHeaders } from "@/domain/omnirouteResponseMeta";
 import { generateRequestId } from "@/shared/utils/requestId";
@@ -130,6 +136,14 @@ export async function runImageComboTargets<T extends ImageComboTarget>(
       continue;
     }
 
+    // GHSA-3w2r: every connection of this provider is outside the caller key's
+    // scope — the sentinel carries no secret and must never be dispatched.
+    if (isKeyScopeBlockedCredentials(credentials)) {
+      lastError = { status: 403, error: `[${provider}] No connection allowed for this API key` };
+      fallbackCount += 1;
+      continue;
+    }
+
     if (isRateLimited(credentials)) {
       lastError = {
         status: 429,
@@ -184,6 +198,8 @@ export async function executeImageCombo(
   auth: {
     request: Request;
     policy: { apiKeyInfo?: { id?: string; name?: string } | null };
+    /** GHSA-3w2r: the caller key's scope; omitted = unrestricted (unchanged). */
+    keyScope?: ComboKeyScope;
   },
   startTime: number,
   log: typeof logger
@@ -202,11 +218,18 @@ export async function executeImageCombo(
   }
 
   // 2. Filter to images-capable targets
-  const imageTargets = targets.filter((t) => {
+  const capableTargets = targets.filter((t) => {
     if (!t.modelStr) return false;
     const entry = getImageModelEntry(t.modelStr);
     return entry !== null;
   });
+  const imageTargets = await filterComboTargetsForKey(
+    capableTargets,
+    auth.keyScope?.isTargetAllowed
+  );
+  if (capableTargets.length > 0 && imageTargets.length === 0) {
+    return comboTargetsNotAllowedResponse(comboName);
+  }
 
   if (imageTargets.length === 0) {
     return errorResponse(
@@ -221,7 +244,12 @@ export async function executeImageCombo(
   //    /v1/images/edits can reuse the exact same iteration semantics (#12547).
   const run = await runImageComboTargets(imageTargets, {
     resolveProvider: (target) => parseImageModel(target.modelStr),
-    resolveCredentials: (provider) => getProviderCredentialsWithQuotaPreflight(provider),
+    resolveCredentials: (provider) =>
+      getProviderCredentialsWithQuotaPreflight(
+        provider,
+        null,
+        auth.keyScope?.allowedConnections ?? null
+      ),
     dispatch: async ({ target, credentials }) =>
       (await handleImageGeneration({
         body: { ...body, model: target.modelStr },

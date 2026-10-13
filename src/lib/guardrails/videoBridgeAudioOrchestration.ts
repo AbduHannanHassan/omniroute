@@ -41,6 +41,11 @@ export type VideoAudioOrchestrationReason =
   | "TRANSCRIPTION_FAILED";
 
 export interface VideoAudioOrchestrationOptions {
+  /**
+   * GHSA-3w2r: the caller API key's allowed connections, carried on the
+   * transcription self-loop (narrowing only). Omit for an unrestricted key.
+   */
+  allowedConnectionIds?: string[] | null;
   /** Result cache; omit (or omit `cacheKeyRef`) to skip caching entirely. */
   cache?: BridgeCacheStore | null;
   /** Stable identity for the ORIGINAL video part `ref` — never the raw bytes. */
@@ -177,6 +182,9 @@ async function runTranscription(
       model: sttModel,
       signal: options.signal,
       timeoutMs: options.timeoutMs,
+      ...(options.allowedConnectionIds?.length
+        ? { allowedConnectionIds: options.allowedConnectionIds }
+        : {}),
     });
     return { ok: true, value };
   } catch (error) {
