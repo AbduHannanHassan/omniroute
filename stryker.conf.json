@@ -42,6 +42,7 @@
   "plugins": ["@stryker-mutator/tap-runner"],
   "tap": {
     "testFiles": [
+      "tests/unit/account-weighted-runtime-16459.test.ts",
       "tests/unit/responses-refusal-preservation.test.ts",
       "tests/unit/pre-dispatch-error-route-meta.test.ts",
       "tests/unit/codex-overload-scope.test.ts",
