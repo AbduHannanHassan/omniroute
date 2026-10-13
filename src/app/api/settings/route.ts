@@ -48,6 +48,7 @@ import {
   AUTHZ_HEADER_PEER_LOCALITY,
 } from "@/server/authz/headers";
 import { readSubjectFromHeaders } from "@/server/authz/assertAuth";
+import { SECURITY_IMPACTING_SETTINGS_KEYS } from "@/shared/constants/securityImpactingSettings";
 
 /**
  * Force this route to run dynamically per-request and never be cached/prerendered.
@@ -111,28 +112,15 @@ function parseExpectedRevision(
 /**
  * Settings keys whose change broadens attack surface. Spec §Security:
  * password re-auth is required when any of these is present in a PATCH body.
- *
- * - `localOnlyManageScopeBypassEnabled` / `localOnlyManageScopeBypassPrefixes`:
- *   T-011 bypass kill-switch + per-prefix list. Operator must re-confirm
- *   before broadening the LOCAL_ONLY carve-out.
- * - `requireLogin`: dashboard login enforcement toggle.
- * - `newPassword`: password rotation (existing). Handled by the same gate so
- *   the password-verify only fires ONCE per PATCH.
+ * The list lives in `@/shared/constants/securityImpactingSettings` so other
+ * settings writers (e.g. POST /api/settings/import-json) strip the same keys.
  *
  * Note: `mcpEnabled` is NOT gated server-side — the dedicated MCP page
  * (/dashboard/mcp) toggles it via patchSetting() without a currentPassword
  * prompt. The Authz section can still prompt client-side for consistency,
  * but the server accepts the change without re-auth.
  */
-const SECURITY_IMPACTING_KEYS = [
-  "localOnlyManageScopeBypassEnabled",
-  "localOnlyManageScopeBypassPrefixes",
-  "requireLogin",
-  "newPassword",
-  "oidcEnabled",
-  "oidcDisablePasswordLogin",
-  "oidcClientSecret",
-] as const;
+const SECURITY_IMPACTING_KEYS = SECURITY_IMPACTING_SETTINGS_KEYS;
 
 /**
  * Derive an audit actor string from the inbound request. Falls back to

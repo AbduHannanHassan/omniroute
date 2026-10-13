@@ -5,12 +5,18 @@
  * DB state — because reaching them from non-loopback would re-introduce the
  * GHSA-fhh6-4qxv-rpqj surface that the LOCAL_ONLY tier exists to close.
  *
- * Enforced at two layers:
+ * Enforced at three layers, all through the shared `isSpawnCapableBypassPrefix` /
+ * `isSpawnCapablePath` predicates at the bottom of this module:
  *   1. zod schema (`settingsSchemas.ts`): rejects `PATCH /api/settings` with error
  *      code `BYPASS_PREFIX_NOT_ALLOWED` if any entry in
  *      `localOnlyManageScopeBypassPrefixes` falls inside this set.
- *   2. runtime (`isLocalOnlyBypassableByManageScope` in `routeGuard.ts`): even if a
- *      malformed DB row claims a spawn-capable path is bypassable, the policy refuses.
+ *   2. snapshot (`normalizeAuthzBypass` in `runtimeSettings.ts`): a DB row that
+ *      reached storage some other way (e.g. a JSON import) cannot activate one.
+ *   3. runtime (`isLocalOnlyBypassableByManageScope` in `routeGuard.ts`): even if a
+ *      malformed snapshot claims a spawn-capable path is bypassable, the policy refuses.
+ *
+ * Every LOCAL_ONLY route whose handler spawns a process or executes caller code
+ * belongs here (GHSA-hcwm-v74f-pfvh).
  *
  * 🔒 This constant lives in `@/shared/constants` — a server-free leaf module — and
  * NOT in `@/server/authz/routeGuard`, on purpose. `settingsSchemas.ts` is reachable
@@ -64,6 +70,19 @@ export const SPAWN_CAPABLE_PREFIXES: ReadonlyArray<string> = [
   "/api/headroom/stop", // kills tracked PID — must never be bypassable (Hard Rules #15 + #17)
   "/api/vnc-session", // #7892: spawns Docker containers via child_process.spawn (src/lib/vncSession/service.ts) — must never be whitelistable via manage-scope bypass (Hard Rules #15 + #17)
   "/api/modality-bridge/video/", // fixed ffmpeg/ffprobe status + extraction broker (Hard Rules #15 + #17)
+  // GHSA-hcwm-v74f-pfvh: LOCAL_ONLY code-exec / spawn routes that were missing from this
+  // deny-list, so a manage-scope bypass prefix could open them to non-loopback callers.
+  "/api/middleware/", // hook CRUD compiles + runs caller JS via new vm.Script on the request hot path (src/lib/middleware/registry.ts)
+  "/api/acp/agents", // registers a caller-chosen binary; detectInstalledAgents() -> execFileSync(probe.command, …, { shell }) (src/lib/acp/registry.ts)
+  "/api/system/version", // POST auto-update: git fetch/checkout + npm install (GET is read-only and exempted in routeGuard.ts)
+  "/api/db-backups/exportAll", // execFileSync("tar", …) for the export archive
+  "/api/db/health", // runManagedDbHealthCheck() forks the native health-check worker (src/lib/db/healthCheckRunner.ts)
+  "/api/oauth/cursor/auto-import", // execFile("which", "cursor") via src/lib/cursor/tokenExtractor.ts
+  "/api/cli-tools/omp-settings", // spawns `which omp` to detect the CLI install
+  "/api/cli-tools/letta-settings", // spawns `which letta` to detect the CLI install
+  "/api/cli-tools/grok-build-settings", // GET probes the `grok` binary via getCliRuntimeStatus()
+  "/api/cli-tools/forge-settings", // GET probes the `forge` binary via getCliRuntimeStatus()
+  "/api/cli-tools/jcode-settings", // GET probes the `jcode` binary via getCliRuntimeStatus()
 ];
 
 /**
@@ -82,6 +101,7 @@ export const SPAWN_CAPABLE_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/api\/providers\/[^/]+\/refresh-cursor\/?$/, // spawns cursor-agent via renewal.ts (Hard Rules #15 + #17)
   /^\/api\/providers\/cursor\/agent-availability\/?$/, // static path (no dynamic segment), but kept in this array alongside its /api/providers/ siblings rather than the flat SPAWN_CAPABLE_PREFIXES array — spawns cursor-agent status via checkCursorAgentAvailability()/getCachedCursorAgentAvailability() (Hard Rules #15 + #17)
   /^\/api\/providers\/[^/]+\/chatgpt-web-codex-doctor\/?$/, // spawns via getTunnelRuntimeStatus() → spawnSync("...","runtimes status") (open-sse/executors/chatgpt-web-codex/tunnelClient.ts). Mirrors LOCAL_ONLY_API_PATTERNS in routeGuard.ts; keep the two in sync (GHSA-9q3h-mjm5-f4gj).
+  /^\/api\/providers\/(validate|import|bulk)\/?$/, // S-01 (#15159): spawn(bin, ["acp", …]) in src/lib/providers/validation/webProvidersB.ts. Mirrors LOCAL_ONLY_API_PATTERNS (GHSA-hcwm-v74f-pfvh).
 ];
 
 /**
@@ -96,3 +116,46 @@ export const SPAWN_CAPABLE_PATTERNS: ReadonlyArray<RegExp> = [
  * boundary and stays exact. `SPAWN_CAPABLE_PREFIXES` itself is untouched.
  */
 export const SPAWN_CAPABLE_PATTERN_ANCESTORS: ReadonlyArray<string> = ["/api/providers/"];
+
+/**
+ * True when `prefix` must never be accepted as a manage-scope bypass prefix: it is,
+ * lies under, or is an ANCESTOR of a spawn-capable prefix (or of the shared literal
+ * ancestor of the spawn-capable regex routes). The ancestor case matters because a
+ * bypass prefix like `/api/` or `/api/cli-tools/` would satisfy `path.startsWith(p)`
+ * for every spawn-capable child path.
+ *
+ * Single source of truth for all three bypass layers (GHSA-hcwm-v74f-pfvh):
+ *   1. zod refine on `localOnlyManageScopeBypassPrefixes` (`settingsSchemas.ts`),
+ *   2. `normalizeAuthzBypass()` when a DB row becomes the runtime snapshot
+ *      (`runtimeSettings.ts`),
+ *   3. `isLocalOnlyBypassableByManageScope()` on the route-guard hot path
+ *      (`routeGuard.ts`).
+ * Fails closed: a non-string or blank value is treated as spawn-capable.
+ */
+export function isSpawnCapableBypassPrefix(prefix: unknown): boolean {
+  if (typeof prefix !== "string") return true;
+  const raw = prefix.trim();
+  if (raw.length === 0) return true;
+  const normalized = raw.endsWith("/") ? raw : `${raw}/`;
+  const reaches = (spawn: string) =>
+    raw === spawn || raw.startsWith(spawn) || normalized.startsWith(spawn) || spawn.startsWith(raw);
+  return SPAWN_CAPABLE_PREFIXES.some(reaches) || SPAWN_CAPABLE_PATTERN_ANCESTORS.some(reaches);
+}
+
+/**
+ * True when the CONCRETE request `path` resolves to a spawn-capable route: it sits
+ * under a `SPAWN_CAPABLE_PREFIXES` entry (including the bare form of a trailing-slash
+ * prefix, e.g. `/api/plugins` for `/api/plugins/`) or matches a `SPAWN_CAPABLE_PATTERNS`
+ * regex exactly. Used by the route guard to veto a bypass regardless of which
+ * snapshot prefix matched.
+ */
+export function isSpawnCapablePath(path: string): boolean {
+  return (
+    SPAWN_CAPABLE_PREFIXES.some(
+      (spawn) =>
+        path === spawn ||
+        path.startsWith(spawn) ||
+        (spawn.endsWith("/") && path === spawn.slice(0, -1))
+    ) || SPAWN_CAPABLE_PATTERNS.some((re) => re.test(path))
+  );
+}

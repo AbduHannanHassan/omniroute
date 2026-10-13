@@ -39,44 +39,44 @@ spawn-capable route: a leaked token over a tunnel still can't reach the spawn.
 `check-route-guard-membership` gate enumerates every `route.ts` under the
 spawn-capable prefixes and fails CI if any is not classified local-only.
 
-| Prefix / pattern                                                                                         | Why it's local-only                                                                      |
-| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `/api/mcp/`                                                                                              | MCP server — spawns stdio bridges + SSE handlers                                         |
-| `/api/cli-tools/runtime/`                                                                                | CLI tool runtime — executes arbitrary plugin code                                        |
-| `/api/cli-tools/{omp,letta,grok-build,forge,jcode,qwen}-settings`                                        | Per-tool settings writers that can touch tool binaries/config on the host                |
-| `/api/cli-tools/{claude,cline,codewhale,codex,crush,deepseek-tui,droid,kilo,openclaw,pi,smelt}-settings` | Same `getCliRuntimeStatus()` spawn as the six siblings above (GHSA-35fw-cv32-2373)       |
-| `/api/cli-tools/{all-statuses,status,detect}`                                                            | CLI inventory probes — spawn `command -v` / `--version` per tool (GHSA-35fw-cv32-2373)   |
-| `/api/cli-tools/antigravity-mitm`                                                                        | Antigravity MITM proxy control (spawns/points system proxy)                              |
-| `/api/modality-bridge/video/`                                                                            | Strict trusted-loopback Video Bridge runtime probe and internal extraction bridge        |
-| `/api/services/`                                                                                         | Embedded services (9Router / CLIProxy / Bifrost / Mux / Dario) — `npm install` + spawn   |
-| `/dashboard/providers/services/`                                                                         | Reverse proxy to embedded-service UIs                                                    |
-| `/api/tunnels/cloudflared`                                                                               | Installs/spawns the cloudflared binary                                                   |
-| `/api/tunnels/tailscale/{install,enable,disable,login,start-daemon}`                                     | Installs/controls tailscaled on the host                                                 |
-| `/api/copilot/`                                                                                          | Unauthenticated LLM driver — CLI-only by default                                         |
-| `/api/tools/agent-bridge/`                                                                               | AgentBridge — spawns MITM server + DNS edits                                             |
-| `/api/tools/traffic-inspector/`                                                                          | Traffic Inspector — http-proxy listener + system proxy                                   |
-| `/api/settings/mitm`                                                                                     | Enables MITM interception (system-level proxy state)                                     |
-| `/api/issue-agent/`                                                                                      | Issue agent — spawns local tooling against the repo                                      |
-| `/api/plugins/`, `/api/plugins`                                                                          | Plugins — load/execute via `worker_threads` + `child_process`                            |
-| `/api/middleware/`                                                                                       | User middleware — loads/executes operator code in-process                                |
-| `/api/system/version`                                                                                    | Auto-update (POST only; GET/HEAD/OPTIONS exempt) — spawns `git checkout` + `npm install` |
-| `/api/db-backups/exportAll`                                                                              | Spawns `tar` for the export archive                                                      |
-| `/api/local/`                                                                                            | 1-click local launchers (Redis today) — spawns podman/docker                             |
-| `/api/headroom/start`, `/api/headroom/stop`                                                              | Headroom proxy lifecycle — spawns python CLI / signals PID                               |
-| `/api/jobs`, `/api/jobs/`                                                                                | Job runner control — executes scheduled host-side work                                   |
-| `/api/oauth/cursor/auto-import`                                                                          | `execFile("which", ["cursor"])` before importing creds                                   |
-| `/api/oauth/kiro/auto-import`                                                                            | Reads Kiro CLI credential files from the host                                            |
-| `/api/skills/collect/`                                                                                   | Skill collection — detects/installs local tooling                                        |
-| `/api/skills/install`, `/api/skills/executions`                                                          | Skill handler registration + execution — reach the sandbox container spawn (GHSA-jx89)   |
-| `/api/discovery/`                                                                                        | Local network/provider discovery probes                                                  |
-| `/api/vnc-session` (`VNC_ROUTE_PREFIX`)                                                                  | Spawns a headful browser + VNC session for interactive logins                            |
-| `/api/acp/agents`                                                                                        | ACP — discovers and spawns local CLI agent binaries                                      |
+| Prefix / pattern                                                                                         | Why it's local-only                                                                             |
+| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `/api/mcp/`                                                                                              | MCP server — spawns stdio bridges + SSE handlers                                                |
+| `/api/cli-tools/runtime/`                                                                                | CLI tool runtime — executes arbitrary plugin code                                               |
+| `/api/cli-tools/{omp,letta,grok-build,forge,jcode,qwen}-settings`                                        | Per-tool settings writers that can touch tool binaries/config on the host                       |
+| `/api/cli-tools/{claude,cline,codewhale,codex,crush,deepseek-tui,droid,kilo,openclaw,pi,smelt}-settings` | Same `getCliRuntimeStatus()` spawn as the six siblings above (GHSA-35fw-cv32-2373)              |
+| `/api/cli-tools/{all-statuses,status,detect}`                                                            | CLI inventory probes — spawn `command -v` / `--version` per tool (GHSA-35fw-cv32-2373)          |
+| `/api/cli-tools/antigravity-mitm`                                                                        | Antigravity MITM proxy control (spawns/points system proxy)                                     |
+| `/api/modality-bridge/video/`                                                                            | Strict trusted-loopback Video Bridge runtime probe and internal extraction bridge               |
+| `/api/services/`                                                                                         | Embedded services (9Router / CLIProxy / Bifrost / Mux / Dario) — `npm install` + spawn          |
+| `/dashboard/providers/services/`                                                                         | Reverse proxy to embedded-service UIs                                                           |
+| `/api/tunnels/cloudflared`                                                                               | Installs/spawns the cloudflared binary                                                          |
+| `/api/tunnels/tailscale/{install,enable,disable,login,start-daemon}`                                     | Installs/controls tailscaled on the host                                                        |
+| `/api/copilot/`                                                                                          | Unauthenticated LLM driver — CLI-only by default                                                |
+| `/api/tools/agent-bridge/`                                                                               | AgentBridge — spawns MITM server + DNS edits                                                    |
+| `/api/tools/traffic-inspector/`                                                                          | Traffic Inspector — http-proxy listener + system proxy                                          |
+| `/api/settings/mitm`                                                                                     | Enables MITM interception (system-level proxy state)                                            |
+| `/api/issue-agent/`                                                                                      | Issue agent — spawns local tooling against the repo                                             |
+| `/api/plugins/`, `/api/plugins`                                                                          | Plugins — load/execute via `worker_threads` + `child_process`                                   |
+| `/api/middleware/`                                                                                       | User middleware — loads/executes operator code in-process                                       |
+| `/api/system/version`                                                                                    | Auto-update (POST only; GET/HEAD/OPTIONS exempt) — spawns `git checkout` + `npm install`        |
+| `/api/db-backups/exportAll`                                                                              | Spawns `tar` for the export archive                                                             |
+| `/api/local/`                                                                                            | 1-click local launchers (Redis today) — spawns podman/docker                                    |
+| `/api/headroom/start`, `/api/headroom/stop`                                                              | Headroom proxy lifecycle — spawns python CLI / signals PID                                      |
+| `/api/jobs`, `/api/jobs/`                                                                                | Job runner control — executes scheduled host-side work                                          |
+| `/api/oauth/cursor/auto-import`                                                                          | `execFile("which", ["cursor"])` before importing creds                                          |
+| `/api/oauth/kiro/auto-import`                                                                            | Reads Kiro CLI credential files from the host                                                   |
+| `/api/skills/collect/`                                                                                   | Skill collection — detects/installs local tooling                                               |
+| `/api/skills/install`, `/api/skills/executions`                                                          | Skill handler registration + execution — reach the sandbox container spawn (GHSA-jx89)          |
+| `/api/discovery/`                                                                                        | Local network/provider discovery probes                                                         |
+| `/api/vnc-session` (`VNC_ROUTE_PREFIX`)                                                                  | Spawns a headful browser + VNC session for interactive logins                                   |
+| `/api/acp/agents`                                                                                        | ACP — discovers and spawns local CLI agent binaries                                             |
 | `/api/resilience/connections`                                                                            | Per-account resilience JSON (cooldown, breaker, lockout). The dashboard HTML is not local-only. |
-| `/api/providers/cursor/agent-availability`                                                               | Dashboard install-nudge check — spawns `cursor-agent status --format json`               |
-| `/api/providers/{id}/login` (regex)                                                                      | Launches a headful Playwright Chromium for web-cookie login                              |
-| `/api/providers/volcengine-plan/connect` (regex)                                                         | Manual headful flow + session-based phone/SMS auto-login (spawns Playwright)             |
-| `/api/providers/{id}/refresh-cursor` (regex)                                                             | Manual Cursor session renewal — nudges `cursor-agent`                                    |
-| `/api/providers/{id}/chatgpt-web-codex-doctor` (regex)                                                   | Diagnoses the local Codex CLI install (spawns the binary)                                |
+| `/api/providers/cursor/agent-availability`                                                               | Dashboard install-nudge check — spawns `cursor-agent status --format json`                      |
+| `/api/providers/{id}/login` (regex)                                                                      | Launches a headful Playwright Chromium for web-cookie login                                     |
+| `/api/providers/volcengine-plan/connect` (regex)                                                         | Manual headful flow + session-based phone/SMS auto-login (spawns Playwright)                    |
+| `/api/providers/{id}/refresh-cursor` (regex)                                                             | Manual Cursor session renewal — nudges `cursor-agent`                                           |
+| `/api/providers/{id}/chatgpt-web-codex-doctor` (regex)                                                   | Diagnoses the local Codex CLI install (spawns the binary)                                       |
 
 **Response on violation:** `403 LOCAL_ONLY`
 
@@ -129,10 +129,15 @@ operator responsibilities remain:
   loopback, re-opens exactly the RCE class this tier closes. Expose the
   dashboard/API through the proxy — never the spawn-capable routes.
 - **Keep the manage-scope bypass minimal.** Only `/api/mcp/` is bypassable, and
-  only with a `manage`-scoped API key. The `SPAWN_CAPABLE_PREFIXES` can never be
-  added to the bypass list — the zod schema rejects them and
-  `isLocalOnlyBypassableByManageScope` denies them at runtime (defence-in-depth),
-  which is what the dashboard means by "cannot be made bypassable". Dynamic-segment
+  only with a `manage`-scoped API key. The `SPAWN_CAPABLE_PREFIXES` (and any
+  ancestor of one, such as `/api/` or `/api/cli-tools/`) can never be added to the
+  bypass list. One shared predicate, `isSpawnCapableBypassPrefix`, enforces it at
+  three layers: the zod schema rejects them on `PATCH /api/settings`,
+  `normalizeAuthzBypass` drops them when a stored row becomes the runtime snapshot,
+  and `isLocalOnlyBypassableByManageScope` denies them at runtime (defence-in-depth).
+  This is what the dashboard means by "cannot be made bypassable".
+  `POST /api/settings/import-json` never writes the bypass keys (or any other
+  key `PATCH /api/settings` guards behind password re-auth). Dynamic-segment
   and static-path spawn-capable routes under `/api/providers/` (e.g. `/login`,
   `/refresh-cursor`) are covered by the regex-based `SPAWN_CAPABLE_PATTERNS` /
   `SPAWN_CAPABLE_PATTERN_ANCESTORS` companion in
@@ -229,10 +234,15 @@ expired DB doesn't silently downgrade to "deny".
 
 1. Add the path prefix to `LOCAL_ONLY_API_PREFIXES` in
    `src/server/authz/routeGuard.ts`
-2. Add a test in `tests/unit/authz/routeGuard.test.ts` asserting that
+2. Add the same prefix to `SPAWN_CAPABLE_PREFIXES` (or a regex to
+   `SPAWN_CAPABLE_PATTERNS`) in `src/shared/constants/spawnCapablePrefixes.ts`.
+   This applies to any route that spawns a process or runs caller-supplied code
+   (`child_process`, `node:vm`, `worker_threads`). Without it, a manage-scope
+   bypass prefix can open the route to non-loopback callers.
+3. Add a test in `tests/unit/authz/routeGuard.test.ts` asserting that
    `isLocalOnlyPath()` returns true for the new prefix
-3. **Never skip this step** — see Hard Rule #15 in `CLAUDE.md`
-4. Decide: does this route ALSO belong in `LOCAL_ONLY_MANAGE_SCOPE_BYPASS_PREFIXES`?
+4. **Never skip this step** — see Hard Rule #15 in `CLAUDE.md`
+5. Decide: does this route ALSO belong in `LOCAL_ONLY_MANAGE_SCOPE_BYPASS_PREFIXES`?
    Default answer is **no**. Only opt-in when the route is safe to expose to a
    manage-scope holder (i.e. does NOT spawn arbitrary user-controlled code).
 

@@ -20,10 +20,7 @@ import {
 // Import from the server-free constants leaf, NOT from `@/server/authz/routeGuard`:
 // this schema is reachable from client components (dashboard onboarding wizard), and
 // routeGuard drags in server runtime (→ ioredis) that breaks the client/CLI build.
-import {
-  SPAWN_CAPABLE_PREFIXES,
-  SPAWN_CAPABLE_PATTERN_ANCESTORS,
-} from "@/shared/constants/spawnCapablePrefixes";
+import { isSpawnCapableBypassPrefix } from "@/shared/constants/spawnCapablePrefixes";
 import { isHttpUrl } from "@/shared/validation/schemas/misc";
 
 const signatureCacheModeValues = ["enabled", "bypass", "bypass-strict"] as const;
@@ -211,19 +208,13 @@ export const updateSettingsSchema = z.object({
       z
         .string()
         .max(200)
-        .refine(
-          (prefix) => {
-            const normalized = prefix.endsWith("/") ? prefix : `${prefix}/`;
-            return (
-              !SPAWN_CAPABLE_PREFIXES.some((sp) => normalized.startsWith(sp)) &&
-              !SPAWN_CAPABLE_PATTERN_ANCESTORS.some((sp) => normalized.startsWith(sp))
-            );
-          },
-          {
-            message:
-              "BYPASS_PREFIX_NOT_ALLOWED: spawn-capable prefixes cannot be added to the manage-scope bypass list",
-          }
-        )
+        // Shared predicate (GHSA-hcwm-v74f-pfvh): also rejects ANCESTORS of a
+        // spawn-capable prefix (e.g. `/api/` or `/api/cli-tools/`), matching the
+        // runtime veto in routeGuard.ts instead of a weaker copy of it.
+        .refine((prefix) => !isSpawnCapableBypassPrefix(prefix), {
+          message:
+            "BYPASS_PREFIX_NOT_ALLOWED: spawn-capable prefixes cannot be added to the manage-scope bypass list",
+        })
     )
     .optional(),
   customBannedSignals: z.array(z.string().max(200)).optional(),

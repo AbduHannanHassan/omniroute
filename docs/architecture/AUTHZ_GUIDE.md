@@ -75,6 +75,15 @@ supplemented:
   login issues (`src/app/api/auth/login/route.ts`), so the rest of the
   dashboard session pipeline (auto-refresh, cookie flags) is unchanged —
   OIDC only replaces how the cookie gets minted, not what it grants.
+- Every `oidc*` setting (`oidcEnabled`, `oidcDisablePasswordLogin`,
+  `oidcIssuer`, `oidcClientId`, `oidcClientSecret`, `oidcAllowedSubjects`,
+  `oidcRedirectPath`, `oidcScopes`) is in `SECURITY_IMPACTING_SETTINGS_KEYS`
+  (`src/shared/constants/securityImpactingSettings.ts`): `PATCH /api/settings`
+  answers `400 PASSWORD_REQUIRED` unless the body carries the management
+  password as `currentPassword`, and `POST /api/settings/import-json` never
+  writes them. `oidcDisablePasswordLogin` refuses password _login_
+  (`POST /api/auth/login`) but keeps the stored password hash, and re-auth still
+  checks `currentPassword` against it.
 
 ## Route Classes
 
