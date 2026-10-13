@@ -1822,23 +1822,33 @@ Ntọala ndabara zuru ụwa ọnụ maka browser headless na tunnel tool na-ap�
 
 ---
 
-## Àkwà Mmiri OmniConductor
+## OmniConductor Bridge
 
-Onye nnata SSE na-adịte aka nke na-egosipụta ọrụ hub OmniConductor n’ime A2A TaskManager mpaghara (`src/lib/conductor/`). Ọ bụ nhọrọ — àkwà mmiri ahụ na-amalite naanị mgbe edobere `CONDUCTOR_HUB_URL`. Ọ bụ naanị maka akụkụ sava: token hub ahụ agaghị eru na ihe nchọgharị ma ọlị.
+Ndị na-ejide SSE nke na-adịru ogologo oge nke na-emegharị ọrụ OmniConductor hub n'ime A2A TaskManager nke mpaghara (`src/lib/conductor/`). Ịhọrọ — njikọ ahụ na-amalite naanị mgbe `CONDUCTOR_HUB_URL` setịpụrụ. Naanị na sava: token hub agaghị enwe ike iru nchọgharị.
 
-| Mgbanwe                        | Ndabara                 | Faịlụ Isi Mmalite                | Nkọwa                                                                                                                   |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(efu)_                 | `src/lib/conductor/boot.ts`      | URL ntọala nke hub OmniConductor (dịka `http://127.0.0.1:7910`). Ọ bụrụ na edoghị ya = agbanyụrụ àkwà mmiri ahụ.        |
-| `CONDUCTOR_HUB_TOKEN`          | _(efu)_                 | `src/lib/conductor/boot.ts`      | Ihe nzere hub maka iyi SSE — mepụta peer nke ụdị `spokesperson` na hub ahụ (`POST /v1/peers`, onye nchịkwa).            |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(efu)_                 | `src/lib/conductor/hubProxy.ts`  | Ihe nzere maka inyefe ọrụ A2A→hub na-abata (`POST /v1/tasks`); ọ na-alaghachi iji `CONDUCTOR_HUB_TOKEN` mgbe edoghị ya. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL ntọala nke ọrụ spokesperson (Faro) dị n’azụ proxy nkata dashboard (`/api/conductor/ask`).                           |
+| Variable                       | Default                 | Source File                      | Description                                                                                                     |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | URL isi nke OmniConductor hub (dịka `http://127.0.0.1:7910`). Ọ bụrụ na enweghi = njikọ kwụsịrị.                |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | Akụkụ ikike hub maka SSE feed — wepụta `spokesperson`-dị ka onye mmekọ na hub (`POST /v1/peers`, onye nchịkwa). |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | Akụkụ ikike maka ịnyefe ọrụ A2A→hub (`POST /v1/tasks`); na-eweghachi na `CONDUCTOR_HUB_TOKEN` mgbe enweghi.     |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL isi nke onye na-ekwu okwu (Faro) ọrụ n'azụ njikọ chat dashboard (`/api/conductor/ask`).                     |
 
-### Nhazi oge na-eburu oke n’uche
+### Video Bridge isolated validation
 
-`open-sse/services/combo.ts` na `src/lib/quota/quotaScheduler.ts` na-eji nke a maka nyocha mmefu token tupu arịrịọ. Ọ bụ nhọrọ — omume routing ndabara anaghị agbanwe mgbe edoghị ya.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` chọrọ
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` iji kpọọ aha nchekwa zuru ezu nke nwere
+`storage.sqlite`. Enweghị ndabara. Ngwaọrụ ahụ na-emeghe nchekwa ahụ naanị na-agụ
+na kwadebe otu nkeonwe nke nwere igodo na ntọala ndị a na-ekewapụ;
+akụkụ ikike na-anọ na onye na-enyocha. Nke a bụ naanị maka iwu nkwadebe doro anya
+na anaghị eji ya na mmalite sava nkịtị. Nkwadebe
+adịghị akpọ model; iwu ọkụ ndụ dị iche na-achọ `--execute-real`.
 
-| Mgbanwe                            | Ndabara | Faịlụ Isi Mmalite                           | Nkọwa                                                                                                                                                                                                                                                                           |
-| ---------------------------------- | ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Mgbe ọ bụ `1`, mafere njikọ ndị mmefu token ha n’ime windo ọ bụla (`rateLimitOverrides.tpm`, tebụl `provider_quota_state`) na-enweghị ike ịkwụ ụgwọ atụmatụ ọnụ ahịa arịrịọ tupu izipu ya. Kwe ka ọ gaa n’ihu mgbe ahazighị mmefu ọ bụla.                                       |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Nhazi nzaghachi nke ihe atụmatụ token context-guard (#14931): EMA maka (provider, model, tools present) ọ bụla nke `usage.prompt_tokens` / atụmatụ, nke amachibidoro n’etiti 0.15–2.0, naanị n’ime ebe nchekwa. `off`, `0` ma ọ bụ `false` na-agbanyụ ndekọ na itinye ya n’ọrụ. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Na-edebanye aha ụzọ onyonyo `xai-oauth` (`xao`) na `grok-cli`. Ọ bụ akara atụmatụ dashboard nwere otu aha ahụ; override DB na-emeri uru a.                                                                                                                                      |
+### Quota-aware scheduling
+
+A na-eji ya na `open-sse/services/combo.ts` na `src/lib/quota/quotaScheduler.ts` maka nyocha token-budget tupu arịrịọ. Ịhọrọ — omume ndọrọ ndọrọ ọchịchị ndabara adịghị agbanwe mgbe enweghi.
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                   |
+| ---------------------------------- | ------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Mgbe `1`, hapụ njikọ ndị na-enweghị ike ịkwụ ụgwọ ụgwọ token kwa windo (`rateLimitOverrides.tpm`, tebụl `provider_quota_state`) tupu izipu. Fail-open mgbe enweghi ego.                                                       |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Nkwado nzaghachi nke onye na-atụgharị token (#14931): kwa (onye na-enye, model, ngwaọrụ dị) EMA nke `usage.prompt_tokens` / atụ, na-ejide na 0.15–2.0, naanị na nchekwa. `off`, `0` ma ọ bụ `false` na-egbochi ndekọ na ngwa. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Na-edebanye ụzọ onyonyo `xai-oauth` (`xao`) na `grok-cli`. Njirimara dashboard nke aha ahụ; a na-emeri DB override karịa uru a.                                                                                               |

@@ -1823,21 +1823,31 @@ Globální výchozí hodnoty pro bezhlavý prohlížeč a odchozí tunel nástro
 
 ## OmniConductor Bridge
 
-Dlouhodobě běžící konzument SSE, který zrcadlí úlohy centra OmniConductor do místního A2A TaskManageru (`src/lib/conductor/`). Volitelná funkce — bridge se spustí pouze tehdy, když je nastavena proměnná `CONDUCTOR_HUB_URL`. Pouze na straně serveru: token centra se nikdy nesmí dostat do prohlížeče.
+Dlouhodobý SSE spotřebitel, který zrcadlí úkoly OmniConductor hubu do místního A2A TaskManageru (`src/lib/conductor/`). Volitelně — most se spouští pouze tehdy, když je nastaveno `CONDUCTOR_HUB_URL`. Pouze na serverové straně: token hubu nikdy nesmí dosáhnout prohlížeče.
 
-| Proměnná                       | Výchozí hodnota         | Zdrojový soubor                  | Popis                                                                                                                                 |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(prázdné)_             | `src/lib/conductor/boot.ts`      | Základní URL centra OmniConductor (např. `http://127.0.0.1:7910`). Nenastaveno = bridge je zakázán.                                   |
-| `CONDUCTOR_HUB_TOKEN`          | _(prázdné)_             | `src/lib/conductor/boot.ts`      | Přihlašovací údaj centra pro kanál SSE — vytvořte v centru protějšek druhu `spokesperson` (`POST /v1/peers`, správce).                |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prázdné)_             | `src/lib/conductor/hubProxy.ts`  | Přihlašovací údaj pro příchozí delegování úloh A2A→centrum (`POST /v1/tasks`); pokud není nastaven, použije se `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Základní URL služby spokesperson (Faro) za proxy chatem řídicího panelu (`/api/conductor/ask`).                                       |
+| Proměnná                       | Výchozí                 | Zdrojový soubor                  | Popis                                                                                                                     |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(prázdný)_             | `src/lib/conductor/boot.ts`      | Základní URL adresu OmniConductor hubu (např. `http://127.0.0.1:7910`). Nezadané = most je zakázán.                       |
+| `CONDUCTOR_HUB_TOKEN`          | _(prázdný)_             | `src/lib/conductor/boot.ts`      | Přihlašovací údaje hubu pro SSE feed — emitujte peer typu `spokesperson` na hubu (`POST /v1/peers`, admin).               |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prázdný)_             | `src/lib/conductor/hubProxy.ts`  | Přihlašovací údaje pro příchozí A2A→hub delegaci úkolů (`POST /v1/tasks`); při nezadání se použije `CONDUCTOR_HUB_TOKEN`. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Základní URL adresu služby spokesperson (Faro) za proxy chatem na dashboardu (`/api/conductor/ask`).                      |
+
+### Izolovaná validace video mostu
+
+`scripts/ad-hoc/video-live-isolation.ts --prepare` vyžaduje
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, aby pojmenoval absolutní adresář obsahující
+`storage.sqlite`. Neexistuje žádný výchozí. Nástroj otevírá tuto databázi pouze pro čtení a
+připravuje soukromou dočasnou kopii s izolovanými klientskými klíči a nastaveními;
+přihlašovací údaje zůstávají na validačním hostiteli. Tato proměnná je určena pouze pro explicitní
+přípravu příkazu a není spotřebovávána při běžném spuštění serveru. Příprava
+nevolá model; samostatný příkaz pro živý kouř vyžaduje `--execute-real`.
 
 ### Plánování s ohledem na kvóty
 
-Používá se v `open-sse/services/combo.ts` a `src/lib/quota/quotaScheduler.ts` pro kontrolu rozpočtu tokenů před požadavkem. Volitelná funkce — pokud není nastavena, výchozí chování směrování se nemění.
+Používá se v `open-sse/services/combo.ts` a `src/lib/quota/quotaScheduler.ts` pro kontroly rozpočtu tokenů před požadavkem. Volitelně — výchozí chování směrování se nezmění, pokud není nastaveno.
 
-| Proměnná                           | Výchozí hodnota | Zdrojový soubor                             | Popis                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------- | --------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`             | `open-sse/services/combo.ts`                | Při hodnotě `1` přeskočí připojení, jejichž rozpočet tokenů pro dané časové okno (`rateLimitOverrides.tpm`, tabulka `provider_quota_state`) nedokáže před odesláním pokrýt odhadované náklady požadavku. Pokud není nakonfigurován žádný rozpočet, požadavek je povolen.                                   |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(zapnuto)_     | `open-sse/services/estimatorCalibration.ts` | Kalibrace odhadu tokenů ochrany kontextu pomocí zpětné vazby (#14931): EMA poměru `usage.prompt_tokens` / odhad pro každou kombinaci (poskytovatel, model, přítomnost nástrojů), omezená na rozsah 0.15–2.0 a uchovávaná pouze v paměti. Hodnoty `off`, `0` nebo `false` zakazují zaznamenávání a použití. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`         | `open-sse/config/imageRegistry.ts`          | Registruje obrazové trasy `xai-oauth` (`xao`) a `grok-cli`. Příznak funkce řídicího panelu se stejným názvem; přepsání v databázi má před touto hodnotou přednost.                                                                                                                                         |
+| Proměnná                           | Výchozí     | Zdrojový soubor                             | Popis                                                                                                                                                                                                                                                         |
+| ---------------------------------- | ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Když je `1`, přeskočte připojení, jejichž rozpočet tokenů na okno (`rateLimitOverrides.tpm`, tabulka `provider_quota_state`) si nemůže dovolit odhadované náklady na požadavek před odesláním. Selhání při otevření, když není nakonfigurován žádný rozpočet. |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(zapnuto)_ | `open-sse/services/estimatorCalibration.ts` | Kalibrace zpětné vazby odhadovače tokenů kontextového strážce (#14931): EMA `usage.prompt_tokens` / odhad pro (poskytovatel, model, přítomné nástroje), omezena na 0.15–2.0, pouze v paměti. `vypnuto`, `0` nebo `false` zakáže zaznamenávání a aplikaci.     |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Registruje trasy obrázků `xai-oauth` (`xao`) a `grok-cli`. Funkční vlajka dashboardu se stejným názvem; přepsání DB má přednost před touto hodnotou.                                                                                                          |

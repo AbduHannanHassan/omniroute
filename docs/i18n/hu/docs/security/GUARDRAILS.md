@@ -12,12 +12,12 @@ A guardrailek biztonsági, szabályzati és tartalomátalakítási előírásoka
 
 A rendszer **hiba esetén nyitott**: ha egy guardrail végrehajtás közben kivételt dob, a regisztrációs adatbázis rögzíti a hibát, és a kérés meghiúsítása helyett a következő guardraillel folytatja. A blokkolás mindig explicit döntés (`block: true`), soha nem véletlen.
 
-## Beépített védőkorlátok
+## Beépített Védőkorlátok
 
-A beállításjegyzék importáláskor automatikusan betölt hat védőkorlátot prioritási sorrendben
+A regisztráció automatikusan betölt hat védőkorlátot prioritási sorrendben importáláskor
 (lásd `registry.ts` → `registerDefaultGuardrails()`):
 
-| Prioritás | Név                 | Szakasz(ok)    | Fájl                  |
+| Prioritás | Név                 | Színpad(ok)    | Fájl                  |
 | --------- | ------------------- | -------------- | --------------------- |
 | `5`       | `vision-bridge`     | `preCall`      | `visionBridge.ts`     |
 | `6`       | `audio-bridge`      | `preCall`      | `audioBridge.ts`      |
@@ -26,440 +26,501 @@ A beállításjegyzék importáláskor automatikusan betölt hat védőkorlátot
 | `20`      | `prompt-injection`  | `preCall`      | `promptInjection.ts`  |
 | `95`      | `credential-masker` | `pre` + `post` | `credentialMasker.ts` |
 
-Az alacsonyabb prioritási számok futnak **először**.
+A kisebb prioritású számok **először** futnak.
 
-### Vision Bridge (`visionBridge.ts`) — Modalitás híd PR-1
+### Vision Bridge (`visionBridge.ts`) — Modalitás Híd PR-1
 
-Elfogja a képeket tartalmazó kéréseket, amelyek **nem-látás modellekre** irányulnak, és vagy átirányítja a teljes kérést egy látásképes modellre, vagy lecseréli a kép részeket egy konfigurálható látásmodell által előállított szöveges leírásokra az upstream hívás előtt. Ez lehetővé teszi, hogy a csak szöveges szolgáltatók átláthatóan kezeljék a multimodális hasznos adatokat.
+Elfogja a képet tartalmazó kéréseket, amelyek **nem-vizuális modellek** felé irányulnak, és vagy
+átirányítja az egész kérést egy vizuális képességekkel rendelkező modellhez, vagy a képet
+tartalmazó részeket szöveges leírásokkal helyettesíti, amelyeket egy konfigurálható vizuális modell állít elő az upstream hívás előtt. Ez lehetővé teszi a csak szöveget szolgáltató
+szolgáltatók számára, hogy átláthatóan kezeljék a multimodális payloadokat.
 
 Folyamat:
 
-1. Kihagyja, ha a célmodell már támogatja a látást (kivéve, ha megjelenik a kényszerített hídlistában `isVisionBridgeForcedModel`).
-2. Képrészletek kinyerése `extractImageParts(messages)` segítségével
-   (`visionBridgeHelpers.ts`), amely a **egységes média detektornak** `detectMediaParts()` delegál az `open-sse/utils/mediaParts.ts` fájlban — a kombinált kompatibilitási szűrővel megosztott egyetlen igazságforrás.
-   A kinyerés engedélyezett a `replaceImageParts` által visszailleszthető alakzatok legfelső szintű részeire (az extract↔replace szerződés): OpenAI `image_url`, Anthropic base64 `source.type:"base64"`, Anthropic URL `source.type:"url"`, és Responses API `input_image`. A beágyazott találatok és csak indikátor alakzatok kombinált szűrő anyagok, és soha nem kerülnek kinyerésre. Kihagyja, ha nem talál ilyet.
-3. Futtatásidejű konfiguráció feloldása `resolveVisionBridgeRuntimeSettings()` segítségével
-   (`src/shared/constants/modalityBridgeDefaults.ts`): az új `modalityBridge*` beállítási kulcsok nyernek; a régi `visionBridge*` kulcsok **egy ciklusos tartalékként** maradnak (visszaállítási ablak). Kihagyja a média bejárása előtt, ha a híd le van tiltva.
-4. Az üzemmódválasztó (`modalityBridgeVisionMode`, lásd az alábbi táblázatot) dönti el az átirányítást vs. leírást. Az átirányítás `modifiedPayload`-ot ad vissza, csak a `model` cseréjével, plusz meta `{ rerouted, fromModel, toModel, imagesKept }`.
-5. Leírás útvonal: korlátozza a képeket `maxImages`-re, összeállítja a feladatspecifikus promptot, konzultál a leírás gyorsítótárral, meghívja a látásmodellt **párhuzamosan**
-   (`Promise.allSettled`), és `[Image N]: <description>` szövegrészeket injektál a helyükre. Egy sikertelen leírás `null`-t eredményez, és az eredeti képrész **megmarad** (#4012) — kivéve a kombinált leírás útvonalon, amikor minden leírás sikertelen volt, ahol egy megerősített nem-látás upstream egy `(unavailable — no vision-capable provider connected)` csonkot kap helyette (#8430).
-6. Visszaadja a `modifiedPayload` + meta adatokat (`imagesProcessed`, `descriptions`,
+1. Ugrás, ha a célmodell már támogatja a látást (kivéve, ha szerepel a
+   kényszerített híd listában `isVisionBridgeForcedModel`).
+2. Kép részek kinyerése a `extractImageParts(messages)`
+   (`visionBridgeHelpers.ts`) segítségével, amely a **egységes média
+   detektor** `detectMediaParts()`-ra delegál az `open-sse/utils/mediaParts.ts`-ben — az
+   egyetlen igazságforrás, amelyet a kombinált kompatibilitási szűrő oszt meg.
+   A kinyerés engedélyezett a legfelső szintű részekre, amelyeket a
+   `replaceImageParts` vissza tud illeszteni (a kinyerés↔helyettesítés szerződés): OpenAI
+   `image_url`, Anthropic base64 `source.type:"base64"`, Anthropic URL
+   `source.type:"url"`, és Responses API `input_image`. A beágyazott találatok és
+   csak indikátor formák kombinált szűrő anyagnak számítanak, és soha nem kerülnek kinyerésre.
+   Ugrás, ha nem található.
+3. Futási konfiguráció megoldása a `resolveVisionBridgeRuntimeSettings()`
+   (`src/shared/constants/modalityBridgeDefaults.ts`): az új `modalityBridge*`
+   beállítási kulcsok nyernek; a régi `visionBridge*` kulcsok **egy ciklusos
+   visszaesés** (visszagörgetési ablak). Ugrás bármilyen média áthaladás előtt, amikor a
+   híd le van tiltva.
+4. A módválasztó (`modalityBridgeVisionMode`, lásd az alábbi táblázatot) dönti el
+   az átirányítást vagy a leírást. Az átirányítás `modifiedPayload`-ot ad vissza, amelyben csak a `model`
+   lett kicserélve, plusz meta `{ rerouted, fromModel, toModel, imagesKept }`.
+5. Leíró út: korlátozza a képeket `maxImages`-re, összeállítja a feladat-tudatos promptot,
+   konzultál a leíró gyorsítótárral, párhuzamosan hívja a vizuális modellt
+   (`Promise.allSettled`), és injektálja az `[Image N]: <description>` szöveges részeket a
+   helyükre. Egy sikertelen leírás `null`-t ad vissza, és az eredeti kép rész **megmarad**
+   (#4012) — kivéve a kombinált leíró úton, amikor minden leírás megbukik, ahol egy megerősített nem-vizuális upstream
+   `(unavailable — no vision-capable provider connected)` stub-ot kap helyette (#8430).
+6. Visszaadja a `modifiedPayload`-ot + meta (`imagesProcessed`, `descriptions`,
    `processingTimeMs`, `visionModel`).
 
-#### Üzemmódválasztó (`modalityBridgeVisionMode`)
+#### Módválasztó (`modalityBridgeVisionMode`)
 
-| Mód        | Alapértelmezett | Viselkedés                                                                                                                                                                                                                                                                                                                 |
-| ---------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auto`     | ✔               | Régi heurisztika, érintetlen (#6640/#7204): a nem-kombinált/`auto/` modellek átirányítanak a legjobb látásmodellre, hacsak az eredeti modellnek már nincsenek használható hitelesítő adatai (akkor leírja); a kombinált célok mindig leírnak.                                                                              |
-| `describe` |                 | Mindig leírja — az átirányítási blokk teljesen kihagyásra kerül; a felhasználó által választott modell mindig válaszol.                                                                                                                                                                                                    |
-| `reroute`  |                 | Kényszerített átirányítás: a hitelesített modell megtartására vonatkozó védőkorlát megkerülhető. Az átirányítási-**cél** hitelesítő adatok védőkorlátja továbbra is érvényes — ha nincs használható látáscél, a kérés átmegy a leírásra, így a nyers képek soha nem jutnak el egy csak szöveges háttérrendszerhez (#8430). |
+| Mód        | Alapértelmezett | Viselkedés                                                                                                                                                                                                                                                                                   |
+| ---------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auto`     | ✔               | Régi heurisztika, érintetlen (#6640/#7204): nem-kombinált/`auto/` modellek a legjobb vizuális modellhez irányítanak, hacsak az eredeti modellnek már nincsenek használható hitelesítő adatai (akkor leír); a kombinált célok mindig leírnak.                                                 |
+| `describe` |                 | Mindig leír — az átirányítási blokk teljesen ki van hagyva; a felhasználó által választott modell mindig válaszol.                                                                                                                                                                           |
+| `reroute`  |                 | Kényszerített átirányítás: a hitelesített modell védőkorlátot megkerülik. Az átirányítási **cél** hitelesítő védőkorlát továbbra is érvényes — ha nincs használható vizuális cél, a kérés a leírásra esik vissza, így a nyers képek soha nem jutnak el egy csak szöveges backendhez (#8430). |
 
-A kényszerített módok **mielőtt** az automatikus heurisztika futna, rövidre zárnak; az `auto` viselkedés byte-ra azonos a PR-1 előtti védőkorláttal.
+A kényszerített módok **előtt** rövidre zárják az automatikus heurisztikát; az `auto` viselkedés
+byte-azonos a pre-PR-1 védőkorláttal.
 
-#### Feladatspecifikus leírási prompt (`modalityBridgeVisionTaskAware`)
+#### Feladat-tudatos leíró prompt (`modalityBridgeVisionTaskAware`)
 
-Alapértelmezett **igaz**. A `composeVisionPrompt()` (`visionBridgeHelpers.ts`) hozzáfűzi az **utolsó felhasználói üzenet** szövegét (500 karakterre csonkítva) az alap leírási prompt-hoz, irányítva a leírást afelé, amit a felhasználó ténylegesen kért (codex-vision-proxy minta), és arra kéri a látásmodellt, hogy írja át a látható szöveget. Ha a jelző ki van kapcsolva — vagy nincs felhasználói szöveg — az alap prompt változatlanul kerül felhasználásra.
+Alapértelmezett **igaz**. A `composeVisionPrompt()` (`visionBridgeHelpers.ts`) hozzáfűzi
+az **utolsó felhasználói üzenet** szövegét (500 karakterre rövidítve) az alap
+leíró prompthoz, irányítva a leírást arra, amit a felhasználó valójában kért
+(codex-vision-proxy minta), és megkérve a vizuális modellt, hogy transzkribálja a látható
+szöveget. A zászló kikapcsolásával — vagy ha nincs felhasználói szöveg — az alap prompt változatlanul kerül felhasználásra.
 
-A self-loop leíró saját OpenAI-kompatibilis kérése (`callVisionModelSingle()`
-a `visionBridgeHelpers.ts` fájlban) mindig `image_url.detail: "high"` értéket kér –
-feltétel nélkül, minden hívó/szolgáltató számára, anélkül, hogy bármilyen kliensjelzéshez kötődne.
-Az alacsony részletességű mintavételezés rontja az OCR pontosságát pontosan abban a szövegátírási feladatban,
-amit ez a prompt kér, így a leíró hívás maga mindig magas részletességet kér,
-függetlenül attól, hogy az eredeti bejövő kérés milyen részletességi szintet használt.
-Ez csak a belső leíró kérés törzsét érinti; nem változtatja meg, hogy az OmniRoute hogyan továbbítja
-a hívó saját `image_url.detail` értékét az elsődleges kérésen –
-ez az alapértelmezett érték külön kerül alkalmazásra, és csak az észlelt OpenCode kliensek
-esetében, a `defaultImageDetail()` (`open-sse/handlers/chatCore/upstreamBody.ts`)
-függvényben. A leíró self-loop Anthropic wire-format ága nem rendelkezik `detail` mezővel,
-és egyik alapértelmezett érték sem érinti.
+A self-loop saját OpenAI-kompatibilis kérésének leírása (`callVisionModelSingle()`
+a `visionBridgeHelpers.ts`-ben) mindig `image_url.detail: "high"`-t kér
+kondicionálatlanul, minden hívó/szolgáltató számára, nem függően semmilyen kliensjeletől.
+Az alacsony részletességű mintavételezés rontja az OCR pontosságát pontosan
+azért a szövegátírási feladatért, amelyet ez a prompt kér, így a leíró hívás
+mindig magas részletességet kér, függetlenül attól, hogy az eredeti bejövő
+kérés milyen részletességi szintet használt. Ez csak a belső leíró kérés
+törzsét érinti; nem változtatja meg, hogyan továbbítja az OmniRoute a hívó
+saját `image_url.detail`-ját a fő kérésen — ez a default külön alkalmazásra kerül,
+és csak a detektált OpenCode kliensek esetében, a `defaultImageDetail()`-ben
+(`open-sse/handlers/chatCore/upstreamBody.ts`). Az Anthropic wire-format
+ág a leíró self-loopban nem tartalmaz `detail` mezőt, és nem érinti
+semmilyen default.
 
-#### Leírás kimeneti korlát (`modalityBridgeVisionMaxChars`)
+#### Leíró kimeneti korlát (`modalityBridgeVisionMaxChars`)
 
 | Kulcs                          | Alapértelmezett | Tartomány          |
-| :----------------------------- | :-------------- | :----------------- |
+| ------------------------------ | --------------- | ------------------ |
 | `modalityBridgeVisionMaxChars` | `0`             | `0` vagy 100–50000 |
 
-A `0` (alapértelmezett) azt jelenti, hogy **nincs korlát** – a `callVisionModel()`
-által visszaadott leírás módosítás nélkül kerül továbbításra, megőrizve a meglévő viselkedést.
-A 100–50000 tartományban lévő bármely érték levágja a leírást egy `…` utótaggal,
-mielőtt az `[Image N]: <description>` formában visszaillesztésre kerülne
-(`VisionBridgeGuardrail.preCall()` a `src/lib/guardrails/visionBridge.ts` fájlban).
-Növelje ezt a részletgazdag OCR feladatoknál, ahol a downstream modellnek szüksége van a teljes átírásra;
-csökkentse, hogy korlátozza a tokenhasználatot a bőbeszédű látásmodelleknél.
-Az irányítópult mezője a Vision lap Advanced paneljén található
-(`modality-bridge-max-chars` a `ModalityBridgeVisionTab.tsx` fájlban),
-és az 1 és 99 közötti értékeket 100-ra kerekíti, miközben az explicit `0`-t érintetlenül hagyja –
-a `0` önmagában is érvényes Zod érték
-(`z.union([z.literal(0), z.number().int().min(100).max(50000)])`),
-nem csupán az „unset” alapértelmezett érték.
+A `0` (alapértelmezett) azt jelenti, hogy **nincs korlát** — a `callVisionModel()`
+által visszaadott leírás módosítás nélkül kerül továbbításra, megőrizve a meglévő
+viselkedést. Bármely 100–50000 közötti érték a leírást egy `…` utótaggal
+megszakítja, mielőtt visszavágják `[Image N]: <description>` formátumban
+(`VisionBridgeGuardrail.preCall()` a `src/lib/guardrails/visionBridge.ts`-ben).
+Ezt emeld meg részletgazdag OCR feladatokhoz, ahol az alsóbb modellnek
+szüksége van a teljes átírásra; csökkentsd, hogy korlátozd a tokenhasználatot
+a beszédes látásmodellek esetében. A műszerfal mező a Vision fül Fejlett paneljén
+(`modality-bridge-max-chars` a `ModalityBridgeVisionTab.tsx`-ben) található,
+és bármely 1 és 99 közötti értéket 100-ra korlátoz, miközben egy explicit `0`
+érintetlen marad — a `0` önállóan érvényes Zod érték
+(`z.union([z.literal(0), z.number().int().min(100).max(50000)])`), nem csupán
+az "nincs beállítva" alapértelmezett.
 
-#### Leírás gyorsítótár (`modalityBridge/bridgeCache.ts`)
+#### Leíró cache (`modalityBridge/bridgeCache.ts`)
 
-Memóriában lévő LRU + TTL gyorsítótár a leírás kimenetekhez, folyamat-szinten megosztva.
-Kulcs = `sha256(imageRef + composedPrompt + configuredBridgeModel)`
-hossz-előtag keretezéssel (nincs mezőhatár ütközés).
-A modell komponens a **konfigurált** bridge modell, nem az a modell, amely ténylegesen válaszolt –
-a `callVisionModel` belsőleg visszaeshet, és a kísérletenkénti kulcsolás fragmentálná a gyorsítótárat.
-A sikertelen leírások soha nem kerülnek gyorsítótárazásra. Beállítások:
+Memóriában lévő LRU + TTL cache a leíró kimenetekhez, megosztott folyamat-szinten.
+Kulcs = `sha256(imageRef + composedPrompt + configuredBridgeModel)` hosszúság-előtag keretezéssel
+(mezőhatár ütközések nélkül). A modell komponens a **konfigurált** híd modell,
+nem az a modell, amely valójában válaszolt —
+a `callVisionModel` belsőleg visszaeshet, és a kísérletek szerinti kulcsok
+fragmentálnák a cache-t. A sikertelen leírások soha nem kerülnek cache-elésre. Beállítások:
 
 | Kulcs                           | Alapértelmezett | Tartomány |
-| :------------------------------ | :-------------- | :-------- |
+| ------------------------------- | --------------- | --------- |
 | `modalityBridgeCacheEnabled`    | `true`          | —         |
 | `modalityBridgeCacheTtlMinutes` | `60`            | 1–1440    |
 | `modalityBridgeCacheMaxEntries` | `200`           | 10–5000   |
 
 #### Távoli kép normalizálás (self-loop leírás/base64 lekérés)
 
-Amikor a bridge maga kér le egy **távoli** képet – az Anthropic leíró self-call és a claude-wire-format base64 konverzió
-(`ensureBase64ImagesForClaudeWire`), mindkettő a `fetchRemoteImageAsDataUri()`
-függvényen keresztül a `visionBridgeHelpers.ts` fájlban – az eredményül kapott adat URI
-átmegy a `normalizeDataUri()` (`open-sse/utils/imageNormalize.ts`) függvényen,
-mielőtt beágyazásra kerülne a látásmodell kérésbe.
-A túlméretezett képek **2048px hosszú élre** kerülnek lekicsinyítésre
-(megfelelve az OpenAI/Anthropic által már szerveroldalon alkalmazott átméretezési korlátnak),
-ami csökkenti a feltöltési bájtokat/késleltetést anélkül, hogy megváltoztatná,
-amit a látásmodell lát. Az átméretezés a `sharp` könyvtárat használja,
-dinamikus importálással betöltve: olyan platformon, ahol a natív bináris fájlja nem töltődik be,
-a `normalizeDataUri()` **soha nem dob hibát** – visszaesik az eredeti bájtok átengedésére,
-így a leírás/base64-konverziós útvonal mindig működőképes marad.
-A nem kép bájtok (egy lekérés, amely nem adott vissza dekódolható képet) szintén érintetlenül kerülnek átengedésre.
-Ez a normalizálás a bridge által saját self-calljához lekérdezett képekre korlátozódik –
-soha nem alkalmazzák a hívó nyers átengedett adatcsomagjára,
-összhangban az opt-in-only mutációs elvvel (Hard Rule #20).
+Amikor a híd **távoli** képet kér le — az Anthropic leíró self-call és a claude-wire-format
+base64 konverzió
+(`ensureBase64ImagesForClaudeWire`), mindkettő a
+`fetchRemoteImageAsDataUri()`-n keresztül a `visionBridgeHelpers.ts`-ben — a
+kapott adat URI a `normalizeDataUri()`-n keresztül kerül továbbításra
+(`open-sse/utils/imageNormalize.ts`) mielőtt beágyaznák a látásmodell
+kérésbe. A túlméretezett képeket **2048px hosszú élre** csökkentik (megegyezve
+azzal a méretezési korláttal, amelyet az OpenAI/Anthropic már alkalmaz a szerveroldalon),
+ami csökkenti a feltöltési bájtokat/latenciát anélkül, hogy megváltoztatná, amit a
+látásmodell lát. A méretezés a `sharp`-ot használja, dinamikus importálás útján betöltve:
+egy olyan platformon, ahol a natív bináris nem tud betöltődni, a `normalizeDataUri()`
+**soha nem dob** — visszaesik az eredeti bájtok átkonvertálására, így a leíró/base64-konverziós
+útvonal mindig működik. A nem-kép bájtok (egy lekérés, amely nem adott vissza
+dekódolható képet) szintén érintetlenül kerülnek továbbításra. Ez a normalizálás
+csak a híd által saját self-callhoz lekért képekre vonatkozik — soha nem alkalmazzák
+a hívó nyers átkonvertált payloadjára, összhangban az opt-in csak mutációs elvvel
+(Hard Rule #20).
 
-#### Beállítások séma + migráció
+#### Beállítási séma + migráció
 
-Az új `modalityBridge*` kulcsok Zod-validálva vannak az `updateSettingsSchema`
-(`src/shared/validation/settingsSchemas.ts`) fájlban:
-`modalityBridgeVisionEnabled`, `modalityBridgeVisionMode`,
-`modalityBridgeVisionModel`, `modalityBridgeVisionTaskAware`,
-`modalityBridgeVisionPrompt`, `modalityBridgeVisionTimeout`,
-`modalityBridgeVisionMaxImages`, `modalityBridgeVisionMaxChars`,
-a `modalityBridgeCache*` trió, és a `modalityBridgeAudio*` csoport,
-amelyet az Audio Bridge használ. A `141_modality_bridge_settings.sql` migráció
-átmásolja a meglévő régi `visionBridge*` értékeket a megfelelő új kulcsokba
-(idempotens, soha nem ír felül egy operátor által beállított `modalityBridge*` értéket);
-a régi kulcsok egy kiadási cikluson keresztül továbbra is elfogadottak maradnak
-olvasási tartalékként.
+Az új `modalityBridge*` kulcsok Zod-ellenőrzöttek az `updateSettingsSchema`-ban
+(`src/shared/validation/settingsSchemas.ts`): `modalityBridgeVisionEnabled`,
+`modalityBridgeVisionMode`, `modalityBridgeVisionModel`,
+`modalityBridgeVisionTaskAware`, `modalityBridgeVisionPrompt`,
+`modalityBridgeVisionTimeout`, `modalityBridgeVisionMaxImages`,
+`modalityBridgeVisionMaxChars`, a `modalityBridgeCache*` hármas, és a
+`modalityBridgeAudio*` csoport, amelyet az Audio Bridge használ. A migráció
+`141_modality_bridge_settings.sql` a meglévő örökölt
+`visionBridge*` értékeket másolja a megfelelő új kulcsokhoz (idempotens, soha nem írja felül
+a kezelő által beállított `modalityBridge*` értéket); az örökölt kulcsok továbbra is
+elfogadottak olvasási visszaesésként egy kiadási cikluson keresztül.
 
 #### Átláthatósági fejléc + statisztikák
 
-A leírás-transzformált válaszok tartalmazzák az
+A leíró-transzformált válaszok tartalmazzák
 `x-omniroute-modality-bridge: image->text;model=<visionModel>;parts=<n>`
-fejlécet (amelyet a `buildModalityBridgeHeader()` függvény épít fel a
-`modalityBridge/bridgeStats.ts` fájlban, és amelyet a `withModalityBridgeHeader()`
-függvény pecsétel meg a `src/sse/handlers/chatHelpers.ts` fájlban).
-Az átirányított kérések **nem** kapnak fejlécet – a payload érintetlen maradt,
-és a modellcsere már látható a válasz törzsének `model` mezőjében.
+(`buildModalityBridgeHeader()` a `modalityBridge/bridgeStats.ts`-ben,
+`withModalityBridgeHeader()` a `src/sse/handlers/chatHelpers.ts`-ben).
+A továbbított kérések **nem** kapnak fejlécet — a payload érintetlen maradt, és a modell
+cseréje már látható a válasz törzs `model` mezőjében.
 
-A `GET /api/modality-bridge/stats` (felügyeleti hitelesítés, ugyanaz a szint, mint a
-`GET /api/settings`) visszaadja a memóriában lévő modalitásonkénti számlálókat
+`GET /api/modality-bridge/stats` (kezelői hitelesítés, ugyanazon szint, mint
+`GET /api/settings`) visszaadja a memóriában lévő per-modalitás számlálókat
 `{ attempts, successes, bridged, cacheHits, failures, totalLatencyMs,
-latencySamples, averageLatencyMs, lastUsedAt }` a `vision`, `audio` és `video`
-esetében. Az `averageLatencyMs` a `latencySamples`-t használja, nem az összes
-kísérletet, mint nevezőt; egy időzítés nélküli művelet nem hoz létre nulla
-milliszekundumos mintát. A `bridged` továbbra is a sikeres konverziók
-visszafelé kompatibilis aliasa; a sikertelen kísérletek nem növelik.
-A számlálók a folyamat újraindításakor alaphelyzetbe állnak (tervezés szerint
-telemetria, nem elszámolás).
+latencySamples, averageLatencyMs, lastUsedAt }` a `vision`, `audio`, és
+`video` számára. Az `averageLatencyMs` a `latencySamples`-t használja, nem az összes
+kísérletet, mint nevezőt; egy időzítés nélküli művelet nem gyárt nullás milliszekundumos
+mintát. A `bridged` továbbra is a visszafelé kompatibilis alias a sikeres
+konverziók számára; a sikertelen kísérletek nem növelik ezt.
+A számlálók a folyamat újraindításakor alapértelmezett szerint nullázódnak
+(telemetria, nem számvitel).
 
-#### Irányítópult konfiguráció
+#### Műszerfal konfiguráció
 
 A dedikált irányítópult oldal a
-`/dashboard/settings/modality-bridge`. Az URL-címezhető `Vision`, `Audio`,
-és `Video` lapok megőrzik a lekérdezési paramétereket a `tab` érték váltásakor.
-A Vision lap engedélyezést, módot, modellválasztást (beleértve az automatikus
-alapértelmezettet), feladat-specifikus promptolást, fejlett időtúllépési/kép/leírás-hossz/gyorsítótár
-korlátokat, futásidejű
-számlálókat és egy védett mintakérést tesz elérhetővé. Az Audio lap is élő: engedélyezést,
-egy csak STT-modellt választó eszközt (Auto opcióval), időtúllépési/max-clip korlátokat,
-audio számlálókat és egy `input_audio` mintatesztet tesz elérhetővé. A Video lap működőképes:
-jelenti az FFmpeg/ffprobe futásidejű állapotát – négy explicit UI állapot egyike
-(`unknown`, amíg a próba fut vagy nem tudott befejeződni, `restricted` egy nem loopback
-irányítópult gazdagépen, ahol a próba kliensoldalon átugrásra kerül, `unavailable`
-a próba után és megerősítve hiányzik, vagy `available` az FFmpeg/ffprobe verziókkal)
-– megőrzi az engedélyezési/modell/képkocka/videó/időtúllépési korlátokat, szűri a modellválasztót
-a látásképes modellekre, és videó számlálókat tesz elérhetővé.
+`/dashboard/settings/modality-bridge`. Az URL-címezhető `Vision`, `Audio`
+és `Video` fülek megőrzik a lekérdezési paramétereket a `tab` értékének váltása közben.
+A Vision fül lehetővé teszi a bekapcsolást, a módot, a modell kiválasztását (beleértve az automatikus
+alapértelmezettet), a feladat-tudatos promptolást, a fejlett időkorlát/kép/leírás-hossz/gyorsítótár
+korlátokat, a futási
+számlálókat, és egy védett minta kérést. Az Audio fül szintén élő: lehetővé teszi
+a bekapcsolást, egy STT- csak modellválasztót Automatikus, időkorlát/max-clip korlátokkal, audio
+számlálókkal, és egy `input_audio` minta tesztet. A Video fül működőképes: jelentést ad
+az FFmpeg/ffprobe futási állapotáról — négy explicit UI állapot egyike (`unknown`, míg
+a probe folyamatban van vagy nem tudott befejeződni, `restricted` egy nem-hurok
+irányítópult gazdán, ahol a probe-t az ügyféloldalon kihagyják, `unavailable`, miután
+meg lett vizsgálva és megerősítve, hogy hiányzik, vagy `available` az FFmpeg/ffprobe verziókkal) — megőrzi
+a engedélyezett/modellt/képet/videót/időkorlátokat, szűri a modellválasztót a látásra képes
+modellekre, és megjeleníti a videószámlálókat.
 
-Az AI beállítások alatt található korábbi Vision Bridge kártya egy kompatibilitási link
-az új oldalra; már nem tartalmazza az űrlap második másolatát. A Media Providers
-összekapcsolja az Image-to-Text és Speech-to-Text munkafolyamatokat a megfelelő Modality
-Bridge lapokkal anélkül, hogy eltávolítaná a meglévő Speech-to-Text játszóteret.
+A korábbi Vision Bridge kártya az AI beállítások alatt egy kompatibilitási link az
+új oldalra; már nem birtokol egy második példányt a űrlapról. A Média Szolgáltatók szintén
+linkeli a Kép-a-Szövegre és a Beszéd-a-Szövegre munkafolyamatokat a megfelelő Modality
+Bridge fülekhez anélkül, hogy eltávolítaná a meglévő Beszéd-a-Szövegre játszóteret.
 
-**Önhurok felvételi megkerülése:** amikor a leíró hívás az OmniRoute
-saját `/v1` önhurkon keresztül irányul (nem szabványos szolgáltatói modell), az al-kérés
-`x-omniroute-admission-bypass: internal` fejlécet küld, és a feloldott
-önhurok hitelesítő adatokkal hitelesítve van – a helyi `sk_omniroute` őrszem
-helyi módban, vagy az operátor által konfigurált `OMNIROUTE_API_KEY` / `ROUTER_API_KEY`
-környezeti kulcs (#1350), így a `REQUIRE_API_KEY=true` telepítések továbbra is futtathatják
-a leíró hívást. A megkerülés csak ezekre a pontos hitelesítő adatokra érvényes,
-így a külső kliensek nem használhatják a fejlécet a felvétel átugrására.
+**Ön-hurok belépési megkerülés:** amikor a leíró hívás az OmniRoute saját `/v1` ön-hurokján
+keresztül halad (nem szabványos szolgáltató modell), a rész-kérés elküldi
+`x-omniroute-admission-bypass: internal` és az azonosított ön-hurok hitelesítő adataival
+hitelesítve van — a helyi `sk_omniroute` őrhely helyi módban, vagy az üzemeltető által
+konfigurált `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` környezeti kulcs (#1350), így a
+`REQUIRE_API_KEY=true` telepítések továbbra is végrehajthatják a leíró hívást. A megkerülés
+csak ezekre a pontos hitelesítő adatokra érvényes, így a külső kliensek nem használhatják a
+fejlécet a belépés megkerülésére.
 
-Az örökölt alapértelmezések a `src/shared/constants/visionBridgeDefaults.ts` fájlban találhatók; az
-új mód/feladat-specifikus/gyorsítótár alapértelmezések és a beállítások feloldója a
+A régi alapértelmezettek a `src/shared/constants/visionBridgeDefaults.ts` fájlban találhatók; az
+új mód/feladat-tudatos/gyorsítótár alapértelmezettek és a beállítások megoldója a
 `src/shared/constants/modalityBridgeDefaults.ts` fájlban találhatók. A védőkorlát egy
-`deps` konstruktor opciót tesz elérhetővé, így a tesztek hamis `getSettings` és
-`callVisionModel` implementációkat injektálhatnak.
+`deps` konstruktor opciót biztosít, így a tesztek hamis `getSettings` és
+`callVisionModel` megvalósításokat injektálhatnak.
 
 ### Audio Bridge (`audioBridge.ts`) — Modality Bridge PR-3
 
-Elfogja az audio-tartalmú chat kéréseket, mielőtt azok olyan célponthoz érnének,
-amelyről nem ismert, hogy elfogad audio bemenetet. Soha nem irányítja át a chat kérést:
-az audio részeket a meglévő OpenAI-kompatibilis multipart végponton keresztül
-átírja, és a kiválasztott chat modell szöveges átiratokkal folytatódik.
+Megakadályozza az audio-tartalmú chat kérések célba érését, amely nem
+ismert audio bemenetet fogadni. Soha nem irányítja át a chat kérést: az audio részeket
+az existing OpenAI-kompatibilis multipart végponton keresztül transzkribálják, és a
+választott chat modell folytatódik a szöveges transzkripciókkal.
 
 Folyamat:
 
-1. Feloldja a `supportsAudio` értéket a `getResolvedModelCapabilities()` segítségével. Az explicit
+1. Oldja meg a `supportsAudio`-t a `getResolvedModelCapabilities()`-on keresztül. Az explicit
    szolgáltató-regisztrációs metaadatok nyernek, majd a statikus modell metaadatok, majd a szinkronizált
-   `modalities_input`. Az `audio` nélküli deklarált bemeneti lista `false`;
-   nincs képességre utaló bizonyíték, ami `null` maradna. Mind a `false`, mind a `null`
-   aktiválja a konzervatív hidat, míg a `true` megkerüli azt.
-2. Feloldja a `modalityBridgeAudio*` beállításokat, és kivonja a szétválasztható legfelső szintű
+   `modalities_input`. Egy deklarált bemeneti lista `audio` nélkül `false`; nincs
+   képesség bizonyíték marad `null`. A `false` és `null` aktiválja a
+   konzervatív hidat, míg a `true` megkerüli azt.
+2. Oldja meg a `modalityBridgeAudio*` beállításokat, és vonja ki a splice-olható legfelső szintű
    audio részeket minden üzenetből a megosztott `detectMediaParts()`
-   detektor segítségével. A támogatott vezetékes formák az OpenAI `input_audio`, `audio_url`, és
-   `source.media_type: "audio/*"`. A beágyazott audio észlelésre kerül az útválasztáshoz, de nem
-   távolítja el a szétválasztási útvonal. A munka a `modalityBridgeAudioMaxClips` korlátozza;
+   detektoron keresztül. Támogatott vezetékformák az OpenAI `input_audio`, `audio_url`, és
+   `source.media_type: "audio/*"`. A beágyazott audio észlelésre kerül az irányításhoz, de nem
+   távolítják el a splice úton. A munka a `modalityBridgeAudioMaxClips`-re van korlátozva;
    a későbbi részek érintetlenek maradnak.
-3. Tiszteletben tartja a konfigurált `provider/model` értéket, vagy hagyja, hogy a `selectAudioBridgeModel()`
-   végigjárja az `AUDIO_TRANSCRIPTION_PROVIDERS` listát stabil katalógusrendben, és kiválassza az első
-   modellt egy használható aktív szolgáltatói hitelesítő adatokkal.
-4. A `callAudioTranscription()` átalakítja a base64/data-URI audiót egy multipart
-   `file` fájllá, vagy letölt egy távoli `audio_url` címet a csak nyilvános kimenő
-   védőkorláton keresztül DNS rögzítéssel és 25 MB-os korláttal. Ezután POST kérést küld a fájllal és a kiválasztott
-   modellel a helyi `/v1/audio/transcriptions` önhurokra, hitelesítve a
-   `resolveSelfLoopBearer()` segítségével. A meglévő átírási útvonal normál
-   hitelesítő adatok keresését, lehűlési/sebességkorlátozási kezelést és szolgáltatói diszpécselést végez.
-5. A sikeres hívások a részeiket `[Audio N]: <transcript>` értékre cserélik. A hívások
-   `Promise.allSettled` segítségével futnak: egy egyedi hiba megőrzi az eredeti
-   audio részt (#4012 szerződés). Ha minden hívás sikertelen, és a célpont bizonyítottan
-   `supportsAudio === false`, a részek `[Audio N]: (unavailable — no STT provider connected)`
-   értékre változnak (#8430 szerződés). Ismeretlen célpont (`null`) esetén az összes hiba eredménye
-   érintetlen marad. Egy bizonyítottan csak szöveges célpont, használható STT hitelesítő adatok nélkül,
-   ugyanazt az explicit csonkot kapja hálózati hívás indítása nélkül.
+3. Tisztelje meg a konfigurált `provider/model`-t, vagy engedje meg, hogy a `selectAudioBridgeModel()`
+   végigjárja az `AUDIO_TRANSCRIPTION_PROVIDERS`-t stabil katalógus sorrendben, és válassza ki az első
+   modellt, amely rendelkezik használható aktív szolgáltató hitelesítő adatokkal.
+4. A `callAudioTranscription()` a base64/data-URI audio-t multipart
+   `file`-ra alakítja, vagy letölti a távoli `audio_url`-t a nyilvános csak kimeneti
+   védőkorláttal DNS rögzítéssel és 25 MB-os korláttal. Ezután POST-olja a fájlt és a kiválasztott
+   modellt a helyi `/v1/audio/transcriptions` ön-hurokba, amelyet a
+   `resolveSelfLoopBearer()` hitelesít. A meglévő transzkripciós útvonal normál
+   hitelesítő keresést, cooldown/ráta-korlátozást és szolgáltató kiszolgálást végez.
+5. A sikeres hívások helyettesítik részeiket `[Audio N]: <transcript>`. A hívások
+   `Promise.allSettled`-del futnak: egyéni hiba megőrzi az eredeti
+   audio részt (#4012 szerződés). Ha minden hívás meghiúsul, és a cél bizonyítottan
+   `supportsAudio === false`, a részek
+   `[Audio N]: (nem elérhető — nincs STT szolgáltató csatlakoztatva)` (#8430 szerződés). Egy
+   ismeretlen cél (`null`) esetén a teljes hiba eredmény érintetlen marad. Egy bizonyított
+   szöveg-alapú cél, amelynek nincs használható STT hitelesítője, ugyanazt az explicit
+   stub-ot kapja anélkül, hogy hálózati hívást indítana.
 
-A sikeres átiratok a folyamat-szintű Modality Bridge LRU/TTL gyorsítótárat használják. A
-kulcs kombinálja az audio referenciát, a stabil `audio-transcription` műveleti
-címkét és a kiválasztott STT modellt; a hibák soha nem kerülnek gyorsítótárba. Az audio kísérletek
-frissítik a megosztott `bridged`, `cacheHits`, `failures` és `lastUsedAt` számlálókat.
-Az átalakított válaszok `x-omniroute-modality-bridge: audio->text;model=<sttModel>;parts=<n>`
-fejlécet tartalmaznak; az érintetlen kérések nem kapnak Audio Bridge szegmenst.
+A sikeres transzkripciók a folyamat-széles Modality Bridge LRU/TTL gyorsítótárat használják. A
+kulcs az audio referencia, a stabil `audio-transcription` művelet címke, és a kiválasztott STT modell
+kombinációja; a hibákat soha nem tárolják. Az audio kísérletek frissítik a megosztott
+`bridged`, `cacheHits`, `failures`, és `lastUsedAt` számlálókat.
+A transzformált válaszok tartalmazzák
+`x-omniroute-modality-bridge: audio->text;model=<sttModel>;parts=<n>`; az érintetlen
+kérések nem kapnak Audio Bridge szegmenst.
 
-A futásidejű beállítások DB-alapúak és Zod-validáltak:
+A futási beállítások DB-alapúak és Zod-validated:
 
-| Kulcs                         | Alapértelmezett | Tartomány        |
-| ----------------------------- | --------------- | ---------------- |
-| `modalityBridgeAudioEnabled`  | `true`          | —                |
-| `modalityBridgeAudioModel`    | `""`            | Auto vagy STT ID |
-| `modalityBridgeAudioTimeout`  | `60000`         | 1000–300000      |
-| `modalityBridgeAudioMaxClips` | `3`             | 1–10             |
+| Kulcs                         | Alapértelmezett | Tartomány               |
+| ----------------------------- | --------------- | ----------------------- |
+| `modalityBridgeAudioEnabled`  | `true`          | —                       |
+| `modalityBridgeAudioModel`    | `""`            | Automatikus vagy STT ID |
+| `modalityBridgeAudioTimeout`  | `60000`         | 1000–300000             |
+| `modalityBridgeAudioMaxClips` | `3`             | 1–10                    |
 
-A megosztott gyorsítótárat továbbra is a `modalityBridgeCacheEnabled`,
-`modalityBridgeCacheTtlMinutes` és `modalityBridgeCacheMaxEntries` vezérli.
+A megosztott gyorsítótárat a `modalityBridgeCacheEnabled`,
+`modalityBridgeCacheTtlMinutes`, és `modalityBridgeCacheMaxEntries` vezérli.
 
 ### Video Bridge (`videoBridge.ts`, `videoBridgePipeline.ts`)
 
-A Chat Completions `messages` és Responses API `input` legfelső szintű videórészeit fogja el, mielőtt egy célpontot hívnának, amely nem rendelkezik ismert natív videótámogatással.
-Támogatott formák: `input_video`, `video_url`, `video_source`, HTTPS URL-ek és `data:video/*;base64,...` adat URI-k. A szövegben szereplő egyszerű fájlnevek nem minősülnek videónak.
+Interceptálja a legfelső szintű videó részeket a Chat Completions `messages` és Responses API `input` előtt, mielőtt egy célhoz érkezne, amelynek nincs ismert natív videótámogatása. Támogatott formátumok: `input_video`, `video_url`, `video_source`, HTTPS URL-ek, és `data:video/*;base64,...` adat URI-k. A sima fájlnevek a szövegben nem tekinthetők videónak.
 
-A `VideoBridgeGuardrail.preCall` (`videoBridge.ts`) felelős a kérések bejárásáért, a képesség/szabályzat ellenőrzéséért, a kérésenkénti aggregációért és a válasz hasznos tartalmáért.
-A videónkénti munka – beszerzés, a teljes eredmény gyorsítótár, a képkockasorozat leírása (amely egyesíti a hívó által deklarált hangátiratot), valamint a kísérletenkénti metrikák/megszakítás/tisztítás – a `videoBridgePipeline.ts` `processVideoPart` függvénye mögött rejtőzik, amelyet a `preCall` ciklusában videórészenként egyszer hívnak meg.
-Ez a modul definiálja az explicit port határokat is: `VideoMediaBrokerPort` (bájtok beszerzése és mintavételezett képkockák kinyerése), `VideoAudioTranscriptionPort` (a hívó által deklarált hangátirat egyesítése a mintavételezett feliratokkal) és `VideoDrilldownPort` (a képkocka-részletezés perzisztencia határa; még nincs bekötve a `processVideoPart`-ba – ma csak a különálló `/api/modality-bridge/video/drilldown` útvonal ír részletezési bejegyzéseket).
+`VideoBridgeGuardrail.preCall` (`videoBridge.ts`) felelős a kérés áthaladásáért, a képesség/politika ellenőrzéséért, kérésenkénti aggregálásért és a válasz payload-ért. A videónkénti munka — beszerzés, a teljes eredmény cache, egy keret sorozat leírása (amely egyesíti a hívó által megadott audio átírást), és kísérletenkénti metrikák/megszakítás/tisztítás — rejtve van a `processVideoPart` mögött a `videoBridgePipeline.ts`-ben, amelyet egyszer hívnak meg videó részenként a `preCall` ciklusán belül. Ez a modul definiálja a kifejezett port határokat: `VideoMediaBrokerPort` (bájtok beszerzése és mintavételezett keretek kinyerése), `VideoAudioTranscriptionPort` (a hívó által megadott audio átírás egyesítése a mintavételezett feliratokkal), és `VideoDrilldownPort` (a régi nyers tároló forma). A gyártási STT és keretmegtartás a leíró port köré épül a `createVideoSttAdapter` és `createVideoDrilldownAdapter` segítségével; az utóbbi a megosztott átlátszó-handle életciklust használja.
 
-A nyilvános `/v1` kérésútvonal soha nem importál vagy hív meg alfolyamatot. A távoli videókat 50 MiB-os korlát alatt tölti le; a beágyazott base64 videók konzervatív 36 MiB-os dekódolt videónkénti korláttal rendelkeznek, így a modell/üzenetek/keretezési boríték a nyilvános JSON kérésfelvételi limiten belül maradhat, ami 50 MiB. A beágyazott hossz és a dekódolt méret becsléseket az allokáció előtt ellenőrzik. HTTPS szükséges az eredeti távoli URL-en és minden átirányításon, a meglévő, csak nyilvános kimenő védelmet használva DNS-rögzítéssel. A bájtok ezután átlépik a pontos belső `POST /api/modality-bridge/video/extract` bróker határát. Ez az útvonal `LOCAL_ONLY` és `SPAWN_CAPABLE` is, csak folyamatonként hitelesített, megbízható visszacsatolásos kérést fogad el, és soha nem fogad el URL-t, fájlrendszeri útvonalat, végrehajtható fájlt vagy argumentumlistát. Az API törzsméret-folyamat és a kezelő inkrementális törzsolvasója egymástól függetlenül érvényesít egy 50 MiB-os bróker bemeneti korlátot. Korlátozott sora egyszerre egy kinyerést futtat, négy függőben lévő feladatot engedélyez, és a függőben lévő bemenetet 100 MiB-ra korlátozza.
+A nyilvános `/v1` kérés útvonal soha nem importál vagy hív meg egy alfolyamatot. A távoli videók 50 MiB-os határ alatt kerülnek letöltésre; az inline base64 videók konzervatív 36 MiB dekódolt per videó korlátozással rendelkeznek, így a modell/üzenetek/keretező boríték a nyilvános JSON kérés belépési határán belül maradhat 50 MiB-on. Az inline hosszúság és dekódolt méret becsléseket ellenőrzik az allokálás előtt. HTTPS szükséges az első távoli URL-en és minden átirányításon, a meglévő nyilvános csak kimeneti védelmet DNS pinninggel használva. A bájtok ezután átlépik a pontos belső `POST /api/modality-bridge/video/extract` bróker határt. Ez az útvonal `LOCAL_ONLY` és `SPAWN_CAPABLE`, csak egy per-folyamat hitelesített, megbízható hurok kérését fogadja el, és soha nem fogad el URL-t, fájlrendszer útvonalat, végrehajthatót vagy argumentumlistát. Az API testméret csővezeték és a kezelő fokozatos test olvasó függetlenül érvényesít egy 50 MiB bróker bemeneti korlátot. A határolt sorozata egyszerre egy kinyerést futtat, négy függőben lévő munkát engedélyez, és a függő bemenetet 100 MiB-ra korlátozza.
 
-A brókeren belül az `ffprobe` egy privát helyi fájlt olvas; a rögzített formátum engedélyezési lista kizárja a lejátszási lista és a manifeszt formátumokat. Az engedélyezett MOV-család konténerek esetében a külső MOV adatreferenciák alapértelmezés szerint letiltva maradnak, és a rögzített parancs nem engedélyezi azokat. Az `ffprobe` és az `ffmpeg` is a `file`-only protokoll fehérlistát, egy szálat, rögzített argumentumtömböket, shell nélküliséget és a `PATH`-ból feloldott végrehajtható fájlokat használja. A csatolt képborító streamek nem lejátszható jelöltek. Minden lejátszható streamnek meg kell felelnie a korlátoknak, és egy explicit alapértelmezett stream előnyben részesül a determinisztikus legalacsonyabb indexű tartalék előtt. A videók 600 másodpercre, dimenziónként 8192 pixelre és 33 554 432 forráspixelre korlátozódnak. Az FFmpeg 1-16 középső JPEG képkockát mintavételez, a hosszabbik élét legfeljebb 1024 pixelre kicsinyíti anélkül, hogy kisebb bemeneteket felnagyítana, és soha nem kap URL-t. A mintavételezés alapértelmezés szerint `uniform`. Az opcionális `scene_aware` és kísérleti `segment_aware` szabályzatok egy további rögzített FFmpeg átmenetet hajtanak végre a már érvényesített helyi streamen, korlátozott `showinfo` jelenet időbélyegeket választanak ki, és determinisztikusan visszatérnek ugyanazokra az egységes középpontokra detektorhiba, időtúllépés, hibás kimenet vagy üres jelöltkészlet esetén. A szegmens-érzékeny mód arányosan allokálja a középponti mintákat az érvényesített jelenetintervallumokhoz; a szegmens-érzékeny bizonyítékok és a tartalék viselkedés részletesebben alább található. A kemény 16 képkockás korlátot minden szabályzatban a kiválasztás után alkalmazzák. Amikor egy jelenet-érzékeny kérésnek csak egy képkockás költségvetése van, akkor az aktív teljes videó vagy fókuszablak egységes középpontját használja, és `policyEffective: uniform` értéket jelent: egyetlen kiválasztott jelenetkocka nem tudja megőrizni mindkét időbeli végét. A hívó opcionálisan megadhat egy véges fókuszablakot (`start`/`end` másodperc); a határok a média időtartamára vannak rögzítve, a fordított vagy nem véges ablakokat elutasítják, és minden mintavételezési szabályzatot csak a normalizált intervallumon belül hajtanak végre. Az eredményül kapott ablak szerepel a mintavételezési metaadatokban és a nem megbízható leírás előtagjában, így a downstream modellek meg tudják különböztetni a fókuszált kivonatot a teljes idővonaltól.
+A brókeren belül az `ffprobe` egy privát helyi fájlt olvas; a rögzített formátumú engedélyezési lista kizárja a lejátszási listákat és a manifest formátumokat. Az engedélyezett MOV-család konténerek esetén a külső MOV adatreferenciák alapértelmezés szerint le vannak tiltva, és a rögzített parancs nem optál be rájuk. Az `ffprobe` és az `ffmpeg` a `file`-csak protokoll engedélyezési listát, egy szálat, rögzített argumentum tömböket, nincs shell-t, és a `PATH`-ból megoldott végrehajthatókat használ. A csatolt képes borító stream-ek nem játszható jelöltek. Minden játszható stream-nek meg kell felelnie a határoknak, és egy explicit alapértelmezett stream előnyben részesül a determinisztikus legalacsonyabb indexű visszaesés előtt. A videók időtartama 600 másodpercre, 8,192 pixelre dimenziónként, és 33,554,432 forrás pixelre korlátozódnak. Az FFmpeg 1–16 középső JPEG keretet mintavételez, a hosszú élt legfeljebb 1,024 pixelre méretezi le anélkül, hogy a kisebb bemeneteket felnagyítaná, és soha nem fogad el URL-t. A mintavételezés alapértelmezés szerint `uniform`. Az opcionális `scene_aware` és kísérleti `segment_aware` politikák egy további rögzített FFmpeg átmenetet hajtanak végre az már érvényesített helyi stream-en, kiválasztják a határolt `showinfo` jelenet időbélyegeket, és determinisztikusan visszaesnek ugyanazokra az egységes középpontokra a detektor hibája, időtúllépés, hibás kimenet vagy üres jelölt halmaz esetén. A szegmens-tudatos mód arányosan osztja el a középpont mintákat az érvényesített jelenet intervallumokhoz; a szegmens-tudatos bizonyítékok és visszaesési viselkedés részletezve van alább. A kemény 16 keretes korlát minden politikán belül a kiválasztás után érvényesül. Amikor egy jelenet-tudatos kérésnek csak egy keretes költségvetése van, az az aktív teljes videó vagy fókusz ablak egységes középpontját használja, és jelenti a `policyEffective: uniform`: egyetlen kiválasztott jelenet keret nem tudja megőrizni mindkét időbeli végét. A hívó opcionálisan megadhat egy véges fókusz ablakot (`start`/`end` másodpercek); a határok a média időtartamához vannak rögzítve, a megfordított vagy nem véges ablakokat elutasítják, és minden mintavételezési politikát csak a normalizált intervallumon belül hajtanak végre. Az eredményül kapott ablak a mintavételezési metaadatokban és a megbízhatatlan leírás előtagban szerepel, így az alsóbb modellek megkülönböztethetik a fókuszált kivonatot a teljes idővonalból.
 
-A szemantikai feliratfókusz egy külön, explicit beállítás. Az alapértelmezett `full` elemzési mód megőrzi a meglévő képkocka-promptot, és soha nem továbbítja a kérés szövegét a feliratmodellnek. `focused` módban a híd csak a legújabb nem üres, felhasználó által írt `text`/`input_text` szöveget olvassa be ugyanabból a Chat vagy Responses konténerből, normalizálja NFC-re, összevonja a vezérlőkaraktereket és a szóközöket, és 500 Unicode kódpontra korlátozza. Az üres eredmény visszatér a pontos `full` promptra. Egy használható tipp JSON formátumban kerül szerializálásra egy dedikált, nem megbízható felhasználói kontextus blokkban, és csak a megfigyelhető részleteket priorizálhatja; nem írhatja felül a külön figyelmeztetést, amely a médiában látható vagy hallható utasítások követése ellen szól. A szöveges fókusz soha nem következtet `start`/`end` értékekre, és nem változtatja meg az időbeli mintavételezőt.
+A szemantikai felirat fókusz egy külön, explicit beállítás. Az alapértelmezett `full` elemzési mód megőrzi a meglévő keret promptot, és soha nem továbbítja a kérés szövegét a felirat modellnek. `focused` módban a híd csak a legutolsó nem üres felhasználó által írt `text`/`input_text`-et olvassa a ugyanabból a Chat vagy Responses tárolóból, normalizálja azt NFC-re, összevonja a vezérlő karaktereket és a szóközöket, és 500 Unicode kódpontra korlátozza. Egy üres eredmény visszaesik az pontos `full` prompt-ra. Egy használható tipp JSON formátumban van sorosítva egy dedikált megbízhatatlan felhasználói kontextus blokkban, és csak megfigyelhető részleteket priorizálhat; nem írhatja felül a külön figyelmeztetést, amely a médiában látható vagy hallható utasítások követésére vonatkozik. A szöveges fókusz soha nem inferál `start`/`end` vagy változtatja meg az időbeli mintavételezőt.
 
-#### FU-07 strukturális szegmens bizonyítékok
+#### FU-07 struktúrált szegmens bizonyíték
 
-A `segment_aware` egy korlátozott előelemzési átmenetet használ a már érvényesített helyi videófolyamon. A rögzített szűrőlánc először legfeljebb 320 pixel szélesre skálázza, észleli a jelenetváltozásokat és a befagyott intervallumokat, majd másodpercenként 1 képkockát mintavételez a homályosság, az átlagos luma, valamint a térbeli/időbeli információk szempontjából. Az átmenet 600 strukturális mintára, egy FFmpeg/szűrő szálra, ugyanazokra a `file`-only protokoll és konténer engedélyezési listákra, egy 1 MiB-os folyamat-kimeneti korlátra, és legfeljebb 30 másodpercre korlátozódik a bróker megosztott megszakítási/határidőn belül. Soha nem fogad el parancsot, szűrőt, útvonalat vagy URL-t a kérésből.
+A `segment_aware` egy határolt előelemzési átmenetet használ az már érvényesített helyi videó stream-en. A rögzített szűrő lánc először legfeljebb 320 pixel szélesre méretezi, észleli a jelenetváltozásokat és a megfagyott intervallumokat, majd másodpercenként 1 keretet mintavételez a homály, átlagos luma és térbeli/időbeli információk számára. Az átmenet 600 struktúrált mintára, egy FFmpeg/szűrő szálra, ugyanarra a `file`-csak protokoll és konténer engedélyezési listákra, 1 MiB folyamat-kimeneti határra, és legfeljebb 30 másodpercre van korlátozva a bróker megosztott megszakítási/határidő keretein belül. Soha nem fogad el parancsot, szűrőt, útvonalat vagy URL-t a kérésből.
 
-A strukturális értékek determinisztikus mintavételi bizonyítékok, nem szemantikus videóértelmezés. Nem következtetnek alanyokra, cselekedetekre, feliratokra, beszédre vagy felhasználói szándékra. A jelenet- és fagyáspont-határok szegmenseket alkotnak; a fagyáspont lefedettség, elmosódás, expozíció, térbeli részletesség és időbeli változás csak azt befolyásolja, hogy a meglévő 1–16 képkockás keret hogyan oszlik el. Egy teljesen befagyott szegmens egy képkockára korlátozódik, míg a nem befagyott szegmensek versenyeznek a fennmaradó keretért. Amikor a határok száma meghaladja a képkockák számát, az egységes idővonal-lefedettség megmarad, így a gyors korai vágások nem rejthetnek el egy hosszú, elhúzódó szegmenst. A fagyáspont-határ 1 másodperces elemzési felbontásán belüli jelenethatárok összevonásra kerülnek.
+A strukturális értékek determinisztikus mintavételezési bizonyítékok, nem pedig szemantikai videóértés. Nem inferálnak alanyokat, cselekvéseket, feliratokat, beszédet vagy felhasználói szándékot. A jelenetek és a fagyási határok szegmenseket alkotnak; a fagyási lefedettség, elmosódás, expozíció, térbeli részletesség és időbeli változás csak azt befolyásolja, hogy a meglévő 1–16 keretes költségvetés hogyan van elosztva. Egy teljesen lefagyott szegmens egy keretre van korlátozva, míg a nem lefagyott szegmensek versenyeznek a fennmaradó költségvetésért. Amikor a határok száma meghaladja a keretek számát, az egységes idővonal lefedettség megmarad, így a gyors korai vágások nem tudják elrejteni a hosszú, elhúzódó szegmenst. A 1 másodperces elemzési felbontású fagyási határon belüli jelenet határokat összevonják.
 
-Hiányzó szűrők, hibás/üres bizonyítékok, detektorhiba vagy a korlátozott előelemzési időtúllépés esetén a rendszer nyitottan az pontos, egységes középponti irányelvre tér vissza. A hívó fél megszakítása vagy a bróker határideje nem eredményez nyitott hibát: leállítja a folyamatban lévő alfolyamatot, megakadályozza a későbbi képkocka-kinyerést, és a privát ideiglenes fa eltávolításra kerül a `finally` blokkban.
+Hiányzó szűrők, hibás/üres bizonyítékok, detektorhiba vagy a korlátozott elő-elemzési időtúllépés a pontos egységes középpont politikához nyitva marad. Egy hívó megszakítás vagy bróker határidő nem marad nyitva: megszünteti a folyamatban lévő alfolyamatot, megakadályozza a későbbi keretkinyerést, és a privát ideiglenes fát eltávolítja a `finally`-ban.
 
-A `scripts/perf/video-bridge-fu07-eval.ts` determinisztikus valós FFmpeg fixture-öket generál a deduplikáció utáni felirat-hívás megtakarításokhoz, a sűrű mozgású költségvetés-elosztáshoz, az elmosódás/expozíció/SI-TI bizonyítékokhoz, a gyors vágásokhoz hosszú farokkal, és a fokozatos elhalványulás hamis pozitívjaihoz. Rögzíti az előelemzés falidejét, és ahol a `/usr/bin/time` elérhető, a gyermek CPU-t és a csúcs RSS-t. Minőségellenőrzései kizárólag strukturális orákulumok. A valós feliratmodell minősége továbbra is `HOLD` állapotban van, mert ez a tesztkörnyezet nem rendelkezik engedélyezett végponttal vagy befagyott bíróval. A pénzügyi megtakarítások is `HOLD` állapotban maradnak, hacsak a `--caption-cost-per-call-usd` nem ad meg explicit pozitív hívásonkénti becslést; a szkript soha nem gyártja egyik eredményt sem.
+`scripts/perf/video-bridge-fu07-eval.ts` determinisztikus valós FFmpeg berendezéseket generál a deduplikálás utáni felirat-hívási megtakarításokhoz, sűrű mozgás költségvetés-elosztáshoz, elmosódás/expozíció/SI-TI bizonyítékokhoz, gyors vágásokhoz hosszú farokkal, és fokozatos elhalványulás hamis pozitívumokhoz. Rögzíti az elő-elemzési falidőt, és ahol a `/usr/bin/time` elérhető, a gyermek CPU-t és a csúcs RSS-t. A minőségellenőrzései csak strukturális orákulumok. A valós felirat-modell minősége továbbra is `HOLD`, mert ez a híd nem rendelkezik engedélyezett végponttal vagy lefagyott bírával. A pénzügyi megtakarítások is `HOLD` maradnak, hacsak a `--caption-cost-per-call-usd` nem biztosít egy explicit pozitív per-hívási becslést; a szkript soha nem hamisítja meg egyik eredményt sem.
 
-Minden képkocka 4 MiB-ra, az összes nyers képkocka együtt 23 MiB-ra, a szerializált bróker válasz pedig 32 MiB-ra korlátozódik. Egy privát ideiglenes könyvtár eltávolításra kerül a `finally` blokkban. Az OmniRoute nem csomagolja az FFmpeg-et, és nem fogad el egyéni végrehajtható útvonalat. A feliratozás előtt a híd konzervatív vizuális deduplikációs lépést alkalmaz: minden JPEG-et 16×16-os szürkeárnyalatos pufferre redukál, és csak az utoljára megtartott képkockával hasonlítja össze. Egy kért, egy képkockánál nagyobb felirat-költségvetés esetén a kinyerés egy korlátozott jelöltkészletet biztosít, amely legfeljebb kétszerese ennek a költségvetésnek, és soha nem több mint 16 képkocka. A kért korlátot csak a deduplikáció után alkalmazzák, az első és utolsó kiválasztott jelöltek megőrzésre kerülnek a végső ritkítás során, ha a költségvetés legalább kettő. A verziózott `grayscale-16x16-mean-cells-v2` irányelv a közepes luma delta nagyobbik értékét és azon miniatűr cellák arányát használja, amelyek normalizált deltája legalább 0,05. A duplikátum küszöbérték a konstans 0,04, amelyet a kiszámíthatóság érdekében választottak, nem pedig futásidejű beállításként tették közzé. Ez a másodlagos, nagy kontrasztú jel megőrzi az apró mozgásokat és a látható szövegváltozásokat, amelyeket egy csak átlagos összehasonlítás elrejthet. Az összehasonlító vagy dekóder hibák nyitottan hibáznak és megtartják a lefedettséget. A kimeneti metaadatok elkülönítik a kinyert jelölteket, a sikeresen felhasznált képkockákat és a kihagyott vizuális duplikátumokat.
+Minden keret 4 MiB-ra van korlátozva, az összes nyers keret együtt 23 MiB-ra, és a soros bróker válasz 32 MiB-ra. Egy privát ideiglenes könyvtár eltávolításra kerül a `finally`-ban. Az OmniRoute nem csomagolja az FFmpeg-et, és nem fogad el egyedi végrehajtható elérési utat. A feliratozás előtt a híd egy konzervatív vizuális deduplikálási lépést alkalmaz: minden JPEG-t egy 16×16 szürkeárnyalatos pufferre csökkent, és csak az utolsó megőrzött kerettel hasonlítják össze. A kért felirat költségvetés esetén, amely meghaladja az egy keretet, a kinyerés egy korlátozott jelölt medencét biztosít, amely legfeljebb kétszerese ennek a költségvetésnek, és soha nem több mint 16 keret. A kért korlátot csak a deduplikálás után alkalmazzák, az első és az utolsó kiválasztott jelöltet megőrzik a végső vékonyítás során, amikor a költségvetés legalább kettő. A verzionált `grayscale-16x16-mean-cells-v2` politika a nagyobbik átlagos luma delta és a normált delta legalább 0.05-ös arányú miniatűr cellák arányát használja. A duplikált küszöb a konstans 0.04, amelyet a kiszámíthatóság érdekében választottak, nem pedig futási beállításként. Ez a másodlagos magas kontrasztú jel megőrzi a kis mozgást és a látható szövegváltozásokat, amelyeket egy csak átlagos összehasonlítás elrejthet. A komparátor vagy dekóder hibák nyitva maradnak és megtartják a lefedettséget. A kimeneti metaadatok elkülönítik a kinyert jelölteket, a sikeresen használt kereteket és a vizuális duplikátumokat, amelyeket eldobtak.
 
-Egy explicit módon megjelölt videórész kérhet időbélyeggel ellátott kontaktlapot. A híd legfeljebb 4 oszlopos, 16 képkockás JPEG rácsot épít. Minden 512 pixeles cella beleégeti a forrás időbélyegét egy nagy kontrasztú alsó sávba, miközben ugyanazok az időbélyegek szöveges metaadatokban maradnak a későbbi társítás és ellenőrzés céljából. A teljes JPEG továbbra is 32 MiB-ra korlátozódik. Ha a `sharp` nem tudja dekódolni vagy összeállítani a rácsot, a híd visszatér az egyedi JPEG képkockákhoz; egy kliens megszakítás továbbra is propagálódik a lapműveleten keresztül.
+Egy kifejezetten megjelölt videó rész kérheti egy időbélyeges kontaktlapot. A híd legfeljebb egy 4-oszlopos, 16-keretes JPEG rácsot épít. Minden 512-pixeles cella a forrás időbélyegét egy magas kontrasztú alsó sávba égeti, míg a ugyanazok az időbélyegek szöveges metaadatokban maradnak a további társításhoz és auditáláshoz. A teljes JPEG 32 MiB-ra van korlátozva. Ha a `sharp` nem tudja dekódolni vagy összeállítani a rácsot, a híd visszaesik az egyes JPEG keretekre; egy kliens megszakítás még mindig terjed a lapműveleten.
 
-Az előléptetési bizonyíték szándékosan elkülönül a szintetikus kompozíciós mikrobenchmarktól. A `scripts/perf/video-bridge-contact-sheet-eval.ts` egy séma-verziózott A/B tesztkörnyezetet definiál valós OpenAI-kompatibilis látásmodellekhez. Méri a szolgáltató által jelentett tokeneket, a végpontok közötti falikésleltetést (beleértve a lapkompozíciót), a modellhívások számát és a manifesztben definiált tények megőrzését. A nyers modellválaszok nem kerülnek a jelentésbe; csak SHA-256 kivonatok és egyező tényazonosítók maradnak meg. A tesztkörnyezet nem kezdeményez hálózati vagy fizetős modellhívást, hacsak nincs átadva a `--execute-real` paraméter, és nincsenek konfigurálva a `--model`, `OMNIROUTE_BASE_URL` és `OMNIROUTE_API_KEY` változók. Ezen explicit valós futtatás nélkül a gépileg olvasható ítélete `HOLD` marad; a szintetikus terhelés/hívásszám mérések önmagukban nem minősülnek előléptetési bizonyítéknak.
+A promóciós bizonyítékok szándékosan különállnak a szintetikus összetétel mikrobemérésétől. A `scripts/perf/video-bridge-contact-sheet-eval.ts` egy séma-verziózott A/B hídot definiál a valós OpenAI-kompatibilis látásmodellekhez. Méri a szolgáltató által jelentett tokeneket, az end-to-end fal késleltetést (beleértve a lap összetételét), a modell-hívások számát és a manifesztált ténymegtartást. A nyers modell válaszokat nem írják a jelentésbe; csak a SHA-256 összegzések és a megfeleltetett tény ID-k maradnak meg. A híd nem végez hálózati vagy fizetett modell hívást, hacsak a `--execute-real` nem kerül átadásra, és az `--model`, `OMNIROUTE_BASE_URL`, és `OMNIROUTE_API_KEY` nincsenek konfigurálva. Anélkül, hogy ez a kifejezett valós futás megtörténne, a gép által olvasható ítélete `HOLD` marad; a szintetikus payload/hívás-szám mérések önmagukban nem jelentenek promóciós bizonyítékot.
 
-A hívók opcionálisan `transcript.cues` tömböt csatolhatnak egy támogatott videórészhez, ha már rendelkeznek igazított szöveggel. Minden cue-nak tartalmaznia kell `text`-et, egy véges `start`/`end` intervallumot a vizsgált időtartamon belül, és egy engedélyezett `source`-t (`client`, `embedded`, vagy `audio-bridge`); a `confidence` alapértelmezés szerint `1`, és `0` és `1` között kell maradnia. Az pontosan azonos cue-k összevonásra kerülnek. Az OmniRoute soha nem kezdi meg az átírást ebből a metaadatból: az érvényesített cue-k a leírt eredménybe másolódnak forrással, megbízhatósággal és intervallummal, és megbízhatatlan megfigyelésként jelennek meg a képkocka-feliratok mellett. Az érvénytelen, tartományon kívüli vagy származás nélküli szöveg elutasításra kerül, ahelyett, hogy bekerülne a feliratfolyamba. A `source` mező jelenleg a hívó fél által deklarált, nem a szerver által ellenőrzött: az OmniRoute kikényszeríti, hogy az érték a három engedélyezett sztring egyike legyen, de még nem erősíti meg kriptográfiailag, hogy egy `embedded` vagy `audio-bridge` címke valóban szerver tulajdonú kinyerésből származik. Kezelje a `source`-t megbízhatatlan tippként, amíg ez az ellenőrzés meg nem valósul; ne építsen rá engedélyezési döntéseket.
+A különálló `scripts/perf/video-bridge-promotion-eval.ts` FU-07 vagy FU-09 megfigyeléseket fogyaszt. A promóciós felvételhez mind a nyolc szintetikus forgatókönyv típusra, plusz egy tisztított valós klipre van szükség, legalább három mért ismétlésre szerepkörönként és esetenként, mind a tíz deklarált metrikára, lefagyott média/prompt/megfelelő-tény/beállítások összegzésekre, egyedi megfigyelési ID-kra és ellenőrzött magvetésű A/B sorrendre. A végrehajtási nyugta köti a korpusz összegzést, a pontos jelölt SHA-t és a modell revíziót. A hiányzó vagy érvénytelen mérések `HOLD` maradnak, beleértve a 30 s feletti CPU-t, 512 MiB feletti csúcs RSS-t vagy 30 s feletti elő-elemzést. Ezek bizonyíték-felvételi korlátok, nem új futási RSS érvényesítési garancia.
 
-Egy haladó hívó már biztosíthat egy már engedélyezett `audioTranscript` sávot ugyanahhoz a videóhoz. Az összeolvasztási illesztés egy határidő és egy megszakítási jel alatt futtatja a vizuális és audio megfigyeléseket, közös idővonalon rendezi őket, összevonja az azonos duplikátumokat, és részleges eredményt jelent, ha csak az egyik oldal sikeres. Egy érvénytelen `audioTranscript` részleges eredményre romlik – a vizuális leírás megmarad, és az audio ág egy tisztított hibaüzenetet rögzít – ahelyett, hogy az egész videó hibát jelezne. Az ágankénti elérhetőség, a részleges jelző és a tisztított hibaüzenetek megmaradnak a leírt eredményben, a védőkorlát metaadatokban (`audioFusionRuns`/`audioFusionPartials`/`audioFusionFailureCodes`), az eredmény-gyorsítótár metaadatokban és a híd fúziós számlálóiban. Az alapértelmezett Video Bridge útvonal nem hívja meg a beszédfelismerést, és nem tölt le második média másolatot; ezen explicit sáv nélkül videó-csak marad.
+A FU-07 legalább 98%-os minőségmegtartást és 1.2x-nél nem nagyobb p95 késleltetést igényel, plusz vagy egy 0.05 abszolút eset-kiigazított átlagos visszahívási javulást az egyenértékű átlagos felirat-hívásoknál, vagy legalább 10%-kal kevesebb átlagos deduplikált felirat-hívást. A FU-09 legalább 0.85 minőséget, 95%-os megtartást, 20%-os p95 késleltetés csökkentést és 10%-os token csökkentést igényel. Kritikus tényvesztés, injekciós megfelelés vagy hiányzó használat megakadályozza a promóciót. Egy végrehajtás nem tud semmit promótálni: a `--previous-report` megerősíti a két különböző, nem átfedő, egymást követő, jogosult végrehajtást ugyanazon politika/modell revízió/jelölt/korpuszon. Egy mintavételi kísérlet nem tudja megerősíteni a kontaktlap kísérletet.
 
-**Átirat megőrzése (#12150 P1).** Ez automatikusan érvényesül, amikor a Video Bridge (maga is opt-in) átirat jelzést jelenít meg – nincs külön megőrzési jelző. Amikor egy kérés bármilyen átirat jelzést megjelenít (egy hívó által deklarált `transcript` vagy egy összeolvasztott `audioTranscript`), a védőkorlát `videoBridgeObserved` jelzéssel látja el, és a videó leírásának egy szerkesztett árnyékát hozza létre – egy azonos megjelenítést, amelyben minden jelzés szabad szöveges törzse `[redacted-video-transcript]`-re van cserélve, úgy építve fel, hogy a strukturált jelzés mezőjét helyettesíti, mielőtt a karakterlánc összeállításra kerül (soha nem a lapított szöveg elemzésével, így semmilyen jelzés tartalom – ellenséges vagy szokásos, beleértve a `]`-t tartalmazó törzseket, mint például `[inaudible]`/`[music]` – nem maradhat fenn). A tartósan tárolt hívásnapló kérés törzse minden videóból származó szövegrészt erre a szerkesztett árnyékra cserél, tartalom egyezőség alapján; a `fullText` horgony újraolvasásra kerül a befejezett előhívási védőkorlát hasznos adatából, így az egyezés továbbra is sikeres marad a későbbi lánc védőkorlátok (a PII és hitelesítő adatok maszkolók, prioritások 10/95) által a leírás szövegének helyben történő átírása után, és a rendszer-prompt/átadás/memória injekció által az üzenettömb átformálása után. A modellnek továbbított törzs változatlan marad. Egy megfigyelt kérés sem tölt fel tartós memóriát (mind a kérésből, mind a válaszból származó kinyerés kihagyásra kerül), így a modell saját válasza nem visszhangozhat átirat szöveget a memóriába.
+A gyűjtőknek a válaszokat memóriában kell értékelniük, és el kell menteniük a `responseDigest`-et, valamint a metrikákat és megfigyelési kötéseket, soha nem a válasz szövegét. A fogyasztó szintén olvassa a régi nyers megfigyeléseket, de soha nem másolja azt a szöveget a jelentéseibe. Pontosan az `responseDigest` vagy a `rawResponseText` egyike fogadható el minden megfigyeléshez. A verzionált engedélyezési lista üres marad, egy változatlan `hold` alapértelmezettel. Egy jogosult bejegyzés megköveteli az bizonyíték hivatkozását, politikát, modellverziót, pontos jelölt SHA-t, manifest digestet és két különböző futásazonosítót; ellentmondásos kontextusokat elutasítanak. Ezek a metaadatok egy audit szerződés, nem bizonyíték arra, hogy a hivatkozott fájl valódi méréseket tartalmaz. A tényleges nyugtákat át kell nézni, mielőtt bármilyen bejegyzést hozzáadnánk. A menedzsment statisztikai végpont és a Videó irányítópult konzervatív készenlétet mutat. Egy konfigurált modell alias önmagában nem állapítja meg a verzióját vagy a futó jelölt SHA-t, így a jelenlegi irányítópult `HOLD`-ot jelent, ahelyett, hogy egy másik végrehajtási kontextusból újrahasználná a jogosultságot. Az explicit kísérleti kiválasztás elkülönül a promóciótól; nincs automatikusan megváltoztatott alapértelmezett.
 
-**Nyers videómezők (#12430).** Ha a híd engedélyezve van, és a natív videótámogatás ismeretlen vagy hiányzik, a megadott `transcript`/`audioTranscript` mezők is aktiválják a `videoBridgeObserved` jelzést, még sikertelen leírás vagy a `maxVideos` korlát elérése esetén is. A `null` és az üres karakterlánc számít; a hiányzó mezők és a nem videóhoz tartozó metaadatok nem. A megőrzött másolatokban ezek a mezők kitakarásra kerülnek, vagy a kérés kimarad; a gyorsítótárak/Memory használata is elmarad. A szolgáltatónak küldött adatok nem változnak.
+A hívók opcionális `transcript.cues` tömböt csatolhatnak egy támogatott videó részhez, amikor már rendelkeznek összehangolt szöveggel. Minden cue-nak tartalmaznia kell a `text`-et, egy véges `start`/`end` intervallumot a vizsgált időtartamon belül, és egy engedélyezett `source`-t (`client`, `embedded` vagy `audio-bridge`); a `confidence` alapértelmezett értéke `1`, és 0 és 1 között kell maradnia. A pontosan azonos cue-k összevonásra kerülnek. Az OmniRoute soha nem indít transzkripciót ezekből a metaadatokból: a validált cue-k a leírt eredménybe kerülnek másolásra forrással, bizalommal és intervallummal, és megbízhatatlan megfigyelésként jelennek meg a keretfeliratok mellett. Az érvénytelen, tartományon kívüli vagy származási információ nélküli szöveget elutasítják, ahelyett, hogy belekevernék a feliratfolyamba. Mindkét kérés-test transzkripciós csatorna normalizálja a megadott származást `client`-re, beleértve az önállóan megállapított `embedded` vagy `audio-bridge` címkéket. Csak egy szerver által birtokolt adapter tudja hozzárendelni ezeket a megbízható címkéket a kód-alapú `trustedSource` argumentumon keresztül; egy kérés JSON mező nem érheti el ezt az argumentumot. A transzkripciós szöveg megbízhatatlan médiából származó tartalom marad, függetlenül a származásától, és soha nem határozhatja meg az engedélyezést.
 
-További megőrzött másolatok ugyanazt a megfigyelt kérés jelet használják. A nyers, védőkorlát előtti kliens-kérés pillanatfelvétel, a memóriában lévő függőben lévő kérés és a korán elutasított kérés naplója strukturálisan helyettesíti az átirat mezőket a videó részekben; a pipeline szakaszok által szintetizált karakterlánc promptok és a kontextus átadás a tartósan tárolt kérés törzsének végpontjánál szerkesztésre kerül. A tartósan tárolt `video_content_removed` jelző miatt a `previous_response_id` folytatás zártan hibát jelez, ahelyett, hogy újraépítené a szándékosan eldobott szöveget. Ha egy megfigyelt kérés elveszíti a részenkénti szerkesztési árnyékát a naplózás előtt, vagy akár több videó árnyék közül egy sem egyezik a későbbi kérésmódosítások után, a megőrzött kérés törzse teljesen kimarad, ahelyett, hogy részlegesen szerkesztett átiratot őrizne meg.
+Egy fejlett hívó `audioTranscript` sávot adhat meg ugyanahhoz a videóhoz; ezt kliens által biztosított szövegként kezelik, nem a szerver transzkripciójának bizonyítékaként. A fúziós varrat vizuális és audio megfigyeléseket futtat egy határidő és megszakító jel alatt, közös idővonalon rendezi őket, összevonja a pontosan azonos példányokat, és részleges eredményt jelent, amikor csak az egyik oldal sikeres. Egy érvénytelen `audioTranscript` a részleges eredményre degradálódik — a vizuális leírás megmarad, és az audio ág egy tisztított hibakódot rögzít — ahelyett, hogy az egész videó megbukna. Az egyes ágak elérhetősége, a részleges jelző és a tisztított hibakódok megmaradnak a leírt eredményben, a védőkorlát metaadatokban (`audioFusionRuns`/`audioFusionPartials`/`audioFusionFailureCodes`), az eredmény-cache metaadatokban és a híd fúziós számlálókban. Az alapértelmezett Videó Híd útvonal nem indít beszédről szövegre konvertálást, vagy nem tölt le egy második média másolatot; anélkül, hogy ez a kifejezett sáv létezne, csak videó marad.
 
-Egy megfigyelt kérés esetén a modell válasza idézhet az átirat bármely részéből strukturált jelzés határ nélkül. A tartósan tárolt hívásnapló `responseBody` ezért egy kihagyási jelzővel van helyettesítve; a részletes pipeline műtermék (amely tartalmazhat upstream/kliens törzseket és stream darabokat) nem kerül megőrzésre. A szemantikai, idempotencia és érvelés-újrajátszási gyorsítótárak kihagyják az olvasásokat és írásokat ehhez a kéréshez. A szolgáltató kérés és a kliens számára látható válasz változatlan marad. A korai keepalive bájtok kiürülnek az ideiglenes pufferből, amikor a részletes műtermék kimarad. Kiro hibás EventStream figyelmeztetése csak a hasznos adat bájt számát jelenti, soha nem a tartalmát vagy a JSON elemző nyers hibáját.
-Ez nem állítja, hogy minden független szolgáltató/plugin diagnosztika auditálva lett; a szélesebb körű megőrzött-végpont söprés a #11658 alatt van nyomon követve.
+**Transzkripció megőrzése (#12150 P1).** Ez automatikusan alkalmazandó, amikor a Videó Híd (amely önkéntes) transzkripciós cue-t renderel — nincs külön megőrzési jelző. Amikor egy kérés bármilyen transzkripciós cue-t renderel (egy hívó által deklarált `transcript` vagy egy fúziós `audioTranscript`), a védőkorlát `videoBridgeObserved`-ra jelöli, és egy cenzúrázott árnyékot készít a videó leírásáról — egy azonos renderelés, amelyben minden cue szabad szöveges törzse helyettesítve van `[redacted-video-transcript]`-tel, amelyet a strukturált cue mező helyettesítésével készítenek el, mielőtt a szöveg összeállna (soha nem a lapos szöveg elemzésével, így semmilyen cue tartalom — ellenséges vagy szokásos, beleértve a `]`-t tartalmazó törzseket, mint például `[inaudible]`/`[music]` — nem maradhat meg). A megőrzött hívásnapló kérés testében minden videóból származó szöveges részt cenzúrázott árnyékkal helyettesítenek, tartalomegyezőség alapján; a `fullText` horgonyt újraolvassák a befejezett előhívási védőkorlát terhelésből, így az egyezés még a későbbi lánc védőkorlátok (a PII és hitelesítő adatok maszkolói, prioritások 10/95) leírás szövegének helyben történő átírása után is sikeres marad, és a rendszer-prompt/átadás/memória injekció átalakítja az üzenet tömböt. A modellhez felfelé küldött test változatlan marad. Egy megfigyelt kérés szintén nem népesít be tartós Memóriát (mind a kérés-, mind a válasz-alapú kinyerés ki van hagyva), így a modell saját válasza nem tudja visszhangozni a transzkripciós szöveget a Memóriába.
 
-A belső `/api/modality-bridge/video/drilldown` életciklus egy külön, loopback/token-hitelesített gyorsítótár aljzat. Minden művelethez kanonikus, átlátszatlan fő azonosító is szükséges. Mielőtt egy éles hívó engedélyezésre kerül, le kell vezetnie ezt az azonosítót a hitelesített bérlőből, és soha nem továbbíthat kliens által kiválasztott értéket. A gyorsítótár kulcsai ezt a fő azonosítót kanonikus munkamenet- és videó-referencia azonosítókhoz kötik, csak SHA-256-ból származtatott kulcsaikat tárolják, és mind az olvasásokat, mind a törlést ugyanahhoz a fő azonosítóhoz kötik. A gyorsítótár legfeljebb 16 származtatott JPEG képkockát tárol bejegyzésenként, tíz perc után lejárnak, és támogatja a korlátozott `start`/`end` olvasásokat vagy az explicit munkamenet törlést.
+**Nyers videó mezők (#12430).** Amikor a híd engedélyezve van, és a natív videótámogatás ismeretlen vagy hiányzik, a meghatározott `transcript`/`audioTranscript` mezők szintén aktiválják a `videoBridgeObserved`-t, még a leírási hiba vagy a `maxVideos` korlát után is. A `null` és az üres karakterláncok számítanak; a hiányzó mezők és a nem videó metaadatok nem. A megőrzött másolatok cenzúrázzák ezeket a mezőket vagy kihagyják a kérést, és a cache-ek/Memória megkerülésre kerülnek. A szolgáltató terhelése változatlan marad.
 
-Minden fő azonosító 16 bejegyzésre és 64 MiB kanonikus JPEG adatra korlátozódik. Ezek a korlátok függetlenek a globális 64 bejegyzés/256 MiB plafontól: a fő azonosító kvóta nyomása csak az adott fő azonosító legkevésbé használt bejegyzéseit távolítja el, mielőtt a globális LRU eltávolításra kerülne. A lejárt bejegyzések mind a fő azonosító, mind a globális elszámolásból törlődnek a gyorsítótár tevékenysége során, míg a törlés és az érvényesítési hiba nem eredményez részleges cserét.
+További megőrzött másolatok ugyanazt a megfigyelt-kérés jelet használják. A nyers elő-védőkorlát kliens-kérés pillanatképe, a memóriában lévő függő kérés és a korai elutasított kérés naplója strukturálisan helyettesíti a transzkripciós mezőket a videó részekben; a szöveges promptok, amelyeket a pipeline szakaszok és a kontextus átadása szintetizál, cenzúrázva vannak a megőrzött kérés-test bemenetén. A megőrzött `video_content_removed` jelző miatt a `previous_response_id` folytatásának sikertelensége zárva marad, ahelyett, hogy rekonstruálná a szöveget, amelyet szándékosan eldobtak. Ha egy megfigyelt kérés elveszíti a részletezett cenzúrázott árnyékát, mielőtt naplózásra kerülne, vagy akár egy több videó árnyék közül egy sem egyezik a későbbi kérés módosítások után, a megőrzött kérés testét teljesen kihagyják, ahelyett, hogy egy részben cenzúrázott transzkripciót megtartanának.
 
-A gyorsítótár elutasítja a nem kanonikus Base64-et, a túlzott kitöltést, a nem JPEG médiát, a hibásan formázott vagy csonkolt JPEG-eket, valamint azokat a JPEG-eket, amelyek figyelmeztetést adnak egy korlátozott teljes képű `sharp` dekódolás során. Minden elfogadott képet kanonikus JPEG-ként újra kódol, a szélességet és magasságot a dekódolt bájtokból származtatja a hívó mezőinek megbízása helyett, és eldobja az esetlegesen fennmaradó poliglott bájtokat ahelyett, hogy megtartaná azokat. Csak a korlátozott kanonikus tömörített puffer kerül mindkét kvótába. A JSON vezeték korlát tartalmazza a Base64 többletköltségét a 32 MiB dekódolt bemeneti plafonhoz. Minden tárolt származtatás rögzíti a validált JPEG formátumát/felbontását, mintavételi szabályzatát, származtatási verzióját, létrehozási idejét, szerver által számított tartalom-hash-ét és a hash-elt szülő referenciáját, valamint a megbízható hívó szülő-tartalom-hash-ét. A törlést az aszinkron dekódolási/hash fázisok között ellenőrzik az atomi gyorsítótár-véglegesítés előtt.
+Egy megfigyelt kérés esetén a modell válasza bármely részét idézheti a
+átírásnak strukturált jelzőhatár nélkül. A megőrzött hívásnapló
+`responseBody`-ját ezért egy kihagyási jelölő váltja fel; a részletes
+pipeline artefaktum (amely tartalmazhatja a felfelé irányuló/ügyfél testeket és
+stream darabokat) nem kerül megőrzésre. A szemantikai, idempotens és
+érvelés-visszajátszó cache-ek megkerülik a kérés olvasását és írását. A
+szolgáltató kérés és az ügyfél számára látható válasz változatlan marad. A
+korai keepalive bájtokat eltávolítják a ideiglenes pufferből, amikor a részletes
+artefaktumot kihagyják. Kiro hibás EventStream figyelmeztetése csak a payload
+bájtok számát jelzi, soha nem a tartalmát vagy a JSON parser nyers hibáját.
+Ez nem állítja, hogy minden nem kapcsolódó szolgáltató/plugin diagnosztikát
+ellenőriztek; a szélesebb megőrzött-szennyvíz takarítást a #11658 nyomon
+követi.
 
-Ez a szelet még nem csatlakoztat éles producert az útvonalhoz, és nem
-biztosít több felbontású variáns kiválasztást. Az átlátszó Video Bridge kérés
-útvonala ezért nem jár további munkával, míg a bérlőhöz kötött fő származtatás és
-a teljes FU-08 több felbontású életciklus explicit utómunka marad,
-ahelyett, hogy teljes viselkedésként lenne dokumentálva.
+A belső `/api/modality-bridge/video/drilldown` életciklus egy külön,
+loopback/token-hitelesített cache alap. Minden művelethez szükséges egy
+kanonikus opak fő ID. Mielőtt egy termelési hívó engedélyezve lenne, le kell
+vezetnie ezt az ID-t az azonosított bérlőtől, és soha nem szabad továbbítania
+egy ügyfél által választott értéket. A cache kulcsok összekapcsolják ezt a
+főt a kanonikus munkamenet és videó-referencia ID-kkal, csak az SHA-256-ból
+származó kulcsokat tárolják, és a beolvasásokat és törléseket is ugyanarra a
+főre korlátozzák. A cache legfeljebb 16 származtatott JPEG keretet tárol
+bejegyzésenként, tíz perc után lejár, és támogatja a korlátozott
+`start`/`end` olvasásokat vagy a kifejezett munkamenet törlést.
 
-A képkockák szekvenciálisan feliratozva vannak a konfigurált Video modellel. Egy üres
-Video felülírás örökli a Vision beállítást; ha mindkettő üres, a Vision
-automatikus útválasztó választja ki a tényleges látásképes modellt. A sikeres feliratok
-felváltják az eredeti részt egy stabil `[Video description:` előtaggal, amely
-a szöveget megbízhatatlan, médiából származó megfigyelésként is megjelöli, és
-közli a downstream modellekkel, hogy ne kövessék a médiában található utasításokat. A képkocka-felirat gyorsítótár kulcsai
-tartalmazzák a JPEG bájtokat, a promptot, az időbélyeget és a tényleges modellt;
-csak a sikeres feliratok kerülnek gyorsítótárba. A gyorsítótár bejegyzések megőrzik a tényleges sikeres producer modellt,
-beleértve a tartalék modellt is; a híd `mixed` értéket jelent, ha különböző képkockákat
-különböző modellek állítottak elő. Egy gyorsítótár találat újra felhasználja azt a producer identitást
-ahelyett, hogy a kért útválasztási tervként címkézné újra. A teljes videó eredmény
-gyorsítótár minden olyan bemenet alapján kulcsolódik, amely megváltoztatja a kimenetet – prompt, tényleges
-modell, mintavételi politika, képkockaszám, szemantikai elemzési mód, a normalizált fókusz tipp SHA-256
-ujjlenyomata, fókuszablak, `transcript`,
-`audioTranscript`, és a kontaktlap jelző – így bármelyik dimenzió megváltoztatása
-gyorsítótár-hiba, soha nem elavult újrahasználat. A vizuális dedup politika
-verziója, küszöbértéke és korlátozott jelölt képkockaszáma szintén explicit az
-eredmény-gyorsítótár kulcsában és metaadataiban; egy politika változás ezért nem
-használhatja újra az elavult teljes videó leírást. Az eredmény-gyorsítótár v4 metaadatai
-megtartják a módot és az ujjlenyomatot, soha nem a nyers felhasználói feladatot. A védőkorlát metaadatai
-jelentik a kért és a tényleges elemzési módokat is; egy kért `focused` mód
-használható felhasználói szöveg nélkül ténylegesen `full` módként kerül jelentésre.
+Minden fő legfeljebb 16 bejegyzésre és 64 MiB kanonikus JPEG adatra van
+korlátozva. Ezek a korlátok függetlenek a globális 64-bejegyzéses/256 MiB
+maximumtól: a fő kvóta nyomás csak a legkevésbé használt bejegyzéseket
+távolítja el, mielőtt a globális LRU eltávolításra kerülne. A lejárt
+bejegyzéseket eltávolítják mind a fő, mind a globális számításból a cache
+tevékenység során, míg a törlés és az érvényesítési hiba nem hajt végre
+részleges cserét.
 
-A védőkorlát minden támogatott videórészt kinyer, de legfeljebb
-`modalityBridgeVideoMaxVideos` számú videót ír le. Egy olyan célpont esetében, amelyről bebizonyosodott, hogy
-`supportsVideo === false`, a sikertelen és a limitet túllépő videók explicit biztonságos
-szöveges jelölőkké válnak, így nyers videó nem marad fenn. Ha a képesség ismeretlen,
-ezek a részek érintetlenek maradnak. Azok a célpontok, amelyek `supportsVideo === true`
-értékkel rendelkeznek, megkerülik a hidat.
-Az ügyfélkérés megszakítási jele terjed a letöltésen, a bróker soron,
-az alfolyamatokon és a feliratozási hívásokon keresztül; a megszakítások a videók között állnak le, és soha nem
-nyílnak meg nyers média felé.
+A cache elutasítja a nem kanonikus Base64-t, a felesleges kitöltést, a nem-JPEG
+médiafájlokat, a hibás vagy levágott JPEG-ket, és a JPEG-ket, amelyek figyelmeztetést
+okoznak egy korlátozott teljes képes `sharp` dekódolás során. Minden elfogadott
+képet kanonikus JPEG-ként újrakódol, a szélességet és a magasságot a dekódolt
+bájtokból vezeti le, a hívó mezőkre való támaszkodás helyett, és eldobja a
+bármilyen hátramaradt polyglot bájtokat, ahelyett, hogy megőrizné őket. Csak a
+korlátozott kanonikus tömörített puffert számolják mindkét kvótához. A JSON
+drótkorlát tartalmazza a Base64 overheadet a 32 MiB dekódolt-bemeneti maximumhoz.
+Minden tárolt származtatás rögzíti a validált JPEG formátumát/felbontását,
+mintavételezési politikáját, származtatási verzióját, létrehozási idejét,
+szerver által számított tartalom hash-t, és a hashelt szülő referenciát, valamint
+a megbízható hívó szülő-tartalom hash-át. A törlést az aszinkron dekódolás/hash
+fázisok között ellenőrzik, mielőtt az atomikus cache elköteleződne.
 
-A futásidejű beállítások DB-alapúak és Zod-validáltak:
+A termelési előállító csak sikeres vizuális elemzés után használja újra a már
+származtatott bróker kereteket, második videó letöltés/kivonás nélkül. Szükséges
+az operátor `modalityBridgeVideoDrilldownEnabled=true`, szigorú per-rész
+`drilldown: true`, és egy hitelesített API-kulcs rekord ID. Az ügyfél által
+deklarált fő/munkamenet értékek soha nem állítanak fel tulajdonjogot. E három
+feltétel nélkül nem hash-el, nem méretezi át, és nem őriz meg további kereteket.
+A megőrzési hiba megőrzi a felhasználható vizuális választ. A beleegyezett
+kérések megkerülik a teljes videó eredmény cache-t, így a cache-elt eredmények
+soha nem játszanak vissza kezelőket.
 
-| Kulcs                               | Alapértelmezett | Tartomány / viselkedés                                                                                                  |
-| :---------------------------------- | :-------------- | :---------------------------------------------------------------------------------------------------------------------- |
-| `modalityBridgeVideoEnabled`        | `false`         | Opcionális futásidejű, opt-in                                                                                           |
-| `modalityBridgeVideoAnalysisMode`   | `"full"`        | `full` megőrzi az általános feliratokat; `focused` korlátozott, megbízhatatlan legújabb felhasználói kontextust használ |
-| `modalityBridgeVideoModel`          | `""`            | Örökli a Vision Bridge modellt                                                                                          |
-| `modalityBridgeVideoFrameCount`     | `8`             | 1–16                                                                                                                    |
-| `modalityBridgeVideoSamplingPolicy` | `"uniform"`     | `uniform`, `scene_aware`, vagy arányos `segment_aware`; az érzékelő hiba esetén `uniform` értékre esik vissza           |
-| `modalityBridgeVideoMaxVideos`      | `1`             | 1–4                                                                                                                     |
-| `modalityBridgeVideoTimeout`        | `120000`        | 1000–120000 ms                                                                                                          |
+A sikeres JSON és SSE válaszok legfeljebb négy opak kezelőt tárnak fel a
+korlátozott `x-omniroute-video-drilldown` fejlécben. Az engedélyezett böngésző
+eredetek olvashatják ezt a fejlécet anélkül, hogy szélesítenék a CORS
+eredetpolitikát. Az új kezelők `v1.<32-byte random base64url token>` formátumúak,
+és a nyilvántartás csak az SHA-256 hash-okat őrzi meg. Az olvasó/fejléc
+elemzője a régi 64-hex tokeneket is elfogadja. A hitelesített nyilvános
+fogyasztó a `GET /api/v1/video-bridge/drilldown?handle=...`, függetlenül
+szabályozva a `modalityBridgeVideoDrilldownRemoteEnabled=true` által. A
+kifejezett megőrzött hamis visszavonja a hozzáférést, még akkor is, ha a régi
+`OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_REMOTE_ENABLED` környezeti
+visszaesés engedélyezve van. A termelési megőrzésnek analóg régi
+`OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_ENABLED` visszaesése van. Mindkét
+visszaesés alapértelmezés szerint ki van kapcsolva.
 
-A 120 másodpercet meghaladó, örökölt, perzisztált videó időtúllépési értékek a
-bróker határidejére korlátozódnak; az ezen limit feletti új beállítási írások elutasításra kerülnek.
-A `GET /api/modality-bridge/video/runtime` megbízható, időbélyeggel ellátott loopback
-lokalitást igényel hitelesítés vagy futásidejű vizsgálat előtt, majd menedzsment
-hitelesítést igényel. Csak az `available`, szanált FFmpeg/ffprobe verziókat, és egy rögzített
-okot ad vissza, ha a futásidejű környezet nem elérhető. A belső kinyerési végpont nem
-nyilvános feltöltési API: a sor telítettsége `503` plusz `Retry-After` értéket ad vissza, egy hívó
-leválasztása `499` értéket ad vissza, és a rögzített bróker határidő `504` értéket ad vissza. Az átalakított válaszok
-`video->text;model=<visionModel>;parts=<videos>` értéket adnak hozzá a központi
-`x-omniroute-modality-bridge` fejlécbe a Vision vagy Audio szegmensek eltávolítása nélkül.
+A fogyasztó a hitelesített kulcsból vezeti le a tulajdonjogot, alkalmazza a kulcs
+politikát, és ugyanazt a 404-et adja vissza ismeretlen, lejárt és más kulcsok
+kezelői esetén. Elfogadja a `variant=preview|standard|detail` (maximum JPEG
+méret 320/640/1280, soha nem nagyobbítva), `limit=1..8` (vagy a régi
+`frames` alias, soha nem mindkettő), nullázott `page`, és opcionális
+`start`/`end` fókusz másodperceket. A duplikált
+lekérdezési kulcsokat és a megfordított fókusz ablakokat elutasítják. Minden
+visszaadott variáns rendelkezik a tényleges tartalom és tényleges felbontás
+metadatájának hash-jával, amely a megőrzött forráshoz van kapcsolva. A variánsok
+olvasáskor származnak, nem pedig extra megőrzött másolatokként tárolódnak. A JSON
+válasz, beleértve a Base64/burkolatot, 32 MiB-ra van korlátozva; egy túlméretezett
+oldal 413-at ad vissza, és az ügyfélnek kevesebb keretet kell kérnie. Az olvasások
+ellenőrzik a törlést minden egyes átméretezés körül, és újra ellenőrzik a kezelő
+érvényességét, mielőtt visszaadnák. A tulajdonos általi `DELETE` idempotens;
+a törlés vagy a TTL lejárat felszabadítja a megőrzött forrást és a felhasználás
+számítását.
 
-### PII Maszkoló (`piiMasker.ts`)
+A megosztott tároló folyamat-lokális: a kezelők lejárnak újraindításkor, és nem
+átvihetők független OmniRoute folyamatok között. A kezelési statisztikák
+megmutatják a hatékony megőrzési/távoli politikát és az összesített megőrzött
+bejegyzéseket/bájtokat, soha nem a médiát, referenciákat, fő ID-ket vagy
+kezelőket. A Videó beállítások panel megjeleníti ezeket az értékeket, és
+megőrzi mindkét beleegyezési kapcsolót. Ez a megvalósítási dokumentáció nem
+élő telepítési vagy promóciós bizonyíték; a valódi modell elfogadása külön
+nyomon követett.
 
-**Mindkét** fázisban fut.
+A kereteket a konfigurált Videó modell szerint, sorrendben címkézik. Egy üres Videó felülírás örökli a Látás beállítást; ha mindkettő üres, a Látás automatikus irányítója választja ki a hatékony látásra képes modellt. A sikeres címkék a stabil `[Video description:` előtaggal helyettesítik az eredeti részt, amely szintén megjelöli a szöveget, mint egy megbízhatatlan médiából származó megfigyelést, és azt mondja a downstream modelleknek, hogy ne kövessék a médiában található utasításokat. A keret-címke gyorsítótár kulcsai tartalmazzák a JPEG byte-okat, a promptot, az időbélyeget és a hatékony modellt; csak a sikeres címkék kerülnek gyorsítótárba. A gyorsítótár bejegyzések megőrzik a tényleges sikeres előállító modellt, beleértve egy visszaesési modellt; a híd `mixed`-et jelent, amikor különböző kereteket különböző modellek állítottak elő. Egy gyorsítótár találat újra felhasználja azt az előállító identitást ahelyett, hogy újra címkézné a kért irányítási tervként. Az egész videó eredmény gyorsítótár minden olyan bemenetre kulcsot kap, amely megváltoztatja a kimenetet — prompt, hatékony modell, mintavételezési politika, keretszám, szemantikai elemzési mód, a normalizált fókusz jelzés SHA-256 ujjlenyomata, fókusz ablak, `transcript`, `audioTranscript`, és a kontaktlap jelző — így bármelyik dimenzió megváltoztatása gyorsítótár hiányt jelent, soha nem elavult újrahasználatot. A vizuális deduplikálási politika verziója, küszöbértéke és a korlátozott jelölt keretek száma szintén explicit a gyorsítótár kulcsban és metadatában; egy politika változás ezért nem tudja újra felhasználni az elavult egész videó leírást. A gyorsítótár v4 metadatája megőrzi a módot és az ujjlenyomatot, soha nem a nyers felhasználói feladatot. A védőkorlát metadatája jelentést ad mind a kért, mind a hatékony elemzési módokról; egy kért `focused` mód, amely nem tartalmaz használható felhasználói szöveget, hatékonyan `full`-ként van jelentve.
 
-- **`preCall`** klónozza a payloadot, végigmegy a `system`, `messages`, `input` és
-  `prompt` (beleértve az egyszerű string elemeket is) mezőkön, és alkalmazza a `processPII()` (a
-  `@/shared/utils/inputSanitizer` modulból) függvényt a string `content`/`text` mezőkre. Amikor
-  `PII_REDACTION_ENABLED=true`, az észlelt PII anonimizálásra kerül a kimenő
-  payloadban. Ez független az `INPUT_SANITIZER_MODE` beállítástól (amely csak a
-  prompt-injektálási politikát szabályozza). Amikor az anonimizálás ki van kapcsolva, a hívás rögzíti az észlelési
-  számokat a tartalom átírása nélkül.
-- **`postCall`** mélyen klónozza a választ, futtatja a `sanitizePIIResponse()` függvényt plusz
-  a Responses-API-alak maszkolót (`maskResponsesOutput` – lefedi az
-  `output_text` és `output[].content[].text` mezőket). Ha bármilyen anonimizálás történik, a
-  módosított válasz felváltja az eredetit.
+A védőkorlát minden támogatott videó részt kinyer, de nem ír le többet, mint `modalityBridgeVideoMaxVideos`. Egy cél, amelyről bizonyított, hogy `supportsVideo === false`, a sikertelen és a határon túli videók explicit biztonságos szövegjelzőkké válnak, így nyers videó nem marad. Amikor a képesség ismeretlen, azok a részek érintetlenek maradnak. Azok a célok, amelyek `supportsVideo === true`, megkerülik a hidat. Az ügyfél kérés megszakító jel propagálódik a letöltés, a bróker sor, a subprocesszek és a címke hívások között; a megszakítások a videók között állnak meg, és soha nem nyitnak meg nyers médiára.
 
-A védőkorlát soha nem blokkol; csak annotál (`meta.detections`,
-`meta.redacted`) vagy átír.
+A futási beállítások DB-alapúak és Zod-érvényesítettek:
 
-### Prompt Injektálás (`promptInjection.ts`)
+| Kulcs                               | Alapértelmezett | Tartomány / viselkedés                                                                                               |
+| ----------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `modalityBridgeVideoEnabled`        | `false`         | Opcionális futásidő, beleegyezés                                                                                     |
+| `modalityBridgeVideoAnalysisMode`   | `"full"`        | `full` megőrzi a generikus címkéket; `focused` korlátozott, megbízhatatlan legutolsó felhasználói kontextust használ |
+| `modalityBridgeVideoModel`          | `""`            | Örökli a Látás Híd modellt                                                                                           |
+| `modalityBridgeVideoFrameCount`     | `8`             | 1–16                                                                                                                 |
+| `modalityBridgeVideoSamplingPolicy` | `"uniform"`     | `uniform`, `scene_aware`, vagy arányos `segment_aware`; a detektor hiba visszaesik `uniform`-ra                      |
+| `modalityBridgeVideoMaxVideos`      | `1`             | 1–4                                                                                                                  |
+| `modalityBridgeVideoTimeout`        | `120000`        | 1000–120000 ms                                                                                                       |
 
-Észleli a felhasználó által megadott tartalomban lévő ellenséges struktúrákat és érvényesíti a
-konfigurált politikát. A viselkedést környezeti változók és konstruktor
-opciók vezérlik:
+A régi, megőrzött Videó időtúllépési értékek, amelyek meghaladják a 120 másodpercet, a bróker határidőhöz vannak rögzítve; az új beállítások, amelyek ezen a határon túl írnak, elutasításra kerülnek. A `GET /api/modality-bridge/video/runtime` megbízható bélyegzővel ellátott hurok visszajelzést igényel az autentikáció vagy futásidőbeli próba előtt, majd menedzsment hitelesítést igényel. Csak `available`, sanitált FFmpeg/ffprobe verziókat és egy fix okot ad vissza, amikor a futásidő nem elérhető. A belső kinyerési végpont nem nyilvános feltöltési API: a sor telítettsége `503`-at ad vissza `Retry-After`-ral, a hívó bontása `499`-et, és a fix bróker határidő `504`-et ad vissza. A konvertált válaszok hozzáadják a `video->text;model=<visionModel>;parts=<videos>`-t a központi `x-omniroute-modality-bridge` fejléchez anélkül, hogy eltávolítanák a Látás vagy Audio szegmenseket.
 
-| Beállítás         | Környezeti változó                                                                                   | Alapértelmezett | Hatás                                                                                                                                                                                                                 |
-| ----------------- | ---------------------------------------------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Engedélyezve      | `INPUT_SANITIZER_ENABLED`                                                                            | `true`          | Ha `false`, a védőkorlát rövidre zár.                                                                                                                                                                                 |
-| Mód               | `INJECTION_GUARD_MODE` / `INPUT_SANITIZER_MODE`                                                      | `warn`          | Injektálási irányelv: `block`, `warn`, vagy `log`. (`redact` elfogadott a visszamenőleges kompatibilitás miatt, de **nem** távolítja el az injektálási szöveget; a PII újraírását a `PII_REDACTION_ENABLED` vezérli.) |
-| Blokkolási küszöb | `blockThreshold` opció / `INPUT_SANITIZER_BLOCK_THRESHOLD` (alias `INJECTION_GUARD_BLOCK_THRESHOLD`) | `high`          | A blokkoláshoz szükséges minimális súlyosság. A Medium alapértelmezés szerint csak megfigyelési célú.                                                                                                                 |
+### PII Maszkáló (`piiMasker.ts`)
 
-**Mód elsőbbség** (`getMode`): hívó `options.mode` →
-`INJECTION_GUARD_MODE` **adatbázis funkciójelző felülbírálása** (Irányítópult →
-Beállítások → Funkciójelzők) → `INJECTION_GUARD_MODE` környezeti változó → `INPUT_SANITIZER_MODE` környezeti változó →
-`warn`. Egy irányítópult felülbírálás tehát felülírja a környezeti változókat, így a Funkciójelzők
-felhasználói felülete élőben (újraindítás nélkül) vezérli a futó védőkorlátot. Az adatbázis olvasás
-hibatűrő: ha hiba történik, a védőkorlát visszatér a környezeti változókon alapuló viselkedéshez,
-és ha nincs felülbírálás beállítva, a viselkedés megegyezik a csak környezeti változókon alapuló feloldással.
+**Mindkét** szakaszon fut.
 
-Érzékelési források:
+- **`preCall`** klónozza a payloadot, végigjárja a `system`, `messages`, `input` és `prompt` (beleértve a sima szöveges elemeket), és alkalmazza a `processPII()`-t (a `@/shared/utils/inputSanitizer`-ből) a szöveges `content`/`text` mezőkre. Amikor `PII_REDACTION_ENABLED=true`, a észlelt PII a kimeneti payloadban eltávolításra kerül. Ez független az `INPUT_SANITIZER_MODE`-tól (amely csak a prompt-befecskendezési politikát szabályozza). Amikor az eltávolítás ki van kapcsolva, a hívás nyilvántartja az észlelési számokat anélkül, hogy átírná a tartalmat.
+- **`postCall`** mély klónozza a választ, futtatja a `sanitizePIIResponse()`-t plusz a Válasz-API-alak maszkálót (`maskResponsesOutput` — lefedi az `output_text`-et és az `output[].content[].text`-et). Ha bármilyen eltávolítás történik, a módosított válasz helyettesíti az eredetit.
 
-1.  `sanitizeRequest()` a `@/shared/utils/inputSanitizer`-ből (megosztott érzékelő készlet,
-    amelyet a pipeline más részein is használnak).
-2.  Beépített `DEFAULT_GUARD_PATTERNS` (jelenleg `system_override_inline` és
-    `markdown_system_block`, mindkettő `high` súlyosságú).
-3.  Opcionális `customPatterns`, amelyek konstruktor opciókon keresztül kerülnek átadásra
-    (karakterláncok, regex, vagy `{ name, pattern, severity }` rekordok).
+A védőkorlát soha nem blokkol; csak annotál (`meta.detections`, `meta.redacted`) vagy átír.
 
-Amikor `mode === "block"` **és** legalább egy észlelés eléri a súlyossági küszöböt,
-a `preCall` a következőket adja vissza: `{ block: true, message: "Request rejected:
-suspicious content detected" }`. `warn`/`log` módokban a védőkorlát naplózza, de
-engedélyezi a hívást. A megosztott segédprogram `evaluatePromptInjection()` is exportálva van
-azoknak a hívóknak, akiknek a regisztráció nélkül kell kiértékelniük a promptokat.
+### Prompt Befecskendezés (`promptInjection.ts`)
 
-**Szkennelési határ (v3.8.20):** az érzékelő csak az egyesített prompt szöveg **első 16 KB-ját**
-vizsgálja – `MAX_INJECTION_SCAN_BYTES = 16 * 1024` (16 384 bájt) a
-`src/shared/utils/inputSanitizer.ts` fájlban. Mind a `detectInjection()`, mind az
-`evaluatePromptInjection()` `slice(0, MAX_INJECTION_SCAN_BYTES)` műveletet hajt végre
-a mintaciklus futtatása előtt. Az injektálási direktívák egy bemenet tetején helyezkednek el,
-így ez korlátozza a regex CPU/GC használatát több száz KB-os adatcsomagok esetén anélkül,
-hogy gyengítené az észlelést (vö. #3932, #4041).
+Észleli az ellenséges struktúrákat a felhasználó által megadott tartalomban, és érvényesíti a konfigurált politikát. A viselkedést környezeti változók és konstruktor opciók vezérlik:
 
-### Hitelesítőadat-maszkoló (`credentialMasker.ts`)
+| Beállítás         | Környezeti változó                                                                                   | Alapértelmezett | Hatás                                                                                                                                                                                                 |
+| ----------------- | ---------------------------------------------------------------------------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Engedélyezve      | `INPUT_SANITIZER_ENABLED`                                                                            | `true`          | Ha `false`, a védőkorlát rövidre zár.                                                                                                                                                                 |
+| Mód               | `INJECTION_GUARD_MODE` / `INPUT_SANITIZER_MODE`                                                      | `warn`          | Befecskendezési politika: `block`, `warn` vagy `log`. (`redact` visszafelé kompatibilis, de **nem** távolítja el a befecskendezési szöveget; a PII átírása a `PII_REDACTION_ENABLED` által vezérelt.) |
+| Blokkolási küszöb | `blockThreshold` opció / `INPUT_SANITIZER_BLOCK_THRESHOLD` (alias `INJECTION_GUARD_BLOCK_THRESHOLD`) | `high`          | Minimális súlyosság, amely szükséges a blokkoláshoz. Az alapértelmezett közepes csak megfigyelésre szolgál.                                                                                           |
 
-Mindkét szakaszban fut, utolsóként az alapértelmezett láncban (prioritás `95`).
-Eltávolítja az ismert API-kulcs / titkos token mintákat a kimenő adatcsomagból
-(üzenet tartalom, eszközhívási argumentumok, eszköz eredmények) **és** a szolgáltató válaszából,
-így egy promptba beillesztett (vagy eszközeredményként visszhangzott) hitelesítő adat
-nem szivárog ki a felsőbb szolgáltatóhoz vagy vissza az ügyfélhez.
+**Mód előny** (`getMode`): hívó `options.mode` →
+`INJECTION_GUARD_MODE` **DB funkció-flag felülírás** (Dashboard → Beállítások →
+Funkciók zászlói) → `INJECTION_GUARD_MODE` környezeti változó → `INPUT_SANITIZER_MODE` környezeti változó →
+`warn`. Ezért egy dashboard felülírás felülmúlja a környezeti változókat, így a Funkciók
+Zászlói UI vezérli a futó védőkorlátot élőben (nincs újraindítás). Az DB olvasás biztonságos:
+ha hiba lép fel, a védőkorlát visszaáll a környezeti alapú viselkedésre, és amikor nincs
+beállítva felülírás, a viselkedés azonos a környezeti alapú megoldással.
 
-- **Csak bekapcsolható**, ugyanaz a konvenció, mint a PII eltávolításnál (Kemény szabály #20-hoz kapcsolódó):
-  letiltva, kivéve, ha `settings.credentialRedactionEnabled === true` **vagy**
-  `CREDENTIAL_REDACTION_ENABLED=true`. Ha ki van kapcsolva, a védőkorlát nem csinál semmit –
-  soha nem blokkol és soha nem írja át.
-- A `redactCredentials()` végigjárja a teljes adatcsomag/válasz fát (`walkValue()`,
-  prototípus-szennyezés-biztos, ciklusbiztos a `WeakSet`-en keresztül), és a találatokat egy
-  `[REDACTED:<type>]` helyőrzővel helyettesíti, csak azokat az ágakat klónozva,
-  amelyek ténylegesen megváltoztak.
-- A `CREDENTIAL_PATTERNS` lefedi az LLM szolgáltatói kulcsokat (OpenAI, OpenAI-proj,
+Észlelési források:
+
+1. `sanitizeRequest()` az `@/shared/utils/inputSanitizer`-ből (megosztott detektor
+   készlet, amelyet máshol is használnak a csővezetékben).
+2. Beépített `DEFAULT_GUARD_PATTERNS` (jelenleg `system_override_inline` és
+   `markdown_system_block`, mindkettő `high` súlyosság).
+3. Opcionális `customPatterns`, amelyeket a konstruktor opciókon keresztül adnak át (stringek, regex,
+   vagy `{ name, pattern, severity }` rekordok).
+
+Amikor `mode === "block"` **és** legalább egy észlelés megfelel a súlyossági
+küszöbnek, a `preCall` visszaadja `{ block: true, message: "Kérés elutasítva:
+gyanús tartalom észlelve" }`. A `warn`/`log` módokban a védőkorlát naplóz, de
+engedélyezi a hívást. A megosztott segédprogram `evaluatePromptInjection()` szintén exportálva van
+azok számára, akiknek szükségük van a promptok értékelésére anélkül, hogy áthaladnának a nyilvántartáson.
+
+**Vizsgálati határ (v3.8.20):** a detektor csak az **első 16 KB**-t vizsgálja
+a csatlakoztatott prompt szövegből — `MAX_INJECTION_SCAN_BYTES = 16 * 1024` (16 384 byte) a
+`src/shared/utils/inputSanitizer.ts`-ben. Mind a `detectInjection()`, mind az
+`evaluatePromptInjection()` `slice(0, MAX_INJECTION_SCAN_BYTES)`-t hajt végre a minta ciklus futtatása előtt. A befecskendezési direktívák a bemenet tetején helyezkednek el, így ez
+korlátozza a regex CPU/GC-t a több száz KB-os payloadok esetében anélkül, hogy gyengítené az észlelést (lásd.
+#3932, #4041).
+
+### Hitelesítő adatok maszkoló (`credentialMasker.ts`)
+
+**Mindkét** szakaszban fut, utolsó a default láncban (prioritás `95`). Maszkálja
+a jól ismert API-kulcs / titkos token mintákat a kimeneti payloadból (üzenet
+tartalom, eszközhívás argumentumai, eszköz eredmények) **és** a szolgáltató válaszából, így egy
+promptba beillesztett hitelesítő adat (vagy egy eszköz eredménye által visszhangozva) nem szivárog
+a felfelé irányuló szolgáltatóhoz vagy vissza az ügyfélhez.
+
+- **Csak opciós**, ugyanaz a konvenció, mint a PII maszkolás (Kemény Szabály #20-melléklet):
+  letiltva, hacsak `settings.credentialRedactionEnabled === true` **vagy**
+  `CREDENTIAL_REDACTION_ENABLED=true`. Ha ki van kapcsolva, a védőkorlát nem végez semmilyen műveletet —
+  soha nem blokkol, és soha nem ír át.
+- A `redactCredentials()` bejárja a teljes payload/válasz fát (`walkValue()`,
+  prototípus-szennyezésbiztos, ciklusbiztos a `WeakSet`-en keresztül) és a
+  találatokat egy `[REDACTED:<type>]` helyettesítő szövegre cseréli, csak azokat az ágakat klónozva, amelyek valóban
+  megváltoztak.
+- A `CREDENTIAL_PATTERNS` lefedi az LLM szolgáltató kulcsokat (OpenAI, OpenAI-proj,
   Anthropic, Google, Hugging Face, Replicate), VCS/SaaS tokeneket (GitHub, Slack,
-  Linear, Notion, npm, Postman, Discord), fizetési kulcsokat (Stripe, Square),
-  felhő kulcsokat (AWS hozzáférési kulcs, Twilio, SendGrid, Mailgun), privát kulcsokat / JWT-ket,
-  hitelesítő adatokat tartalmazó kapcsolati sztringeket (`mongodb://user:pass@...`, stb.),
-  és egy általános `Authorization`/`x-api-key`/`api-key`/`apikey` fejléc-érték mintát.
-  A fejléc alakú kulcsok (`authorization`, `x-api-key`, `api-key`, `apikey`)
-  strukturálisan (csak az érték, a séma előtag, mint a `Bearer `/`Basic ` megőrizve)
-  kerülnek eltávolításra, nem pedig az általános szöveges regexen keresztül.
+  Linear, Notion, npm, Postman, Discord), fizetési kulcsokat (Stripe, Square), felhő
+  kulcsokat (AWS hozzáférési kulcs, Twilio, SendGrid, Mailgun), privát kulcsokat / JWT-ket,
+  hitelesítő adatokat tartalmazó kapcsolati karakterláncokat (`mongodb://user:pass@...`, stb.), és
+  egy általános `Authorization`/`x-api-key`/`api-key`/`apikey` fejléc-érték
+  mintát. A fejléc alakú kulcsok (`authorization`, `x-api-key`, `api-key`,
+  `apikey`) struktúráltan vannak maszkolva (csak az érték, a séma előtag, mint
+  `Bearer `/`Basic ` megőrzésre kerül) ahelyett, hogy a generikus szöveg regex-en keresztül történne.
 - A védőkorlát soha nem blokkol; csak átírja (`modifiedPayload` /
   `modifiedResponse`) és annotálja (`meta.credentialsRedacted`, `meta.count`).
 
-Regressziós védelem: `tests/unit/credential-masker-guardrail.test.ts`.
+Visszacsatoló védő: `tests/unit/credential-masker-guardrail.test.ts`.
 
 ## Alapszerződés (`base.ts`)
 
@@ -471,9 +532,15 @@ class BaseGuardrail {
 
   constructor(name: string, options?: { enabled?: boolean; priority?: number });
 
-  async preCall(payload: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
+  async preCall(
+    payload: unknown,
+    context: GuardrailContext,
+  ): Promise<GuardrailResult | void>;
 
-  async postCall(response: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
+  async postCall(
+    response: unknown,
+    context: GuardrailContext,
+  ): Promise<GuardrailResult | void>;
 }
 
 interface GuardrailResult<TValue = unknown> {

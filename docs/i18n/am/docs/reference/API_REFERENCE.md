@@ -249,7 +249,10 @@ EmbeddingsV5Request ሰነዶችንም ይቀበላል፣ እና **ምንም ሳ
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
+      "content": [
+        { "text": "caption" },
+        { "image": "data:image/png;base64,..." }
+      ]
     }
   ]
 }
@@ -922,48 +925,44 @@ X-OmniRoute-No-Cache: true
 
 ## ዳሽቦርድ እና አስተዳደር
 
-የአስተዳደር መስመሮች (`/api/*` ከይፋዊ auth/login በስተቀር) በተለመዱ የግምት API ቁልፎች **አይፈቀዱም**። የማረጋገጫ መረጃ ምድቦች፣ የፈቃድ ወሰኖች እና የcurl ምሳሌዎች፦
-[የአስተዳደር ማረጋገጫ](../guides/MANAGEMENT-AUTH.md)።
+የአስተዳደር መንገዶች (`/api/*` ከህዝባዊ አማራጭ auth/login በስተቀር) በመደበኛ የተገለጸ የAPI ቁልፎች አይፈቀዱም። የምስክር ቤቶች ቤተሰቦች፣ የተፈቃዶች ዓይነቶች፣ እና የcurl ምሳሌዎች፡ [የአስተዳደር ማረጋገጫ](../guides/MANAGEMENT-AUTH.md)።
 
 ### ማረጋገጫ
 
-| መጨረሻ ነጥብ                      | ዘዴ      | መግለጫ               |
-| ----------------------------- | ------- | ------------------ |
-| `/api/auth/login`             | POST    | ግባ                 |
-| `/api/auth/logout`            | POST    | ውጣ                 |
-| `/api/settings/require-login` | GET/PUT | የመግባት ግዴታን አብራ/አጥፋ |
+| መድረሻ                          | ዘዴ      | መግለጫ             |
+| ----------------------------- | ------- | ---------------- |
+| `/api/auth/login`             | POST    | መግባት             |
+| `/api/auth/logout`            | POST    | መውጣት             |
+| `/api/settings/require-login` | GET/PUT | የመግባት መስፈርት መቀየር |
 
 ### የአቅራቢ አስተዳደር
 
-| መጨረሻ ነጥብ                                | ዘዴ                        | መግለጫ                                                                                                                |
-| --------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `/api/providers`                        | GET/POST                  | አቅራቢዎችን ዘርዝር / ፍጠር                                                                                                  |
-| `/api/providers/[id]`                   | GET/PUT/DELETE            | አቅራቢን አስተዳድር                                                                                                        |
-| `/api/providers/[id]/test`              | POST                      | የአቅራቢውን ግንኙነት ፈትሽ                                                                                                   |
-| `/api/providers/[id]/models`            | GET                       | የአቅራቢውን ሞዴሎች ዘርዝር                                                                                                   |
-| `/api/providers/validate`               | POST                      | የአቅራቢውን ውቅር አረጋግጥ                                                                                                   |
-| `/api/providers/bulk`                   | POST                      | ለአንድ አቅራቢ API ቁልፎችን በጅምላ ጨምር                                                                                        |
-| `/api/providers/import`                 | POST                      | ከተተነተነ CSV/JSON ፋይል የተለያዩ አቅራቢዎችን የያዘ ዝርዝር አስመጣ (#6836)፤ በእያንዳንዱ ረድፍ የከፊል ውድቀት ውጤቶች                                 |
-| `/api/provider-nodes*`                  | የተለያዩ                     | የአቅራቢ ኖድ አስተዳደር                                                                                                     |
-| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | ብጁ ሞዴሎች እና ለእያንዳንዱ ሞዴል የሚደረጉ ማሻሻያዎች (ጨምር፣ አዘምን፣ ደብቅ/አሳይ፣ ሰርዝ)                                                       |
-| `/api/provider-models/validate-and-add` | POST                      | በአስተዳደር የተረጋገጠ፣ በምርጫ የሚነቃ ጥብቅ የግንኙነት ማረጋገጫ እና አቶሚክ የብጁ ሞዴል ምዝገባ፤ [የሞዴል ማረጋገጫ](../guides/MODEL-VALIDATION.md)ን ይመልከቱ |
+| መድረሻ                                    | ዘዴ                        | መግለጫ                                                                                                     |
+| --------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `/api/providers`                        | GET/POST                  | አቅራቢዎችን ይዘው/ይፍጠሩ                                                                                         |
+| `/api/providers/[id]`                   | GET/PUT/DELETE            | አንድ አቅራቢ ያስተዳድሩ                                                                                          |
+| `/api/providers/[id]/test`              | POST                      | የአቅራቢ ግንኙነት ይፈትሹ                                                                                         |
+| `/api/providers/[id]/models`            | GET                       | የአቅራቢ ሞዴሎችን ይዘው                                                                                          |
+| `/api/providers/validate`               | POST                      | የአቅራቢ ቅኝትን ያረጋግጡ                                                                                         |
+| `/api/providers/bulk`                   | POST                      | ለአንድ አቅራቢ ብዙ የAPI ቁልፎችን በአንድ ጊዜ ያክሉ                                                                      |
+| `/api/providers/import`                 | POST                      | ከተቀደሰ CSV/JSON ፋይል የተቀላቀለ የአቅራቢ ዝርዝር ያስመጡ (#6836); በተለያዩ ረዳቶች የተጠፋ ወይም የተሳካ ውጤቶች                         |
+| `/api/provider-nodes*`                  | በተለያዩ ዘዴዎች                | የአቅራቢ ኖዶች አስተዳደር                                                                                         |
+| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | ብጁ ሞዴሎች እና በሞዴል ላይ የሚደረጉ ማሻሻያዎች (መጨመር፣ ማዘመን፣ መደበቅ/ማሳየት፣ ማጥፋት)                                            |
+| `/api/provider-models/validate-and-add` | POST                      | በአስተዳደር የተረጋገጠ፣ አስፈላጊ የግንኙነት ቅኝት እና አንድ ጊዜ የብጁ ሞዴል ምዝገባ፤ [የሞዴል ቅኝት](../guides/MODEL-VALIDATION.md) ይመልከቱ |
 
-ለተመሳሰሉ/ለገቡ ሞዴሎች፣ `PUT /api/provider-models` `provider`፣ `modelId` እና
-`maxOutputTokenOverride`ን ይቀበላል፦ አዎንታዊ ኢንቲጀር በእጅ የሚወሰነውን የውጤት ቶከን ገደብ ያቀናብራል፣ `null` ደግሞ
-ነባሪውን ለመመለስ ያጸዳዋል። `GET /api/provider-models?provider=<provider>` እነዚህን
-እሴቶች፣ ብጁ-ሞዴል ረድፍ የሌላቸውን ሞዴሎች ጨምሮ፣ በ`modelOutputOverrides` ውስጥ ይመልሳል። ማሻሻያው
-የአሂድ ጊዜ `max_output_tokens` ችሎታን ይጠቀማል እና ሞዴሉ ዳግም ከተመሳሰለ በኋላም ይቆያል። OpenAI-ተኳኋኝ
-የአቅራቢ ገጽ ተመሳሳይ የማርትዕ/ማጽዳት መቆጣጠሪያዎችን ይሰጣል እና ግልጽ የምስል ድጋፍ ያላቸውን ሞዴሎች ምልክት ያደርጋል።
+ለተዛመዱ/የተመጡ ሞዴሎች፣ `PUT /api/provider-models` የሚቀበሉት `provider`፣ `modelId`፣ እና
+`maxOutputTokenOverride` ነው፡ አዎንታዊ ቁጥር የእርስዎን የውጤት ቶክን ገደብ በእጅ ይዘግባል፣ `null` ደግሞ
+ወደ ነባሪው ይመለሳል። `GET /api/provider-models?provider=<provider>` እነዚህን
+እሴቶች በ`modelOutputOverrides` ውስጥ ይመልሳል፣ ብጁ ሞዴል ረዳት የሌላቸውንም ሞዴሎች ጨምሮ። ይህ ማሻሻያ
+የተከናወነውን የ`max_output_tokens` ችሎታ ይጠቀማል እና የሞዴል እንደገና ሲዛመድም ይቆያል። ከOpenAI ጋር ተዛመዱ የአቅራቢ
+ገጽ ተመሳሳይ የማሻሻያ/ማጥፋት መቆጣጠሪያዎችን ይሰጣል እና ለበቂ የራዕይ ድጋፍ ያላቸውን ሞዴሎች ይሰናክላል።
 
-ብጁ Chat Completions ኖዶች ግልጽ የማመዛዘን አለመጠቀም ምርጫዎችን ለላይኛው የጀርባ ስርዓት ያስማማሉ።
-የተሳካ የግንኙነት ፈተና፣ የ`/models` ግቤቱ ከሚከተሉት የታወቁ `owned_by` እሴቶች አንዱን መሆኑን ለሚያረጋግጥ ለእያንዳንዱ ትክክለኛ የሞዴል ID የውይይት-አብነት መቆጣጠሪያዎችን በራስ-ሰር ይመርጣል፦ `vllm`፣ `sglang` ወይም `llamacpp`።
-ግልጽ OpenAI-ተኳኋኝ መጠቅለያዎች ዋናውን የሞዴል ግቤት በተደራረበ
-`openai` ነገር ውስጥ ሊያቆዩ ይችላሉ፤ ማወቂያው እስከ ሦስት የሚደርሱ እንደዚህ ያሉ መጠቅለያዎችን ይከተላል። የባለቤትነት መረጃ የጎደላቸው፣ ያልታወቀ ወይም
-የሚጋጭ የባለቤትነት መረጃ ያላቸው ሞዴሎች የተለመደውን OpenAI ባህሪ ይይዛሉ። ማወቂያው ነባሩን የካታሎግ ጥያቄ እንደገና ይጠቀማል፣
-ምንም የማጠናቀቂያ ቶከኖችን አያመነጭም፣ እና የግንኙነት መጨረሻ ነጥቡ ሲቀየር ዋጋ አልባ ይሆናል።
+ብጁ የChat Completions ኖዶች ግልጽ የአስተያየት ማስተካከያዎችን ወደ ከፍተኛው መድረሻ ያስተካክላሉ።
+የተሳካ የግንኙነት ፈተና በትክክል የታወቀ የ`owned_by` እሴት ያለውን ትክክለኛ የሞዴል ID ለእያንዳንዱ
+የchat-template መቆጣጠሪያዎችን በራሱ ይምረጣል፡ `vllm`፣ `sglang`፣ ወይም `llamacpp`።
+ግልጽ የOpenAI ተዛመድ መሸፈኛዎች የመጀመሪያውን የሞዴል መዝገብ በተያያዥ `openai` ነጠላ እቃ ውስጥ ሊያስቀምጡ ይችላሉ፤ መረጃ እስከ ሶስት እንደዚህ ያሉ መሸፈኛዎችን ይከታተላል። የተጎዱ፣ ያልታወቁ፣ ወይም የተጣራ ባለቤትነት ያላቸው ሞዴሎች መደበኛ የOpenAI ባህሪ ይጠቀማሉ። መረጃ ያለውን የአሁኑን ካታሎግ ጥያቄ ይደግፋል፣ የcompletion ቶክኖችን አያመነታም፣ እና መድረሻው ሲቀየር ይተወዋል።
 
-ያንን ሜታዳታ ለማያቀርብ የጀርባ ስርዓት ባህሪውን ለመወሰን፣ ነባሩን ከፊል
-የአቅራቢ ማዘመኛ API ይጠቀሙ፦
+ለዚያ የመረጃ ዓይነት የማይገልጽ መድረሻ ባህሪን ለመያዝ፣ ያለውን የአከፋፈል የአቅራቢ ዝርዝር ያጠቀሙ፦
 
 ```json
 {
@@ -973,76 +972,77 @@ X-OmniRoute-No-Cache: true
 }
 ```
 
-ያንን ይዘት በ`PUT /api/providers/<connection-id>` ይላኩ። በዚያ ግንኙነት ላይ፣ ግልጽ
-የ`none` የማመዛዘን ጥረት እንደ `chat_template_kwargs.thinking=false` እና
-`chat_template_kwargs.enable_thinking=false` ይላካል። የአገልጋይ ወገን የማመዛዘን ደንብ አንድን ጥረት እንዲተገበር ካላስገደደ በስተቀር፣ ግልጽ የቤተኛ አብነት እሴቶች ወሳኝ ሆነው ይቆያሉ።
-ቅንብሩ የሚተገበረው ብጁ OpenAI-ተኳኋኝ ግንኙነት የChat Completions ይዘትን ሲያስተላልፍ ብቻ ነው፤ የResponses ጥያቄዎች እና መደበኛ
-አቅራቢዎች ቤተኛ የጥያቄ ቅርጻቸውን ይይዛሉ። መደበኛውን የOpenAI
-`reasoning_effort` ቀጥታ ማስተላለፍ ለማስገደድ `reasoningControl`ን ወደ `openai` ያቀናብሩ፣ ወይም ራስ-ሰር ማወቂያን ለመጠቀም ይተዉት/ወደ `null` ያቀናብሩት።
+ይህን አካል በ`PUT /api/providers/<connection-id>` ይላኩ። በዚያ ግንኙነት፣ ግልጽ
+የአስተያየት ጥረት `none` እንደ `chat_template_kwargs.thinking=false` እና
+`chat_template_kwargs.enable_thinking=false` ይላካል። ግልጽ የነባሪ ቴምፕሌት እሴቶች በራሳቸው ይህንን ይቆጣጠራሉ
+ሲሆን የአገልጋይ የአስተያየት ደንብ ግዴታ ካለ ብቻ ይቀየራል። ይህ ቅኝት ብቻ በብጁ
+OpenAI-ተዛመድ ግንኙነት የChat Completions አካል ሲላኩ ይተገበራል፤ የResponses ጥያቄዎችና መደበኛ
+አቅራቢዎች የራሳቸውን የጥያቄ ቅርጸት ይጠቀማሉ። `reasoningControl` ወደ `openai` በማድረግ መደበኛ
+የOpenAI `reasoning_effort` በቀጥታ ይላካል፣ ወይም በመተው/ወደ `null` በማድረግ ራሱ በራሱ እንዲያወቅ ይችላል።
 
-Claude Code auto-mode classifier ጥያቄዎች ግልጽ የreasoning መቆጣጠሪያዎችን ካልያዙ፣ በነባሪ native thinking እንዲሰናከል ያደርጋሉ። ማወቂያው የሞዴል ስሞችን ወይም የcompletion ገደቦችን ሳይሆን፣ Claude-format ጥያቄዎች ውስጥ ያለውን የclassifier የስርዓት ምልክት ይጠቀማል። ግልጽ የbody መቆጣጠሪያዎች፣ የሚደገፉ effort/thinking headers፣ የrouting ደንቦች እና የተወሰነው የሞዴል effort ነባር ቅድሚያቸውን ይዘው ይቀጥላሉ። ሁለቱም የclassifier ደረጃዎች prompts፣ completion ገደቦቻቸውን፣ stop sequences እና እውነተኛ የupstream ፈቃድ ውሳኔዎችን እንደነበሩ ያቆያሉ፤ ሁለተኛው ደረጃም የጠየቀውን የሚታይ reasoning እንደ መደበኛ ጽሑፍ ማቅረብ ይችላል።
+Claude ኮድ አውቶ-ሞድ ቅርጺ መቆጣጠሪያዎች በተወሰኑ የአስተያየት መቆጣጠሪያዎች ሳይኖሩበት የተፈጥሮ አስተሳሰብ እንዲሰናከል ነበር በነባሪ ሁኔታ። መለያየቱ በClaude-format ጥያቄዎች ውስጥ ያለውን የክፍል ሲስተም ማርከር ይጠቀማል፣ የሞዴል ስሞች ወይም የተጠናቀቁ ግዴታዎች አይደሉም። በግልጽ የአካል መቆጣጠሪያዎች፣ የተደጋጋሚ የጥረት/አስተሳሰብ ራስጌዎች፣ የመስመር መመሪያዎች፣ እና የተፈታ የሞዴል ጥረት የቅድሚያ ቅደም ተከተል ይጠቀማሉ። ሁለቱም የመቆጣጠሪያ ደረጃዎች የእነሱን ፕሮምፕቶች፣ የተጠናቀቁ ግዴታዎች፣ የማቆም ቅድሚያዎች፣ እና እውነተኛ የላይኛ ፈቃድ ውሳኔዎች ይጠቀማሉ፤ ሁለተኛው ደረጃ እንደ ተለመደ ጽሑፍ የተጠየቀውን የሚታየውን አስተሳሰብ ማቅረብ ይችላል።
 
-### የOAuth ፍሰቶች
+### OAuth ፍሎዎች
 
-| Endpoint                         | Method | መግለጫ                  |
-| -------------------------------- | ------ | --------------------- |
-| `/api/oauth/[provider]/[action]` | የተለያዩ  | ለprovider የተወሰነ OAuth |
+| መድረሻ                             | ዘዴ      | መግለጫ                    |
+| -------------------------------- | ------- | ----------------------- |
+| `/api/oauth/[provider]/[action]` | Various | የአቅራቢው ልዩ የOAuth አገልግሎት |
 
-### Routing እና Config
+### መመሪያና አዋቂነት
 
-| Endpoint              | Method   | መግለጫ                      |
-| --------------------- | -------- | ------------------------- |
-| `/api/models/alias`   | GET/POST | የሞዴል aliases              |
-| `/api/models/catalog` | GET      | ሁሉም ሞዴሎች በprovider + type |
-| `/api/combos*`        | የተለያዩ    | የcombo አስተዳደር             |
-| `/api/keys*`          | የተለያዩ    | የAPI ቁልፍ አስተዳደር           |
-| `/api/pricing`        | GET      | የሞዴል ዋጋ አሰጣጥ              |
+| መድረሻ                  | ዘዴ       | መግለጫ                    |
+| --------------------- | -------- | ----------------------- |
+| `/api/models/alias`   | GET/POST | የሞዴል ተዛማጅ ስሞች           |
+| `/api/models/catalog` | GET      | በአቅራቢ እና በአይነት ሁሉም ሞዴሎች |
+| `/api/combos*`        | Various  | የCombo አስተዳደር           |
+| `/api/keys*`          | Various  | የAPI ቁልፍ አስተዳደር         |
+| `/api/pricing`        | GET      | የሞዴል ዋጋ                 |
 
-### አጠቃቀም እና ትንታኔ
+### አጠቃቀምና ትንታኔ
 
-| Endpoint                         | Method          | መግለጫ                                                                                                                                                                                                                                                                    |
-| -------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/usage/history`             | GET             | የአጠቃቀም ታሪክ                                                                                                                                                                                                                                                              |
-| `/api/usage/logs`                | GET             | የአጠቃቀም logs                                                                                                                                                                                                                                                             |
-| `/api/usage/request-logs`        | GET             | በጥያቄ ደረጃ ያሉ logs                                                                                                                                                                                                                                                        |
-| `/api/usage/[connectionId]`      | GET             | የእያንዳንዱ connection አጠቃቀም                                                                                                                                                                                                                                                |
-| `/api/usage/token-limits`        | GET/POST/DELETE | የእያንዳንዱ API ቁልፍ token-limit በጀቶች                                                                                                                                                                                                                                        |
-| `/api/usage/model-latency-stats` | GET             | ተንከባላይ የእያንዳንዱ provider/model የlatency ድምር መረጃ (avg/p50/p95/p99፣ የስኬት መጠን)፤ filters፦ `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                    |
-| `/api/usage/cache-health`        | GET             | በ`call_logs` ላይ የተመሠረተ የprompt-cache ጤንነት ማጠቃለያ — የwrite/read ሬሾ፣ p50/p90/p99 የwrite-size ስርጭት፣ የheavy-write ክምችት፣ የእያንዳንዱ ሞዴል ክፍፍል እና `healthy`/`degraded`/`thrash`/`no-data` ውሳኔ፤ query params `range` (`1h`\|`24h`\|`7d`\|`30d`፣ ነባሪው `24h`) እና አማራጭ `model` (#8827) |
+| መድረሻ                             | ዘዴ              | መግለጫ                                                                                                                                                                                                                                                            |
+| -------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/usage/history`             | GET             | የአጠቃቀም ታሪክ                                                                                                                                                                                                                                                      |
+| `/api/usage/logs`                | GET             | የአጠቃቀም መዝገቦች                                                                                                                                                                                                                                                    |
+| `/api/usage/request-logs`        | GET             | በጥያቄ ደረጃ መዝገቦች                                                                                                                                                                                                                                                  |
+| `/api/usage/[connectionId]`      | GET             | በግንኙነት ደረጃ አጠቃቀም                                                                                                                                                                                                                                                |
+| `/api/usage/token-limits`        | GET/POST/DELETE | በAPI ቁልፍ የተወሰኑ የቶክን ገደቦች                                                                                                                                                                                                                                        |
+| `/api/usage/model-latency-stats` | GET             | በአቅራቢ/ሞዴል የተዘጋጀ የመዘግየት አጠቃላይ (avg/p50/p95/p99, የስኬት መጠን)፤ ማጣሪያዎች፡ `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                               |
+| `/api/usage/cache-health`        | GET             | በ`call_logs` ላይ የprompt-cache ጤና ማጠቃለያ — የመጻፍ/አንብብ መጠን መጠን፣ p50/p90/p99 የመጻፍ መጠን ስርጭት፣ ከፍተኛ መጻፍ በአንድ ቦታ ስብስብ፣ በሞዴል ደረጃ መከፋፈል፣ እና `healthy`/`degraded`/`thrash`/`no-data` ውሳኔ፤ የጥያቄ መለኪያዎች `range` (`1h`\|`24h`\|`7d`\|`30d`, ነባሪ `24h`) እና አማራጭ `model` (#8827) |
 
 ### የAPI ቁልፍ ፈቃዶች
 
-`PATCH /api/keys/{id}` የነባር ቁልፍን ፈቃዶች ያዘምናል። እንደ ሁሉም `/api/keys*` routes፣ ይህም የinference ቁልፍ ሳይሆን የአስተዳደር ፈቃድ ያስፈልገዋል ([የአስተዳደር ማረጋገጫ](../guides/MANAGEMENT-AUTH.md)ን ይመልከቱ)። መቀየር የሚፈልጉትን fields ብቻ ይላኩ፤ ከእነዚህ አንዱንም ያልያዘ ጥያቄ `No valid fields to update` በሚል ውድቅ ይደረጋል። ተቀባይነት ያላቸው fields በ`src/shared/validation/schemas/keys.ts` ውስጥ ባለው `updateKeyPermissionsSchema` ይገለጻሉ።
+`PATCH /api/keys/{id}` የቀድሞውን ቁልፍ ፈቃዶች ያዘምናል። እንደ `/api/keys*` መንገዶች ሁሉ የአስተዳደር ፈቃድ ያስፈልጋል (የ[አስተዳደር ማረጋገጫ](../guides/MANAGEMENT-AUTH.md) ይመልከቱ)፣ የትንበያ ቁልፍ አይደለም። ለመቀየር የሚፈልጉትን ቦታዎች ብቻ ይላኩ፤ ምንም የማይወስዱበት ጥያቄ በ`No valid fields to update` ይተወዋል። የተቀበሉት ቦታዎች `updateKeyPermissionsSchema` በ`src/shared/validation/schemas/keys.ts` ውስጥ ተወስኗል።
 
-| መስክ                                         | ዓይነት                                                          | ማስታወሻዎች                                                                                              |
-| ------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `name`                                      | string፣ 1-200 ቁምፊዎች                                           |                                                                                                      |
-| `isActive`                                  | boolean                                                       |                                                                                                      |
-| `isBanned`                                  | boolean                                                       |                                                                                                      |
-| `expiresAt`                                 | ISO 8601 datetime ወይም `null`                                  | `null` የማብቂያ ጊዜውን ያስወግዳል                                                                             |
-| `modelAccessMode`                           | `all` \| `restricted`                                         | ሁነታው `all` ሲሆን `allowedModels` ባዶ መሆን አለበት                                                           |
-| `allowedModels`, `blockedModels`            | እስከ 1000 የሚደርሱ የstring ድርድሮች                                  |                                                                                                      |
-| `allowedCombos`                             | እስከ 500 የሚደርሱ የstring ድርድሮች                                   | ቁልፉ የትኞቹን combos መጥራት እንደሚችል ይገድባል፤ ቀጥተኛ models በ`modelAccessMode` / `allowedModels` ይተዳደራሉ          |
-| `connectionAccessMode`                      | `all` \| `restricted`                                         | `restricted` ሲሆን `allowedConnections` ባዶ መሆን የለበትም፣ `all` ሲሆን ደግሞ ባዶ መሆን አለበት                        |
-| `allowedConnections`                        | እስከ 100 የሚደርሱ የUUID ድርድሮች                                     |                                                                                                      |
-| `allowAutoCombos`                           | boolean                                                       | `false` በዚህ ቁልፍ ለ`auto/*` models የሚቀርቡ ጥያቄዎችን ውድቅ ያደርጋል፤ ይህ እሴት ፈጽሞ ያልተዘጋጀላቸው ቁልፎች ይፈቀድላቸዋል          |
-| `catalogScope`                              | `all` \| `combos` \| `models`                                 | `GET /v1/models` ለዚህ ቁልፍ የሚዘረዝራቸውን ይወስናል (combos ብቻ፣ models ብቻ ወይም ሁለቱንም)፤ ቁልፉ ምን መጥራት እንደሚችል አይቀይርም |
-| `noLog`, `autoResolve`                      | boolean                                                       |                                                                                                      |
-| `throttleDelayMs`                           | integer፣ 0-300000                                             |                                                                                                      |
-| `maxSessions`                               | integer፣ 0-10000                                              |                                                                                                      |
-| `rateLimits`                                | የ`{ limit, window }` ድርድር (አዎንታዊ integers፣ እስከ 50) ወይም `null` | `null` ገደቦቹን ያስወግዳል                                                                                  |
-| `accessSchedule`                            | የጊዜ ሰሌዳ object ወይም `null`                                     | `null` የጊዜ ሰሌዳውን ያስወግዳል                                                                              |
-| `scopes`                                    | እስከ 32 የሚደርሱ የstring ድርድሮች                                    |                                                                                                      |
-| `allowedEndpoints`                          | እስከ 20 የሚደርሱ የstring ድርድሮች                                    |                                                                                                      |
-| `streamDefaultMode`                         | `legacy` \| `json`                                            |                                                                                                      |
-| `cacheDefaultMode`                          | `legacy` \| `bypass`                                          | [በእያንዳንዱ ቁልፍ የcache ማለፊያ](#per-key-cache-bypass)ን ይመልከቱ                                              |
-| `compressionEnabled`                        | boolean                                                       |                                                                                                      |
-| `codexServiceMode`                          | ከCodex አገልግሎት ሁነታዎች አንዱ                                       |                                                                                                      |
-| `disableNonPublicModels`                    | boolean                                                       |                                                                                                      |
-| `allowUsageCommand`                         | boolean                                                       |                                                                                                      |
-| `usageLimitEnabled`                         | boolean                                                       |                                                                                                      |
-| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 ወይም `null`                                        |                                                                                                      |
-| `chaosModeEnabled`                          | boolean                                                       |                                                                                                      |
+| መስክ                                         | አይነት                                                          | ማስታወሻዎች                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `name`                                      | የሐረግ ሐረግ, 1-200 ቁምፊዎች                                         |                                                                                              |
+| `isActive`                                  | ቡልኪን                                                          |                                                                                              |
+| `isBanned`                                  | ቡልኪን                                                          |                                                                                              |
+| `expiresAt`                                 | ISO 8601 የቀን ሰአት ወይም `null`                                   | `null` የጊዜ ጊዜውን ያጥፋል                                                                         |
+| `modelAccessMode`                           | `all` \| `restricted`                                         | `allowedModels` ባዶ መሆን አለበት ሞድ ሲሆን `all` ሲሆን                                                 |
+| `allowedModels`, `blockedModels`            | የሐረግ ዝርዝር, እስከ 1000 ድረስ                                       |                                                                                              |
+| `allowedCombos`                             | የሐረግ ዝርዝር, እስከ 500 ድረስ                                        | ቁልፉ ሊጠራቸው የሚችለውን combos ይጠቀማል፤ ቀጥታ ሞዴሎች በ`modelAccessMode` / `allowedModels` ይቆጣጠራሉ          |
+| `connectionAccessMode`                      | `all` \| `restricted`                                         | `allowedConnections` ባዶ መሆን አለበት ሲሆን `all` ሲሆን, እና ባዶ አይሆንም ሲሆን `restricted` ሲሆን             |
+| `allowedConnections`                        | የUUID ዝርዝር, እስከ 100 ድረስ                                       |                                                                                              |
+| `allowAutoCombos`                           | ቡልኪን                                                          | `false` ሲሆን በዚህ ቁልፍ ላይ ለ`auto/*` ሞዴሎች ጥያቄዎች ይተውበታል፤ በፍጹም ያልተቀመጡ ቁልፎች ይፈቀዳሉ                   |
+| `catalogScope`                              | `all` \| `combos` \| `models`                                 | ለዚህ ቁልፍ `GET /v1/models` የሚያሳየው (combos ብቻ, models ብቻ, ወይም ሁለቱም); ይህ ቁልፉ ምን ሊጠራ እንደሚችል አይቀየም |
+| `noLog`, `autoResolve`                      | ቡልኪን                                                          |                                                                                              |
+| `throttleDelayMs`                           | ቁጥር, 0-300000                                                 |                                                                                              |
+| `maxSessions`                               | ቁጥር, 0-10000                                                  |                                                                                              |
+| `rateLimits`                                | `{ limit, window }` (አዎንታዊ ቁጥሮች, እስከ 50 ድረስ) የዝርዝር ወይም `null` | `null` ግዴታዎቹን ያጥፋል                                                                           |
+| `accessSchedule`                            | የመርሃግብር እቃ ወይም `null`                                         | `null` መርሃግብሩን ያጥፋል                                                                          |
+| `scopes`                                    | የሐረግ ዝርዝር, እስከ 32 ድረስ                                         |                                                                                              |
+| `allowedEndpoints`                          | የሐረግ ዝርዝር, እስከ 20 ድረስ                                         |                                                                                              |
+| `streamDefaultMode`                         | `legacy` \| `json`                                            |                                                                                              |
+| `cacheDefaultMode`                          | `legacy` \| `bypass`                                          | [በቁልፍ መሠረት የካሽ መዝለያ](#per-key-cache-bypass) ይመልከቱ                                            |
+| `compressionEnabled`                        | ቡልኪን                                                          |                                                                                              |
+| `codexServiceMode`                          | ከCodex የአገልግሎት ሞዶች አንዱ                                        |                                                                                              |
+| `disableNonPublicModels`                    | ቡልኪን                                                          |                                                                                              |
+| `allowUsageCommand`                         | boolean                                                       |                                                                                              |
+| `usageLimitEnabled`                         | boolean                                                       |                                                                                              |
+| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 ወይም `null`                                        |                                                                                              |
+| `chaosModeEnabled`                          | boolean                                                       |                                                                                              |
 
 ```bash
 curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
@@ -1053,151 +1053,176 @@ curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
 
 ### ቅንብሮች
 
-| Endpoint                              | Method        | Description                                                                                                                                                   |
+| መድረሻ                                  | ዘዴ            | መግለጫ                                                                                                                                                          |
 | ------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/api/settings`                       | GET/PUT/PATCH | አጠቃላይ ቅንብሮች                                                                                                                                                   |
-| `/api/settings/proxy`                 | GET/PUT       | የአውታረ መረብ proxy ውቅር                                                                                                                                           |
-| `/api/settings/proxy/test`            | POST          | የproxy ግንኙነትን ይፈትሹ                                                                                                                                            |
-| `/api/settings/ip-filter`             | GET/PUT       | የIP ፈቃድ ዝርዝር/እገዳ ዝርዝር                                                                                                                                         |
-| `/api/settings/thinking-budget`       | GET/PUT       | የማሰብ/ምክንያታዊ ትንተና **ጥያቄ** ዳግም መጻፊያ ሁነታ (passthrough / auto-strip / custom / adaptive)። ከመጭመቅ ነጻ ነው። [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md)ን ይመልከቱ። |
-| `/api/settings/system-prompt`         | GET/PUT       | ዓለም አቀፍ የስርዓት prompt                                                                                                                                          |
-| `/api/settings/compression`           | GET/PUT       | ዓለም አቀፍ የመጭመቂያ ውቅር                                                                                                                                            |
-| `/api/settings/purge-request-history` | POST          | የጥያቄ ምዝግብ ረድፎችን እና አካባቢያዊ የጥሪ ምዝግብ ቅርሶችን ያጽዱ                                                                                                                  |
+| `/api/settings/proxy`                 | GET/PUT       | የኔትወርክ ፕሮክሲ አዋቂነት                                                                                                                                             |
+| `/api/settings/proxy/test`            | POST          | የፕሮክሲ ግንኙነት ሙከራ                                                                                                                                               |
+| `/api/settings/ip-filter`             | GET/PUT       | የIP መፍቀድ/መከልከል ዝርዝር                                                                                                                                           |
+| `/api/settings/thinking-budget`       | GET/PUT       | የማሰብ/ማመንጨት **ጥያቄ** እንደገና መጻፊያ ዘዴ (passthrough / auto-strip / custom / adaptive)። ከcompression በተለየ። [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md) ይመልከቱ። |
+| `/api/settings/system-prompt`         | GET/PUT       | አጠቃላይ የሲስተም ማነጽ ቃል                                                                                                                                            |
+| `/api/settings/compression`           | GET/PUT       | አጠቃላይ የcompression አዋቂነት                                                                                                                                      |
+| `/api/settings/purge-request-history` | POST          | የጥያቄ መዝገብ ረድፎችን እና የአካባቢ call-log አርእስቶችን አጥፋ                                                                                                                 |
 
-### ዐውድ እና መጭመቅ
+### አይነት እና ጭቅጭቅ
 
-| Endpoint                               | Method         | Description                                                       |
-| -------------------------------------- | -------------- | ----------------------------------------------------------------- |
-| `/api/compression/preview`             | POST           | የoff/lite/standard/aggressive/ultra/RTK/stacked መጭመቅን ቅድመ ዕይታ ያሳዩ |
-| `/api/compression/language-packs`      | GET            | የሚገኙትን Caveman የቋንቋ ጥቅሎች ይዘርዝሩ                                    |
-| `/api/compression/rules`               | GET            | የCaveman ደንብ ሜታዳታን ይዘርዝሩ                                          |
-| `/api/context/caveman/config`          | GET/PUT        | ለCaveman የተለዩ ቅንብሮች alias                                         |
-| `/api/context/rtk/config`              | GET/PUT        | ብጁ ማጣሪያዎችን እና ያልተቀነባበረ ውጤት ማቆየትን ጨምሮ ለRTK የተለዩ ቅንብሮች              |
-| `/api/context/rtk/filters`             | GET            | የRTK ማጣሪያ ካታሎግ እና የብጁ ማጣሪያ ምርመራዎች                                 |
-| `/api/context/rtk/test`                | POST           | በጽሑፍ payload ላይ የRTK ቅድመ ዕይታ/ሙከራን ያሂዱ                             |
-| `/api/context/rtk/raw-output/[id]`     | GET            | በጠቋሚ id የተቀመጠውን የተሰወረ ያልተቀነባበረ ውጤት ያንብቡ                           |
-| `/api/context/combos`                  | GET/POST       | የመጭመቂያ combo ዝርዝር/መፍጠር                                            |
-| `/api/context/combos/[id]`             | GET/PUT/DELETE | የመጭመቂያ combo ዝርዝር መረጃ/ማዘመን/መሰረዝ                                   |
-| `/api/context/combos/[id]/assignments` | GET/PUT        | የመጭመቂያ combosን ለrouting combos ይመድቡ                               |
-| `/api/context/analytics`               | GET            | የመጭመቂያ ትንታኔ alias                                                 |
+| መድረሻ                                   | ዘዴ             | መግለጫ                                                               |
+| -------------------------------------- | -------------- | ------------------------------------------------------------------ |
+| `/api/compression/preview`             | POST           | off/lite/standard/aggressive/ultra/RTK/stacked compression ቅድመ እይታ |
+| `/api/compression/language-packs`      | GET            | የሚገኙ Caveman language pack ዝርዝር                                    |
+| `/api/compression/rules`               | GET            | የCaveman rule metadata ዝርዝር                                        |
+| `/api/context/caveman/config`          | GET/PUT        | የCaveman ልዩ ቅንብር ቅጥር                                               |
+| `/api/context/rtk/config`              | GET/PUT        | የRTK ልዩ ቅንብሮች፣ የተለየ custom filter እና የraw-output ማስቀመጫ ጨምሮ         |
+| `/api/context/rtk/filters`             | GET            | የRTK filter ካታሎግ እና የcustom-filter ዲያግኖስቲክስ                        |
+| `/api/context/rtk/test`                | POST           | በጽሑፍ ጭነት RTK ቅድመ እይታ/ሙከራ አካል                                       |
+| `/api/context/rtk/raw-output/[id]`     | GET            | በpointer id የተቀመጠ redacted raw output አንብብ                         |
+| `/api/context/combos`                  | GET/POST       | የcompression combo ዝርዝር/ፍጠር                                        |
+| `/api/context/combos/[id]`             | GET/PUT/DELETE | የcompression combo ዝርዝር/አዘምን/ሰርዝ                                   |
+| `/api/context/combos/[id]/assignments` | GET/PUT        | የcompression combo ወደ routing combo መመደብ                           |
+| `/api/context/analytics`               | GET            | የcompression analytics ቅጥር                                         |
 
-### ክትትል
+### እይታ እና አስተዳደር
 
-| መገናኛ ነጥብ                             | ዘዴ         | መግለጫ                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/sessions`                      | GET        | ንቁ ክፍለ ጊዜዎችን መከታተል                                                                                                                                                                                                                                                                                                                                                        |
-| `/api/rate-limits`                   | GET        | ለእያንዳንዱ መለያ የተወሰኑ የጥያቄ መጠን ገደቦች                                                                                                                                                                                                                                                                                                                                           |
-| `/api/monitoring/health`             | GET        | የጤና ምርመራ + የአቅራቢ ማጠቃለያ (`catalogCount`፣ `configuredCount`፣ `activeCount`፣ `monitoredCount`)። የአስተዳደር እይታው `credentialHealth`ን ያካትታል፦ የፍተሻ መሸጎጫ ነጠላ እሴቶች፣ `failed>0` ሲሆን `failedConnections`፣ እና `staleDbNonOkCount` (የSQLite ቋሚ `test_status`፣ መለኪያው አይደለም)። [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status)ን ይመልከቱ። |
-| `/api/cache/stats`                   | GET/DELETE | የመሸጎጫ ስታቲስቲክስ / ማጽዳት                                                                                                                                                                                                                                                                                                                                                      |
-| `/api/modality-bridge/stats`         | GET        | በማህደረ ትውስታ ውስጥ ያሉ `attempts`፣ የተሳኩ/`bridged`፣ ያልተሳኩ፣ የመሸጎጫ ተደራሽነቶች፣ `totalLatencyMs`፣ `latencySamples`፣ በናሙና ብዛት የተከፈለ `averageLatencyMs`፣ እና የመጨረሻ አጠቃቀም ጊዜ (ዳግም ሲጀመር ይታደሳል፤ የአስተዳደር ማረጋገጫ ያስፈልጋል)                                                                                                                                                                       |
-| `/api/modality-bridge/video/runtime` | GET        | ከአስተዳደር ማረጋገጫ/ፍተሻ በፊት ጥብቅ የታመነ-loopback ምርመራ፤ የጸዳ የFFmpeg/ffprobe መገኘት ሁኔታ እና ስሪቶች (አይከማችም)                                                                                                                                                                                                                                                                               |
-| `/api/modality-bridge/video/extract` | POST       | ውስጣዊ፣ ማረጋገጫ የሚፈልግ፣ የታመነ-loopback ባይት ደላላ፤ 50 MiB ግብዓት፣ የተገደበ ወረፋ/32 MiB ውጤት፣ ለአቅም ማነስ `503`፣ ለግንኙነት መቋረጥ `499`፣ ለጊዜ ገደብ `504`፤ ይፋዊ የፋይል መስቀያ API አይደለም                                                                                                                                                                                                                    |
+| መግቢያ (Endpoint)                      | መንገድ (Method) | መግለጫ (Description)                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/sessions`                      | GET           | አካባቢ ላይ ያሉ ክፍት ክፍሎችን መከታተያ                                                                                                                                                                                                                                                                                                                                                           |
+| `/api/rate-limits`                   | GET           | በአካውንት የተወሰኑ የደረጃ ገደቦች                                                                                                                                                                                                                                                                                                                                                               |
+| `/api/monitoring/health`             | GET           | የጤና ሁኔታ ምርመራ እና የአቅራቢዎች ማጠቃለያ (`catalogCount`, `configuredCount`, `activeCount`, `monitoredCount`)። የአስተዳደር እይታ ውስጥ `credentialHealth` ይካተታል፡ probe-cache አንደኛዎች፣ `failedConnections` በ`failed>0` ሲሆን፣ እና `staleDbNonOkCount` (SQLite በቆሻሻ የ`test_status`፣ አይደለም gauge)። [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status) ይመልከቱ። |
+| `/api/cache/stats`                   | GET/DELETE    | የካሽ ስታቲስቲክስ / ካሽ አጥፊ                                                                                                                                                                                                                                                                                                                                                                 |
+| `/api/modality-bridge/stats`         | GET           | በመታሰቢያ ውስጥ `attempts`፣ ስኬቶች/`bridged`፣ አለመሳካቶች፣ የካሽ መድረሻዎች፣ `totalLatencyMs`፣ `latencySamples`፣ በናሙና የተወሰኑ `averageLatencyMs`፣ እና የመጨረሻ አጠቃቀም ጊዜ (በእንደገና ሲጀምር ይቀየራል፤ የአስተዳደር ማረጋገጫ ያስፈልጋል)                                                                                                                                                                                           |
+| `/api/modality-bridge/video/runtime` | GET           | ከአስተዳደር ማረጋገጫ/ምርመራ በፊት ጥብቅ የታመነ የloopback ምርመራ፤ የተንጸባረቀ FFmpeg/ffprobe መገኛነት እና እትም (no-store)                                                                                                                                                                                                                                                                                       |
+| `/api/modality-bridge/video/extract` | POST          | ውስጣዊ የተማረከ የታመነ የloopback ባይት ባለስልጣን፤ 50 MiB ግብዓት፣ የተገደበ ተራ/32 MiB ውጤት፣ `503` አቅም፣ `499` መቋረጥ፣ `504` የጊዜ ገደብ፤ ይህ የህዝብ መስቀመጥ API አይደለም                                                                                                                                                                                                                                                |
 
-### ምትኬ እና ወደ ውጭ መላክ/ማስገባት
+### የቪዲዮ ፍሬም ዝርዝር መጥናት
 
-| መገናኛ ነጥብ                    | ዘዴ   | መግለጫ                             |
-| --------------------------- | ---- | -------------------------------- |
-| `/api/db-backups`           | GET  | የሚገኙ ምትኬዎችን ዘርዝር                 |
-| `/api/db-backups`           | PUT  | በእጅ ምትኬ ይፍጠሩ                     |
-| `/api/db-backups`           | POST | ከተወሰነ ምትኬ ወደነበረበት ይመልሱ           |
-| `/api/db-backups/export`    | GET  | የውሂብ ጎታውን እንደ .sqlite ፋይል ያውርዱ   |
-| `/api/db-backups/import`    | POST | የውሂብ ጎታውን ለመተካት .sqlite ፋይል ይስቀሉ |
-| `/api/db-backups/exportAll` | GET  | ሙሉ ምትኬውን እንደ .tar.gz ማህደር ያውርዱ   |
+`GET /api/v1/video-bridge/drilldown` በተጠየቀ የVideo Bridge ጥያቄ በኋላ በ
+`x-omniroute-video-drilldown` ውስጥ የተመለሰ የተጠበቀ የተጠቃሚ መያዣ ይነባል።
+ሁሉም ንባቦች እና `DELETE` ሁሉ ትክክለኛ API key እና የኦፕሬተሩ በተለያዩ
+`modalityBridgeVideoDrilldownRemoteEnabled` ፈቃዶች ያስፈልጋሉ። በምርት ሁኔታ ማከማቻ በተጨማሪ
+`modalityBridgeVideoDrilldownEnabled` እና በክፍል የተወሰነ `drilldown: true` ይጠየቃል።
 
-### የደመና ማመሳሰል
+የGET ጥያቄ፡ የሚያስፈልገው `handle`፤ አማራጭ `variant` (`preview`, `standard`, `detail`)፣
+`limit` (1–8; አሮጌ `frames` ይቀበላል ግን ከ`limit` ጋር ሊጠቀም አይችልም)፣
+በዜሮ የተመሠረተ `page`፣ እና `start`/`end` ሰከንዶች። ሁለቱም የትኩረት ድንበሮች
+ሲሰጡ `end` ከ`start` በላይ መሆን አለበት። የተደጋጋሚ/ያልታወቀ የጥያቄ ቁልፎች
+ይተወዳሉ። የተሳካ ምላሾች `derivation`, `durationSeconds`, `frames`,
+`hasMore`, `page`, `variant`, እና አማራጭ `focusWindow` ይይዛሉ፤ no-store JSON ከ
+32 MiB ጋር Base64 ጨምሮ ይገደባል። ከመጠኑ በላይ ውጤት 413 ይመልሳል፤ በትንሹ ፍሬሞች ይጠይቁ።
 
-| መገናኛ ነጥብ               | ዘዴ    | መግለጫ             |
-| ---------------------- | ----- | ---------------- |
-| `/api/sync/cloud`      | የተለያዩ | የደመና ማመሳሰል ክዋኔዎች |
-| `/api/sync/initialize` | POST  | ማመሳሰልን ያስጀምሩ     |
-| `/api/cloud/*`         | የተለያዩ | የደመና አስተዳደር      |
+`DELETE /api/v1/video-bridge/drilldown?handle=...` `{ "removed": 0|1 }` ይመልሳል።
+ያልታወቀ፣ ጊዜው ያልቆሰለ፣ እና አካል-ተለዋዋጭ የGET ጥያቄዎች በማይታወቅ 404 ይመለሳሉ፤ አካል-ተለዋዋጭ
+DELETE የባለቤቱን እቃ ማጥፋት አይችልም። የተሰናከለ መዳረሻ 403 ይመልሳል፣ የጎደለ/የተሳሳተ
+ማረጋገጫ 401፣ የተሳሳተ ጥያቄዎች 400፣ ስረዛ 499 እና ጊዜያዊ ስህተቶች 503።
+መያዣዎች በፕሮሴስ ውስጥ ብቻ ናቸው፣ ከአስር ደቂቃ በኋላ ይያዙ፣ እና እንደገና ሲጀምር አይቀጥሉም።
+አዲስ መያዣዎች `v1.` እና 32-ባይት የተዘዋዋሪ የBase64URL ቶክን ይጠቀማሉ፤ የቶክኑ ሃሽ ብቻ
+ይቀመጣል። አሮጌ 64-hex ቶክኖች ለተስተካከልነት በአካላዊ ቅርጸት ይታያሉ።
+ለዝርዝር ማስተላለፊያ፣ ኮታዎች እና የተለያዩ የተመረጡ ዝርዝሮች [Video Bridge guardrails](../security/GUARDRAILS.md#video-bridge-videobridgets-videobridgepipelinets) ይመልከቱ።
 
-### ዋሻዎች
+### ቅድሚያ እና ማውጣት/መግባት
 
-| መገናኛ ነጥብ                   | ዘዴ   | መግለጫ                                                             |
-| -------------------------- | ---- | ---------------------------------------------------------------- |
-| `/api/tunnels/cloudflared` | GET  | ለዳሽቦርዱ የCloudflare Quick Tunnel ጭነት/የአሂድ ጊዜ ሁኔታን ያንብቡ            |
-| `/api/tunnels/cloudflared` | POST | Cloudflare Quick Tunnelን ያንቁ ወይም ያሰናክሉ (`action=enable/disable`) |
-| `/api/tunnels/ngrok`       | GET  | ለዳሽቦርዱ የngrok Tunnel የአሂድ ጊዜ ሁኔታን ያንብቡ                           |
-| `/api/tunnels/ngrok`       | POST | ngrok Tunnelን ያንቁ ወይም ያሰናክሉ (`action=enable/disable`)            |
+| መድረሻ (Endpoint)             | ዘዴ (Method) | መግለጫ (Description)             |
+| --------------------------- | ----------- | ------------------------------ |
+| `/api/db-backups`           | GET         | የሚገኙትን ተመሳሳይ ቅጂዎች ይዘው ይሳያሉ     |
+| `/api/db-backups`           | PUT         | በእጅ ቅጂ መፍጠር                    |
+| `/api/db-backups`           | POST        | ከተወሰነ ቅጂ መመለስ                  |
+| `/api/db-backups/export`    | GET         | የዳታቤዝን እንደ .sqlite ፋይል ማውረድ    |
+| `/api/db-backups/import`    | POST        | የ.sqlite ፋይል ማስገባት ዳታቤዝን ለመቀየር |
+| `/api/db-backups/exportAll` | GET         | ሙሉ ቅጂን እንደ .tar.gz አርክቭ ማውረድ   |
 
-### የCLI መሣሪያዎች
+### የደመና መዋሀድ (Cloud Sync)
 
-| የመዳረሻ ነጥብ                          | ዘዴ  | መግለጫ              |
-| ---------------------------------- | --- | ----------------- |
-| `/api/cli-tools/claude-settings`   | GET | የClaude CLI ሁኔታ   |
-| `/api/cli-tools/codex-settings`    | GET | የCodex CLI ሁኔታ    |
-| `/api/cli-tools/droid-settings`    | GET | የDroid CLI ሁኔታ    |
-| `/api/cli-tools/openclaw-settings` | GET | የOpenClaw CLI ሁኔታ |
-| `/api/cli-tools/runtime/[toolId]`  | GET | አጠቃላይ የCLI አሂድ ጊዜ |
+| መድረሻ (Endpoint)        | ዘዴ (Method) | መግለጫ (Description) |
+| ---------------------- | ----------- | ------------------ |
+| `/api/sync/cloud`      | Various     | የደመና መዋሀድ አገልግሎቶች  |
+| `/api/sync/initialize` | POST        | መዋሀድ መጀመሪያ         |
+| `/api/cloud/*`         | Various     | የደመና አስተዳደር        |
 
-የCLI ምላሾች እነዚህን ያካትታሉ፦ `installed`፣ `runnable`፣ `command`፣ `commandPath`፣ `runtimeMode`፣ `reason`።
+### ቱናሎች (Tunnels)
 
-### ACP ወኪሎች
+| መድረሻ (Endpoint)            | ዘዴ (Method) | መግለጫ (Description)                                               |
+| -------------------------- | ----------- | ---------------------------------------------------------------- |
+| `/api/tunnels/cloudflared` | GET         | የCloudflare Quick Tunnel አከፋፈል/እንቅስቃሴ ሁኔታ ለዳሽቦርድ ማንበብ            |
+| `/api/tunnels/cloudflared` | POST        | Cloudflare Quick Tunnel ማስቻወት ወይም ማጥፋት (`action=enable/disable`) |
+| `/api/tunnels/ngrok`       | GET         | የngrok Tunnel እንቅስቃሴ ሁኔታ ለዳሽቦርድ ማንበብ                             |
+| `/api/tunnels/ngrok`       | POST        | ngrok Tunnel ማስቻወት ወይም ማጥፋት (`action=enable/disable`)            |
 
-| የመዳረሻ ነጥብ         | ዘዴ     | መግለጫ                                               |
-| ----------------- | ------ | -------------------------------------------------- |
-| `/api/acp/agents` | GET    | ሁኔታቸውን ጨምሮ ሁሉንም የተገኙ ወኪሎች (አብረው የተካተቱ + ብጁ) ይዘረዝራል |
-| `/api/acp/agents` | POST   | ብጁ ወኪል ያክላል ወይም የፍለጋ መሸጎጫውን ያድሳል                   |
-| `/api/acp/agents` | DELETE | በ`id` የጥያቄ መለኪያ ብጁ ወኪልን ያስወግዳል                     |
+### CLI መሳሪያዎች
 
-የGET ምላሽ `agents[]` (id, name, binary, version, installed, protocol, isCustom) እና `summary` (total, installed, notFound, builtIn, custom) ያካትታል።
+| መድረሻ (Endpoint)                    | ዘዴ (Method) | መግለጫ (Description) |
+| ---------------------------------- | ----------- | ------------------ |
+| `/api/cli-tools/claude-settings`   | GET         | የClaude CLI ሁኔታ    |
+| `/api/cli-tools/codex-settings`    | GET         | የCodex CLI ሁኔታ     |
+| `/api/cli-tools/droid-settings`    | GET         | የDroid CLI ሁኔታ     |
+| `/api/cli-tools/openclaw-settings` | GET         | የOpenClaw CLI ሁኔታ  |
+| `/api/cli-tools/runtime/[toolId]`  | GET         | አጠቃላይ CLI እንቅስቃሴ   |
 
-### የመቋቋም ችሎታ እና የፍጥነት ገደቦች
+የCLI ምላሾች ይዟል፡ `installed`, `runnable`, `command`, `commandPath`, `runtimeMode`, `reason`.
 
-| የመዳረሻ ነጥብ                         | ዘዴ        | መግለጫ                                                                         |
-| --------------------------------- | --------- | ---------------------------------------------------------------------------- |
-| `/api/resilience`                 | GET/PATCH | የጥያቄ ወረፋ፣ የግንኙነት ማቀዝቀዣ፣ የአቅራቢ ወረዳ ቆራጭ እና የመጠበቂያ ቅንብሮችን ያገኛል/ያዘምናል            |
-| `/api/resilience/reset`           | POST      | የአቅራቢ ወረዳ ቆራጮችን ዳግም ያስጀምራል                                                   |
-| `/api/resilience/model-cooldowns` | GET       | በቀሪው ጊዜ የተደረደሩ ንቁ የእያንዳንዱ-(provider, connection, model) መቆለፊያዎችን ይዘረዝራል      |
-| `/api/resilience/model-cooldowns` | DELETE    | የሞዴል መቆለፊያን ያጸዳል — ይዘቱ `{provider, model}` ወይም ሁሉንም ለማጥፋት `{all: true}` ይሆናል |
-| `/api/rate-limits`                | GET       | የእያንዳንዱ መለያ የፍጥነት ገደብ ሁኔታ                                                    |
-| `/api/rate-limit`                 | GET       | ዓለም አቀፍ የፍጥነት ገደብ ውቅር                                                        |
+### ACP ወኪሎች (Agents)
 
-> አራቱም `/api/resilience/*` መንገዶች **የአስተዳደር ማረጋገጫ** (`requireManagementAuth`) ይፈልጋሉ። ስለ የአቅራቢ ወረዳ ቆራጭ፣ የግንኙነት ማቀዝቀዣ እና የሞዴል መቆለፊያ ሙሉ ዝርዝር [የመቋቋም ችሎታ (የተራዘመ)](#resilience-extended)ን ይመልከቱ።
+| መድረሻ (Endpoint)   | ዘዴ (Method) | መግለጫ (Description)                             |
+| ----------------- | ----------- | ---------------------------------------------- |
+| `/api/acp/agents` | GET         | ሁሉንም የተገኙ ወኪሎች (በውስጥ + በተገኘ) ከሁኔታው ጋር ይዘው ይሳያሉ |
+| `/api/acp/agents` | POST        | ተጨማሪ ወኪል መጨመር ወይም የማስገኛ ካሽ ማደስ                 |
+| `/api/acp/agents` | DELETE      | በ`id` የተጠቀሰ የተጨመረ ወኪል ማስወገድ                    |
 
-### ግምገማዎች
+የGET ምላሽ ይዟል `agents[]` (id, name, binary, version, installed, protocol, isCustom) እና `summary` (total, installed, notFound, builtIn, custom).
 
-| የመዳረሻ ነጥብ    | ዘዴ       | መግለጫ                            |
-| ------------ | -------- | ------------------------------- |
-| `/api/evals` | GET/POST | የግምገማ ስብስቦችን ይዘረዝራል / ግምገማ ያሂዳል |
+### ትጉህነት እና የደረቅ ግዴታዎች (Resilience & Rate Limits)
 
-### ፖሊሲዎች
+| መድረሻ (Endpoint)                   | ዘዴ (Method) | መግለጫ (Description)                                                      |
+| --------------------------------- | ----------- | ----------------------------------------------------------------------- |
+| `/api/resilience`                 | GET/PATCH   | የጥያቄ ተለዋዋጭ ተደራሽነት፣ የግንኙነት መዝጊያ፣ የአቅራቢ መቋቋምነት፣ እና የመጠበቂያ ቅንብሮች ማግኘት/ማዘመን |
+| `/api/resilience/reset`           | POST        | የአቅራቢ መቋቋምነት መቀየር                                                       |
+| `/api/resilience/model-cooldowns` | GET         | በ-(አቅራቢ፣ ግንኙነት፣ ሞዴል) የተደረጉ መዝጊያዎችን በቀሪ ጊዜ ተደርደር ማሳየት                    |
+| `/api/resilience/model-cooldowns` | DELETE      | የሞዴል መዝጊያ ማጥፋት — አካል `{provider, model}` ወይም `{all: true}` ሁሉንም ለማጥፋት   |
+| `/api/rate-limits`                | GET         | በአካውንት የደረቅ ግዴታ ሁኔታ                                                     |
+| `/api/rate-limit`                 | GET         | አጠቃላይ የደረቅ ግዴታ ቅንብር                                                     |
 
-| የመዳረሻ ነጥብ       | ዘዴ              | መግለጫ                   |
+> ሁሉም አራቱ `/api/resilience/*` መንገዶች **የአስተዳደር ማረጋገጫ** ይፈልጋሉ (`requireManagementAuth`)። [ትጉህነት (ዝርዝር)](#resilience-extended) ውስጥ የአቅራቢ መቋቋምነት፣ የግንኙነት መዝጊያ፣ የሞዴል መዝጊያ ሙሉ መግለጫ ይገኛል።
+
+### ግምገማዎች (Evals)
+
+| መድረሻ (Endpoint) | ዘዴ (Method) | መግለጫ (Description)       |
+| --------------- | ----------- | ------------------------ |
+| `/api/evals`    | GET/POST    | የግምገማ ስቱይቶችን ማሳየት / ማስኬድ |
+
+### ፖሊሲዎች (Policies)
+
+| መድረሻ (Endpoint) | ዘዴ (Method)     | መግለጫ (Description)     |
 | --------------- | --------------- | ---------------------- |
-| `/api/policies` | GET/POST/DELETE | የማዘዋወሪያ ፖሊሲዎችን ያስተዳድራል |
+| `/api/policies` | GET/POST/DELETE | የመሪ መስመር ፖሊሲዎችን ማስተዳደር |
 
-### ተገዢነት
+### የተሟሟልነት (Compliance)
 
-| የመዳረሻ ነጥብ                   | ዘዴ  | መግለጫ                        |
-| --------------------------- | --- | --------------------------- |
-| `/api/compliance/audit-log` | GET | የተገዢነት ኦዲት ምዝግብ (የመጨረሻዎቹ N) |
+| መድረሻ (Endpoint)             | ዘዴ (Method) | መግለጫ (Description)      |
+| --------------------------- | ----------- | ----------------------- |
+| `/api/compliance/audit-log` | GET         | የተሟሟልነት ኦዲት ሎግ (የቅርብ N) |
 
-### v1beta (ከGemini ጋር ተኳዃኝ)
+### v1beta (Gemini-ተዛማጅ)
 
-| የመዳረሻ ነጥብ                  | ዘዴ   | መግለጫ                               |
-| -------------------------- | ---- | ---------------------------------- |
-| `/v1beta/models`           | GET  | ሞዴሎችን በGemini ቅርጸት ይዘረዝራል          |
-| `/v1beta/models/{...path}` | POST | የGemini `generateContent` መዳረሻ ነጥብ |
+| መድረሻ (Endpoint)            | ዘዴ (Method) | መግለጫ (Description)             |
+| -------------------------- | ----------- | ------------------------------ |
+| `/v1beta/models`           | GET         | ሞዴሎችን በGemini ቅርጸት ማሳየት        |
+| `/v1beta/models/{...path}` | POST        | የGemini `generateContent` መድረሻ |
 
-እነዚህ መዳረሻ ነጥቦች ቤተኛ የGemini SDK ተኳዃኝነትን ለሚጠብቁ ደንበኞች የGemini API ቅርጸትን ያንጸባርቃሉ።
+እነዚህ መድረሻዎች ለGemini SDK ተዛማጅነት የተጠበቁ ደንበኞች የGemini API ቅርጸትን ይከተላሉ።
 
-### ውስጣዊ / የስርዓት APIዎች
+### ውስጣዊ / የስርዓት ኤፒአይዎች
 
-| የመዳረሻ ነጥብ                | ዘዴ   | መግለጫ                                           |
-| ------------------------ | ---- | ---------------------------------------------- |
-| `/api/init`              | GET  | የመተግበሪያ ማስጀመሪያ ፍተሻ (በመጀመሪያ አሂድ ላይ ጥቅም ላይ የሚውል) |
-| `/api/tags`              | GET  | ከOllama ጋር ተኳዃኝ የሞዴል መለያዎች (ለOllama ደንበኞች)     |
-| `/api/restart`           | POST | የአገልጋዩን ለስላሳ ዳግም መጀመር ያስነሳል                    |
-| `/api/shutdown`          | POST | የአገልጋዩን ለስላሳ መዘጋት ያስነሳል                        |
-| `/api/system/env/repair` | POST | የOAuth አቅራቢ የአካባቢ ተለዋዋጮችን ይጠግናል                |
-| `/api/system/version`    | GET  | የአሁኑ/የቅርብ ጊዜ ስሪት፣ የዝማኔ ሁኔታ፣ የልቀት ሰርጥ           |
-| `/api/system/version`    | POST | ለስምሪት ተስማሚ የሆነ ወደ የቅርብ ጊዜው ስሪት ዝማኔ ይጀምራል       |
+| መድረሻ                     | ዘዴ   | መግለጫ                                        |
+| ------------------------ | ---- | ------------------------------------------- |
+| `/api/init`              | GET  | የመተግበሪያ መጀመሪያ ምርመራ (በመጀመሪያ ግኝት ላይ ይጠቀማል)    |
+| `/api/tags`              | GET  | ከOllama ጋር የሚስማማ የሞዴል መለያዎች (ለOllama ደንበኞች) |
+| `/api/restart`           | POST | የአገልጋዩን በማስተካከያ እንዲደገም አነሳሽ                 |
+| `/api/shutdown`          | POST | የአገልጋዩን በማስተካከያ እንዲዝጋ አነሳሽ                  |
+| `/api/system/env/repair` | POST | የOAuth አቅራቢ አካባቢ ተለዋዋጮችን አስተካክል             |
+| `/api/system/version`    | GET  | የአሁኑ/የቅርብ ጊዜ እትም, የአዘምን ሁኔታ, የመልቀቂያ ቻናል     |
+| `/api/system/version`    | POST | ወደ ቅርብ ጊዜ እትም የሚሄድ የትእዛዝ አዘምን ጀምር           |
 
-> **ማስታወሻ፦** እነዚህ መዳረሻ ነጥቦች በስርዓቱ ውስጣዊ አገልግሎት ወይም ለOllama ደንበኛ ተኳዃኝነት ያገለግላሉ። ብዙውን ጊዜ በዋና ተጠቃሚዎች አይጠሩም።
+> **ማስታወሻ:** እነዚህ መድረሻዎች በሲስተሙ ውስጥ ወይም ለOllama ደንበኞች ተስማሚነት ይጠቀማሉ። በተለምዶ በመጠቀሚዎች በቀጥታ አይጠራም።
 
-### የOAuth አካባቢ ጥገና _(v3.6.1+)_
+### የOAuth አካባቢ አስተካካይ _(v3.6.1+)_
 
 ```bash
 POST /api/system/env/repair
@@ -1208,26 +1233,26 @@ Content-Type: application/json
 }
 ```
 
-ለተወሰነ አቅራቢ የጠፉ ወይም የተበላሹ የOAuth አካባቢ ተለዋዋጮችን ይጠግናል። የሚመልሰው፦
+ለተወሰነ አቅራቢ የጠፉ ወይም የተበላሸውን OAuth አካባቢ ተለዋዋጮች ይጠግናል። ይመልሳል፦
 
 ```json
 {
   "success": true,
-  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
+  "repaired": [
+    "CLAUDE_CODE_OAUTH_CLIENT_ID",
+    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
+  ],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
 
-### ስሪት እና የልቀት ሰርጥ
+### እትም እና የመልቀቂያ ቻናል
 
 ```bash
 GET /api/system/version
 ```
 
-በloopback ብቻ የሚገኝ የአስተዳደር መንገድ (የአስተዳዳሪ ማረጋገጫ)። እየሰራ ያለውን ስሪት፣ የታተመውን የቅርብ ጊዜ
-ስሪት እና የራስ-ሰር ዝማኔ ሁኔታን ይመልሳል። `releaseChannel` እና `channels` ተጨማሪ
-መስኮች ናቸው (rail 3.8.54)፤ `channel` ትርጉሙን እንደያዘ ይቆያል — የዳሽቦርድ ማዘመኛው
-የሚጠቀመው የስምሪት ሁነታ (`npm`፣ `source` ወይም `docker-compose`) ነው።
+የLoopback ብቻ የማናገኛ መንገድ (የአስተዳዳሪ ማረጋገጫ)። የሚሰራውን እትም፣ የቅርብ ጊዜ የታተመውን እትም እና የራሱን ራስ-ማዘመን ሁኔታ ይመልሳል። `releaseChannel` እና `channels` ተጨማሪ መስኮች ናቸው (rail 3.8.54)፤ `channel` የታወቀውን ትርጉም ይጠብቃል — የdashboard updater የመመዝገቢያ ዘዴ (`npm`, `source` ወይም `docker-compose`) ይጠቀማል።
 
 ```json
 {
@@ -1243,17 +1268,16 @@ GET /api/system/version
 }
 ```
 
-- `releaseChannel` — እየሄደ ያለው ግንባታ npm ቻናል፦ ለ`-nightly.*` ስሪቶች `nightly`፣
-  ለሌሎች ቅድመ-ልቀቶች (`-rc.*`፣ `-beta.*`፣ `-alpha.*`) `next`፣ ከ`channels.latest` የዋና ስሪት ቁጥሩ ያነሰ
-  ለሆነ የቆየ የተረጋጋ ስሪት `lts`፣ ካልሆነ `latest`። በማተም ጊዜ የnpm dist-tagን ከሚመርጠው
-  `scripts/release/dist-tag.mjs` ጋር ተመሳሳይ ደንቦችን ይጠቀማል።
-- `channels` — ከ`npm view omniroute dist-tags` የሚገኘው የእያንዳንዱ dist-tag የታተመ የቅርብ ጊዜ ስሪት (የregistry
-  HTTP አማራጭ መጠባበቂያ ያለው)፣ ከ`latest` ጋር በተመሳሳይ የ10 ደቂቃ TTL የሚሸጎጥ። `latest` ሁልጊዜ ይኖራል
-  (መጀመሪያ ወደ `latest` መስክ፣ ከዚያ ወደ `"unavailable"` ይመለሳል)፤ `next`፣ `nightly` እና `lts` የሚታዩት
-  ያ dist-tag ሲኖር ብቻ ነው። የ`Cache-Control: no-cache` ጥያቄ ሁለቱንም ፍለጋዎች ያድሳል።
+- `releaseChannel` — የሚሰራው እትም የnpm ቻናል፡ `nightly` ለ `-nightly.*` እትሞች፣
+  `next` ለሌሎች ቅድመ-መልቀቂያዎች (`-rc.*`, `-beta.*`, `-alpha.*`), `lts` ለየቅርብ ጊዜ እትም
+  የchannels.latest በታች ያለ የድሮ ማኤጅር፣ ካልሆነ `latest`። ከ
+  `scripts/release/dist-tag.mjs` ጋር ተመሳሳይ ደንብ አለው፣ ይህም በመታተሚያ ጊዜ የnpm dist-tag ይመርጣል።
+- `channels` — የታተመው የእያንዳንዱ dist-tag ራስ፣ ከ `npm view omniroute dist-tags` (የመዝገብ
+  የHTTP አሻራ)፣ ከ `latest` ጋር በአንደኛው 10-ደቂቃ TTL ይቆያል። `latest` ሁልጊዜ አለ
+  (ወደ `latest` መስክ ይመለሳል፣ ከዚያ "unavailable")፤ `next`, `nightly` እና `lts` ያ dist-tag ካለ ብቻ ይታያሉ። የ `Cache-Control: no-cache` ጥያቄ ሁለቱንም መፈለጊያዎች ያድሳል።
 
-የቻናል ሞዴሉ (`latest` = እስከ 4.0 GA ድረስ v3፣ `next` = rc፣ `nightly` = የ`develop` ግንባታዎች፣
-`lts` = ከ4.0 GA በኋላ የv3 ጥገና ልቀቶች) በ`docs/ops/RELEASE_STRATEGY.md` ውስጥ ተገልጿል።
+የቻናል ሞዴሉ (`latest` = v3 እስከ 4.0 GA, `next` = rc, `nightly` = `develop` ስራዎች,
+`lts` = v3 አስተካካይ ከ4.0 GA በኋላ) በ `docs/ops/RELEASE_STRATEGY.md` ተገልጿል።
 
 ---
 
@@ -1371,10 +1395,10 @@ GET /api/telemetry/summary
 ## በጀት
 
 ```bash
-# ለሁሉም API ቁልፎች የበጀት ሁኔታን ያግኙ
+# ለሁሉም API ቁልፎች የበጀት ሁኔታ ያግኙ
 GET /api/usage/budget
 
-# በጀት ያዘጋጁ ወይም ያዘምኑ
+# በጀት ያዘጋጁ ወይም ያድሱ
 POST /api/usage/budget
 Content-Type: application/json
 
@@ -1388,7 +1412,7 @@ Content-Type: application/json
 }
 ```
 
-> **የስኪማ ማስታወሻዎች** (`setBudgetSchema`): `apiKeyId` ያስፈልጋል፤ ከ`dailyLimitUsd`፣ `weeklyLimitUsd` ወይም `monthlyLimitUsd` ቢያንስ አንዱ ከዜሮ በላይ መሆን አለበት። አማራጭ መስኮች፦ `warningThreshold` (0–1)፣ `resetInterval` (`daily` | `weekly` | `monthly`)፣ `resetTime` (`HH:MM`)። የቀድሞው `{keyId, limit, period}` ቅርጽ `400 Bad Request` ይመልሳል።
+> **የስኬማ ማብራሪያዎች** (`setBudgetSchema`): `apiKeyId` አስፈላጊ ነው፤ ቢያንስ ከ`dailyLimitUsd`, `weeklyLimitUsd`, ወይም `monthlyLimitUsd` አንዱ ከዜሮ በላይ ሊሆን ይገባል። አማራጭ መስኮች፡ `warningThreshold` (0–1), `resetInterval` (`daily` | `weekly` | `monthly`), `resetTime` (`HH:MM`)። አሮጌ `{keyId, limit, period}` ቅርጸ-ተከታታይ የ`400 Bad Request` እንደሚመልስ ይጠብቁ።
 
 ## የቶከን ገደቦች
 

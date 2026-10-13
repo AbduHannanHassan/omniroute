@@ -1347,11 +1347,11 @@ Claude Code CLIን ብቻ መጠቀም ከፈለጉ፣ ወይም እነዚህ re
 
 ---
 
-## የማሰማራት ሁኔታዎች
+## የመዋቅር ማስተናገድ ሁኔታዎች
 
-ስለ relay backend SRE መመሪያ (የts/bifrost/auto ባህሪ፣ የ9router እና CLIProxyAPI አቀማመጥ፣ እንዲሁም ከፍተኛ ፍሰት ያለው የመጠባበቂያ ስልት)፣ [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md)ን ይመልከቱ።
+ለ relay backend SRE መመሪያ (ts/bifrost/auto ባህሪ, 9router ከ CLIProxyAPI አካባቢ እና የከፍተኛ መስፈርት fallback ዘዴ), [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md) ይመልከቱ።
 
-### አነስተኛ የአካባቢ ልማት
+### አነስተኛ የአካባቢ አንቀሳቃሽ ልምምድ
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1361,7 +1361,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### የDocker ፕሮዳክሽን
+### Docker ምርት አካባቢ
 
 ```bash
 JWT_SECRET=<generated>
@@ -1380,7 +1380,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### ከአውታረ መረብ የተለየ / CI
+### ከመስመር የተለየ / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1391,7 +1391,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### Reverse Proxy ያለው VPS (nginx + Cloudflare)
+### VPS ከ Reverse Proxy (nginx + Cloudflare) ጋር
 
 ```bash
 JWT_SECRET=<generated>
@@ -1819,23 +1819,31 @@ CLI_COMPAT_ALL=1
 
 ---
 
-## OmniConductor Bridge
+## ኦምኒኮንዳክተር ብሪጅ
 
-የOmniConductor hub ተግባራትን ወደ አካባቢያዊው A2A TaskManager (`src/lib/conductor/`) የሚያንጸባርቅ ለረጅም ጊዜ የሚሰራ SSE ተጠቃሚ። በምርጫ የሚነቃ ነው — bridge የሚጀምረው `CONDUCTOR_HUB_URL` ሲዋቀር ብቻ ነው። በserver በኩል ብቻ፦ የhub token በፍጹም ወደ browser መድረስ የለበትም።
+ረጅም ጊዜ የሚኖር SSE ተጠቃሚ የሆነ ኦምኒኮንዳክተር ሃብ ተግባሮችን ወደ የአካባቢ A2A TaskManager (`src/lib/conductor/`) ይቅረብ። አስፈላጊ ነው — ብሪጁ ማብቃት የሚችለው `CONDUCTOR_HUB_URL` ሲቀመጥ ብቻ ነው። በሰርቨር ብቻ: የሃቡ ቶክን ወደ ብራውዘሩ ማድረስ አይቻልም።
 
-| ተለዋዋጭ                          | ነባሪ                     | የምንጭ ፋይል                         | መግለጫ                                                                                         |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(ባዶ)_                  | `src/lib/conductor/boot.ts`      | የOmniConductor hub መሠረታዊ URL (ለምሳሌ `http://127.0.0.1:7910`)። ካልተዋቀረ = bridge የተሰናከለ ነው።      |
-| `CONDUCTOR_HUB_TOKEN`          | _(ባዶ)_                  | `src/lib/conductor/boot.ts`      | ለSSE feed የhub ማረጋገጫ መረጃ — በhub ላይ `spokesperson`-ዓይነት peer ይፍጠሩ (`POST /v1/peers`፣ admin)።  |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(ባዶ)_                  | `src/lib/conductor/hubProxy.ts`  | ለገቢ A2A→hub የተግባር ውክልና (`POST /v1/tasks`) የማረጋገጫ መረጃ፤ ካልተዋቀረ `CONDUCTOR_HUB_TOKEN`ን ይጠቀማል።   |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ከdashboard chat proxy (`/api/conductor/ask`) ጀርባ ያለው የspokesperson (Faro) service መሠረታዊ URL። |
+| ተለዋዋጭ                          | ነባር ዋጋ                  | ምንጭ ፋይል                          | መግለጫ                                                                                 |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| `CONDUCTOR_HUB_URL`            | _(ባዶ)_                  | `src/lib/conductor/boot.ts`      | የኦምኒኮንዳክተር ሃብ መሠረታዊ URL (ለምሳሌ `http://127.0.0.1:7910`)። ካልተቀመጠ = ብሪጅ ተሰናክሏል።         |
+| `CONDUCTOR_HUB_TOKEN`          | _(ባዶ)_                  | `src/lib/conductor/boot.ts`      | ለSSE ፊደል የሃቡ ማረጋገጫ — በሃቡ ላይ `spokesperson`-አይነት peer ያትሙ (`POST /v1/peers`, admin)።  |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(ባዶ)_                  | `src/lib/conductor/hubProxy.ts`  | ለውስጣዊ A2A→hub ተግባር ልውውጥ ማረጋገጫ (`POST /v1/tasks`)፤ ካልተቀመጠ `CONDUCTOR_HUB_TOKEN` ይተካል። |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | የስፖክስፐርሰን (Faro) አገልግሎት መሠረታዊ URL በዳሽቦርድ ቻት ፕሮክሲ ስር (`/api/conductor/ask`)።          |
 
-### ኮታን ያገናዘበ መርሐግብር ማስያዝ
+### የቪዲዮ ብሪጅ የተለየ ማረጋገጫ
 
-በ`open-sse/services/combo.ts` እና `src/lib/quota/quotaScheduler.ts` ውስጥ ከጥያቄ በፊት ለሚደረጉ የtoken-budget ምርመራዎች ይጠቅማል። በምርጫ የሚነቃ ነው — ካልተዋቀረ ነባሪው የrouting ባህሪ አይቀየርም።
+`scripts/ad-hoc/video-live-isolation.ts --prepare` የሚፈልገው
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` አብስት የሆነ ዳይሬክቶሪ ውስጥ
+`storage.sqlite` እንዲገኝ ይጠይቃል። ነባር ዋጋ የለውም። መሣሪያው ያ ዳታቤዝን በአንቀሳቃሽ ሁኔታ ይከፍታል እና
+በተለየ ግልጽ ጊዜያዊ ቅጂ ውስጥ የተለየ የደንበኞች ቁልፎችን እና ቅንብሮችን ያዘጋጃል፤
+ማረጋገጫዎች በማረጋገጫ አካባቢ ይቀራሉ። ይህ ተለዋዋጭ ለበተለይ የተጠየቀው የአዘጋጅት ትእዛዝ ብቻ ነው እና በመደበኛ የሰርቨር ማስጀመሪያ ውስጥ አይጠቀምም። አዘጋጅቱ ሞዴል አይጠራም፤ የተለየው የቀጥታ ስሞክ ትእዛዝ የ`--execute-real` ይፈልጋል።
 
-| ተለዋዋጭ                              | ነባሪ      | የምንጭ ፋይል                                    | መግለጫ                                                                                                                                                                                                                                 |
-| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | `1` ሲሆን፣ ከማሰራጨት በፊት በwindow ያላቸው የtoken budget (`rateLimitOverrides.tpm`፣ table `provider_quota_state`) የተገመተውን የጥያቄ ወጪ መሸፈን የማይችሉ connectionsን ይዝለላል። budget ካልተዋቀረ fail-open ይሆናል።                                                 |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(በርቷል)_ | `open-sse/services/estimatorCalibration.ts` | የcontext-guard token estimator (#14931) የfeedback calibration፦ ለእያንዳንዱ (provider, model, tools present) የ`usage.prompt_tokens` / estimate EMA፣ በ0.15–2.0 መካከል የተገደበ፣ በmemory ውስጥ ብቻ። `off`፣ `0` ወይም `false` መመዝገብን እና መተግበርን ያሰናክላል። |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | የ`xai-oauth` (`xao`) እና `grok-cli` image routesን ይመዘግባል። ተመሳሳይ ስም ያለው የdashboard feature flag፤ የDB override ከዚህ እሴት ቅድሚያ ያገኛል።                                                                                                       |
+### ከኮታ ጋር የሚተዳደር መስተዋት
+
+በ`open-sse/services/combo.ts` እና `src/lib/quota/quotaScheduler.ts` ውስጥ ለቅድመ-ጥያቄ ቶክን-በጀት ምርመራዎች ይጠቀማል። አስፈላጊ ነው — ነባር የመስመር ባህሪ ካልተቀመጠ አይቀየርም።
+
+| ተለዋዋጭ                              | ነባር ዋጋ  | ምንጭ ፋይል                                     | መግለጫ                                                                                                                                                                                      |
+| ---------------------------------- | ------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | ሲሆን `1`, በመላው መስክ ውስጥ የቶክን በጀት (`rateLimitOverrides.tpm`, ሰንጠረዥ `provider_quota_state`) የተጠቀሰውን የጥያቄ ወጪ ማስተካከያ ከመላክ በፊት ማስቻል የማይችሉትን ግንኙነቶች ይዝለዋል። በበጀት ማዘጋጀት ላይ ሲል አልተቀመጠ ከሆነ ክፍት ይቀርባል። |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | የcontext-guard ቶክን ግምት የአስተዳደር አስተካካይ (#14931): በ(አቅራቢ, ሞዴል, መሳሪያዎች አሉ) EMA የ`usage.prompt_tokens` / ግምት, በ0.15–2.0 ውስጥ የተጠቀሰ, በመስተዋት ብቻ። `off`, `0` ወይም `false` መዝጋትን እና መተግበሪያን ይሰርዛል።  |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | የ`xai-oauth` (`xao`) እና `grok-cli` የምስል መንገዶችን ይመዝግባል። የዳሽቦርድ ባለስልጣን ባህሪ ባለው ስም፤ የDB ማሻሻያ በዚህ ዋጋ ላይ ይቆጣጠራል።                                                                               |

@@ -227,7 +227,10 @@ EmbeddingsV5Request دستاویزات بھی قبول کرتا ہے اور ان
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
+      "content": [
+        { "text": "caption" },
+        { "image": "data:image/png;base64,..." }
+      ]
     }
   ]
 }
@@ -903,52 +906,52 @@ X-OmniRoute-No-Cache: true
 
 ---
 
-## ڈیش بورڈ اور نظم و نسق
+## ڈیش بورڈ اور انتظام
 
-انتظامی روٹس (`/api/*`، عوامی auth/login کے علاوہ) عام inference API کلیدوں کے ذریعے **مجاز نہیں** ہوتے۔
-اسناد کی اقسام، scopes، اور curl کی مثالیں:
+انتظامی راستے (`/api/*` عوامی auth/login کے علاوہ) **اجازت** نہیں رکھتے
+عام انفرنس API کیز سے۔ اسناد کے خاندان، دائرے، اور curl کی مثالیں:
 [انتظامی توثیق](../guides/MANAGEMENT-AUTH.md)۔
 
 ### توثیق
 
-| Endpoint                      | Method  | تفصیل                      |
-| ----------------------------- | ------- | -------------------------- |
-| `/api/auth/login`             | POST    | لاگ اِن                    |
-| `/api/auth/logout`            | POST    | لاگ آؤٹ                    |
-| `/api/settings/require-login` | GET/PUT | لازمی لاگ اِن کو ٹوگل کریں |
+| اینڈپوائنٹ                    | طریقہ   | وضاحت                         |
+| ----------------------------- | ------- | ----------------------------- |
+| `/api/auth/login`             | POST    | لاگ ان                        |
+| `/api/auth/logout`            | POST    | لاگ آؤٹ                       |
+| `/api/settings/require-login` | GET/PUT | لاگ ان کی ضرورت کو تبدیل کریں |
 
-### فراہم کنندہ کا نظم و نسق
+### فراہم کنندہ کا انتظام
 
-| Endpoint                                | Method                    | تفصیل                                                                                                                                        |
-| --------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/providers`                        | GET/POST                  | فراہم کنندگان کی فہرست حاصل کریں / فراہم کنندہ بنائیں                                                                                        |
-| `/api/providers/[id]`                   | GET/PUT/DELETE            | فراہم کنندہ کا نظم کریں                                                                                                                      |
-| `/api/providers/[id]/test`              | POST                      | فراہم کنندہ کے کنکشن کی جانچ کریں                                                                                                            |
-| `/api/providers/[id]/models`            | GET                       | فراہم کنندہ کے ماڈلز کی فہرست حاصل کریں                                                                                                      |
-| `/api/providers/validate`               | POST                      | فراہم کنندہ کی کنفیگریشن کی توثیق کریں                                                                                                       |
-| `/api/providers/bulk`                   | POST                      | ایک فراہم کنندہ کے لیے API کلیدیں بڑی تعداد میں شامل کریں                                                                                    |
-| `/api/providers/import`                 | POST                      | parse شدہ CSV/JSON فائل سے مختلف النوع فراہم کنندگان کی فہرست درآمد کریں (#6836)؛ ہر قطار کے جزوی ناکامی کے نتائج                            |
-| `/api/provider-nodes*`                  | مختلف                     | فراہم کنندہ کے نوڈز کا نظم و نسق                                                                                                             |
-| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | حسبِ ضرورت ماڈلز اور ہر ماڈل کے overrides (شامل کرنا، اپ ڈیٹ کرنا، چھپانا/دکھانا، حذف کرنا)                                                  |
-| `/api/provider-models/validate-and-add` | POST                      | انتظامی طور پر توثیق شدہ، اختیاری سخت کنکشن توثیق اور atomic حسبِ ضرورت ماڈل رجسٹریشن؛ [ماڈل کی توثیق](../guides/MODEL-VALIDATION.md) دیکھیں |
+| اینڈپوائنٹ                              | طریقہ                     | وضاحت                                                                                                                                    |
+| --------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/providers`                        | GET/POST                  | فراہم کنندگان کی فہرست / تخلیق                                                                                                           |
+| `/api/providers/[id]`                   | GET/PUT/DELETE            | فراہم کنندہ کا انتظام                                                                                                                    |
+| `/api/providers/[id]/test`              | POST                      | فراہم کنندہ کے کنکشن کی جانچ                                                                                                             |
+| `/api/providers/[id]/models`            | GET                       | فراہم کنندہ کے ماڈلز کی فہرست                                                                                                            |
+| `/api/providers/validate`               | POST                      | فراہم کنندہ کی ترتیب کی توثیق                                                                                                            |
+| `/api/providers/bulk`                   | POST                      | ایک فراہم کنندہ کے لیے بیلک میں API کیز شامل کریں                                                                                        |
+| `/api/providers/import`                 | POST                      | ایک متنوع فراہم کنندہ کی فہرست کو ایک پارس کردہ CSV/JSON فائل سے درآمد کریں (#6836)؛ ہر قطار کے جزوی ناکامی کے نتائج                     |
+| `/api/provider-nodes*`                  | مختلف                     | فراہم کنندہ کے نوڈ کا انتظام                                                                                                             |
+| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | حسب ضرورت ماڈلز اور فی ماڈل اوور رائیڈز (شامل کریں، اپ ڈیٹ کریں، چھپائیں/دکھائیں، حذف کریں)                                              |
+| `/api/provider-models/validate-and-add` | POST                      | انتظامی توثیق شدہ، آپٹ ان سخت کنکشن کی توثیق اور ایٹمی حسب ضرورت ماڈل کی رجسٹریشن؛ دیکھیں [ماڈل کی توثیق](../guides/MODEL-VALIDATION.md) |
 
-مطابقت پذیر/درآمد شدہ ماڈلز کے لیے، `PUT /api/provider-models` میں `provider`، `modelId`، اور
-`maxOutputTokenOverride` قبول کیے جاتے ہیں: ایک مثبت صحیح عدد دستی output-token حد مقرر کرتا ہے، جبکہ `null`
-اسے صاف کر کے ڈیفالٹ بحال کر دیتا ہے۔ `GET /api/provider-models?provider=<provider>` یہ
-اقدار `modelOutputOverrides` میں لوٹاتا ہے، بشمول ان ماڈلز کے جن کی کوئی custom-model قطار نہیں ہے۔ یہ override
-runtime کی `max_output_tokens` صلاحیت استعمال کرتا ہے اور ماڈل کی دوبارہ مطابقت پذیری کے بعد بھی برقرار رہتا ہے۔ OpenAI-compatible
-فراہم کنندہ کا صفحہ یہی ترمیم/صاف کرنے کے کنٹرولز فراہم کرتا ہے اور واضح vision سپورٹ والے ماڈلز کو نشان زد کرتا ہے۔
+ہم وقت ساز/درآمد شدہ ماڈلز کے لیے، `PUT /api/provider-models` `provider`، `modelId`، اور
+`maxOutputTokenOverride` قبول کرتا ہے: ایک مثبت عدد دستی آؤٹ پٹ ٹوکن کی حد مقرر کرتا ہے، اور `null`
+اسے صاف کرتا ہے تاکہ ڈیفالٹ بحال ہو سکے۔ `GET /api/provider-models?provider=<provider>` یہ
+قدریں `modelOutputOverrides` میں واپس کرتا ہے، بشمول ماڈلز جن کے پاس حسب ضرورت ماڈل کی قطار نہیں ہے۔ اوور رائیڈ
+چلتے وقت `max_output_tokens` کی صلاحیت کا استعمال کرتا ہے اور ماڈل کی دوبارہ ہم وقت سازی کے بعد برقرار رہتا ہے۔ اوپن اے آئی کے ہم آہنگ
+فراہم کنندہ کا صفحہ اسی ترمیم/صاف کنٹرول پیش کرتا ہے اور ماڈلز کو واضح بصری حمایت کے ساتھ نشان زد کرتا ہے۔
 
-حسبِ ضرورت Chat Completions نوڈز، reasoning سے واضح طور پر دستبردار ہونے کی درخواستوں کو upstream backend کے مطابق ڈھالتے ہیں۔ ایک
-کامیاب کنکشن ٹیسٹ ہر عین model ID کے لیے خودکار طور پر chat-template کنٹرولز منتخب کرتا ہے
-جس کی `/models` اندراج کسی تسلیم شدہ `owned_by` قدر کو ثابت کرتی ہو: `vllm`، `sglang`، یا `llamacpp`۔
-شفاف OpenAI-compatible wrappers اصل ماڈل اندراج کو nested
-`openai` object کے اندر برقرار رکھ سکتے ہیں؛ شناخت زیادہ سے زیادہ ایسے تین envelopes تک جاتی ہے۔ غائب، نامعلوم، یا
-متصادم ملکیت والے ماڈلز معمول کا OpenAI طرزِ عمل برقرار رکھتے ہیں۔ شناخت موجودہ catalog درخواست کو دوبارہ استعمال کرتی ہے،
-کوئی completion tokens پیدا نہیں کرتی، اور کنکشن endpoint تبدیل ہونے پر منسوخ ہو جاتی ہے۔
+حسب ضرورت چیٹ مکمل کرنے والے نوڈز واضح استدلال کے آپٹ آؤٹس کو اوپر کی طرف کے بیک اینڈ کے لیے ڈھال لیتے ہیں۔ ایک
+کامیاب کنکشن کی جانچ ہر درست ماڈل ID کے لیے چیٹ-ٹیمپلیٹ کنٹرول خود بخود منتخب کرتی ہے
+جس کا `/models` اندراج ایک تسلیم شدہ `owned_by` قیمت ثابت کرتا ہے: `vllm`، `sglang`، یا `llamacpp`۔
+شفاف اوپن اے آئی کے ہم آہنگ ریپرز اصل ماڈل کے اندراج کو ایک نیسٹڈ
+`openai` آبجیکٹ کے اندر محفوظ کر سکتے ہیں؛ پتہ لگانا تین ایسے لفافوں تک جاری رہتا ہے۔ ماڈلز جن کی ملکیت غائب، نامعلوم، یا
+متضاد ہے وہ عام اوپن اے آئی کے رویے کو برقرار رکھتے ہیں۔ پتہ لگانا موجودہ کیٹلاگ کی درخواست کو دوبارہ استعمال کرتا ہے،
+کوئی مکمل ٹوکن پیدا نہیں کرتا، اور جب کنکشن کا اینڈپوائنٹ تبدیل ہوتا ہے تو یہ غیر مؤثر ہو جاتا ہے۔
 
-ایسے backend کے لیے طرزِ عمل مقرر کرنے کی خاطر جو یہ metadata ظاہر نہیں کرتا، موجودہ جزوی
-فراہم کنندہ update API استعمال کریں:
+اس رویے کو پن کرنے کے لیے جس کے لیے بیک اینڈ وہ میٹا ڈیٹا ظاہر نہیں کرتا، موجودہ جزوی
+فراہم کنندہ کی تازہ کاری API کا استعمال کریں:
 
 ```json
 {
@@ -958,77 +961,77 @@ runtime کی `max_output_tokens` صلاحیت استعمال کرتا ہے او�
 }
 ```
 
-یہ body `PUT /api/providers/<connection-id>` کے ساتھ بھیجیں۔ اس کنکشن پر، `none` کی واضح
-reasoning effort کو `chat_template_kwargs.thinking=false` اور
-`chat_template_kwargs.enable_thinking=false` کے طور پر بھیجا جاتا ہے۔ واضح native template اقدار بدستور حتمی اختیار رکھتی ہیں،
-سوائے اس صورت کے جب server-side reasoning اصول کسی effort کو لازم قرار دے۔ یہ ترتیب صرف اس وقت لاگو ہوتی ہے جب کوئی حسبِ ضرورت
-OpenAI-compatible کنکشن Chat Completions body بھیجتا ہے؛ Responses درخواستیں اور عام
-فراہم کنندگان اپنی native درخواست کی ساخت برقرار رکھتے ہیں۔ عام OpenAI
-`reasoning_effort` passthrough کو لازم کرنے کے لیے `reasoningControl` کو `openai` پر سیٹ کریں، یا خودکار شناخت استعمال کرنے کے لیے اسے چھوڑ دیں/`null` پر سیٹ کریں۔
+اس جسم کو `PUT /api/providers/<connection-id>` کے ساتھ بھیجیں۔ اس کنکشن پر، `none` کی واضح
+استدلال کی کوشش کو `chat_template_kwargs.thinking=false` اور
+`chat_template_kwargs.enable_thinking=false` کے طور پر بھیجا جاتا ہے۔ واضح مقامی ٹیمپلیٹ کی قیمتیں بااختیار رہتی ہیں
+جب تک کہ سرور کے جانب سے استدلال کا کوئی اصول کوشش کو مجبور نہ کرے۔ یہ ترتیب صرف اس وقت لاگو ہوتی ہے جب ایک حسب ضرورت
+اوپن اے آئی کے ہم آہنگ کنکشن چیٹ مکمل کرنے والے جسم کو بھیجتا ہے؛ جوابات کی درخواستیں اور عام
+فراہم کنندگان اپنی مقامی درخواست کی شکل کو برقرار رکھتے ہیں۔ `reasoningControl` کو `openai` پر سیٹ کریں تاکہ عام اوپن اے آئی
+`reasoning_effort` پاس تھرو کو مجبور کریں، یا اسے چھوڑ دیں/اسے `null` پر سیٹ کریں تاکہ خودکار پتہ لگانے کا استعمال کریں۔
 
-Claude Code کی auto-mode classifier درخواستوں میں، جب کوئی واضح reasoning controls موجود نہ ہوں، تو default native thinking کو غیر فعال کر دیا جاتا ہے۔ تشخیص model names یا completion limits کے بجائے Claude-format درخواستوں میں classifier کے system marker کو استعمال کرتی ہے۔ واضح body controls، معاون effort/thinking headers، routing rules، اور resolved model effort کی موجودہ ترجیح برقرار رہتی ہے۔ classifier کے دونوں مراحل اپنے prompts، completion limits، stop sequences، اور حقیقی upstream permission verdicts برقرار رکھتے ہیں؛ دوسرا مرحلہ اب بھی اپنی مطلوبہ دکھائی دینے والی reasoning کو عام متن کی صورت میں پیش کر سکتا ہے۔
+Claude Code خودکار موڈ کلاسفائر کی درخواستیں ڈیفالٹ مقامی سوچ کو غیر فعال کرنے کے لیے کہتی ہیں جب ان میں کوئی واضح استدلال کنٹرول نہ ہوں۔ پتہ لگانے کے لیے کلاسفائر کے سسٹم مارکر کا استعمال کیا جاتا ہے جو Claude-format درخواستوں میں ہوتا ہے، ماڈل کے نام یا مکمل ہونے کی حدود نہیں۔ واضح جسم کے کنٹرول، حمایت یافتہ کوشش/سوچ کے ہیڈرز، روٹنگ کے قواعد، اور حل شدہ ماڈل کی کوشش اپنی موجودہ ترجیح برقرار رکھتے ہیں۔ دونوں کلاسفائر مراحل اپنے پرامپٹس، مکمل ہونے کی حدود، روکنے کے تسلسل، اور حقیقی اوپر کی اجازت کے فیصلے برقرار رکھتے ہیں؛ دوسرا مرحلہ اب بھی اپنی درخواست کردہ نظر آنے والی سوچ کو عام متن کے طور پر پیدا کر سکتا ہے۔
 
-### OAuth فلو
+### OAuth Flows
 
-| Endpoint                         | طریقہ | تفصیل                       |
-| -------------------------------- | ----- | --------------------------- |
-| `/api/oauth/[provider]/[action]` | مختلف | provider کے لیے مخصوص OAuth |
+| Endpoint                         | Method | Description             |
+| -------------------------------- | ------ | ----------------------- |
+| `/api/oauth/[provider]/[action]` | مختلف  | فراہم کنندہ مخصوص OAuth |
 
-### Routing اور Config
+### Routing & Config
 
-| Endpoint              | طریقہ    | تفصیل                                  |
+| Endpoint              | Method   | Description                            |
 | --------------------- | -------- | -------------------------------------- |
-| `/api/models/alias`   | GET/POST | model aliases                          |
-| `/api/models/catalog` | GET      | provider + type کے لحاظ سے تمام models |
-| `/api/combos*`        | مختلف    | combo کا انتظام                        |
-| `/api/keys*`          | مختلف    | API key کا انتظام                      |
-| `/api/pricing`        | GET      | model کی قیمتیں                        |
+| `/api/models/alias`   | GET/POST | ماڈل کے عرفیات                         |
+| `/api/models/catalog` | GET      | فراہم کنندہ + قسم کے لحاظ سے تمام ماڈل |
+| `/api/combos*`        | مختلف    | کومبو انتظام                           |
+| `/api/keys*`          | مختلف    | API کی کلید کا انتظام                  |
+| `/api/pricing`        | GET      | ماڈل کی قیمت                           |
 
-### استعمال اور Analytics
+### Usage & Analytics
 
-| Endpoint                         | طریقہ           | تفصیل                                                                                                                                                                                                                                                                                            |
-| -------------------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/api/usage/history`             | GET             | استعمال کی سرگزشت                                                                                                                                                                                                                                                                                |
-| `/api/usage/logs`                | GET             | استعمال کے logs                                                                                                                                                                                                                                                                                  |
-| `/api/usage/request-logs`        | GET             | request-level logs                                                                                                                                                                                                                                                                               |
-| `/api/usage/[connectionId]`      | GET             | ہر connection کا استعمال                                                                                                                                                                                                                                                                         |
-| `/api/usage/token-limits`        | GET/POST/DELETE | ہر API key کے token-limit budgets                                                                                                                                                                                                                                                                |
-| `/api/usage/model-latency-stats` | GET             | ہر provider/model کے لیے متحرک latency aggregate (avg/p50/p95/p99، کامیابی کی شرح)؛ filters: `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                                     |
-| `/api/usage/cache-health`        | GET             | `call_logs` پر prompt-cache کی صحت کا خلاصہ — write/read تناسب، p50/p90/p99 write-size distribution، heavy-write concentration، ہر model کی تقسیم، اور `healthy`/`degraded`/`thrash`/`no-data` فیصلہ؛ query params `range` (`1h`\|`24h`\|`7d`\|`30d`، default `24h`) اور اختیاری `model` (#8827) |
+| Endpoint                         | Method          | Description                                                                                                                                                                                                                                                                                   |
+| -------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/usage/history`             | GET             | استعمال کی تاریخ                                                                                                                                                                                                                                                                              |
+| `/api/usage/logs`                | GET             | استعمال کے لاگ                                                                                                                                                                                                                                                                                |
+| `/api/usage/request-logs`        | GET             | درخواست کی سطح کے لاگ                                                                                                                                                                                                                                                                         |
+| `/api/usage/[connectionId]`      | GET             | فی کنکشن استعمال                                                                                                                                                                                                                                                                              |
+| `/api/usage/token-limits`        | GET/POST/DELETE | فی API کلید ٹوکن-حد بجٹس                                                                                                                                                                                                                                                                      |
+| `/api/usage/model-latency-stats` | GET             | فراہم کنندہ/ماڈل کی تاخیر کا مجموعہ (اوسط/p50/p95/p99، کامیابی کی شرح)؛ فلٹرز: `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                                                |
+| `/api/usage/cache-health`        | GET             | `call_logs` پر پرامپٹ کیش کی صحت کا خلاصہ — لکھنے/پڑھنے کا تناسب، p50/p90/p99 لکھنے کے سائز کی تقسیم، بھاری لکھائی کی توجہ، فی ماڈل تقسیم، اور `healthy`/`degraded`/`thrash`/`no-data` کا فیصلہ؛ کوئری پیرامیٹرز `range` (`1h`\|`24h`\|`7d`\|`30d`, ڈیفالٹ `24h`) اور اختیاری `model` (#8827) |
 
-### API key کی permissions
+### API key permissions
 
-`PATCH /api/keys/{id}` کسی موجودہ key کی permissions کو اپ ڈیٹ کرتا ہے۔ ہر `/api/keys*` route کی طرح، اسے inference key نہیں بلکہ management authorization درکار ہے (دیکھیے [Management Authentication](../guides/MANAGEMENT-AUTH.md))۔ صرف وہ fields بھیجیں جنہیں آپ تبدیل کرنا چاہتے ہیں؛ ان میں سے کسی field کے بغیر بھیجی گئی request کو `No valid fields to update` کے ساتھ مسترد کر دیا جاتا ہے۔ قابل قبول fields کی تعریف `src/shared/validation/schemas/keys.ts` میں `updateKeyPermissionsSchema` کے ذریعے کی گئی ہے۔
+`PATCH /api/keys/{id}` ایک موجودہ کلید کے اجازت ناموں کو اپ ڈیٹ کرتا ہے۔ ہر `/api/keys*` راستے کی طرح اسے انتظامی اختیار کی ضرورت ہوتی ہے (دیکھیں [Management Authentication](../guides/MANAGEMENT-AUTH.md))، نہ کہ استدلال کی کلید۔ صرف وہ فیلڈز بھیجیں جنہیں آپ تبدیل کرنا چاہتے ہیں؛ ان میں سے کوئی بھی نہ ہونے والی درخواست کو `No valid fields to update` کے ساتھ مسترد کر دیا جاتا ہے۔ قبول شدہ فیلڈز `src/shared/validation/schemas/keys.ts` میں `updateKeyPermissionsSchema` کے ذریعہ بیان کیے گئے ہیں۔
 
-| فیلڈ                                        | قسم                                                                       | نوٹس                                                                                                                                         |
-| ------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `name`                                      | اسٹرنگ، 1-200 حروف                                                        |                                                                                                                                              |
-| `isActive`                                  | بولین                                                                     |                                                                                                                                              |
-| `isBanned`                                  | بولین                                                                     |                                                                                                                                              |
-| `expiresAt`                                 | ISO 8601 تاریخ و وقت یا `null`                                            | `null` میعاد ختم ہونے کی ترتیب صاف کر دیتا ہے                                                                                                |
-| `modelAccessMode`                           | `all` \| `restricted`                                                     | جب موڈ `all` ہو تو `allowedModels` خالی ہونا ضروری ہے                                                                                        |
-| `allowedModels`, `blockedModels`            | اسٹرنگز کی ارے، زیادہ سے زیادہ 1000                                       |                                                                                                                                              |
-| `allowedCombos`                             | اسٹرنگز کی ارے، زیادہ سے زیادہ 500                                        | یہ طے کرتا ہے کہ کلید کن کومبوز کو کال کر سکتی ہے؛ براہِ راست ماڈلز `modelAccessMode` / `allowedModels` کے زیرِ انتظام ہوتے ہیں              |
-| `connectionAccessMode`                      | `all` \| `restricted`                                                     | `restricted` کی صورت میں `allowedConnections` غیر خالی اور `all` کی صورت میں خالی ہونا ضروری ہے                                              |
-| `allowedConnections`                        | UUIDs کی ارے، زیادہ سے زیادہ 100                                          |                                                                                                                                              |
-| `allowAutoCombos`                           | بولین                                                                     | `false` اس کلید کے ساتھ `auto/*` ماڈلز کی درخواستیں مسترد کرتا ہے؛ وہ کلیدیں جن میں اسے کبھی سیٹ نہیں کیا گیا، اجازت یافتہ ہیں               |
-| `catalogScope`                              | `all` \| `combos` \| `models`                                             | اس کلید کے لیے `GET /v1/models` میں کیا درج ہوتا ہے (صرف کومبوز، صرف ماڈلز، یا دونوں)؛ اس سے یہ تبدیل نہیں ہوتا کہ کلید کس کو کال کر سکتی ہے |
-| `noLog`, `autoResolve`                      | بولین                                                                     |                                                                                                                                              |
-| `throttleDelayMs`                           | صحیح عدد، 0-300000                                                        |                                                                                                                                              |
-| `maxSessions`                               | صحیح عدد، 0-10000                                                         |                                                                                                                                              |
-| `rateLimits`                                | `{ limit, window }` کی ارے (مثبت صحیح اعداد، زیادہ سے زیادہ 50) یا `null` | `null` حدود صاف کر دیتا ہے                                                                                                                   |
-| `accessSchedule`                            | شیڈول آبجیکٹ یا `null`                                                    | `null` شیڈول صاف کر دیتا ہے                                                                                                                  |
-| `scopes`                                    | اسٹرنگز کی ارے، زیادہ سے زیادہ 32                                         |                                                                                                                                              |
-| `allowedEndpoints`                          | اسٹرنگز کی ارے، زیادہ سے زیادہ 20                                         |                                                                                                                                              |
-| `streamDefaultMode`                         | `legacy` \| `json`                                                        |                                                                                                                                              |
-| `cacheDefaultMode`                          | `legacy` \| `bypass`                                                      | [فی کلید کیش بائی پاس](#per-key-cache-bypass) دیکھیں                                                                                         |
-| `compressionEnabled`                        | بولین                                                                     |                                                                                                                                              |
-| `codexServiceMode`                          | Codex سروس موڈز میں سے ایک                                                |                                                                                                                                              |
-| `disableNonPublicModels`                    | بولین                                                                     |                                                                                                                                              |
-| `allowUsageCommand`                         | boolean                                                                   |                                                                                                                                              |
-| `usageLimitEnabled`                         | boolean                                                                   |                                                                                                                                              |
-| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | 0 یا اس سے زیادہ number، یا `null`                                        |                                                                                                                                              |
-| `chaosModeEnabled`                          | boolean                                                                   |                                                                                                                                              |
+| میدان                                       | قسم                                                        | نوٹس                                                                                                                              |
+| ------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `name`                                      | string, 1-200 حروف                                         |                                                                                                                                   |
+| `isActive`                                  | boolean                                                    |                                                                                                                                   |
+| `isBanned`                                  | boolean                                                    |                                                                                                                                   |
+| `expiresAt`                                 | ISO 8601 تاریخ و وقت یا `null`                             | `null` میعاد ختم کو صاف کرتا ہے                                                                                                   |
+| `modelAccessMode`                           | `all` \| `restricted`                                      | جب موڈ `all` ہو تو `allowedModels` خالی ہونا چاہیے                                                                                |
+| `allowedModels`, `blockedModels`            | strings کی صف، 1000 تک                                     |                                                                                                                                   |
+| `allowedCombos`                             | strings کی صف، 500 تک                                      | وہ گیٹس جنہیں یہ کلید کال کر سکتی ہے؛ براہ راست ماڈلز `modelAccessMode` / `allowedModels` کے ذریعہ کنٹرول ہوتے ہیں                |
+| `connectionAccessMode`                      | `all` \| `restricted`                                      | جب `restricted` ہو تو `allowedConnections` غیر خالی ہونا چاہیے اور جب `all` ہو تو خالی ہونا چاہیے                                 |
+| `allowedConnections`                        | UUIDs کی صف، 100 تک                                        |                                                                                                                                   |
+| `allowAutoCombos`                           | boolean                                                    | `false` اس کلید کے ساتھ `auto/*` ماڈلز کے لئے درخواستوں کو مسترد کرتا ہے؛ جو کلیدیں کبھی اسے سیٹ نہیں کرتی ہیں وہ اجازت یافتہ ہیں |
+| `catalogScope`                              | `all` \| `combos` \| `models`                              | اس کلید کے لئے `GET /v1/models` کیا فہرست کرتا ہے (صرف combos، صرف ماڈلز، یا دونوں)؛ یہ نہیں بدلتا کہ کلید کیا کال کر سکتی ہے     |
+| `noLog`, `autoResolve`                      | boolean                                                    |                                                                                                                                   |
+| `throttleDelayMs`                           | integer, 0-300000                                          |                                                                                                                                   |
+| `maxSessions`                               | integer, 0-10000                                           |                                                                                                                                   |
+| `rateLimits`                                | `{ limit, window }` کی صف (مثبت integers، 50 تک) یا `null` | `null` حدود کو صاف کرتا ہے                                                                                                        |
+| `accessSchedule`                            | شیڈول آبجیکٹ یا `null`                                     | `null` شیڈول کو صاف کرتا ہے                                                                                                       |
+| `scopes`                                    | strings کی صف، 32 تک                                       |                                                                                                                                   |
+| `allowedEndpoints`                          | strings کی صف، 20 تک                                       |                                                                                                                                   |
+| `streamDefaultMode`                         | `legacy` \| `json`                                         |                                                                                                                                   |
+| `cacheDefaultMode`                          | `legacy` \| `bypass`                                       | [Per-key cache bypass](#per-key-cache-bypass) دیکھیں                                                                              |
+| `compressionEnabled`                        | boolean                                                    |                                                                                                                                   |
+| `codexServiceMode`                          | Codex سروس موڈز میں سے ایک                                 |                                                                                                                                   |
+| `disableNonPublicModels`                    | boolean                                                    |                                                                                                                                   |
+| `allowUsageCommand`                         | boolean                                                    |                                                                                                                                   |
+| `usageLimitEnabled`                         | boolean                                                    |                                                                                                                                   |
+| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 or `null`                                      |                                                                                                                                   |
+| `chaosModeEnabled`                          | boolean                                                    |                                                                                                                                   |
 
 ```bash
 curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
@@ -1037,151 +1040,175 @@ curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
   -d '{ "allowAutoCombos": false, "catalogScope": "combos" }'
 ```
 
-### ترتیبات
+### سیٹنگز
 
-| اینڈ پوائنٹ                           | طریقہ         | تفصیل                                                                                                                                                                           |
-| ------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/settings`                       | GET/PUT/PATCH | عمومی ترتیبات                                                                                                                                                                   |
-| `/api/settings/proxy`                 | GET/PUT       | نیٹ ورک پراکسی کی تشکیل                                                                                                                                                         |
-| `/api/settings/proxy/test`            | POST          | پراکسی کنکشن کی جانچ                                                                                                                                                            |
-| `/api/settings/ip-filter`             | GET/PUT       | IP اجازت فہرست/بلاک فہرست                                                                                                                                                       |
-| `/api/settings/thinking-budget`       | GET/PUT       | سوچنے/استدلال کی **درخواست** کو دوبارہ لکھنے کا موڈ (passthrough / auto-strip / custom / adaptive)۔ کمپریشن سے آزاد۔ [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md) دیکھیں۔ |
-| `/api/settings/system-prompt`         | GET/PUT       | عالمی سسٹم پرامپٹ                                                                                                                                                               |
-| `/api/settings/compression`           | GET/PUT       | عالمی کمپریشن کی تشکیل                                                                                                                                                          |
-| `/api/settings/purge-request-history` | POST          | درخواست لاگ کی قطاریں اور مقامی کال لاگ کے نوادرات صاف کریں                                                                                                                     |
+| Endpoint                              | Method        | Description                                                                                                                                                                      |
+| ------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/settings`                       | GET/PUT/PATCH | عمومی سیٹنگز                                                                                                                                                                     |
+| `/api/settings/proxy`                 | GET/PUT       | نیٹ ورک پروکسی کنفیگ                                                                                                                                                             |
+| `/api/settings/proxy/test`            | POST          | پروکسی کنکشن کا ٹیسٹ                                                                                                                                                             |
+| `/api/settings/ip-filter`             | GET/PUT       | IP اجازت نامہ/بلاک لسٹ                                                                                                                                                           |
+| `/api/settings/thinking-budget`       | GET/PUT       | سوچنے/دلائل دینے کی **درخواست** دوبارہ لکھنے کا طریقہ (پاس تھرو / خودکار ہٹانا / حسب ضرورت / موافق)۔ کمپریشن سے آزاد۔ دیکھیں [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md). |
+| `/api/settings/system-prompt`         | GET/PUT       | عالمی سسٹم پرامپٹ                                                                                                                                                                |
+| `/api/settings/compression`           | GET/PUT       | عالمی کمپریشن کنفیگ                                                                                                                                                              |
+| `/api/settings/purge-request-history` | POST          | درخواست لاگ کی قطاریں اور مقامی کال-لاگ آرٹيفیکٹس صاف کریں                                                                                                                       |
 
 ### سیاق و سباق اور کمپریشن
 
-| اینڈ پوائنٹ                            | طریقہ          | تفصیل                                                                     |
-| -------------------------------------- | -------------- | ------------------------------------------------------------------------- |
-| `/api/compression/preview`             | POST           | off/lite/standard/aggressive/ultra/RTK/stacked کمپریشن کا پیش منظر دیکھیں |
-| `/api/compression/language-packs`      | GET            | دستیاب Caveman زبان پیک کی فہرست                                          |
-| `/api/compression/rules`               | GET            | Caveman اصول کے میٹا ڈیٹا کی فہرست                                        |
-| `/api/context/caveman/config`          | GET/PUT        | Caveman سے مخصوص ترتیبات کا عرف                                           |
-| `/api/context/rtk/config`              | GET/PUT        | RTK سے مخصوص ترتیبات، بشمول حسب ضرورت فلٹرز اور خام آؤٹ پٹ برقرار رکھنا   |
-| `/api/context/rtk/filters`             | GET            | RTK فلٹر کیٹلاگ اور حسب ضرورت فلٹر کی تشخیصات                             |
-| `/api/context/rtk/test`                | POST           | متنی پے لوڈ پر RTK پیش منظر/جانچ چلائیں                                   |
-| `/api/context/rtk/raw-output/[id]`     | GET            | پوائنٹر id کے ذریعے محفوظ کردہ مخفی خام آؤٹ پٹ پڑھیں                      |
-| `/api/context/combos`                  | GET/POST       | کمپریشن کومبو کی فہرست بنائیں/نیا بنائیں                                  |
-| `/api/context/combos/[id]`             | GET/PUT/DELETE | کمپریشن کومبو کی تفصیل/تجدید/حذف                                          |
-| `/api/context/combos/[id]/assignments` | GET/PUT        | روٹنگ کومبوز کو کمپریشن کومبوز تفویض کریں                                 |
-| `/api/context/analytics`               | GET            | کمپریشن تجزیات کا عرف                                                     |
+| Endpoint                               | Method         | Description                                                                       |
+| -------------------------------------- | -------------- | --------------------------------------------------------------------------------- |
+| `/api/compression/preview`             | POST           | آف/ہلکا/معیاری/جارحانہ/الٹرا/RTK/اسٹیکڈ کمپریشن کا پیش نظارہ                      |
+| `/api/compression/language-packs`      | GET            | دستیاب کیو مین زبان کے پیک کی فہرست                                               |
+| `/api/compression/rules`               | GET            | کیو مین قاعدے کے میٹا ڈیٹا کی فہرست                                               |
+| `/api/context/caveman/config`          | GET/PUT        | کیو مین مخصوص سیٹنگز کا عرف                                                       |
+| `/api/context/rtk/config`              | GET/PUT        | RTK مخصوص سیٹنگز، بشمول حسب ضرورت فلٹرز اور خام آؤٹ پٹ کی برقرار رکھنے کی معلومات |
+| `/api/context/rtk/filters`             | GET            | RTK فلٹر کیٹلاگ اور حسب ضرورت فلٹر کی تشخیص                                       |
+| `/api/context/rtk/test`                | POST           | ایک متن کے پیلوڈ کے خلاف RTK پیش نظارہ/ٹیسٹ چلائیں                                |
+| `/api/context/rtk/raw-output/[id]`     | GET            | پوائنٹر ID کے ذریعہ برقرار رکھے گئے سرخ کردہ خام آؤٹ پٹ کو پڑھیں                  |
+| `/api/context/combos`                  | GET/POST       | کمپریشن کومبو کی فہرست/تخلیق                                                      |
+| `/api/context/combos/[id]`             | GET/PUT/DELETE | کمپریشن کومبو کی تفصیل/اپ ڈیٹ/حذف                                                 |
+| `/api/context/combos/[id]/assignments` | GET/PUT        | روٹنگ کومبوز کے لیے کمپریشن کومبوز تفویض کریں                                     |
+| `/api/context/analytics`               | GET            | کمپریشن تجزیات کا عرف                                                             |
 
-### نگرانی
+### مانیٹرنگ
 
-| Endpoint                             | Method     | تفصیل                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/sessions`                      | GET        | فعال سیشنز کی ٹریکنگ                                                                                                                                                                                                                                                                                                                                                                                  |
-| `/api/rate-limits`                   | GET        | فی اکاؤنٹ شرح کی حدود                                                                                                                                                                                                                                                                                                                                                                                 |
-| `/api/monitoring/health`             | GET        | صحت کی جانچ + فراہم کنندہ کا خلاصہ (`catalogCount`، `configuredCount`، `activeCount`، `monitoredCount`)۔ انتظامی منظر میں `credentialHealth` شامل ہے: probe-cache scalars، جب `failed>0` ہو تو `failedConnections`، اور `staleDbNonOkCount` (SQLite کا مستقل `test_status`، gauge نہیں)۔ [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status) دیکھیں۔ |
-| `/api/cache/stats`                   | GET/DELETE | کیش کے اعداد و شمار / صاف کرنا                                                                                                                                                                                                                                                                                                                                                                        |
-| `/api/modality-bridge/stats`         | GET        | اِن میموری `attempts`، کامیابیاں/`bridged`، ناکامیاں، کیش ہٹس، `totalLatencyMs`، `latencySamples`، نمونوں کی تعداد پر مبنی `averageLatencyMs`، اور آخری استعمال کا وقت (دوبارہ شروع ہونے پر ری سیٹ؛ انتظامی توثیق)                                                                                                                                                                                    |
-| `/api/modality-bridge/video/runtime` | GET        | انتظامی توثیق/probe سے پہلے سخت قابلِ اعتماد loopback جانچ؛ صاف شدہ FFmpeg/ffprobe دستیابی اور ورژنز (no-store)                                                                                                                                                                                                                                                                                       |
-| `/api/modality-bridge/video/extract` | POST       | اندرونی، توثیق شدہ، قابلِ اعتماد loopback بائٹ بروکر؛ 50 MiB اِن پٹ، محدود قطار/32 MiB آؤٹ پٹ، گنجائش کے لیے `503`، منقطع ہونے کے لیے `499`، آخری مہلت کے لیے `504`؛ یہ عوامی اپ لوڈ API نہیں ہے                                                                                                                                                                                                      |
+| Endpoint                             | Method     | Description                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/sessions`                      | GET        | فعال سیشن کی نگرانی                                                                                                                                                                                                                                                                                                                                                                                            |
+| `/api/rate-limits`                   | GET        | فی اکاؤنٹ کی شرح کی حدیں                                                                                                                                                                                                                                                                                                                                                                                       |
+| `/api/monitoring/health`             | GET        | صحت کی جانچ + فراہم کنندہ کا خلاصہ (`catalogCount`, `configuredCount`, `activeCount`, `monitoredCount`)۔ انتظامی منظر میں `credentialHealth` شامل ہے: پروب کیش اسکیلرز، `failedConnections` جب `failed>0` ہو، اور `staleDbNonOkCount` (SQLite اسٹکی `test_status`، گیج نہیں)۔ مزید معلومات کے لیے دیکھیں [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status)۔ |
+| `/api/cache/stats`                   | GET/DELETE | کیش کے اعداد و شمار / صاف کریں                                                                                                                                                                                                                                                                                                                                                                                 |
+| `/api/modality-bridge/stats`         | GET        | میموری میں `attempts`، کامیابیاں/`bridged`، ناکامیاں، کیش ہٹس، `totalLatencyMs`، `latencySamples`، نمونہ کی بنیاد پر `averageLatencyMs`، اور آخری استعمال کا وقت (ریسٹارٹ پر ری سیٹ؛ انتظامی اجازت)                                                                                                                                                                                                            |
+| `/api/modality-bridge/video/runtime` | GET        | انتظامی اجازت/پروب سے پہلے سخت قابل اعتماد لوپ بیک چیک؛ FFmpeg/ffprobe کی دستیابی اور ورژن کی صفائی (نو اسٹور)                                                                                                                                                                                                                                                                                                 |
+| `/api/modality-bridge/video/extract` | POST       | اندرونی تصدیق شدہ قابل اعتماد لوپ بیک بائٹ بروکر؛ 50 MiB ان پٹ، محدود قطار/32 MiB آؤٹ پٹ، `503` کی گنجائش، `499` منقطع، `504` کی آخری تاریخ؛ یہ عوامی اپ لوڈ API نہیں ہے                                                                                                                                                                                                                                       |
+
+### ویڈیو فریم کی تفصیل
+
+`GET /api/v1/video-bridge/drilldown` ایک ٹیننٹ سے منسلک اوپیک ہینڈل کو پڑھتا ہے جو کہ
+`x-omniroute-video-drilldown` میں واپس کیا جاتا ہے جب ایک واضح طور پر رضامند ویڈیو برج کی درخواست کی جاتی ہے۔
+پڑھنے اور `DELETE` ہمیشہ ایک درست API کلید اور آپریٹر کی آزاد
+`modalityBridgeVideoDrilldownRemoteEnabled` اجازت کی ضرورت ہوتی ہے۔ پروڈکشن کی برقرار رکھنے کے لیے اضافی طور پر
+`modalityBridgeVideoDrilldownEnabled` اور سخت فی حصے `drilldown: true` کی ضرورت ہوتی ہے۔
+
+GET کوئری: درکار `handle`؛ اختیاری `variant` (`preview`, `standard`, `detail`)،
+`limit` (1–8؛ وراثتی `frames` قبول کیا جاتا ہے لیکن `limit` کے ساتھ ملا نہیں جا سکتا)،
+زیرو بیسڈ `page`، اور `start`/`end` سیکنڈ۔ جب دونوں توجہ کی حدود
+فراہم کی جاتی ہیں، تو `end` کو `start` سے بڑا ہونا چاہیے۔ نقل/نامعلوم کوئری کیز کو
+رد کر دیا جاتا ہے۔ کامیاب جوابات میں `derivation`, `durationSeconds`, `frames`,
+`hasMore`, `page`, `variant`, اور اختیاری `focusWindow` شامل ہیں؛ نو اسٹور JSON کی حد
+32 MiB ہے بشمول Base64۔ زیادہ سائز کی آؤٹ پٹ 413 واپس کرتی ہے؛ کم فریم کی درخواست کریں۔
+
+`DELETE /api/v1/video-bridge/drilldown?handle=...` واپس کرتا ہے `{ "removed": 0|1 }`۔
+نامعلوم، ختم شدہ اور کراس کی GETs 404 جوابات میں ممتاز نہیں ہیں؛ کراس کی
+DELETE مالک کی اندراج کو نہیں ہٹا سکتی۔ غیر فعال رسائی 403 واپس کرتی ہے، غائب/غلط
+تصدیق 401، غلط کوئری 400، منسوخی 499 اور عارضی غلطیاں 503۔
+ہینڈلز پروسیس مقامی ہیں، دس منٹ کے بعد ختم ہو جاتے ہیں، اور دوبارہ شروع ہونے پر زندہ نہیں رہتے۔
+نئے ہینڈلز `v1.` کے ساتھ 32 بائٹ کے بے ترتیب Base64URL ٹوکن کا استعمال کرتے ہیں؛ صرف ٹوکن کے ہیش محفوظ کیے جاتے ہیں۔ وراثتی 64-ہیکس ٹوکن ہم آہنگی کے لیے نحوی طور پر پڑھنے کے قابل رہتے ہیں۔
+رضامندی، کوٹہ اور مختلف قسم کے مشتق تفصیلات کے لیے دیکھیں [ویڈیو برج کی حفاظتی حدود](../security/GUARDRAILS.md#video-bridge-videobridgets-videobridgepipelinets)۔
 
 ### بیک اپ اور برآمد/درآمد
 
-| Endpoint                    | Method | تفصیل                                                  |
+| Endpoint                    | Method | Description                                            |
 | --------------------------- | ------ | ------------------------------------------------------ |
 | `/api/db-backups`           | GET    | دستیاب بیک اپس کی فہرست                                |
-| `/api/db-backups`           | PUT    | دستی بیک اپ بنائیں                                     |
-| `/api/db-backups`           | POST   | مخصوص بیک اپ سے بحال کریں                              |
+| `/api/db-backups`           | PUT    | ایک دستی بیک اپ بنائیں                                 |
+| `/api/db-backups`           | POST   | ایک مخصوص بیک اپ سے بحال کریں                          |
 | `/api/db-backups/export`    | GET    | ڈیٹا بیس کو .sqlite فائل کے طور پر ڈاؤن لوڈ کریں       |
-| `/api/db-backups/import`    | POST   | ڈیٹا بیس تبدیل کرنے کے لیے .sqlite فائل اپ لوڈ کریں    |
+| `/api/db-backups/import`    | POST   | ڈیٹا بیس کو تبدیل کرنے کے لیے .sqlite فائل اپ لوڈ کریں |
 | `/api/db-backups/exportAll` | GET    | مکمل بیک اپ کو .tar.gz آرکائیو کے طور پر ڈاؤن لوڈ کریں |
 
-### کلاؤڈ ہم وقت سازی
+### Cloud Sync
 
-| Endpoint               | Method | تفصیل                           |
+| Endpoint               | Method | Description                     |
 | ---------------------- | ------ | ------------------------------- |
 | `/api/sync/cloud`      | مختلف  | کلاؤڈ ہم وقت سازی کی کارروائیاں |
-| `/api/sync/initialize` | POST   | ہم وقت سازی شروع کریں           |
-| `/api/cloud/*`         | مختلف  | کلاؤڈ کا انتظام                 |
+| `/api/sync/initialize` | POST   | ہم وقت سازی کا آغاز کریں        |
+| `/api/cloud/*`         | مختلف  | کلاؤڈ انتظامیہ                  |
 
-### ٹنلز
+### Tunnels
 
-| Endpoint                   | Method | تفصیل                                                                      |
+| Endpoint                   | Method | Description                                                                |
 | -------------------------- | ------ | -------------------------------------------------------------------------- |
-| `/api/tunnels/cloudflared` | GET    | ڈیش بورڈ کے لیے Cloudflare Quick Tunnel کی تنصیب/رن ٹائم کی حیثیت پڑھیں    |
+| `/api/tunnels/cloudflared` | GET    | ڈیش بورڈ کے لیے Cloudflare Quick Tunnel کی تنصیب/چلانے کی حیثیت پڑھیں      |
 | `/api/tunnels/cloudflared` | POST   | Cloudflare Quick Tunnel کو فعال یا غیر فعال کریں (`action=enable/disable`) |
-| `/api/tunnels/ngrok`       | GET    | ڈیش بورڈ کے لیے ngrok Tunnel کی رن ٹائم حیثیت پڑھیں                        |
+| `/api/tunnels/ngrok`       | GET    | ڈیش بورڈ کے لیے ngrok Tunnel کی چلانے کی حیثیت پڑھیں                       |
 | `/api/tunnels/ngrok`       | POST   | ngrok Tunnel کو فعال یا غیر فعال کریں (`action=enable/disable`)            |
 
-### CLI ٹولز
+### CLI Tools
 
-| اینڈ پوائنٹ                        | طریقہ | تفصیل                |
-| ---------------------------------- | ----- | -------------------- |
-| `/api/cli-tools/claude-settings`   | GET   | Claude CLI کی حالت   |
-| `/api/cli-tools/codex-settings`    | GET   | Codex CLI کی حالت    |
-| `/api/cli-tools/droid-settings`    | GET   | Droid CLI کی حالت    |
-| `/api/cli-tools/openclaw-settings` | GET   | OpenClaw CLI کی حالت |
-| `/api/cli-tools/runtime/[toolId]`  | GET   | عمومی CLI رن ٹائم    |
+| Endpoint                           | Method | Description              |
+| ---------------------------------- | ------ | ------------------------ |
+| `/api/cli-tools/claude-settings`   | GET    | Claude CLI کی حیثیت      |
+| `/api/cli-tools/codex-settings`    | GET    | Codex CLI کی حیثیت       |
+| `/api/cli-tools/droid-settings`    | GET    | Droid CLI کی حیثیت       |
+| `/api/cli-tools/openclaw-settings` | GET    | OpenClaw CLI کی حیثیت    |
+| `/api/cli-tools/runtime/[toolId]`  | GET    | عمومی CLI چلانے کی حیثیت |
 
-CLI جوابات میں شامل ہیں: `installed`، `runnable`، `command`، `commandPath`، `runtimeMode`، `reason`۔
+CLI جوابات میں شامل ہیں: `installed`, `runnable`, `command`, `commandPath`, `runtimeMode`, `reason`.
 
-### ACP ایجنٹس
+### ACP Agents
 
-| اینڈ پوائنٹ       | طریقہ  | تفصیل                                                         |
-| ----------------- | ------ | ------------------------------------------------------------- |
-| `/api/acp/agents` | GET    | حالت کے ساتھ تمام دریافت شدہ ایجنٹس (بلٹ اِن + کسٹم) کی فہرست |
-| `/api/acp/agents` | POST   | کسٹم ایجنٹ شامل کریں یا دریافت کیش ریفریش کریں                |
-| `/api/acp/agents` | DELETE | `id` کوئری پیرامیٹر کے ذریعے کسٹم ایجنٹ ہٹائیں                |
+| Endpoint          | Method | Description                                                  |
+| ----------------- | ------ | ------------------------------------------------------------ |
+| `/api/acp/agents` | GET    | تمام دریافت شدہ ایجنٹس (بلٹ ان + حسب ضرورت) کی فہرست         |
+| `/api/acp/agents` | POST   | حسب ضرورت ایجنٹ شامل کریں یا دریافت کی کیش کو تازہ کریں      |
+| `/api/acp/agents` | DELETE | `id` کوئری پیرا میٹر کے ذریعے ایک حسب ضرورت ایجنٹ کو ہٹا دیں |
 
-GET جواب میں `agents[]` (id، name، binary، version، installed، protocol، isCustom) اور `summary` (total، installed، notFound، builtIn، custom) شامل ہیں۔
+GET جواب میں شامل ہیں `agents[]` (id, name, binary, version, installed, protocol, isCustom) اور `summary` (total, installed, notFound, builtIn, custom).
 
-### لچک پذیری اور شرح کی حدود
+### Resilience & Rate Limits
 
-| اینڈ پوائنٹ                       | طریقہ     | تفصیل                                                                                    |
-| --------------------------------- | --------- | ---------------------------------------------------------------------------------------- |
-| `/api/resilience`                 | GET/PATCH | درخواست قطار، کنکشن کول ڈاؤن، پرووائیڈر بریکر، اور انتظار کی ترتیبات حاصل/اپ ڈیٹ کریں    |
-| `/api/resilience/reset`           | POST      | پرووائیڈر سرکٹ بریکرز ری سیٹ کریں                                                        |
-| `/api/resilience/model-cooldowns` | GET       | فعال فی-(provider، connection، model) لاک آؤٹس کو باقی وقت کے لحاظ سے مرتب کر کے دکھائیں |
-| `/api/resilience/model-cooldowns` | DELETE    | ماڈل لاک آؤٹ صاف کریں — باڈی `{provider, model}` یا سب کچھ مٹانے کے لیے `{all: true}`    |
-| `/api/rate-limits`                | GET       | فی اکاؤنٹ شرح کی حد کی حالت                                                              |
-| `/api/rate-limit`                 | GET       | عالمی شرح کی حد کی کنفیگریشن                                                             |
+| Endpoint                          | Method    | Description                                                                                                  |
+| --------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `/api/resilience`                 | GET/PATCH | درخواست کی قطار، کنکشن کی ٹھنڈک، فراہم کنندہ کے سرکٹ توڑنے والے، اور انتظار کی ترتیبات حاصل کریں/اپ ڈیٹ کریں |
+| `/api/resilience/reset`           | POST      | فراہم کنندہ کے سرکٹ توڑنے والوں کو ری سیٹ کریں                                                               |
+| `/api/resilience/model-cooldowns` | GET       | فعال فی-(فراہم کنندہ، کنکشن، ماڈل) لاک آؤٹ کی فہرست، باقی وقت کے لحاظ سے ترتیب دی گئی                        |
+| `/api/resilience/model-cooldowns` | DELETE    | ایک ماڈل لاک آؤٹ کو صاف کریں — جسم `{provider, model}` یا `{all: true}` سب کچھ مٹا دے گا                     |
+| `/api/rate-limits`                | GET       | فی اکاؤنٹ کی شرح کی حد کی حیثیت                                                                              |
+| `/api/rate-limit`                 | GET       | عالمی شرح کی حد کی تشکیل                                                                                     |
 
-> تمام چار `/api/resilience/*` روٹس کے لیے **مینجمنٹ تصدیق** (`requireManagementAuth`) درکار ہے۔ پرووائیڈر بریکر بمقابلہ کنکشن کول ڈاؤن بمقابلہ ماڈل لاک آؤٹ کی مکمل تفصیل کے لیے [لچک پذیری (توسیعی)](#resilience-extended) دیکھیں۔
+> تمام چار `/api/resilience/*` راستوں کے لیے **انتظامی توثیق** کی ضرورت ہے (`requireManagementAuth`). فراہم کنندہ کے سرکٹ توڑنے والے بمقابلہ کنکشن کی ٹھنڈک بمقابلہ ماڈل لاک آؤٹ کی مکمل تفصیل کے لیے [Resilience (extended)](#resilience-extended) دیکھیں۔
 
-### جائزے
+### Evals
 
-| اینڈ پوائنٹ  | طریقہ    | تفصیل                              |
+| Endpoint     | Method   | Description                        |
 | ------------ | -------- | ---------------------------------- |
-| `/api/evals` | GET/POST | جائزہ سوٹس کی فہرست / جائزہ چلائیں |
+| `/api/evals` | GET/POST | ایول سوٹ کی فہرست / ایولوشن چلائیں |
 
-### پالیسیاں
+### Policies
 
-| اینڈ پوائنٹ     | طریقہ           | تفصیل                    |
+| Endpoint        | Method          | Description              |
 | --------------- | --------------- | ------------------------ |
-| `/api/policies` | GET/POST/DELETE | روٹنگ پالیسیاں منظم کریں |
+| `/api/policies` | GET/POST/DELETE | روٹنگ پالیسیوں کا انتظام |
 
-### تعمیل
+### Compliance
 
-| اینڈ پوائنٹ                 | طریقہ | تفصیل                           |
-| --------------------------- | ----- | ------------------------------- |
-| `/api/compliance/audit-log` | GET   | تعمیل آڈٹ لاگ (آخری N اندراجات) |
+| Endpoint                    | Method | Description            |
+| --------------------------- | ------ | ---------------------- |
+| `/api/compliance/audit-log` | GET    | تعمیل آڈٹ لاگ (آخری N) |
 
-### v1beta (Gemini سے ہم آہنگ)
+### v1beta (Gemini-Compatible)
 
-| اینڈ پوائنٹ                | طریقہ | تفصیل                                |
-| -------------------------- | ----- | ------------------------------------ |
-| `/v1beta/models`           | GET   | Gemini فارمیٹ میں ماڈلز کی فہرست     |
-| `/v1beta/models/{...path}` | POST  | Gemini `generateContent` اینڈ پوائنٹ |
+| Endpoint                   | Method | Description                        |
+| -------------------------- | ------ | ---------------------------------- |
+| `/v1beta/models`           | GET    | جمنی فارمیٹ میں ماڈلز کی فہرست     |
+| `/v1beta/models/{...path}` | POST   | جمنی `generateContent` اینڈ پوائنٹ |
 
-یہ اینڈ پوائنٹس ان کلائنٹس کے لیے Gemini کے API فارمیٹ کی عکاسی کرتے ہیں جو مقامی Gemini SDK مطابقت کی توقع رکھتے ہیں۔
+یہ اینڈ پوائنٹس کلائنٹس کے لیے جمنی کے API فارمیٹ کی عکاسی کرتے ہیں جو مقامی جمنی SDK کی مطابقت کی توقع کرتے ہیں۔
 
-### اندرونی / سسٹم APIs
+### Internal / System APIs
 
-| اینڈ پوائنٹ              | طریقہ | تفصیل                                                          |
-| ------------------------ | ----- | -------------------------------------------------------------- |
-| `/api/init`              | GET   | ایپلیکیشن کی ابتدا کی جانچ (پہلی بار چلانے پر استعمال ہوتی ہے) |
-| `/api/tags`              | GET   | Ollama سے ہم آہنگ ماڈل ٹیگز (Ollama کلائنٹس کے لیے)            |
-| `/api/restart`           | POST  | سرور کو مناسب انداز میں دوبارہ شروع کریں                       |
-| `/api/shutdown`          | POST  | سرور کو مناسب انداز میں بند کریں                               |
-| `/api/system/env/repair` | POST  | OAuth پرووائیڈر کے ماحول کے متغیرات کی مرمت کریں               |
-| `/api/system/version`    | GET   | موجودہ/تازہ ترین ورژن، اپ ڈیٹ کی حالت، ریلیز چینل              |
-| `/api/system/version`    | POST  | تازہ ترین ورژن پر تعیناتی سے آگاہ اپ ڈیٹ شروع کریں             |
+| Endpoint                 | Method | Description                                                   |
+| ------------------------ | ------ | ------------------------------------------------------------- |
+| `/api/init`              | GET    | ایپلیکیشن کی ابتدائی جانچ (پہلی بار چلانے پر استعمال ہوتا ہے) |
+| `/api/tags`              | GET    | اولما-ہم آہنگ ماڈل ٹیگ (اولما کلائنٹس کے لیے)                 |
+| `/api/restart`           | POST   | سرور کو نرم طریقے سے دوبارہ شروع کرنے کا عمل شروع کریں        |
+| `/api/shutdown`          | POST   | سرور کو نرم طریقے سے بند کرنے کا عمل شروع کریں                |
+| `/api/system/env/repair` | POST   | OAuth فراہم کنندہ کے ماحول کے متغیرات کی مرمت کریں            |
+| `/api/system/version`    | GET    | موجودہ/تازہ ترین ورژن، اپ ڈیٹ کی حیثیت، ریلیز چینل            |
+| `/api/system/version`    | POST   | تازہ ترین ورژن کے لیے تعیناتی سے آگاہ اپ ڈیٹ شروع کریں        |
 
-> **نوٹ:** یہ اینڈ پوائنٹس سسٹم کے ذریعے اندرونی طور پر یا Ollama کلائنٹ مطابقت کے لیے استعمال ہوتے ہیں۔ عام طور پر اختتامی صارفین انہیں کال نہیں کرتے۔
+> **نوٹ:** یہ اینڈپوائنٹس سسٹم کے ذریعہ اندرونی طور پر یا اولما کلائنٹ کی ہم آہنگی کے لیے استعمال ہوتے ہیں۔ یہ عام طور پر اختتامی صارفین کے ذریعہ نہیں بلائے جاتے۔
 
 ### OAuth ماحول کی مرمت _(v3.6.1+)_
 
@@ -1194,12 +1221,15 @@ Content-Type: application/json
 }
 ```
 
-کسی مخصوص پرووائیڈر کے لیے غائب یا خراب OAuth ماحول کے متغیرات کی مرمت کرتا ہے۔ واپس کرتا ہے:
+ایک مخصوص فراہم کنندہ کے لیے غائب یا خراب OAuth ماحول کے متغیرات کی مرمت کرتا ہے۔ واپس کرتا ہے:
 
 ```json
 {
   "success": true,
-  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
+  "repaired": [
+    "CLAUDE_CODE_OAUTH_CLIENT_ID",
+    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
+  ],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
@@ -1210,10 +1240,10 @@ Content-Type: application/json
 GET /api/system/version
 ```
 
-صرف لوپ بیک کے لیے مینجمنٹ روٹ (ایڈمن تصدیق)۔ یہ زیرِ استعمال ورژن، تازہ ترین
-شائع شدہ ورژن اور خودکار اپ ڈیٹ کی حالت واپس کرتا ہے۔ `releaseChannel` اور `channels` اضافی
-فیلڈز ہیں (rail 3.8.54)؛ `channel` اپنا مفہوم برقرار رکھتا ہے — یعنی وہ تعیناتی موڈ جسے ڈیش بورڈ اپ ڈیٹر
-استعمال کرتا ہے (`npm`، `source` یا `docker-compose`)۔
+لوپ بیک-صرف انتظامی راستہ (ایڈمن کی توثیق)۔ چلنے والے ورژن، تازہ ترین
+شائع کردہ ورژن اور خودکار اپ ڈیٹ کی حیثیت واپس کرتا ہے۔ `releaseChannel` اور `channels` اضافی
+فیلڈز ہیں (ریل 3.8.54)؛ `channel` اپنے معنی کو برقرار رکھتا ہے — وہ تعیناتی کا طریقہ جسے ڈیش بورڈ اپ ڈیٹر
+استعمال کرتا ہے (`npm`, `source` یا `docker-compose`)۔
 
 ```json
 {
@@ -1229,17 +1259,17 @@ GET /api/system/version
 }
 ```
 
-- `releaseChannel` — چلنے والی بلڈ کا npm چینل: `-nightly.*` ورژنز کے لیے `nightly`،
-  دیگر قبل از اجرا ورژنز (`-rc.*`، `-beta.*`، `-alpha.*`) کے لیے `next`، `channels.latest` سے
-  پرانے بڑے ورژن کے مستحکم اجرا کے لیے `lts`، بصورت دیگر `latest`۔ وہی اصول جو
-  `scripts/release/dist-tag.mjs` میں ہیں، جو اشاعت کے وقت npm dist-tag منتخب کرتا ہے۔
-- `channels` — `npm view omniroute dist-tags` سے ہر dist-tag کا شائع شدہ تازہ ترین ورژن (registry
-  HTTP fallback)، جسے `latest` کی طرح اسی 10 منٹ کی TTL کے ساتھ cache کیا جاتا ہے۔ `latest` ہمیشہ موجود
-  ہوتا ہے (پہلے `latest` فیلڈ، پھر `"unavailable"` پر fallback کرتا ہے)؛ `next`، `nightly` اور `lts` صرف
-  اس وقت ظاہر ہوتے ہیں جب متعلقہ dist-tag موجود ہو۔ `Cache-Control: no-cache` درخواست دونوں lookups کو تازہ کرتی ہے۔
+- `releaseChannel` — چلنے والی تعمیر کا npm چینل: `nightly` کے لیے `-nightly.*` ورژنز،
+  `next` دیگر پری ریلیز کے لیے (`-rc.*`, `-beta.*`, `-alpha.*`)، `lts` ایک مستحکم ورژن کے لیے
+  جو `channels.latest` سے پہلے کا بڑا ہے، بصورت دیگر `latest`۔ وہی اصول
+  `scripts/release/dist-tag.mjs` کے طور پر، جو شائع کرنے کے وقت npm dist-tag کو منتخب کرتا ہے۔
+- `channels` — ہر dist-tag کا شائع کردہ سر، `npm view omniroute dist-tags` سے (رجسٹری
+  HTTP فیل بیک)، جسے `latest` کے طور پر 10 منٹ کی TTL کے ساتھ کیش کیا گیا ہے۔ `latest` ہمیشہ موجود ہے
+  (پہلے `latest` فیلڈ پر واپس آتا ہے، پھر `"unavailable"`); `next`, `nightly` اور `lts` صرف
+  اس وقت ظاہر ہوتے ہیں جب وہ dist-tag موجود ہو۔ ایک `Cache-Control: no-cache` درخواست دونوں تلاشوں کو تازہ کرتی ہے۔
 
-چینل ماڈل (`latest` = 4.0 GA تک v3، `next` = rc، `nightly` = `develop` بلڈز،
-`lts` = 4.0 GA کے بعد v3 پیچز) کی وضاحت `docs/ops/RELEASE_STRATEGY.md` میں کی گئی ہے۔
+چینل ماڈل (`latest` = v3 جب تک 4.0 GA، `next` = rc، `nightly` = `develop` تعمیرات،
+`lts` = v3 پیچ 4.0 GA کے بعد) کو `docs/ops/RELEASE_STRATEGY.md` میں بیان کیا گیا ہے۔
 
 ---
 

@@ -1824,23 +1824,33 @@ Globala standardvärden för den headless-baserade webbläsaren och den utgåend
 
 ---
 
-## OmniConductor-brygga
+## OmniConductor Bridge
 
-Långlivad SSE-konsument som speglar uppgifter från OmniConductor-hubben till den lokala A2A TaskManager (`src/lib/conductor/`). Valfri – bryggan startar endast när `CONDUCTOR_HUB_URL` har angetts. Endast på serversidan: hubbtoken får aldrig nå webbläsaren.
+Långlivad SSE-konsument som speglar OmniConductor hubbens uppgifter till den lokala A2A TaskManager (`src/lib/conductor/`). Opt-in — bron startar endast när `CONDUCTOR_HUB_URL` är inställd. Endast server-sidan: hubbens token får aldrig nå webbläsaren.
 
-| Variabel                       | Standardvärde           | Källfil                          | Beskrivning                                                                                                                                                   |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(tom)_                 | `src/lib/conductor/boot.ts`      | Bas-URL för OmniConductor-hubben (t.ex. `http://127.0.0.1:7910`). Ej angiven = bryggan är inaktiverad.                                                        |
-| `CONDUCTOR_HUB_TOKEN`          | _(tom)_                 | `src/lib/conductor/boot.ts`      | Hubbautentiseringsuppgift för SSE-flödet – skapa en peer av typen `spokesperson` i hubben (`POST /v1/peers`, administratör).                                  |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tom)_                 | `src/lib/conductor/hubProxy.ts`  | Autentiseringsuppgift för inkommande delegering av A2A→hubb-uppgifter (`POST /v1/tasks`); använder `CONDUCTOR_HUB_TOKEN` som reserv när den inte har angetts. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Bas-URL för spokesperson-tjänsten (Faro) bakom instrumentpanelens chattproxy (`/api/conductor/ask`).                                                          |
+| Variabel                       | Standard                | Källfil                          | Beskrivning                                                                                                                             |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tom)_                 | `src/lib/conductor/boot.ts`      | Bas-URL för OmniConductor hubben (t.ex. `http://127.0.0.1:7910`). Oinställd = bron inaktiverad.                                         |
+| `CONDUCTOR_HUB_TOKEN`          | _(tom)_                 | `src/lib/conductor/boot.ts`      | Hubbens autentisering för SSE-flödet — sänd en `spokesperson`-typ peer på hubben (`POST /v1/peers`, admin).                             |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tom)_                 | `src/lib/conductor/hubProxy.ts`  | Autentisering för inkommande A2A→hubbens uppgiftsdelegation (`POST /v1/tasks`); faller tillbaka på `CONDUCTOR_HUB_TOKEN` när oinställd. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Bas-URL för spokesperson (Faro) tjänsten bakom dashboardens chattproxy (`/api/conductor/ask`).                                          |
+
+### Video Bridge isolerad validering
+
+`scripts/ad-hoc/video-live-isolation.ts --prepare` kräver
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` för att namnge en absolut katalog som innehåller
+`storage.sqlite`. Det finns ingen standard. Verktyget öppnar den databasen som skrivskyddad och
+förbereder en privat temporär kopia med isolerade klientnycklar och inställningar;
+autentiseringar förblir på valideringsvärden. Denna variabel är endast för den explicita
+förberedelsekommandot och används inte av normal serverstart. Förberedelse
+anropar ingen modell; den separata live-röksignalkommandot kräver `--execute-real`.
 
 ### Kvotmedveten schemaläggning
 
-Används av `open-sse/services/combo.ts` och `src/lib/quota/quotaScheduler.ts` för att kontrollera tokenbudgeten före en begäran. Valfritt – standardbeteendet för routning är oförändrat när variabeln inte har angetts.
+Används av `open-sse/services/combo.ts` och `src/lib/quota/quotaScheduler.ts` för förhandsförfrågnings token-budgetkontroller. Opt-in — standardroutingbeteendet ändras inte när det är oinställt.
 
-| Variabel                           | Standardvärde | Källfil                                     | Beskrivning                                                                                                                                                                                                                                                                       |
-| ---------------------------------- | ------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | När värdet är `1` hoppas anslutningar över vars tokenbudget per fönster (`rateLimitOverrides.tpm`, tabellen `provider_quota_state`) inte kan täcka den uppskattade kostnaden för begäran före distribution. Tillåter begäran vid fel när ingen budget har konfigurerats.          |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(på)_        | `open-sse/services/estimatorCalibration.ts` | Återkopplingskalibrering av kontextskyddets tokenestimator (#14931): EMA per (leverantör, modell, förekomst av verktyg) för `usage.prompt_tokens` / uppskattning, begränsad till 0.15–2.0 och endast i minnet. `off`, `0` eller `false` inaktiverar registrering och tillämpning. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Registrerar bildrutterna `xai-oauth` (`xao`) och `grok-cli`. Funktionsflagga med samma namn i instrumentpanelen; en åsidosättning i databasen har företräde framför detta värde.                                                                                                  |
+| Variabel                           | Standard | Källfil                                     | Beskrivning                                                                                                                                                                                                                                                        |
+| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | När `1`, hoppa över anslutningar vars per-fönster tokenbudget (`rateLimitOverrides.tpm`, tabell `provider_quota_state`) inte kan täcka den uppskattade kostnaden för förfrågan innan avsändning. Fail-open när ingen budget är konfigurerad.                       |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(på)_   | `open-sse/services/estimatorCalibration.ts` | Feedbackkalibrering av kontextvaktens tokenestimator (#14931): per (leverantör, modell, verktyg närvarande) EMA av `usage.prompt_tokens` / uppskattning, begränsad till 0.15–2.0, endast i minnet. `av`, `0` eller `false` inaktiverar inspelning och tillämpning. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Registrerar `xai-oauth` (`xao`) och `grok-cli` bildvägar. Dashboard-funktionens flagga med samma namn; en DB-överskrivning vinner över detta värde.                                                                                                                |

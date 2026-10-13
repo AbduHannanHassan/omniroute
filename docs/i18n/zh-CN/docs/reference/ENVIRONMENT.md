@@ -1336,9 +1336,9 @@ Anthropic 兼容提供者。
 
 ## 部署场景
 
-有关中继后端的 SRE 指南（ts/bifrost/auto 行为、9router 与 CLIProxyAPI 的部署位置，以及高吞吐量回退策略），请参阅[中继后端策略](/docs/reference/RELAY_BACKEND_STRATEGY.md)。
+有关中继后端 SRE 指导（ts/bifrost/auto 行为，9router 与 CLIProxyAPI 的放置，以及高吞吐量回退策略），请参见 [中继后端策略](/docs/reference/RELAY_BACKEND_STRATEGY.md)。
 
-### 最小化本地开发环境
+### 最小本地开发
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1348,7 +1348,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker 生产环境
+### Docker 生产
 
 ```bash
 JWT_SECRET=<generated>
@@ -1367,7 +1367,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### 隔离网络 / CI
+### 空气隔离 / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1378,7 +1378,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### 使用反向代理的 VPS（nginx + Cloudflare）
+### 带反向代理的 VPS (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1393,8 +1393,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills 沙箱（v3.8.0+）
 
@@ -1803,23 +1801,31 @@ GET 读取 `src/shared/utils/releaseNotes.ts` 中声明的公共仓库
 
 ---
 
-## OmniConductor 桥接器
+## OmniConductor 桥接
 
-长期运行的 SSE 消费者，将 OmniConductor 中枢任务镜像到本地 A2A TaskManager（`src/lib/conductor/`）。选择启用——仅当设置了 `CONDUCTOR_HUB_URL` 时，桥接器才会启动。仅限服务端：中枢令牌绝不能传到浏览器。
+长寿命的 SSE 消费者，将 OmniConductor 中心任务镜像到本地 A2A TaskManager (`src/lib/conductor/`)。选择性启用 — 只有在设置了 `CONDUCTOR_HUB_URL` 时，桥接才会启动。仅限服务器端：中心令牌绝不能到达浏览器。
 
-| 变量                           | 默认值                  | 源文件                           | 描述                                                                                                     |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _（空）_                | `src/lib/conductor/boot.ts`      | OmniConductor 中枢的基础 URL（例如 `http://127.0.0.1:7910`）。未设置 = 禁用桥接器。                      |
-| `CONDUCTOR_HUB_TOKEN`          | _（空）_                | `src/lib/conductor/boot.ts`      | SSE 数据流的中枢凭据——在中枢上创建一个 `spokesperson` 类型的对等节点（`POST /v1/peers`，需管理员权限）。 |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _（空）_                | `src/lib/conductor/hubProxy.ts`  | 用于入站 A2A→中枢任务委派（`POST /v1/tasks`）的凭据；未设置时回退使用 `CONDUCTOR_HUB_TOKEN`。            |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | 仪表板聊天代理（`/api/conductor/ask`）背后的 spokesperson（Faro）服务的基础 URL。                        |
+| 变量                           | 默认值                  | 源文件                           | 描述                                                                                            |
+| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(空)_                  | `src/lib/conductor/boot.ts`      | OmniConductor 中心的基础 URL（例如 `http://127.0.0.1:7910`）。未设置 = 桥接禁用。               |
+| `CONDUCTOR_HUB_TOKEN`          | _(空)_                  | `src/lib/conductor/boot.ts`      | SSE 供稿的中心凭证 — 在中心上发出一个 `spokesperson` 类型的对等体（`POST /v1/peers`，管理员）。 |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(空)_                  | `src/lib/conductor/hubProxy.ts`  | 用于入站 A2A→中心任务委派的凭证（`POST /v1/tasks`）；未设置时回退到 `CONDUCTOR_HUB_TOKEN`。     |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | 代表仪表板聊天代理的发言人（Faro）服务的基础 URL（`/api/conductor/ask`）。                      |
 
-### 配额感知调度
+### 视频桥接隔离验证
 
-由 `open-sse/services/combo.ts` 和 `src/lib/quota/quotaScheduler.ts` 用于请求前的令牌预算检查。选择启用——未设置时，默认路由行为保持不变。
+`scripts/ad-hoc/video-live-isolation.ts --prepare` 需要
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` 来命名一个包含
+`storage.sqlite` 的绝对目录。没有默认值。该工具以只读方式打开该数据库，并准备一个具有隔离客户端密钥和设置的私有临时副本；
+凭证保留在验证主机上。此变量仅用于显式准备命令，正常服务器启动时不使用。准备
+不调用模型；单独的实时烟雾命令需要 `--execute-real`。
 
-| 变量                               | 默认值     | 源文件                                      | 描述                                                                                                                                                                                                                   |
-| ---------------------------------- | ---------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | 设为 `1` 时，在分派前跳过其每个时间窗口的令牌预算（`rateLimitOverrides.tpm`，表 `provider_quota_state`）无法承担预估请求成本的连接。未配置预算时采用故障开放策略。                                                     |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _（启用）_ | `open-sse/services/estimatorCalibration.ts` | 对上下文保护令牌估算器（#14931）进行反馈校准：按（提供者、模型、是否存在工具）计算 `usage.prompt_tokens` / 估算值的 EMA，将其限制在 0.15–2.0 范围内，且仅保存在内存中。设置为 `off`、`0` 或 `false` 可禁用记录和应用。 |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | 注册 `xai-oauth`（`xao`）和 `grok-cli` 图像路由。同名的仪表板功能标志；数据库覆盖值优先于此值。                                                                                                                        |
+### 考虑配额的调度
+
+由 `open-sse/services/combo.ts` 和 `src/lib/quota/quotaScheduler.ts` 用于请求前的令牌预算检查。选择性启用 — 未设置时默认路由行为不变。
+
+| 变量                               | 默认值   | 源文件                                      | 描述                                                                                                                                                                           |
+| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | 当 `1` 时，跳过那些每窗口令牌预算（`rateLimitOverrides.tpm`，表 `provider_quota_state`）无法承担的估计请求成本的连接。未配置预算时失败开放。                                   |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(开启)_ | `open-sse/services/estimatorCalibration.ts` | 上下文保护令牌估算器的反馈校准 (#14931)：每个（提供者，模型，工具存在）`usage.prompt_tokens` / 估算的 EMA，限制在 0.15–2.0，仅在内存中。`off`、`0` 或 `false` 禁用记录和应用。 |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | 注册 `xai-oauth` (`xao`) 和 `grok-cli` 图像路由。具有相同名称的仪表板功能标志；数据库覆盖优先于此值。                                                                          |

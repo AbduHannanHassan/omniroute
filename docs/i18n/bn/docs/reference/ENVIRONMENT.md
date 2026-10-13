@@ -1345,9 +1345,9 @@ Anthropic-সামঞ্জস্যপূর্ণ প্রোভাইডা
 
 ## ডিপ্লয়মেন্ট পরিস্থিতি
 
-রিলে ব্যাকএন্ড SRE নির্দেশনার জন্য (ts/bifrost/auto আচরণ, 9router বনাম CLIProxyAPI স্থাপন এবং উচ্চ-থ্রুপুট ফলব্যাক কৌশল), [রিলে ব্যাকএন্ড কৌশল](/docs/reference/RELAY_BACKEND_STRATEGY.md) দেখুন।
+রিলে ব্যাকএন্ড SRE নির্দেশনার জন্য (ts/bifrost/অটো আচরণ, 9router বনাম CLIProxyAPI স্থান নির্ধারণ, এবং উচ্চ-থ্রুপুট ফFallback কৌশল), দেখুন [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md)।
 
-### ন্যূনতম লোকাল ডেভেলপমেন্ট
+### ন্যূনতম স্থানীয় উন্নয়ন
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1357,7 +1357,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker প্রোডাকশন
+### ডকার উৎপাদন
 
 ```bash
 JWT_SECRET=<generated>
@@ -1387,7 +1387,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### রিভার্স প্রক্সিসহ VPS (nginx + Cloudflare)
+### VPS রিভার্স প্রক্সি (nginx + Cloudflare) সহ
 
 ```bash
 JWT_SECRET=<generated>
@@ -1402,8 +1402,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills স্যান্ডবক্স (v3.8.0+)
 
@@ -1816,23 +1814,33 @@ GET-এর মাধ্যমে `src/shared/utils/releaseNotes.ts`-এ ঘো�
 
 ---
 
-## OmniConductor Bridge
+## OmniConductor ব্রিজ
 
-দীর্ঘস্থায়ী SSE কনজিউমার, যা OmniConductor hub-এর টাস্কগুলোকে স্থানীয় A2A TaskManager-এ (`src/lib/conductor/`) প্রতিফলিত করে। অপ্ট-ইন — `CONDUCTOR_HUB_URL` সেট করা থাকলেই কেবল ব্রিজটি চালু হয়। শুধুমাত্র সার্ভার-সাইড: hub token কখনোই ব্রাউজারে পৌঁছানো উচিত নয়।
+দীর্ঘস্থায়ী SSE ভোক্তা যা OmniConductor হাবের কাজগুলোকে স্থানীয় A2A TaskManager (`src/lib/conductor/`) এ প্রতিফলিত করে। অপ্ট-ইন — ব্রিজটি শুধুমাত্র তখন শুরু হয় যখন `CONDUCTOR_HUB_URL` সেট করা হয়। সার্ভার-সাইড শুধুমাত্র: হাব টোকেন কখনো ব্রাউজারে পৌঁছানো উচিত নয়।
 
-| ভেরিয়েবল                      | ডিফল্ট                  | সোর্স ফাইল                       | বিবরণ                                                                                                               |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(খালি)_                | `src/lib/conductor/boot.ts`      | OmniConductor hub-এর বেস URL (যেমন `http://127.0.0.1:7910`)। সেট না থাকলে = ব্রিজ নিষ্ক্রিয়।                       |
-| `CONDUCTOR_HUB_TOKEN`          | _(খালি)_                | `src/lib/conductor/boot.ts`      | SSE ফিডের জন্য hub ক্রেডেনশিয়াল — hub-এ একটি `spokesperson`-ধরনের peer তৈরি করুন (`POST /v1/peers`, admin)।        |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(খালি)_                | `src/lib/conductor/hubProxy.ts`  | ইনবাউন্ড A2A→hub টাস্ক ডেলিগেশনের ক্রেডেনশিয়াল (`POST /v1/tasks`); সেট না থাকলে `CONDUCTOR_HUB_TOKEN` ব্যবহার করে। |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ড্যাশবোর্ড চ্যাট প্রক্সির (`/api/conductor/ask`) পেছনে থাকা spokesperson (Faro) সার্ভিসের বেস URL।                  |
+| ভেরিয়েবল                      | ডিফল্ট                  | সোর্স ফাইল                       | বর্ণনা                                                                                                               |
+| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(খালি)_                | `src/lib/conductor/boot.ts`      | OmniConductor হাবের বেস URL (যেমন `http://127.0.0.1:7910`)। সেট না করা = ব্রিজ নিষ্ক্রিয়।                           |
+| `CONDUCTOR_HUB_TOKEN`          | _(খালি)_                | `src/lib/conductor/boot.ts`      | SSE ফিডের জন্য হাবের শংসাপত্র — হাবের উপর একটি `spokesperson`-প্রকারের পিয়ার তৈরি করুন (`POST /v1/peers`, প্রশাসক)। |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(খালি)_                | `src/lib/conductor/hubProxy.ts`  | ইনবাউন্ড A2A→হাব কাজের প্রতিনিধিত্বের জন্য শংসাপত্র (`POST /v1/tasks`); সেট না হলে `CONDUCTOR_HUB_TOKEN` এ ফিরে আসে। |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ড্যাশবোর্ড চ্যাট প্রোক্সির পিছনে স্পোকসপারসনের (Faro) বেস URL (`/api/conductor/ask`)।                                |
 
-### কোটা-সচেতন শিডিউলিং
+### ভিডিও ব্রিজ বিচ্ছিন্ন যাচাইকরণ
 
-রিকোয়েস্ট-পূর্ব token-budget যাচাইয়ের জন্য `open-sse/services/combo.ts` এবং `src/lib/quota/quotaScheduler.ts` এটি ব্যবহার করে। অপ্ট-ইন — সেট না থাকলে ডিফল্ট রাউটিং আচরণ অপরিবর্তিত থাকে।
+`scripts/ad-hoc/video-live-isolation.ts --prepare` এর জন্য প্রয়োজন
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` একটি সম্পূর্ণ ডিরেক্টরি নামকরণ করতে যা
+`storage.sqlite` ধারণ করে। এখানে কোন ডিফল্ট নেই। টুলটি সেই ডাটাবেসটি পড়ার জন্য খোলে এবং
+বিচ্ছিন্ন ক্লায়েন্ট কী এবং সেটিংস সহ একটি ব্যক্তিগত অস্থায়ী কপি প্রস্তুত করে;
+শংসাপত্র যাচাইকরণ হোস্টে থাকে। এই ভেরিয়েবলটি শুধুমাত্র স্পষ্ট
+প্রস্তুতি কমান্ডের জন্য এবং সাধারণ সার্ভার স্টার্টআপ দ্বারা ব্যবহৃত হয় না। প্রস্তুতি
+একটি মডেল কল করে না; পৃথক লাইভ স্মোক কমান্ডের জন্য `--execute-real` প্রয়োজন।
 
-| ভেরিয়েবল                          | ডিফল্ট   | সোর্স ফাইল                                  | বিবরণ                                                                                                                                                                                                                                                              |
-| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | `1` হলে, ডিসপ্যাচের আগে যেসব সংযোগের প্রতি-উইন্ডো token budget (`rateLimitOverrides.tpm`, টেবিল `provider_quota_state`) আনুমানিক রিকোয়েস্ট খরচ বহন করতে পারে না, সেগুলো এড়িয়ে যায়। কোনো budget কনফিগার করা না থাকলে fail-open করে।                             |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(চালু)_ | `open-sse/services/estimatorCalibration.ts` | context-guard token estimator-এর (#14931) ফিডব্যাক ক্যালিব্রেশন: প্রতি (provider, model, tools উপস্থিতি) অনুযায়ী `usage.prompt_tokens` / estimate-এর EMA, 0.15–2.0 সীমার মধ্যে আবদ্ধ, শুধুমাত্র মেমরিতে। `off`, `0` বা `false` রেকর্ডিং ও প্রয়োগ নিষ্ক্রিয় করে। |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) এবং `grok-cli` ইমেজ রুট নিবন্ধন করে। একই নামের ড্যাশবোর্ড ফিচার ফ্ল্যাগ; DB override এই মানের চেয়ে অগ্রাধিকার পায়।                                                                                                                           |
+### কোটা-সচেতন সময়সূচী
+
+`open-sse/services/combo.ts` এবং `src/lib/quota/quotaScheduler.ts` দ্বারা প্রাক-অনুরোধ টোকেন-বাজেট চেকের জন্য ব্যবহৃত হয়। অপ্ট-ইন — সেট না হলে ডিফল্ট রাউটিং আচরণ অপরিবর্তিত থাকে।
+
+| ভেরিয়েবল                          | ডিফল্ট   | সোর্স ফাইল                                  | বর্ণনা                                                                                                                                                                                                                                                 |
+| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | যখন `1`, সংযোগগুলি বাদ দিন যাদের প্রতি-জানালা টোকেন বাজেট (`rateLimitOverrides.tpm`, টেবিল `provider_quota_state`) অনুমানিত অনুরোধ খরচ বহন করতে পারে না। বাজেট কনফিগার না হলে ফেইল-ওপেন।                                                               |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(চালু)_ | `open-sse/services/estimatorCalibration.ts` | প্রসঙ্গ-গার্ড টোকেন অনুমানকারীর প্রতিক্রিয়া ক্যালিব্রেশন (#14931): প্রতি (প্রদানকারী, মডেল, টুলস উপস্থিত) EMA `usage.prompt_tokens` / অনুমান, 0.15–2.0 এ ক্ল্যাম্প করা, শুধুমাত্র মেমরিতে। `off`, `0` বা `false` রেকর্ডিং এবং প্রয়োগ নিষ্ক্রিয় করে। |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) এবং `grok-cli` চিত্র রুট নিবন্ধন করে। একই নামের ড্যাশবোর্ড বৈশিষ্ট্য ফ্ল্যাগ; একটি DB ওভাররাইড এই মানের উপর জয়ী।                                                                                                                  |

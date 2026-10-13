@@ -1810,23 +1810,31 @@ GET 讀取 `src/shared/utils/releaseNotes.ts` 中宣告的公開儲存庫
 
 ---
 
-## OmniConductor 橋接器
+## OmniConductor Bridge
 
-長時間運作的 SSE 消費端，會將 OmniConductor 中樞任務鏡像至本機 A2A TaskManager（`src/lib/conductor/`）。需選擇啟用——僅在設定 `CONDUCTOR_HUB_URL` 時才會啟動橋接器。僅限伺服器端：中樞權杖絕不可傳送至瀏覽器。
+長期運行的 SSE 消費者，將 OmniConductor 中樞任務鏡像到本地 A2A TaskManager (`src/lib/conductor/`)。選擇性啟用 — 當 `CONDUCTOR_HUB_URL` 被設置時，橋接器才會啟動。僅限伺服器端：中樞令牌絕不能到達瀏覽器。
 
-| 變數                           | 預設值                  | 來源檔案                         | 說明                                                                                                 |
-| ------------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _（空白）_              | `src/lib/conductor/boot.ts`      | OmniConductor 中樞的基底 URL（例如 `http://127.0.0.1:7910`）。未設定 = 停用橋接器。                  |
-| `CONDUCTOR_HUB_TOKEN`          | _（空白）_              | `src/lib/conductor/boot.ts`      | SSE 資訊流的中樞憑證——在中樞上發出 `spokesperson` 類型的對等節點（`POST /v1/peers`，需管理員權限）。 |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _（空白）_              | `src/lib/conductor/hubProxy.ts`  | 傳入 A2A→中樞任務委派（`POST /v1/tasks`）所用的憑證；未設定時會回退使用 `CONDUCTOR_HUB_TOKEN`。      |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | 儀表板聊天代理（`/api/conductor/ask`）後方 spokesperson（Faro）服務的基底 URL。                      |
+| 變數                           | 預設值                  | 來源檔案                         | 描述                                                                                              |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(空)_                  | `src/lib/conductor/boot.ts`      | OmniConductor 中樞的基本 URL（例如 `http://127.0.0.1:7910`）。未設置 = 橋接器禁用。               |
+| `CONDUCTOR_HUB_TOKEN`          | _(空)_                  | `src/lib/conductor/boot.ts`      | SSE 資料流的中樞憑證 — 在中樞上發出一個 `spokesperson` 類型的對等體（`POST /v1/peers`，管理員）。 |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(空)_                  | `src/lib/conductor/hubProxy.ts`  | 用於進入的 A2A→中樞任務委派的憑證（`POST /v1/tasks`）；未設置時回退到 `CONDUCTOR_HUB_TOKEN`。     |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | 代表服務（Faro）的基本 URL，位於儀表板聊天代理後面（`/api/conductor/ask`）。                      |
 
-### 配額感知排程
+### Video Bridge 隔離驗證
 
-由 `open-sse/services/combo.ts` 與 `src/lib/quota/quotaScheduler.ts` 用於請求前的權杖預算檢查。需選擇啟用——未設定時，預設路由行為不變。
+`scripts/ad-hoc/video-live-isolation.ts --prepare` 需要
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` 來命名一個包含
+`storage.sqlite` 的絕對目錄。沒有預設值。該工具以只讀方式打開該數據庫，並準備一個具有隔離客戶端密鑰和設置的私有臨時副本；
+憑證保留在驗證主機上。此變數僅用於明確的準備命令，並不會被正常的伺服器啟動消耗。準備
+不會呼叫模型；單獨的實時煙霧命令需要 `--execute-real`。
 
-| 變數                               | 預設值     | 來源檔案                                    | 說明                                                                                                                                                                                                     |
-| ---------------------------------- | ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | 設為 `1` 時，若連線的每時間窗權杖預算（`rateLimitOverrides.tpm`、資料表 `provider_quota_state`）在派送前無法負擔預估的請求成本，則略過該連線。若未設定預算，則採開放式失敗處理。                         |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _（開啟）_ | `open-sse/services/estimatorCalibration.ts` | 內容防護權杖估算器（#14931）的回饋校準：依每個（提供者、模型、是否有工具）組合，計算 `usage.prompt_tokens` / 估算值的 EMA，並限制在 0.15–2.0；僅儲存於記憶體中。`off`、`0` 或 `false` 會停用記錄與套用。 |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | 註冊 `xai-oauth`（`xao`）與 `grok-cli` 圖像路由。同名的儀表板功能旗標；資料庫覆寫值的優先順序高於此值。                                                                                                  |
+### 配額感知調度
+
+由 `open-sse/services/combo.ts` 和 `src/lib/quota/quotaScheduler.ts` 用於請求前的令牌預算檢查。選擇性啟用 — 當未設置時，預設路由行為不變。
+
+| 變數                               | 預設值  | 來源檔案                                    | 描述                                                                                                                                                                             |
+| ---------------------------------- | ------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | 當 `1` 時，跳過那些每個窗口令牌預算（`rateLimitOverrides.tpm`，表 `provider_quota_state`）無法承擔預估請求成本的連接。當未配置預算時，故障開放。                                 |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(開)_  | `open-sse/services/estimatorCalibration.ts` | 上下文保護令牌估算器的反饋校準 (#14931)：每個（提供者、模型、工具存在）`usage.prompt_tokens` / 估算的 EMA，限制在 0.15–2.0，僅在記憶體中。`off`、`0` 或 `false` 禁用記錄和應用。 |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | 註冊 `xai-oauth` (`xao`) 和 `grok-cli` 圖像路由。具有相同名稱的儀表板功能標誌；數據庫覆蓋優先於此值。                                                                            |

@@ -1355,9 +1355,9 @@ Anthropic 호환 제공자를 추가하세요.
 
 ## 배포 시나리오
 
-릴레이 백엔드 SRE 지침(ts/bifrost/auto 동작, 9router와 CLIProxyAPI 배치 비교, 고처리량 폴백 전략)은 [릴레이 백엔드 전략](/docs/reference/RELAY_BACKEND_STRATEGY.md)을 참조하세요.
+릴레이 백엔드 SRE 가이드를 보려면 (ts/bifrost/자동 동작, 9router 대 CLIProxyAPI 배치, 고처리량 폴백 전략), [릴레이 백엔드 전략](/docs/reference/RELAY_BACKEND_STRATEGY.md)을 참조하세요.
 
-### 최소 로컬 개발 환경
+### 최소 로컬 개발
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1367,7 +1367,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker 프로덕션 환경
+### 도커 프로덕션
 
 ```bash
 JWT_SECRET=<generated>
@@ -1386,7 +1386,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### 에어갭 환경 / CI
+### 공기 차단 / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1397,7 +1397,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### 리버스 프록시를 사용하는 VPS(nginx + Cloudflare)
+### 리버스 프록시가 있는 VPS (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1412,8 +1412,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills 샌드박스 (v3.8.0+)
 
@@ -1825,23 +1823,30 @@ GET으로만 읽으며, 닫은 항목의 ID는 브라우저 로컬 스토리지�
 
 ---
 
-## OmniConductor 브리지
+## OmniConductor Bridge
 
-OmniConductor 허브 작업을 로컬 A2A TaskManager(`src/lib/conductor/`)에 미러링하는 장기 실행 SSE 소비자입니다. 옵트인 방식으로, `CONDUCTOR_HUB_URL`이 설정된 경우에만 브리지가 시작됩니다. 서버 측 전용이며, 허브 토큰이 브라우저에 절대 전달되어서는 안 됩니다.
+장기 실행 SSE 소비자로 OmniConductor 허브 작업을 로컬 A2A TaskManager (`src/lib/conductor/`)에 미러링합니다. 선택 사항 — `CONDUCTOR_HUB_URL`이 설정될 때만 브리지가 시작됩니다. 서버 측 전용: 허브 토큰은 브라우저에 도달해서는 안 됩니다.
 
-| 변수                           | 기본값                  | 소스 파일                        | 설명                                                                                                                      |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(비어 있음)_           | `src/lib/conductor/boot.ts`      | OmniConductor 허브의 기본 URL(예: `http://127.0.0.1:7910`)입니다. 설정하지 않으면 브리지가 비활성화됩니다.                |
-| `CONDUCTOR_HUB_TOKEN`          | _(비어 있음)_           | `src/lib/conductor/boot.ts`      | SSE 피드용 허브 자격 증명입니다. 허브에서 `spokesperson` 종류의 피어를 생성하세요(`POST /v1/peers`, 관리자 권한).         |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(비어 있음)_           | `src/lib/conductor/hubProxy.ts`  | 인바운드 A2A→허브 작업 위임(`POST /v1/tasks`)용 자격 증명입니다. 설정하지 않으면 `CONDUCTOR_HUB_TOKEN`을 대신 사용합니다. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | 대시보드 채팅 프록시(`/api/conductor/ask`) 뒤에 있는 spokesperson(Faro) 서비스의 기본 URL입니다.                          |
+| 변수                           | 기본값                  | 소스 파일                        | 설명                                                                                                          |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(비어 있음)_           | `src/lib/conductor/boot.ts`      | OmniConductor 허브의 기본 URL (예: `http://127.0.0.1:7910`). 설정되지 않으면 브리지가 비활성화됩니다.         |
+| `CONDUCTOR_HUB_TOKEN`          | _(비어 있음)_           | `src/lib/conductor/boot.ts`      | SSE 피드를 위한 허브 자격 증명 — 허브에서 `spokesperson` 유형의 피어를 생성합니다 (`POST /v1/peers`, 관리자). |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(비어 있음)_           | `src/lib/conductor/hubProxy.ts`  | A2A→허브 작업 위임을 위한 자격 증명 (`POST /v1/tasks`); 설정되지 않으면 `CONDUCTOR_HUB_TOKEN`으로 대체됩니다. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | 대시보드 채팅 프록시 뒤에 있는 spokesperson (Faro) 서비스의 기본 URL (`/api/conductor/ask`).                  |
 
-### 할당량 인식 스케줄링
+### Video Bridge isolated validation
 
-요청 전 토큰 예산 검사에 `open-sse/services/combo.ts` 및 `src/lib/quota/quotaScheduler.ts`가 사용합니다. 옵트인 방식이며, 설정하지 않으면 기본 라우팅 동작이 변경되지 않습니다.
+`scripts/ad-hoc/video-live-isolation.ts --prepare`는
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`가 `storage.sqlite`를 포함하는 절대 디렉토리의 이름을 요구합니다. 기본값은 없습니다. 이 도구는 해당 데이터베이스를 읽기 전용으로 열고,
+격리된 클라이언트 키와 설정으로 개인 임시 복사본을 준비합니다; 자격 증명은 검증 호스트에 남아 있습니다. 이 변수는 명시적인
+준비 명령을 위한 것이며 일반 서버 시작에서는 사용되지 않습니다. 준비는 모델을 호출하지 않으며, 별도의 라이브 스모크 명령은 `--execute-real`이 필요합니다.
 
-| 변수                               | 기본값   | 소스 파일                                   | 설명                                                                                                                                                                                                                                                  |
-| ---------------------------------- | -------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | `1`이면 디스패치 전에 윈도우별 토큰 예산(`rateLimitOverrides.tpm`, `provider_quota_state` 테이블)으로 예상 요청 비용을 감당할 수 없는 연결을 건너뜁니다. 예산이 구성되지 않은 경우에는 장애 허용 방식으로 계속 진행합니다.                            |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(켜짐)_ | `open-sse/services/estimatorCalibration.ts` | 컨텍스트 가드 토큰 추정기(#14931)의 피드백 보정입니다. (provider, model, tools present)별 `usage.prompt_tokens` / 추정치의 EMA를 메모리에서만 유지하며, 0.15~2.0 범위로 제한합니다. `off`, `0` 또는 `false`로 설정하면 기록 및 적용이 비활성화됩니다. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | `xai-oauth`(`xao`) 및 `grok-cli` 이미지 경로를 등록합니다. 동일한 이름의 대시보드 기능 플래그이며, DB 재정의 값이 이 값보다 우선합니다.                                                                                                               |
+### Quota-aware scheduling
+
+`open-sse/services/combo.ts` 및 `src/lib/quota/quotaScheduler.ts`에서 요청 전 토큰 예산 검사를 위해 사용됩니다. 선택 사항 — 설정되지 않으면 기본 라우팅 동작은 변경되지 않습니다.
+
+| 변수                               | 기본값   | 소스 파일                                   | 설명                                                                                                                                                                                                                               |
+| ---------------------------------- | -------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | `1`일 때, 전송 전에 예상 요청 비용을 감당할 수 없는 창당 토큰 예산 (`rateLimitOverrides.tpm`, 테이블 `provider_quota_state`)을 가진 연결을 건너뜁니다. 예산이 구성되지 않으면 실패-열림(fail-open)합니다.                          |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(켜짐)_ | `open-sse/services/estimatorCalibration.ts` | 컨텍스트 가드 토큰 추정기의 피드백 보정 (#14931): (공급자, 모델, 도구 존재)에 대한 `usage.prompt_tokens` / 추정의 EMA, 0.15–2.0으로 제한되며, 메모리 내에서만 유지됩니다. `off`, `0` 또는 `false`는 기록 및 적용을 비활성화합니다. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) 및 `grok-cli` 이미지 경로를 등록합니다. 동일한 이름의 대시보드 기능 플래그; DB 오버라이드가 이 값을 우선합니다.                                                                                                |

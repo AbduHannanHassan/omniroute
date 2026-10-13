@@ -1818,23 +1818,33 @@ Réamhshocruithe domhanda don bhrabhsálaí gan cheann agus don tollán uirlisí
 
 ---
 
-## Droichead OmniConductor
+## OmniConductor Bridge
 
-Tomhaltóir SSE fadsaolach a scáthánaíonn tascanna mhol OmniConductor isteach sa TaskManager A2A áitiúil (`src/lib/conductor/`). Roghnach — ní thosaíonn an droichead ach nuair a bhíonn `CONDUCTOR_HUB_URL` socraithe. Taobh an fhreastalaí amháin: ní ceadmhach do chomhartha an mhoil an brabhsálaí a shroicheadh choíche.
+Tomhaltóir SSE a mhaireann go fadtéarmach a dhéanann comhoiriúnú ar thascanna OmniConductor hub isteach sa TaskManager A2A áitiúil (`src/lib/conductor/`). Opt-in — tosaíonn an droichead amháin nuair a shocraítear `CONDUCTOR_HUB_URL`. Ar an taobh freastala amháin: ní mór don token hub riamh teacht chuig an mbrabhsálaí.
 
-| Athróg                         | Réamhshocrú             | Comhad Foinseach                 | Cur Síos                                                                                                                                                        |
-| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(folamh)_              | `src/lib/conductor/boot.ts`      | Bun-URL mhol OmniConductor (m.sh. `http://127.0.0.1:7910`). Gan socrú = an droichead díchumasaithe.                                                             |
-| `CONDUCTOR_HUB_TOKEN`          | _(folamh)_              | `src/lib/conductor/boot.ts`      | Dintiúr moil don fhotha SSE — astaigh piara den chineál `spokesperson` ar an mol (`POST /v1/peers`, riarthóir).                                                 |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(folamh)_              | `src/lib/conductor/hubProxy.ts`  | Dintiúr chun tascanna isteach a tharmligean ó A2A chuig an mol (`POST /v1/tasks`); úsáidtear `CONDUCTOR_HUB_TOKEN` mar chúltaca nuair nach bhfuil sé socraithe. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Bun-URL na seirbhíse urlabhraí (Faro) taobh thiar de sheachfhreastalaí comhrá an deais (`/api/conductor/ask`).                                                  |
+| Athróg                         | Réamhshocrú             | Comhad Foinse                    | Cur Síos                                                                                                                                     |
+| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(folamh)_              | `src/lib/conductor/boot.ts`      | URL bunúsach de hub OmniConductor (m.sh. `http://127.0.0.1:7910`). Neamhshocraithe = droichead díghníomhachtaithe.                           |
+| `CONDUCTOR_HUB_TOKEN`          | _(folamh)_              | `src/lib/conductor/boot.ts`      | Creidiúnacht hub don SSE feed — astu `spokesperson`-cineál comhoibrithe ar an hub (`POST /v1/peers`, riarachán).                             |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(folamh)_              | `src/lib/conductor/hubProxy.ts`  | Creidiúnacht don tasc a dhíoladh A2A→hub ( `POST /v1/tasks`); téann sé ar ais chuig `CONDUCTOR_HUB_TOKEN` nuair a bhíonn sé neamhshocraithe. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL bunúsach de sheirbhís an spokesperson (Faro) taobh thiar den proxy comhrá ar an dashboard (`/api/conductor/ask`).                        |
 
-### Sceidealú atá feasach ar chuótaí
+### Físeán Droichead bailíochtú iisoláite
 
-Úsáideann `open-sse/services/combo.ts` agus `src/lib/quota/quotaScheduler.ts` é le haghaidh seiceálacha ar bhuiséad comharthaí roimh iarrataí. Roghnach — fanann an t-iompar réamhshocraithe ródaithe gan athrú nuair nach bhfuil sé socraithe.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` éilíonn
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` chun ainm a thabhairt do dhíreach a bhfuil
+`storage.sqlite` ann. Níl réamhshocrú ann. Osclaíonn an uirlis an bunachar sonraí sin le léamh amháin agus
+déantar cóip phríobháideach shealadach le heochracha agus socruithe cliant iisoláite;
+fanann na creidiúnachtaí ar an óstach bailíochtaithe. Ní úsáidtear an athróg seo ach don ordú
+ullmhúcháin shonrach agus ní thógtar é ag tosú gnáth freastala. Ní gcallann ullmhúchán
+múnla; éilíonn an t-ordú deataigh beo ar leith `--execute-real`.
 
-| Athróg                             | Réamhshocrú | Comhad Foinseach                            | Cur Síos                                                                                                                                                                                                                                                                                                    |
-| ---------------------------------- | ----------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Nuair is `1` é, scipeáil naisc nach féidir lena mbuiséad comharthaí in aghaidh na fuinneoige (`rateLimitOverrides.tpm`, tábla `provider_quota_state`) costas measta an iarratais a sheasamh roimh sheoladh. Ceadaítear an t-iarratas má theipeann ar an tseiceáil nuair nach bhfuil aon bhuiséad cumraithe. |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ar siúl)_ | `open-sse/services/estimatorCalibration.ts` | Calabrú aiseolais ar mheastóir comharthaí an gharda comhthéacs (#14931): EMA de `usage.prompt_tokens` / meastachán in aghaidh (soláthraí, samhail, uirlisí i láthair), teorannaithe do 0.15–2.0, sa chuimhne amháin. Díchumasaíonn `off`, `0` nó `false` taifeadadh agus cur i bhfeidhm.                    |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Cláraíonn sé bealaí íomhá `xai-oauth` (`xao`) agus `grok-cli`. Bratach gné deais den ainm céanna; tugtar tús áite do shárú sa bhunachar sonraí ar an luach seo.                                                                                                                                             |
+### Sceidealaithe atá feasach ar chóta
+
+Úsáidtear é ag `open-sse/services/combo.ts` agus `src/lib/quota/quotaScheduler.ts` le haghaidh seiceálacha buiséid toic roimh iarratais. Opt-in — fanann iompar gnáth-róthar gan athrú nuair a bhíonn sé neamhshocraithe.
+
+| Athróg                             | Réamhshocrú | Comhad Foinse                               | Cur Síos                                                                                                                                                                                                                                                                     |
+| ---------------------------------- | ----------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Nuair a bhíonn `1`, scipeáil naisc a bhfuil buiséid toic in aghaidh na fuinneoige (`rateLimitOverrides.tpm`, tábla `provider_quota_state`) nach féidir leo an costas iarratais atá measta a íoc sula ndéantar an seoladh. Teip oscailte nuair nach bhfuil buiséid socraithe. |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ar)_      | `open-sse/services/estimatorCalibration.ts` | Calibríocht aiseolais de thomhas toic an chontext-guard (#14931): EMA de `usage.prompt_tokens` / meastachán in aghaidh (soláthraí, múnla, uirlisí atá i láthair), clamped go 0.15–2.0, i gcuimhne amháin. `off`, `0` nó `false` díghníomhachtaíonn taifeadadh agus feidhm.   |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Cláraíonn sé na bealaí íomhá `xai-oauth` (`xao`) agus `grok-cli`. Bratach gné ar an dashboard den ainm céanna; buaileann forlíonadh DB os cionn an luach seo.                                                                                                                |

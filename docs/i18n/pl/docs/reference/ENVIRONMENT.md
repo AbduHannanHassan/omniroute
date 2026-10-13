@@ -1818,23 +1818,33 @@ Globalne wartości domyślne dla przeglądarki bezgłowej i wychodzącego tunelu
 
 ---
 
-## Most OmniConductor
+## OmniConductor Bridge
 
-Długotrwały klient SSE, który odwzorowuje zadania centrum OmniConductor w lokalnym A2A TaskManager (`src/lib/conductor/`). Funkcja opcjonalna — most uruchamia się tylko wtedy, gdy ustawiono `CONDUCTOR_HUB_URL`. Wyłącznie po stronie serwera: token centrum nigdy nie może trafić do przeglądarki.
+Długoterminowy konsument SSE, który odzwierciedla zadania hubu OmniConductor w lokalnym A2A TaskManager (`src/lib/conductor/`). Opcjonalnie — mostek uruchamia się tylko wtedy, gdy ustawiono `CONDUCTOR_HUB_URL`. Tylko po stronie serwera: token hubu nigdy nie powinien dotrzeć do przeglądarki.
 
-| Zmienna                        | Wartość domyślna        | Plik źródłowy                    | Opis                                                                                                                                                           |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(pusta)_               | `src/lib/conductor/boot.ts`      | Bazowy adres URL centrum OmniConductor (np. `http://127.0.0.1:7910`). Brak ustawienia = most wyłączony.                                                        |
-| `CONDUCTOR_HUB_TOKEN`          | _(pusta)_               | `src/lib/conductor/boot.ts`      | Dane uwierzytelniające centrum dla kanału SSE — utwórz w centrum element równorzędny rodzaju `spokesperson` (`POST /v1/peers`, uprawnienia administratora).    |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(pusta)_               | `src/lib/conductor/hubProxy.ts`  | Dane uwierzytelniające do delegowania przychodzących zadań A2A do centrum (`POST /v1/tasks`); jeśli nie ustawiono, używana jest wartość `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Bazowy adres URL usługi rzecznika (Faro) znajdującej się za serwerem proxy czatu panelu (`/api/conductor/ask`).                                                |
+| Zmienna                        | Domyślna                | Plik źródłowy                    | Opis                                                                                                                  |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(pusty)_               | `src/lib/conductor/boot.ts`      | Podstawowy adres URL hubu OmniConductor (np. `http://127.0.0.1:7910`). Nieustawiony = mostek wyłączony.               |
+| `CONDUCTOR_HUB_TOKEN`          | _(pusty)_               | `src/lib/conductor/boot.ts`      | Poświadczenie hubu dla strumienia SSE — emituj peer typu `spokesperson` na hubie (`POST /v1/peers`, admin).           |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(pusty)_               | `src/lib/conductor/hubProxy.ts`  | Poświadczenie dla delegacji zadań A2A→hub (`POST /v1/tasks`); wraca do `CONDUCTOR_HUB_TOKEN`, gdy nie jest ustawione. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Podstawowy adres URL usługi rzecznika (Faro) za proxy czatu na pulpicie (`/api/conductor/ask`).                       |
 
-### Planowanie z uwzględnieniem limitów
+### Izolowana walidacja mostka wideo
 
-Używane przez `open-sse/services/combo.ts` i `src/lib/quota/quotaScheduler.ts` do sprawdzania budżetu tokenów przed żądaniem. Funkcja opcjonalna — gdy zmienna nie jest ustawiona, domyślne zachowanie routingu pozostaje bez zmian.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` wymaga
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, aby wskazać absolutny katalog zawierający
+`storage.sqlite`. Nie ma domyślnej wartości. Narzędzie otwiera tę bazę danych w trybie tylko do odczytu i
+przygotowuje prywatną, tymczasową kopię z izolowanymi kluczami i ustawieniami klienta;
+poświadczenia pozostają na hoście walidacyjnym. Ta zmienna jest przeznaczona tylko do
+wyraźnego polecenia przygotowania i nie jest używana podczas normalnego uruchamiania serwera. Przygotowanie
+nie wywołuje modelu; osobne polecenie testowe na żywo wymaga `--execute-real`.
 
-| Zmienna                            | Wartość domyślna | Plik źródłowy                               | Opis                                                                                                                                                                                                                                                                                                                                                                                  |
-| ---------------------------------- | ---------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`              | `open-sse/services/combo.ts`                | Gdy wartość wynosi `1`, pomija połączenia, których budżet tokenów na okno (`rateLimitOverrides.tpm`, tabela `provider_quota_state`) nie wystarcza na szacowany koszt żądania przed jego wysłaniem. W przypadku braku skonfigurowanego budżetu zezwala na żądanie.                                                                                                                     |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(włączona)_     | `open-sse/services/estimatorCalibration.ts` | Kalibracja estymatora tokenów mechanizmu ochrony kontekstu na podstawie informacji zwrotnej (#14931): dla każdej kombinacji (dostawca, model, obecność narzędzi) obliczana jest średnia EMA stosunku `usage.prompt_tokens` do oszacowania, ograniczona do zakresu 0,15–2,0 i przechowywana wyłącznie w pamięci. `off`, `0` lub `false` wyłącza rejestrowanie i stosowanie kalibracji. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`          | `open-sse/config/imageRegistry.ts`          | Rejestruje trasy obrazów `xai-oauth` (`xao`) i `grok-cli`. Flaga funkcji panelu o tej samej nazwie; nadpisanie w bazie danych ma pierwszeństwo przed tą wartością.                                                                                                                                                                                                                    |
+### Planowanie uwzględniające kwoty
+
+Używane przez `open-sse/services/combo.ts` i `src/lib/quota/quotaScheduler.ts` do sprawdzania budżetu tokenów przed żądaniem. Opcjonalnie — domyślne zachowanie routingu nie zmienia się, gdy nie jest ustawione.
+
+| Zmienna                            | Domyślna     | Plik źródłowy                               | Opis                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`          | `open-sse/services/combo.ts`                | Gdy `1`, pomiń połączenia, których budżet tokenów na okno (`rateLimitOverrides.tpm`, tabela `provider_quota_state`) nie może pokryć szacunkowego kosztu żądania przed wysłaniem. Fail-open, gdy nie skonfigurowano budżetu.                                   |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(włączony)_ | `open-sse/services/estimatorCalibration.ts` | Kalibracja sprzężenia zwrotnego estymatora tokenów kontekstu (#14931): EMA `usage.prompt_tokens` / szacunek dla (dostawca, model, dostępne narzędzia), ograniczone do 0.15–2.0, tylko w pamięci. `off`, `0` lub `false` wyłącza rejestrowanie i zastosowanie. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`      | `open-sse/config/imageRegistry.ts`          | Rejestruje trasy obrazów `xai-oauth` (`xao`) i `grok-cli`. Flaga funkcji pulpitu o tej samej nazwie; nadpisanie w bazie danych ma pierwszeństwo przed tą wartością.                                                                                           |

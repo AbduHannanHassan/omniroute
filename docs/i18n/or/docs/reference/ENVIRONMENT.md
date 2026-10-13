@@ -1349,11 +1349,11 @@ Dashboardରୁ ସିଧାସଳଖ ସମସ୍ୟା ରିପୋର୍ଟ �
 
 ---
 
-## ଡିପ୍ଲୟମେଣ୍ଟ ପରିସ୍ଥିତିଗୁଡ଼ିକ
+## ଡିପ୍ଲୟମେଣ୍ଟ ସ୍କେନାରିଓ
 
-ରିଲେ ବ୍ୟାକଏଣ୍ଡ SRE ମାର୍ଗଦର୍ଶନ (`ts`/`bifrost`/`auto` ଆଚରଣ, `9router` ବନାମ `CLIProxyAPI` ସ୍ଥାପନ, ଏବଂ ଉଚ୍ଚ-ଥ୍ରୁପୁଟ୍ ଫଲବ୍ୟାକ୍ ରଣନୀତି) ପାଇଁ, [ରିଲେ ବ୍ୟାକଏଣ୍ଡ ରଣନୀତି](/docs/reference/RELAY_BACKEND_STRATEGY.md) ଦେଖନ୍ତୁ।
+ରିଲେ ବ୍ୟାକେଣ୍ଡ SRE ଗାଇଡ୍‌ଲାଇନ୍‌ସ (ts/bifrost/auto ବ୍ୟବହାର, 9router ବନାମ CLIProxyAPI ସ୍ଥାନ, ଏବଂ ଉଚ୍ଚ-ଥ୍ରୁପୁଟ୍ ଫଲବ୍ୟାକ୍ ନୀତି) ପାଇଁ [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md) ଦେଖନ୍ତୁ।
 
-### ସର୍ବନିମ୍ନ ସ୍ଥାନୀୟ ବିକାଶ
+### ମିନିମାଲ୍ ଲୋକାଲ୍ ବିକାଶ
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1363,7 +1363,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker ପ୍ରଡକ୍ସନ୍
+### ଡୋକର୍ ପ୍ରୋଡକ୍ସନ୍
 
 ```bash
 JWT_SECRET=<generated>
@@ -1382,7 +1382,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### ଏୟାର୍-ଗ୍ୟାପ୍ଡ୍ / CI
+### ଏୟାର-ଗାପ୍ଡ୍ / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1393,7 +1393,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### ରିଭର୍ସ ପ୍ରକ୍ସି ସହିତ VPS (nginx + Cloudflare)
+### VPS ସହିତ ରିଭର୍ସ ପ୍ରକ୍ସୀ (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1408,8 +1408,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills ସ୍ୟାଣ୍ଡବକ୍ସ (v3.8.0+)
 
@@ -1822,23 +1820,33 @@ GET ମାଧ୍ୟମରେ `src/shared/utils/releaseNotes.ts`ରେ ଘୋଷ�
 
 ---
 
-## OmniConductor ବ୍ରିଜ୍
+## OmniConductor Bridge
 
-ଦୀର୍ଘସ୍ଥାୟୀ SSE ଉପଭୋକ୍ତା, ଯାହା OmniConductor ହବ୍ର ଟାସ୍କଗୁଡ଼ିକୁ ସ୍ଥାନୀୟ A2A TaskManager (`src/lib/conductor/`)ରେ ପ୍ରତିବିମ୍ବିତ କରେ। ଇଚ୍ଛାଧୀନ — `CONDUCTOR_HUB_URL` ସେଟ୍ ହୋଇଥିଲେ ମାତ୍ର ବ୍ରିଜ୍ ଆରମ୍ଭ ହୁଏ। କେବଳ ସର୍ଭର୍-ପାର୍ଶ୍ୱ ପାଇଁ: ହବ୍ ଟୋକନ୍ କେବେବି ବ୍ରାଉଜର୍କୁ ପହଞ୍ଚିବା ଉଚିତ ନୁହେଁ।
+ଦୀର୍ଘକାଳୀନ SSE ଉପଭୋକ୍ତା ଯେଉଁଥିରେ OmniConductor ହବ୍ କାର୍ଯ୍ୟଗୁଡିକୁ ସ୍ଥାନୀୟ A2A TaskManager (`src/lib/conductor/`) ମଧ୍ୟରେ ପ୍ରତିବିମ୍ବିତ କରାଯାଏ। ଅପ୍ଟ-ଇନ୍ — ବ୍ରିଜ୍ କେବଳ ତାବେ ଆରମ୍ଭ ହୁଏ ଯେତେବେଳେ `CONDUCTOR_HUB_URL` ସେଟ୍ କରାଯାଇଛି। ସର୍ଭର-ପକ୍ଷରେ କେବଳ: ହବ୍ ଟୋକେନ୍ କେବଳ ବ୍ରାଉଜର୍ ପର୍ଯ୍ୟନ୍ତ ପହଁଚିବା ଉଚିତ୍ ନୁହେଁ।
 
-| ଭେରିଏବଲ୍                       | ଡିଫଲ୍ଟ                  | ଉତ୍ସ ଫାଇଲ୍                       | ବର୍ଣ୍ଣନା                                                                                                                |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(ଖାଲି)_                | `src/lib/conductor/boot.ts`      | OmniConductor ହବ୍ର ମୂଳ URL (ଯଥା `http://127.0.0.1:7910`)। ସେଟ୍ ନଥିଲେ = ବ୍ରିଜ୍ ଅକ୍ଷମ।                                    |
-| `CONDUCTOR_HUB_TOKEN`          | _(ଖାଲି)_                | `src/lib/conductor/boot.ts`      | SSE ଫିଡ୍ ପାଇଁ ହବ୍ ପ୍ରମାଣପତ୍ର — ହବ୍ରେ ଏକ `spokesperson`-ପ୍ରକାରର ପିଅର୍ ନିର୍ଗତ କରନ୍ତୁ (`POST /v1/peers`, ପ୍ରଶାସକ)।         |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(ଖାଲି)_                | `src/lib/conductor/hubProxy.ts`  | ଆସୁଥିବା A2A→ହବ୍ ଟାସ୍କ ପ୍ରତ୍ୟାୟୋଜନ (`POST /v1/tasks`) ପାଇଁ ପ୍ରମାଣପତ୍ର; ସେଟ୍ ନଥିଲେ `CONDUCTOR_HUB_TOKEN`କୁ ଫଲ୍ବ୍ୟାକ୍ କରେ। |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ଡ୍ୟାସ୍ବୋର୍ଡ ଚାଟ୍ ପ୍ରକ୍ସି (`/api/conductor/ask`) ପଛରେ ଥିବା spokesperson (Faro) ସେବାର ମୂଳ URL।                            |
+| Variable                       | Default                 | Source File                      | Description                                                                                                         |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | OmniConductor ହବ୍ର ବେସ୍ URL (ଉଦାହରଣ ସ୍ୱରୂପ: `http://127.0.0.1:7910`)। ଅସେଟ୍ = ବ୍ରିଜ୍ ବନ୍ଦ।                          |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | SSE ଫିଡ୍ ପାଇଁ ହବ୍ କ୍ରେଡେନ୍ସିଆଲ୍ — ହବ୍ରେ `spokesperson` ପ୍ରକାରର ପିୟର୍ ଉତ୍ପାଦନ କରନ୍ତୁ (`POST /v1/peers`, ଏଡମିନ୍)।     |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | A2A→ହବ୍ କାର୍ଯ୍ୟ ଦେଲିଗେସନ୍ ପାଇଁ କ୍ରେଡେନ୍ସିଆଲ୍ (`POST /v1/tasks`); ଅସେଟ୍ ହେଲେ `CONDUCTOR_HUB_TOKEN` କୁ ପ୍ରତିବେଶୀ କରେ। |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ଡ୍ୟାସ୍ବୋର୍ଡ୍ ଚାଟ୍ ପ୍ରକ୍ସୀର ପଛରେ ଥିବା spokesperson (Faro) ସେବାର ବେସ୍ URL (`/api/conductor/ask`)।                     |
 
-### କୋଟା-ସଚେତନ ସମୟସୂଚୀକରଣ
+### Video Bridge isolated validation
 
-ଅନୁରୋଧ-ପୂର୍ବ ଟୋକନ୍-ବଜେଟ୍ ଯାଞ୍ଚ ପାଇଁ `open-sse/services/combo.ts` ଏବଂ `src/lib/quota/quotaScheduler.ts` ଦ୍ୱାରା ବ୍ୟବହୃତ। ଇଚ୍ଛାଧୀନ — ସେଟ୍ ନଥିଲେ ଡିଫଲ୍ଟ ରାଉଟିଂ ଆଚରଣ ଅପରିବର୍ତ୍ତିତ ରହେ।
+`scripts/ad-hoc/video-live-isolation.ts --prepare` ଆବଶ୍ୟକ
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` ଏକ ଅବସ୍ଥାନୀୟ ଡିରେକ୍ଟୋରୀର ନାମ ଦେବାକୁ ଯାହାରେ
+`storage.sqlite` ଅଛି। କୌଣସି ଡିଫଲ୍ଟ ନାହିଁ। ଏହି ଟୁଲ୍ ସେହି ଡେଟାବେସ୍ କୁ ପଢ଼ିବା ପାଇଁ ଖୋଲେ ଏବଂ
+ନିଜସ୍ୱ ତାଲିକା କପି ସହିତ ଗୋପନୀୟ କ୍ଲାଇଏଣ୍ଟ କୀ ଏବଂ ସେଟିଂସ୍ ପ୍ରସ୍ତୁତ କରେ;
+କ୍ରେଡେନ୍ସିଆଲ୍ ମାତ୍ର ଭାଲିଡେସନ୍ ହୋଷ୍ଟରେ ରହିଥାଏ। ଏହି ଭେରିଏବଲ୍ କେବଳ ସ୍ପଷ୍ଟ
+ପ୍ରସ୍ତୁତି କମାଣ୍ଡ ପାଇଁ ଏବଂ ସାଧାରଣ ସର୍ଭର୍ ଆରମ୍ଭ ଦ୍ୱାରା ବ୍ୟବହୃତ ହୁଏ ନାହିଁ। ପ୍ରସ୍ତୁତି
+କୌଣସି ମୋଡେଲ୍ କୁ କଲ୍ କରେ ନାହିଁ; ବିଭାଗୀୟ ଲାଇଭ୍ ସ୍ମୋକ୍ କମାଣ୍ଡ `--execute-real` ଆବଶ୍ୟକ।
 
-| ଭେରିଏବଲ୍                           | ଡିଫଲ୍ଟ     | ଉତ୍ସ ଫାଇଲ୍                                  | ବର୍ଣ୍ଣନା                                                                                                                                                                                                                                                 |
-| ---------------------------------- | ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | `1` ଥିଲେ, ପ୍ରେରଣ ପୂର୍ବରୁ ଆନୁମାନିକ ଅନୁରୋଧ ଖର୍ଚ୍ଚ ବହନ କରିପାରୁନଥିବା ପ୍ରତି-ୱିଣ୍ଡୋ ଟୋକନ୍ ବଜେଟ୍ (`rateLimitOverrides.tpm`, ଟେବୁଲ୍ `provider_quota_state`) ସହିତ ସଂଯୋଗଗୁଡ଼ିକୁ ଏଡ଼ାଇ ଦିଅନ୍ତୁ। କୌଣସି ବଜେଟ୍ ବିନ୍ୟାସ ହୋଇନଥିଲେ ଫେଲ୍-ଓପନ୍ ହୁଏ।                         |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ସକ୍ରିୟ)_ | `open-sse/services/estimatorCalibration.ts` | କଣ୍ଟେକ୍ସ୍ଟ-ଗାର୍ଡ ଟୋକନ୍ ଏଷ୍ଟିମେଟର୍ (#14931)ର ଫିଡ୍ବ୍ୟାକ୍ କ୍ୟାଲିବ୍ରେସନ୍: ପ୍ରତି (ପ୍ରଦାନକାରୀ, ମଡେଲ୍, ଟୁଲ୍ର ଉପସ୍ଥିତି) ପାଇଁ `usage.prompt_tokens` / ଆକଳନର EMA, 0.15–2.0 ମଧ୍ୟରେ ସୀମିତ, କେବଳ ମେମୋରିରେ। `off`, `0` କିମ୍ବା `false` ରେକର୍ଡିଂ ଏବଂ ପ୍ରୟୋଗକୁ ଅକ୍ଷମ କରେ। |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) ଏବଂ `grok-cli` ଇମେଜ୍ ରୁଟ୍ଗୁଡ଼ିକୁ ପଞ୍ଜୀକୃତ କରେ। ସମାନ ନାମର ଡ୍ୟାସ୍ବୋର୍ଡ ଫିଚର୍ ଫ୍ଲାଗ୍; ଏହି ମୂଲ୍ୟ ଉପରେ DB ଓଭର୍ରାଇଡ୍କୁ ପ୍ରାଧାନ୍ୟ ମିଳେ।                                                                                                     |
+### Quota-aware scheduling
+
+`open-sse/services/combo.ts` ଏବଂ `src/lib/quota/quotaScheduler.ts` ଦ୍ୱାରା ପ୍ରି-ରିକ୍ୱେଷ୍ଟ ଟୋକେନ୍-ବଜେଟ୍ ଚେକ୍ ପାଇଁ ବ୍ୟବହୃତ। ଅପ୍ଟ-ଇନ୍ — ଅସେଟ୍ ହେଲେ ଡିଫଲ୍ଟ ରୁଟିଂ ବ୍ୟବହାର ବଦଳାଯିବ ନାହିଁ।
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                                        |
+| ---------------------------------- | ------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | `1` ହେଲେ, ସେହି ସଂଯୋଗଗୁଡିକୁ ଛାଡ଼ନ୍ତୁ ଯାହାର ପର୍-ଉଇଣ୍ଡୋ ଟୋକେନ୍ ବଜେଟ୍ (`rateLimitOverrides.tpm`, ତାଲିକା `provider_quota_state`) ଅନୁମାନିତ ଅନୁରୋଧ ଖର୍ଚ୍ଚ ପୂରଣ କରିପାରିବ ନାହିଁ। କୌଣସି ବଜେଟ୍ କନଫିଗର୍ କରାଯାଇନଥିଲେ ଫେଲ୍-ଓପେନ୍।                                |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | ପ୍ରସଙ୍ଗ-ଗାର୍ଡ୍ ଟୋକେନ୍ ଏସ୍ଟିମେଟର୍ (#14931) ର ଫିଡ୍ବ୍ୟାକ୍ କ୍ୟାଲିବ୍ରେସନ୍: (ପ୍ରଦାତା, ମୋଡେଲ୍, ଟୁଲ୍ ଉପସ୍ଥିତ) EMA ର `usage.prompt_tokens` / ଅନୁମାନ, 0.15–2.0 କୁ କ୍ଲାମ୍ପ୍ କରାଯାଇଛି, କେବଳ ସ୍ମୃତିରେ। `off`, `0` କିମ୍ବା `false` ରେକର୍ଡିଂ ଏବଂ ଆବେଦନକୁ ବନ୍ଦ କରେ। |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) ଏବଂ `grok-cli` ଇମେଜ୍ ରୁଟ୍ ରେଜିଷ୍ଟର୍ କରେ। ସେହି ନାମର ଡ୍ୟାସ୍ବୋର୍ଡ୍ ବିଶେଷତା ଫ୍ଲାଗ୍; ଏକ DB ଓଭର୍ରାଇଡ୍ ଏହି ମୂଲ୍ୟକୁ ଜିତେ।                                                                                                              |

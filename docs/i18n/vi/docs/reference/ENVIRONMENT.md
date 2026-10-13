@@ -1816,23 +1816,33 @@ Các giá trị mặc định toàn cục cho trình duyệt không giao diện 
 
 ---
 
-## Cầu nối OmniConductor
+## OmniConductor Bridge
 
-Trình tiêu thụ SSE chạy lâu dài, phản chiếu các tác vụ từ hub OmniConductor vào A2A TaskManager cục bộ (`src/lib/conductor/`). Đây là tính năng tùy chọn — cầu nối chỉ khởi động khi `CONDUCTOR_HUB_URL` được thiết lập. Chỉ dành cho phía máy chủ: token của hub tuyệt đối không được truyền đến trình duyệt.
+Người tiêu thụ SSE lâu dài phản chiếu các tác vụ của OmniConductor hub vào TaskManager A2A cục bộ (`src/lib/conductor/`). Tùy chọn — cầu nối chỉ bắt đầu khi `CONDUCTOR_HUB_URL` được thiết lập. Chỉ phía máy chủ: mã thông báo hub không bao giờ được phép đến trình duyệt.
 
-| Biến                           | Mặc định                | Tệp nguồn                        | Mô tả                                                                                                                                                |
-| ------------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(trống)_               | `src/lib/conductor/boot.ts`      | URL cơ sở của hub OmniConductor (ví dụ: `http://127.0.0.1:7910`). Không thiết lập = cầu nối bị vô hiệu hóa.                                          |
-| `CONDUCTOR_HUB_TOKEN`          | _(trống)_               | `src/lib/conductor/boot.ts`      | Thông tin xác thực của hub cho luồng SSE — tạo một peer loại `spokesperson` trên hub (`POST /v1/peers`, quản trị viên).                              |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(trống)_               | `src/lib/conductor/hubProxy.ts`  | Thông tin xác thực để ủy quyền tác vụ A2A→hub đến (`POST /v1/tasks`); sử dụng `CONDUCTOR_HUB_TOKEN` làm phương án dự phòng khi không được thiết lập. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL cơ sở của dịch vụ spokesperson (Faro) phía sau proxy trò chuyện của bảng điều khiển (`/api/conductor/ask`).                                      |
+| Biến                           | Mặc định                | Tệp nguồn                        | Mô tả                                                                                                                           |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(trống)_               | `src/lib/conductor/boot.ts`      | URL cơ sở của OmniConductor hub (ví dụ: `http://127.0.0.1:7910`). Không thiết lập = cầu nối bị vô hiệu hóa.                     |
+| `CONDUCTOR_HUB_TOKEN`          | _(trống)_               | `src/lib/conductor/boot.ts`      | Thông tin xác thực hub cho luồng SSE — phát ra một peer kiểu `spokesperson` trên hub (`POST /v1/peers`, quản trị viên).         |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(trống)_               | `src/lib/conductor/hubProxy.ts`  | Thông tin xác thực cho việc ủy quyền tác vụ A2A→hub đến (`POST /v1/tasks`); quay lại `CONDUCTOR_HUB_TOKEN` khi không thiết lập. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL cơ sở của dịch vụ spokesperson (Faro) phía sau proxy trò chuyện bảng điều khiển (`/api/conductor/ask`).                     |
 
-### Lập lịch có nhận biết hạn ngạch
+### Video Bridge isolated validation
 
-Được `open-sse/services/combo.ts` và `src/lib/quota/quotaScheduler.ts` sử dụng để kiểm tra ngân sách token trước khi gửi yêu cầu. Đây là tính năng tùy chọn — hành vi định tuyến mặc định không thay đổi khi không được thiết lập.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` yêu cầu
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` để chỉ định một thư mục tuyệt đối chứa
+`storage.sqlite`. Không có mặc định. Công cụ mở cơ sở dữ liệu đó ở chế độ chỉ đọc và
+chuẩn bị một bản sao tạm thời riêng tư với các khóa và cài đặt khách hàng được cách ly;
+thông tin xác thực vẫn ở trên máy chủ xác thực. Biến này chỉ dành cho lệnh chuẩn bị rõ ràng
+và không được sử dụng bởi khởi động máy chủ bình thường. Chuẩn bị
+không gọi một mô hình; lệnh khói trực tiếp riêng biệt yêu cầu `--execute-real`.
 
-| Biến                               | Mặc định | Tệp nguồn                                   | Mô tả                                                                                                                                                                                                                                                                                                                        |
-| ---------------------------------- | -------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | Khi là `1`, bỏ qua các kết nối có ngân sách token theo mỗi cửa sổ (`rateLimitOverrides.tpm`, bảng `provider_quota_state`) không đủ đáp ứng chi phí ước tính của yêu cầu trước khi gửi. Cho phép tiếp tục khi không có ngân sách nào được cấu hình.                                                                           |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(bật)_  | `open-sse/services/estimatorCalibration.ts` | Hiệu chỉnh phản hồi cho bộ ước tính token của trình bảo vệ ngữ cảnh (#14931): EMA theo từng tổ hợp (nhà cung cấp, mô hình, có công cụ hay không) của `usage.prompt_tokens` / giá trị ước tính, được giới hạn trong khoảng 0.15–2.0 và chỉ lưu trong bộ nhớ. `off`, `0` hoặc `false` sẽ vô hiệu hóa việc ghi nhận và áp dụng. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Đăng ký các tuyến hình ảnh `xai-oauth` (`xao`) và `grok-cli`. Cờ tính năng trên bảng điều khiển có cùng tên; giá trị ghi đè trong DB được ưu tiên hơn giá trị này.                                                                                                                                                           |
+### Quota-aware scheduling
+
+Được sử dụng bởi `open-sse/services/combo.ts` và `src/lib/quota/quotaScheduler.ts` cho các kiểm tra ngân sách token trước yêu cầu. Tùy chọn — hành vi định tuyến mặc định không thay đổi khi không thiết lập.
+
+| Biến                               | Mặc định | Tệp nguồn                                   | Mô tả                                                                                                                                                                                                                                                                     |
+| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | Khi `1`, bỏ qua các kết nối mà ngân sách token theo cửa sổ (`rateLimitOverrides.tpm`, bảng `provider_quota_state`) không đủ khả năng chi trả cho chi phí ước tính trước khi gửi. Fail-open khi không có ngân sách được cấu hình.                                          |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(bật)_  | `open-sse/services/estimatorCalibration.ts` | Hiệu chỉnh phản hồi của ước lượng token bảo vệ ngữ cảnh (#14931): trung bình theo (nhà cung cấp, mô hình, công cụ hiện có) EMA của `usage.prompt_tokens` / ước tính, giới hạn từ 0.15–2.0, chỉ trong bộ nhớ. `off`, `0` hoặc `false` vô hiệu hóa việc ghi lại và áp dụng. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Đăng ký các tuyến đường hình ảnh `xai-oauth` (`xao`) và `grok-cli`. Cờ tính năng bảng điều khiển cùng tên; một ghi đè DB thắng giá trị này.                                                                                                                               |

@@ -1820,23 +1820,33 @@ Valori predefiniti globali per il browser headless e il tunnel degli strumenti i
 
 ---
 
-## Bridge OmniConductor
+## OmniConductor Bridge
 
-Consumer SSE a lunga esecuzione che replica le attività dell'hub OmniConductor nel TaskManager A2A locale (`src/lib/conductor/`). Funzionalità facoltativa: il bridge si avvia solo quando è impostata `CONDUCTOR_HUB_URL`. Solo lato server: il token dell'hub non deve mai raggiungere il browser.
+Consumatore SSE a lungo termine che rispecchia i compiti del hub OmniConductor nel TaskManager A2A locale (`src/lib/conductor/`). Opt-in — il bridge si avvia solo quando `CONDUCTOR_HUB_URL` è impostato. Solo lato server: il token del hub non deve mai raggiungere il browser.
 
-| Variabile                      | Valore predefinito      | File sorgente                    | Descrizione                                                                                                                        |
-| ------------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(vuoto)_               | `src/lib/conductor/boot.ts`      | URL di base dell'hub OmniConductor (ad es. `http://127.0.0.1:7910`). Se non impostata, il bridge è disabilitato.                   |
-| `CONDUCTOR_HUB_TOKEN`          | _(vuoto)_               | `src/lib/conductor/boot.ts`      | Credenziale dell'hub per il feed SSE: genera nell'hub un peer di tipo `spokesperson` (`POST /v1/peers`, amministratore).           |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(vuoto)_               | `src/lib/conductor/hubProxy.ts`  | Credenziale per la delega delle attività A2A→hub in ingresso (`POST /v1/tasks`); se non impostata, utilizza `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL di base del servizio spokesperson (Faro) dietro il proxy di chat della dashboard (`/api/conductor/ask`).                       |
+| Variabile                      | Predefinito             | File Sorgente                    | Descrizione                                                                                                                      |
+| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(vuoto)_               | `src/lib/conductor/boot.ts`      | URL di base del hub OmniConductor (es. `http://127.0.0.1:7910`). Non impostato = bridge disabilitato.                            |
+| `CONDUCTOR_HUB_TOKEN`          | _(vuoto)_               | `src/lib/conductor/boot.ts`      | Credenziale del hub per il feed SSE — emette un peer di tipo `spokesperson` sul hub (`POST /v1/peers`, admin).                   |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(vuoto)_               | `src/lib/conductor/hubProxy.ts`  | Credenziale per la delega dei compiti A2A→hub in entrata (`POST /v1/tasks`); torna a `CONDUCTOR_HUB_TOKEN` quando non impostato. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL di base del servizio spokesperson (Faro) dietro il proxy della chat del dashboard (`/api/conductor/ask`).                    |
+
+### Validazione isolata del Video Bridge
+
+`scripts/ad-hoc/video-live-isolation.ts --prepare` richiede
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` per nominare una directory assoluta contenente
+`storage.sqlite`. Non c'è un predefinito. Lo strumento apre quel database in sola lettura e
+prepara una copia temporanea privata con chiavi e impostazioni client isolate;
+le credenziali rimangono sull'host di validazione. Questa variabile è solo per il comando di
+preparazione esplicita e non viene utilizzata dall'avvio normale del server. La preparazione
+non chiama un modello; il comando di smoke live separato richiede `--execute-real`.
 
 ### Pianificazione consapevole delle quote
 
-Utilizzata da `open-sse/services/combo.ts` e `src/lib/quota/quotaScheduler.ts` per i controlli del budget di token prima della richiesta. Funzionalità facoltativa: il comportamento di routing predefinito rimane invariato quando non è impostata.
+Utilizzato da `open-sse/services/combo.ts` e `src/lib/quota/quotaScheduler.ts` per controlli del budget dei token pre-richiesta. Opt-in — il comportamento di routing predefinito non cambia quando non è impostato.
 
-| Variabile                          | Valore predefinito | File sorgente                               | Descrizione                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------- | ------------------ | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`                | `open-sse/services/combo.ts`                | Quando è `1`, ignora le connessioni il cui budget di token per finestra (`rateLimitOverrides.tpm`, tabella `provider_quota_state`) non è sufficiente a coprire il costo stimato della richiesta prima dell'invio. In assenza di un budget configurato, procede comunque.                                                                                 |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(attiva)_         | `open-sse/services/estimatorCalibration.ts` | Calibrazione tramite feedback dello stimatore di token per il controllo del contesto (#14931): EMA, per combinazione di provider, modello e presenza di strumenti, del rapporto tra `usage.prompt_tokens` e la stima, limitata all'intervallo 0,15–2,0 e mantenuta solo in memoria. `off`, `0` o `false` disabilitano la registrazione e l'applicazione. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`            | `open-sse/config/imageRegistry.ts`          | Registra le route per le immagini `xai-oauth` (`xao`) e `grok-cli`. Flag di funzionalità della dashboard con lo stesso nome; un override nel DB ha la precedenza su questo valore.                                                                                                                                                                       |
+| Variabile                          | Predefinito | File Sorgente                               | Descrizione                                                                                                                                                                                                                                                                        |
+| ---------------------------------- | ----------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Quando `1`, salta le connessioni il cui budget di token per finestra (`rateLimitOverrides.tpm`, tabella `provider_quota_state`) non può permettersi il costo stimato della richiesta prima della spedizione. Fallisce aperto quando non è configurato alcun budget.                |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(attivo)_  | `open-sse/services/estimatorCalibration.ts` | Calibrazione di feedback dell'estimatore di token del guardiano del contesto (#14931): EMA per (fornitore, modello, strumenti presenti) di `usage.prompt_tokens` / stima, limitato a 0.15–2.0, solo in memoria. `off`, `0` o `false` disabilita la registrazione e l'applicazione. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Registra i percorsi delle immagini `xai-oauth` (`xao`) e `grok-cli`. Flag di funzionalità del dashboard con lo stesso nome; un override del DB prevale su questo valore.                                                                                                           |

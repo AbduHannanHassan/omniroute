@@ -1827,21 +1827,31 @@ Globalne zadane vrijednosti za preglednik bez sučelja i odlazni tunel alata. Vr
 
 ## OmniConductor Bridge
 
-Dugotrajni SSE potrošač koji zrcali zadatke čvorišta OmniConductor u lokalni A2A TaskManager (`src/lib/conductor/`). Uključuje se po želji — most se pokreće samo kada je postavljen `CONDUCTOR_HUB_URL`. Samo na strani poslužitelja: token čvorišta nikada ne smije dospjeti u preglednik.
+Dugotrajni SSE potrošač koji preslikava zadatke OmniConductor čvorišta u lokalni A2A TaskManager (`src/lib/conductor/`). Opcionalno — most se pokreće samo kada je postavljen `CONDUCTOR_HUB_URL`. Samo na strani poslužitelja: token čvorišta nikada ne smije doći do preglednika.
 
-| Varijabla                      | Zadana vrijednost       | Izvorna datoteka                 | Opis                                                                                                                                                  |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(prazno)_              | `src/lib/conductor/boot.ts`      | Osnovni URL čvorišta OmniConductor (npr. `http://127.0.0.1:7910`). Ako nije postavljeno, most je onemogućen.                                          |
-| `CONDUCTOR_HUB_TOKEN`          | _(prazno)_              | `src/lib/conductor/boot.ts`      | Vjerodajnica čvorišta za SSE izvor — emitirajte ravnopravnog sudionika vrste `spokesperson` na čvorištu (`POST /v1/peers`, administratorski pristup). |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prazno)_              | `src/lib/conductor/hubProxy.ts`  | Vjerodajnica za dolazno delegiranje zadataka iz A2A u čvorište (`POST /v1/tasks`); ako nije postavljena, koristi se `CONDUCTOR_HUB_TOKEN`.            |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Osnovni URL usluge spokesperson (Faro) iza proxyja za razgovor na nadzornoj ploči (`/api/conductor/ask`).                                             |
+| Varijabla                      | Zadano                  | Izvorna datoteka                 | Opis                                                                                                                        |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(prazno)_              | `src/lib/conductor/boot.ts`      | Osnovna URL adresa OmniConductor čvorišta (npr. `http://127.0.0.1:7910`). Ne postavljeno = most onemogućen.                 |
+| `CONDUCTOR_HUB_TOKEN`          | _(prazno)_              | `src/lib/conductor/boot.ts`      | Akreditiv čvorišta za SSE feed — emitira `spokesperson`-tip peer na čvorištu (`POST /v1/peers`, admin).                     |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prazno)_              | `src/lib/conductor/hubProxy.ts`  | Akreditiv za delegiranje A2A→čvorište zadataka (`POST /v1/tasks`); vraća se na `CONDUCTOR_HUB_TOKEN` kada nije postavljeno. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Osnovna URL adresa usluge portparola (Faro) iza proxyja za chat na nadzornoj ploči (`/api/conductor/ask`).                  |
 
-### Raspoređivanje uzimajući u obzir kvote
+### Video Bridge izolirana validacija
 
-Koriste ga `open-sse/services/combo.ts` i `src/lib/quota/quotaScheduler.ts` za provjere proračuna tokena prije zahtjeva. Uključuje se po želji — zadano ponašanje usmjeravanja ostaje nepromijenjeno ako nije postavljeno.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` zahtijeva
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` da naznači apsolutni direktorij koji sadrži
+`storage.sqlite`. Nema zadanog. Alat otvara tu bazu podataka samo za čitanje i
+priprema privatnu privremenu kopiju s izoliranim ključeva klijenata i postavkama;
+akreditivi ostaju na hostu validacije. Ova varijabla je samo za eksplicitnu
+pripremnu naredbu i ne koristi se pri normalnom pokretanju poslužitelja. Priprema
+ne poziva model; odvojena live smoke naredba zahtijeva `--execute-real`.
 
-| Varijabla                          | Zadana vrijednost | Izvorna datoteka                            | Opis                                                                                                                                                                                                                                                                                                 |
-| ---------------------------------- | ----------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`               | `open-sse/services/combo.ts`                | Kada je postavljeno na `1`, preskače veze čiji proračun tokena po vremenskom prozoru (`rateLimitOverrides.tpm`, tablica `provider_quota_state`) ne može pokriti procijenjeni trošak zahtjeva prije slanja. Ako proračun nije konfiguriran, zahtjev se propušta.                                      |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(uključeno)_     | `open-sse/services/estimatorCalibration.ts` | Kalibracija procjenitelja tokena za zaštitu konteksta na temelju povratnih informacija (#14931): EMA omjera `usage.prompt_tokens` / procjena po kombinaciji (pružatelj, model, prisutnost alata), ograničena na 0,15–2,0, samo u memoriji. `off`, `0` ili `false` onemogućuje bilježenje i primjenu. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`           | `open-sse/config/imageRegistry.ts`          | Registrira slikovne rute `xai-oauth` (`xao`) i `grok-cli`. Zastavica značajke nadzorne ploče istog naziva; vrijednost iz baze podataka ima prednost pred ovom vrijednošću.                                                                                                                           |
+### Planiranje svjesno kvote
+
+Koristi se u `open-sse/services/combo.ts` i `src/lib/quota/quotaScheduler.ts` za provjere proračuna tokena prije zahtjeva. Opcionalno — zadano ponašanje usmjeravanja ostaje nepromijenjeno kada nije postavljeno.
+
+| Varijabla                          | Zadano        | Izvorna datoteka                            | Opis                                                                                                                                                                                                                                                                       |
+| ---------------------------------- | ------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | Kada je `1`, preskoči veze čiji proračun tokena po prozoru (`rateLimitOverrides.tpm`, tablica `provider_quota_state`) ne može priuštiti procijenjeni trošak zahtjeva prije slanja. Neuspjeh kada nije konfiguriran proračun.                                               |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(uključeno)_ | `open-sse/services/estimatorCalibration.ts` | Kalibracija povratne informacije estimatora tokena zaštitnika konteksta (#14931): po (dobavljaču, modelu, prisutnim alatima) EMA `usage.prompt_tokens` / procjena, ograničena na 0.15–2.0, samo u memoriji. `isključeno`, `0` ili `false` onemogućava snimanje i primjenu. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Registrira `xai-oauth` (`xao`) i `grok-cli` rute slika. Zastavica značajke nadzorne ploče istog imena; DB preklapanje pobjeđuje ovu vrijednost.                                                                                                                            |

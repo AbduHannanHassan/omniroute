@@ -1825,21 +1825,31 @@ Peata brauseri ja väljamineva tööriistatunneli globaalsed vaikeväärtused. J
 
 ## OmniConductor Bridge
 
-Pika elueaga SSE tarbija, mis peegeldab OmniConductori keskuse ülesanded kohalikku A2A TaskManagerisse (`src/lib/conductor/`). Kasutaja valikul — sild käivitub ainult siis, kui `CONDUCTOR_HUB_URL` on määratud. Ainult serveripoolel: keskuse luba ei tohi kunagi brauserisse jõuda.
+Pikaajaline SSE tarbija, mis peegeldab OmniConductor keskuse ülesandeid kohalikku A2A TaskManagerisse (`src/lib/conductor/`). Valikuline — sild alustab ainult siis, kui `CONDUCTOR_HUB_URL` on seadistatud. Ainult serveripoolne: keskuse token ei tohi kunagi jõuda brauserisse.
 
-| Muutuja                        | Vaikeväärtus            | Lähtefail                        | Kirjeldus                                                                                                                                              |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(tühi)_                | `src/lib/conductor/boot.ts`      | OmniConductori keskuse baas-URL (nt `http://127.0.0.1:7910`). Määramata = sild on keelatud.                                                            |
-| `CONDUCTOR_HUB_TOKEN`          | _(tühi)_                | `src/lib/conductor/boot.ts`      | Keskuse pääsutunnus SSE-voo jaoks — loo keskuses `spokesperson`-liiki partner (`POST /v1/peers`, administraator).                                      |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tühi)_                | `src/lib/conductor/hubProxy.ts`  | Pääsutunnus sissetulevate A2A→keskus ülesannete delegeerimiseks (`POST /v1/tasks`); kui see pole määratud, kasutatakse `CONDUCTOR_HUB_TOKEN` väärtust. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Juhtpaneeli vestluse puhverserveri (`/api/conductor/ask`) taga oleva esindaja (Faro) teenuse baas-URL.                                                 |
+| Muutuja                        | Vaikimisi               | Allika fail                      | Kirjeldus                                                                                                                                     |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tühi)_                | `src/lib/conductor/boot.ts`      | OmniConductor keskuse põhivaat URL (nt `http://127.0.0.1:7910`). Kui pole seadistatud = sild on keelatud.                                     |
+| `CONDUCTOR_HUB_TOKEN`          | _(tühi)_                | `src/lib/conductor/boot.ts`      | Keskuse akrediteerimine SSE voogude jaoks — edastab keskuses `spokesperson`-tüüpi peer (`POST /v1/peers`, admin).                             |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tühi)_                | `src/lib/conductor/hubProxy.ts`  | Akrediteerimine sissetuleva A2A→keskuse ülesande delegeerimiseks (`POST /v1/tasks`); kui pole seadistatud, kasutatakse `CONDUCTOR_HUB_TOKEN`. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Spokesperson (Faro) teenuse põhivaat URL, mis asub juhtpaneeli vestluse proxy taga (`/api/conductor/ask`).                                    |
 
-### Kvooditeadlik ajastamine
+### Video Bridge isoleeritud valideerimine
 
-Seda kasutavad `open-sse/services/combo.ts` ja `src/lib/quota/quotaScheduler.ts` päringueelseteks loabüroo eelarve kontrollideks. Kasutaja valikul — kui see pole määratud, jääb vaikimisi marsruutimiskäitumine muutmata.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` nõuab
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, et nimetada absoluutne kataloog, mis sisaldab
+`storage.sqlite`. Vaikimisi ei ole. Tööriist avab selle andmebaasi ainult lugemiseks ja
+valmistab ette privaatse ajutise koopia isoleeritud kliendi võtmete ja seadistustega;
+akrediteeringud jäävad valideerimise hosti. See muutuja on ainult selgesõnalise
+ettevalmistamise käsu jaoks ja ei ole tavalise serveri käivitamise ajal kasutusel. Ettevalmistus
+ei kutsu mudelit; eraldi reaalajas suitsu käsk nõuab `--execute-real`.
 
-| Muutuja                            | Vaikeväärtus | Lähtefail                                   | Kirjeldus                                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------- | ------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`          | `open-sse/services/combo.ts`                | Kui väärtus on `1`, jäetakse enne edastamist vahele ühendused, mille aknapõhine loabüroo eelarve (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) ei kata päringu hinnangulist maksumust. Kui eelarvet pole seadistatud, lubatakse päring läbi.                                                                        |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(sees)_     | `open-sse/services/estimatorCalibration.ts` | Kontekstikaitse loendurihinnangu tagasisidepõhine kalibreerimine (#14931): `usage.prompt_tokens` / hinnangu eksponentsiaalne libisev keskmine iga kombinatsiooni (pakkuja, mudel, tööriistade olemasolu) kohta, piiratud vahemikku 0.15–2.0 ja hoitud ainult mälus. `off`, `0` või `false` keelab salvestamise ja rakendamise. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`      | `open-sse/config/imageRegistry.ts`          | Registreerib `xai-oauth` (`xao`) ja `grok-cli` pildimarsruudid. Sama nimega juhtpaneeli funktsioonilipp; andmebaasi ülekirjutus on selle väärtuse suhtes ülimuslik.                                                                                                                                                            |
+### Kvootide teadlik ajakava
+
+Kasutatakse `open-sse/services/combo.ts` ja `src/lib/quota/quotaScheduler.ts` eelneva päringu token-eelarve kontrollimiseks. Valikuline — vaikimisi marsruutimise käitumine ei muutu, kui pole seadistatud.
+
+| Muutuja                            | Vaikimisi | Allika fail                                 | Kirjeldus                                                                                                                                                                                                                                                       |
+| ---------------------------------- | --------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Kui `1`, jäta vahele ühendused, mille akna token-eelarve (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) ei suuda katab hinnangulist päringu kulu enne edastamist. Ebaõnnestumine, kui eelarvet ei ole seadistatud.                                    |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_    | `open-sse/services/estimatorCalibration.ts` | Tagasiside kalibreerimine konteksti-kaitse tokeni hinduri jaoks (#14931): iga (teenusepakkuja, mudel, olemasolevad tööriistad) EMA `usage.prompt_tokens` / hinnang, piiratud 0.15–2.0, ainult mälus. `off`, `0` või `false` keelab salvestamise ja rakendamise. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`   | `open-sse/config/imageRegistry.ts`          | Registreerib `xai-oauth` (`xao`) ja `grok-cli` pildi marsruudid. Juhtpaneeli funktsioonilipp sama nimega; andmebaasi ülekirjutamine võidab selle väärtuse.                                                                                                      |

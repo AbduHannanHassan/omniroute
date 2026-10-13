@@ -1827,21 +1827,31 @@ Algemene standaardinstellingen voor de headless-browser en de uitgaande tooltunn
 
 ## OmniConductor Bridge
 
-Langdurig actieve SSE-consumer die taken van de OmniConductor-hub spiegelt naar de lokale A2A TaskManager (`src/lib/conductor/`). Opt-in — de bridge start alleen wanneer `CONDUCTOR_HUB_URL` is ingesteld. Alleen server-side: het hubtoken mag nooit de browser bereiken.
+Langdurige SSE-consument die OmniConductor hub-taken spiegelt naar de lokale A2A TaskManager (`src/lib/conductor/`). Opt-in — de brug start alleen wanneer `CONDUCTOR_HUB_URL` is ingesteld. Alleen serverzijde: de hub-token mag nooit de browser bereiken.
 
-| Variabele                      | Standaard               | Bronbestand                      | Beschrijving                                                                                                                            |
-| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(leeg)_                | `src/lib/conductor/boot.ts`      | Basis-URL van de OmniConductor-hub (bijv. `http://127.0.0.1:7910`). Niet ingesteld = bridge uitgeschakeld.                              |
-| `CONDUCTOR_HUB_TOKEN`          | _(leeg)_                | `src/lib/conductor/boot.ts`      | Hubreferentie voor de SSE-feed — maak op de hub een peer van het type `spokesperson` aan (`POST /v1/peers`, beheerder).                 |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(leeg)_                | `src/lib/conductor/hubProxy.ts`  | Referentie voor inkomende A2A→hub-taakdelegatie (`POST /v1/tasks`); valt terug op `CONDUCTOR_HUB_TOKEN` wanneer deze niet is ingesteld. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL van de spokesperson-service (Faro) achter de chatproxy van het dashboard (`/api/conductor/ask`).                              |
+| Variabele                      | Standaard               | Bronbestand                      | Beschrijving                                                                                                                    |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(leeg)_                | `src/lib/conductor/boot.ts`      | Basis-URL van de OmniConductor hub (bijv. `http://127.0.0.1:7910`). Niet ingesteld = brug uitgeschakeld.                        |
+| `CONDUCTOR_HUB_TOKEN`          | _(leeg)_                | `src/lib/conductor/boot.ts`      | Hub-credential voor de SSE-feed — geef een `spokesperson`-achtige peer op de hub (`POST /v1/peers`, admin).                     |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(leeg)_                | `src/lib/conductor/hubProxy.ts`  | Credential voor inkomende A2A→hub taakdelegatie (`POST /v1/tasks`); valt terug op `CONDUCTOR_HUB_TOKEN` wanneer niet ingesteld. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL van de spokesperson (Faro) service achter de dashboard chat proxy (`/api/conductor/ask`).                             |
 
-### Quotumbewuste planning
+### Video Bridge geïsoleerde validatie
 
-Gebruikt door `open-sse/services/combo.ts` en `src/lib/quota/quotaScheduler.ts` voor controles van het tokenbudget vóór aanvragen. Opt-in — het standaardrouteringsgedrag blijft ongewijzigd wanneer dit niet is ingesteld.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` vereist
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` om een absoluut pad te benoemen dat
+`storage.sqlite` bevat. Er is geen standaard. De tool opent die database alleen-lezen en
+bereidt een privé tijdelijke kopie voor met geïsoleerde client-sleutels en instellingen;
+credentials blijven op de validatiehost. Deze variabele is alleen voor de expliciete
+voorbereidingsopdracht en wordt niet gebruikt bij de normale serverstart. Voorbereiding
+roept geen model aan; het aparte live rookcommando vereist `--execute-real`.
 
-| Variabele                          | Standaard | Bronbestand                                 | Beschrijving                                                                                                                                                                                                                                                                                               |
-| ---------------------------------- | --------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Slaat bij `1` verbindingen over waarvan het tokenbudget per tijdvenster (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) ontoereikend is voor de geschatte aanvraagkosten vóór verzending. Werkt volgens het fail-open-principe wanneer geen budget is geconfigureerd.                             |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(aan)_   | `open-sse/services/estimatorCalibration.ts` | Feedbackkalibratie van de tokenschatter van de contextbeveiliging (#14931): per combinatie van (provider, model, aanwezigheid van tools) een EMA van `usage.prompt_tokens` / schatting, begrensd op 0,15–2,0 en uitsluitend in het geheugen. `off`, `0` of `false` schakelt registratie en toepassing uit. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`   | `open-sse/config/imageRegistry.ts`          | Registreert de afbeeldingsroutes `xai-oauth` (`xao`) en `grok-cli`. Dashboardfeatureflag met dezelfde naam; een database-override heeft voorrang op deze waarde.                                                                                                                                           |
+### Quota-bewuste planning
+
+Gebruikt door `open-sse/services/combo.ts` en `src/lib/quota/quotaScheduler.ts` voor pre-aanroep token-budgetcontroles. Opt-in — het standaard routeringsgedrag verandert niet wanneer niet ingesteld.
+
+| Variabele                          | Standaard | Bronbestand                                 | Beschrijving                                                                                                                                                                                                                                                  |
+| ---------------------------------- | --------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Wanneer `1`, sla verbindingen over waarvan het tokenbudget per venster (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) de geschatte aanvraagkosten niet kan dekken voordat deze wordt verzonden. Fail-open wanneer er geen budget is geconfigureerd. |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(aan)_   | `open-sse/services/estimatorCalibration.ts` | Feedbackkalibratie van de context-bewaker token estimator (#14931): per (provider, model, aanwezige tools) EMA van `usage.prompt_tokens` / schatting, beperkt tot 0.15–2.0, alleen in het geheugen. `uit`, `0` of `onwaar` schakelt opname en toepassing uit. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `onwaar`  | `open-sse/config/imageRegistry.ts`          | Registreert de `xai-oauth` (`xao`) en `grok-cli` afbeeldingsroutes. Dashboard functie-vlag van dezelfde naam; een DB-override wint het van deze waarde.                                                                                                       |

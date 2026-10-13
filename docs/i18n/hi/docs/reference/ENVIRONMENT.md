@@ -1344,11 +1344,11 @@ Anthropic-संगत प्रोवाइडर जोड़ें।
 
 ---
 
-## परिनियोजन परिदृश्य
+## डिप्लॉयमेंट परिदृश्य
 
-रिले बैकएंड SRE मार्गदर्शन (ts/bifrost/auto व्यवहार, 9router बनाम CLIProxyAPI प्लेसमेंट और उच्च-थ्रूपुट फ़ॉलबैक रणनीति) के लिए, [रिले बैकएंड रणनीति](/docs/reference/RELAY_BACKEND_STRATEGY.md) देखें।
+रिले बैकेंड SRE मार्गदर्शन (ts/bifrost/auto व्यवहार, 9router बनाम CLIProxyAPI स्थान, और उच्च-थ्रूपुट फॉलबैक रणनीति) के लिए, देखें [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md)।
 
-### न्यूनतम स्थानीय डेवलपमेंट
+### न्यूनतम स्थानीय विकास
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1358,7 +1358,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker प्रोडक्शन
+### डॉकर उत्पादन
 
 ```bash
 JWT_SECRET=<generated>
@@ -1388,7 +1388,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### रिवर्स प्रॉक्सी वाला VPS (nginx + Cloudflare)
+### VPS के साथ रिवर्स प्रॉक्सी (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1403,8 +1403,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. स्किल्स सैंडबॉक्स (v3.8.0+)
 
@@ -1805,23 +1803,33 @@ CLI_COMPAT_ALL=1
 
 ---
 
-## OmniConductor ब्रिज
+## OmniConductor Bridge
 
-दीर्घकालिक SSE उपभोक्ता, जो OmniConductor हब के कार्यों को स्थानीय A2A TaskManager (`src/lib/conductor/`) में प्रतिबिंबित करता है। ऑप्ट-इन — ब्रिज केवल तभी शुरू होता है, जब `CONDUCTOR_HUB_URL` सेट हो। केवल सर्वर-साइड: हब टोकन कभी भी ब्राउज़र तक नहीं पहुँचना चाहिए।
+दीर्घकालिक SSE उपभोक्ता जो OmniConductor हब कार्यों को स्थानीय A2A TaskManager (`src/lib/conductor/`) में मिरर करता है। ऑप्ट-इन — ब्रिज केवल तब शुरू होता है जब `CONDUCTOR_HUB_URL` सेट किया गया हो। केवल सर्वर-साइड: हब टोकन कभी भी ब्राउज़र तक नहीं पहुंचना चाहिए।
 
-| वेरिएबल                        | डिफ़ॉल्ट                | स्रोत फ़ाइल                      | विवरण                                                                                                                         |
+| Variable                       | Default                 | Source File                      | Description                                                                                                                   |
 | ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(रिक्त)_               | `src/lib/conductor/boot.ts`      | OmniConductor हब का बेस URL (उदा. `http://127.0.0.1:7910`)। सेट न होने पर = ब्रिज अक्षम।                                      |
-| `CONDUCTOR_HUB_TOKEN`          | _(रिक्त)_               | `src/lib/conductor/boot.ts`      | SSE फ़ीड के लिए हब क्रेडेंशियल — हब पर `spokesperson`-प्रकार का पीयर बनाएँ (`POST /v1/peers`, एडमिन)।                         |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(रिक्त)_               | `src/lib/conductor/hubProxy.ts`  | इनबाउंड A2A→हब कार्य प्रत्यायोजन (`POST /v1/tasks`) के लिए क्रेडेंशियल; सेट न होने पर `CONDUCTOR_HUB_TOKEN` का उपयोग करता है। |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | डैशबोर्ड चैट प्रॉक्सी (`/api/conductor/ask`) के पीछे स्थित spokesperson (Faro) सेवा का बेस URL।                               |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | OmniConductor हब का बेस URL (जैसे `http://127.0.0.1:7910`)। अनसेट = ब्रिज अक्षम।                                              |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | SSE फीड के लिए हब क्रेडेंशियल — हब पर एक `spokesperson`-प्रकार का पीयर उत्पन्न करें (`POST /v1/peers`, प्रशासन)।              |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | इनबाउंड A2A→हब कार्य प्रतिनिधित्व के लिए क्रेडेंशियल (`POST /v1/tasks`); अनसेट होने पर `CONDUCTOR_HUB_TOKEN` पर वापस जाता है। |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | डैशबोर्ड चैट प्रॉक्सी (`/api/conductor/ask`) के पीछे के spokesperson (Faro) सेवा का बेस URL।                                  |
 
-### कोटा-जागरूक शेड्यूलिंग
+### Video Bridge isolated validation
 
-प्री-रिक्वेस्ट टोकन-बजट जाँच के लिए `open-sse/services/combo.ts` और `src/lib/quota/quotaScheduler.ts` द्वारा उपयोग किया जाता है। ऑप्ट-इन — सेट न होने पर डिफ़ॉल्ट रूटिंग व्यवहार अपरिवर्तित रहता है।
+`scripts/ad-hoc/video-live-isolation.ts --prepare` को आवश्यक है
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` एक पूर्ण निर्देशिका का नाम देने के लिए जिसमें
+`storage.sqlite` हो। इसका कोई डिफ़ॉल्ट नहीं है। यह उपकरण उस डेटाबेस को केवल पढ़ने के लिए खोलता है और
+एक निजी अस्थायी प्रति तैयार करता है जिसमें अलग-अलग क्लाइंट कुंजी और सेटिंग्स होती हैं;
+क्रेडेंशियल्स मान्यता होस्ट पर रहते हैं। यह वेरिएबल केवल स्पष्ट
+तैयारी कमांड के लिए है और सामान्य सर्वर स्टार्टअप द्वारा उपभोग नहीं किया जाता है। तैयारी
+कोई मॉडल नहीं बुलाती है; अलग लाइव स्मोक कमांड के लिए `--execute-real` की आवश्यकता होती है।
 
-| वेरिएबल                            | डिफ़ॉल्ट | स्रोत फ़ाइल                                 | विवरण                                                                                                                                                                                                                                           |
-| ---------------------------------- | -------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | `1` होने पर, उन कनेक्शनों को छोड़ देता है जिनका प्रति-विंडो टोकन बजट (`rateLimitOverrides.tpm`, तालिका `provider_quota_state`) डिस्पैच से पहले अनुमानित अनुरोध लागत वहन नहीं कर सकता। कोई बजट कॉन्फ़िगर न होने पर फेल-ओपन।                      |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(चालू)_ | `open-sse/services/estimatorCalibration.ts` | कॉन्टेक्स्ट-गार्ड टोकन अनुमानक (#14931) का फ़ीडबैक कैलिब्रेशन: प्रति (प्रदाता, मॉडल, टूल की मौजूदगी) `usage.prompt_tokens` / अनुमान का EMA, 0.15–2.0 तक सीमित, केवल मेमोरी में। `off`, `0` या `false` रिकॉर्डिंग और अनुप्रयोग को अक्षम करता है। |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) और `grok-cli` इमेज रूट पंजीकृत करता है। इसी नाम का डैशबोर्ड फ़ीचर फ़्लैग; DB ओवरराइड इस मान पर प्राथमिकता लेता है।                                                                                                          |
+### Quota-aware scheduling
+
+`open-sse/services/combo.ts` और `src/lib/quota/quotaScheduler.ts` द्वारा पूर्व-अनुरोध टोकन-बजट जांच के लिए उपयोग किया जाता है। ऑप्ट-इन — अनसेट होने पर डिफ़ॉल्ट रूटिंग व्यवहार अपरिवर्तित रहता है।
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                            |
+| ---------------------------------- | ------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | जब `1`, उन कनेक्शनों को छोड़ दें जिनका प्रति-खिड़की टोकन बजट (`rateLimitOverrides.tpm`, तालिका `provider_quota_state`) अनुमानित अनुरोध लागत को भेजने से पहले वहन नहीं कर सकता। कोई बजट कॉन्फ़िगर न होने पर फेल-ओपन।                    |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | संदर्भ-गार्ड टोकन अनुमानक (#14931) का फीडबैक कैलिब्रेशन: प्रति (प्रदाता, मॉडल, उपकरण मौजूद) `usage.prompt_tokens` / अनुमान का EMA, 0.15–2.0 तक सीमित, केवल मेमोरी में। `off`, `0` या `false` रिकॉर्डिंग और अनुप्रयोग को अक्षम करता है। |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) और `grok-cli` छवि मार्गों को पंजीकृत करता है। समान नाम का डैशबोर्ड फीचर फ्लैग; एक DB ओवरराइड इस मान पर जीतता है।                                                                                                   |

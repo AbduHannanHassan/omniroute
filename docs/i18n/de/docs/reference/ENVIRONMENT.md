@@ -1815,23 +1815,33 @@ Globale Standardwerte für den Headless-Browser und den ausgehenden Tool-Tunnel.
 
 ---
 
-## OmniConductor-Bridge
+## OmniConductor Bridge
 
-Langlebiger SSE-Consumer, der Aufgaben des OmniConductor-Hubs in den lokalen A2A TaskManager (`src/lib/conductor/`) spiegelt. Opt-in — die Bridge wird nur gestartet, wenn `CONDUCTOR_HUB_URL` gesetzt ist. Nur serverseitig: Das Hub-Token darf niemals an den Browser gelangen.
+Langfristiger SSE-Verbraucher, der die Aufgaben des OmniConductor-Hubs in den lokalen A2A TaskManager (`src/lib/conductor/`) spiegelt. Opt-in — die Brücke startet nur, wenn `CONDUCTOR_HUB_URL` gesetzt ist. Nur serverseitig: Das Hub-Token darf niemals den Browser erreichen.
 
-| Variable                       | Standardwert            | Quelldatei                       | Beschreibung                                                                                                                                             |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(leer)_                | `src/lib/conductor/boot.ts`      | Basis-URL des OmniConductor-Hubs (z. B. `http://127.0.0.1:7910`). Nicht gesetzt = Bridge deaktiviert.                                                    |
-| `CONDUCTOR_HUB_TOKEN`          | _(leer)_                | `src/lib/conductor/boot.ts`      | Hub-Anmeldedaten für den SSE-Feed — auf dem Hub einen Peer der Art `spokesperson` erstellen (`POST /v1/peers`, Admin).                                   |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(leer)_                | `src/lib/conductor/hubProxy.ts`  | Anmeldedaten für die eingehende Delegierung von A2A-Aufgaben an den Hub (`POST /v1/tasks`); greift auf `CONDUCTOR_HUB_TOKEN` zurück, wenn nicht gesetzt. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL des Spokesperson-Dienstes (Faro) hinter dem Dashboard-Chat-Proxy (`/api/conductor/ask`).                                                       |
+| Variable                       | Standard                | Quelldatei                       | Beschreibung                                                                                                                                       |
+| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(leer)_                | `src/lib/conductor/boot.ts`      | Basis-URL des OmniConductor-Hubs (z.B. `http://127.0.0.1:7910`). Nicht gesetzt = Brücke deaktiviert.                                               |
+| `CONDUCTOR_HUB_TOKEN`          | _(leer)_                | `src/lib/conductor/boot.ts`      | Hub-Anmeldeinformationen für den SSE-Feed — einen `spokesperson`-ähnlichen Peer im Hub ausgeben (`POST /v1/peers`, Admin).                         |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(leer)_                | `src/lib/conductor/hubProxy.ts`  | Anmeldeinformationen für die eingehende A2A→Hub-Aufgabendelegation (`POST /v1/tasks`); fällt auf `CONDUCTOR_HUB_TOKEN` zurück, wenn nicht gesetzt. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL des Sprechers (Faro) Dienstes hinter dem Dashboard-Chat-Proxy (`/api/conductor/ask`).                                                    |
 
-### Kontingentabhängige Planung
+### Video Bridge isolierte Validierung
 
-Wird von `open-sse/services/combo.ts` und `src/lib/quota/quotaScheduler.ts` für Token-Budget-Prüfungen vor Anfragen verwendet. Opt-in — das standardmäßige Routing-Verhalten bleibt unverändert, wenn die Variable nicht gesetzt ist.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` erfordert
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, um ein absolutes Verzeichnis zu benennen, das
+`storage.sqlite` enthält. Es gibt keinen Standard. Das Tool öffnet diese Datenbank schreibgeschützt und
+bereitet eine private temporäre Kopie mit isolierten Client-Schlüsseln und Einstellungen vor;
+Anmeldeinformationen bleiben auf dem Validierungs-Host. Diese Variable ist nur für den expliziten
+Vorbereitungskommand und wird nicht beim normalen Serverstart verwendet. Die Vorbereitung
+ruft kein Modell auf; der separate Live-Rauchbefehl erfordert `--execute-real`.
 
-| Variable                           | Standardwert | Quelldatei                                  | Beschreibung                                                                                                                                                                                                                                                                                         |
-| ---------------------------------- | ------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`          | `open-sse/services/combo.ts`                | Wenn auf `1` gesetzt, werden Verbindungen übersprungen, deren Token-Budget pro Zeitfenster (`rateLimitOverrides.tpm`, Tabelle `provider_quota_state`) die geschätzten Anfragekosten vor der Weiterleitung nicht abdecken kann. Verwendet ein Fail-open-Verhalten, wenn kein Budget konfiguriert ist. |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(aktiv)_    | `open-sse/services/estimatorCalibration.ts` | Feedback-Kalibrierung des Token-Schätzers für die Kontextbegrenzung (#14931): ein EMA von `usage.prompt_tokens` / Schätzwert pro (Anbieter, Modell, vorhandene Tools), begrenzt auf 0,15–2,0 und nur im Arbeitsspeicher. `off`, `0` oder `false` deaktiviert die Aufzeichnung und Anwendung.         |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`      | `open-sse/config/imageRegistry.ts`          | Registriert die Bildrouten `xai-oauth` (`xao`) und `grok-cli`. Dashboard-Funktionsschalter mit demselben Namen; eine DB-Überschreibung hat Vorrang vor diesem Wert.                                                                                                                                  |
+### Quota-bewusste Planung
+
+Verwendet von `open-sse/services/combo.ts` und `src/lib/quota/quotaScheduler.ts` für Voranfragen-Token-Budgetprüfungen. Opt-in — das Standard-Routing-Verhalten bleibt unverändert, wenn nicht gesetzt.
+
+| Variable                           | Standard | Quelldatei                                  | Beschreibung                                                                                                                                                                                                                                                               |
+| ---------------------------------- | -------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | Wenn `1`, überspringen Sie Verbindungen, deren Token-Budget pro Fenster (`rateLimitOverrides.tpm`, Tabelle `provider_quota_state`) die geschätzten Anfragekosten vor dem Versand nicht tragen kann. Fail-open, wenn kein Budget konfiguriert ist.                          |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ein)_  | `open-sse/services/estimatorCalibration.ts` | Feedback-Kalibrierung des Kontextwächters für den Token-Schätzer (#14931): pro (Anbieter, Modell, vorhandene Tools) EMA von `usage.prompt_tokens` / Schätzung, auf 0.15–2.0 begrenzt, nur im Speicher. `aus`, `0` oder `false` deaktiviert die Aufzeichnung und Anwendung. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Registriert die `xai-oauth` (`xao`) und `grok-cli` Bildrouten. Dashboard-Feature-Flag mit demselben Namen; ein DB-Override hat Vorrang vor diesem Wert.                                                                                                                    |

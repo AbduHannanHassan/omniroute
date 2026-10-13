@@ -1822,23 +1822,33 @@ Valori implicite globale pentru browserul fără interfață și tunelul de inst
 
 ---
 
-## Punte OmniConductor
+## OmniConductor Bridge
 
-Consumator SSE de lungă durată care oglindește sarcinile hubului OmniConductor în A2A TaskManager local (`src/lib/conductor/`). Funcționalitate opțională — puntea pornește numai când este setată variabila `CONDUCTOR_HUB_URL`. Exclusiv pe server: tokenul hubului nu trebuie să ajungă niciodată în browser.
+Consumator SSE de lungă durată care reflectă sarcinile hub-ului OmniConductor în TaskManager-ul local A2A (`src/lib/conductor/`). Opt-in — podul pornește doar când `CONDUCTOR_HUB_URL` este setat. Numai pe server: token-ul hub-ului nu trebuie să ajungă niciodată în browser.
 
-| Variabilă                      | Valoare implicită       | Fișier sursă                     | Descriere                                                                                                                                       |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(gol)_                 | `src/lib/conductor/boot.ts`      | URL-ul de bază al hubului OmniConductor (de ex. `http://127.0.0.1:7910`). Nesetat = punte dezactivată.                                          |
-| `CONDUCTOR_HUB_TOKEN`          | _(gol)_                 | `src/lib/conductor/boot.ts`      | Credențialele hubului pentru fluxul SSE — emiteți în hub un peer de tip `spokesperson` (`POST /v1/peers`, administrare).                        |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(gol)_                 | `src/lib/conductor/hubProxy.ts`  | Credențiale pentru delegarea sarcinilor primite din A2A către hub (`POST /v1/tasks`); dacă nu sunt setate, se utilizează `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL-ul de bază al serviciului spokesperson (Faro) din spatele proxy-ului de chat al tabloului de bord (`/api/conductor/ask`).                   |
+| Variabilă                      | Implicit                | Fișier sursă                     | Descriere                                                                                                                   |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(gol)_                 | `src/lib/conductor/boot.ts`      | URL de bază al hub-ului OmniConductor (de exemplu, `http://127.0.0.1:7910`). Neconfigurat = podul dezactivat.               |
+| `CONDUCTOR_HUB_TOKEN`          | _(gol)_                 | `src/lib/conductor/boot.ts`      | Credentialul hub-ului pentru feed-ul SSE — emite un peer de tip `spokesperson` pe hub (`POST /v1/peers`, admin).            |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(gol)_                 | `src/lib/conductor/hubProxy.ts`  | Credential pentru delegarea sarcinilor A2A→hub ( `POST /v1/tasks`); revine la `CONDUCTOR_HUB_TOKEN` când este neconfigurat. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL de bază al serviciului spokesperson (Faro) din spatele proxy-ului de chat al tabloului de bord (`/api/conductor/ask`).  |
 
-### Planificare care ține cont de cotă
+### Validare izolată a podului video
 
-Utilizată de `open-sse/services/combo.ts` și `src/lib/quota/quotaScheduler.ts` pentru verificarea bugetului de tokenuri înaintea solicitării. Funcționalitate opțională — comportamentul implicit de rutare rămâne neschimbat când variabila nu este setată.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` necesită
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` pentru a numi un director absolut care conține
+`storage.sqlite`. Nu există un implicit. Instrumentul deschide acea bază de date în mod read-only și
+pregătește o copie temporară privată cu chei și setări client izolate;
+credentialele rămân pe gazda de validare. Această variabilă este doar pentru comanda de
+pregătire explicită și nu este consumată de pornirea normală a serverului. Pregătirea
+nu apelează un model; comanda separată de fum live necesită `--execute-real`.
 
-| Variabilă                          | Valoare implicită | Fișier sursă                                | Descriere                                                                                                                                                                                                                                                                                                                  |
-| ---------------------------------- | ----------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`               | `open-sse/services/combo.ts`                | Când este `1`, omite conexiunile al căror buget de tokenuri per interval (`rateLimitOverrides.tpm`, tabelul `provider_quota_state`) nu poate acoperi costul estimat al solicitării înainte de trimitere. Permite operațiunea în cazul în care nu este configurat niciun buget.                                             |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(activată)_      | `open-sse/services/estimatorCalibration.ts` | Calibrarea prin feedback a estimatorului de tokenuri pentru protecția contextului (#14931): EMA per (furnizor, model, instrumente prezente) pentru raportul dintre `usage.prompt_tokens` și estimare, limitat la intervalul 0,15–2,0, exclusiv în memorie. `off`, `0` sau `false` dezactivează înregistrarea și aplicarea. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`           | `open-sse/config/imageRegistry.ts`          | Înregistrează rutele de imagini `xai-oauth` (`xao`) și `grok-cli`. Indicator de funcționalitate pentru tabloul de bord cu același nume; o suprascriere din baza de date are prioritate față de această valoare.                                                                                                            |
+### Programare conștientă de cotă
+
+Utilizată de `open-sse/services/combo.ts` și `src/lib/quota/quotaScheduler.ts` pentru verificările bugetului de token-uri înainte de cerere. Opt-in — comportamentul de rutare implicit rămâne neschimbat când este neconfigurat.
+
+| Variabilă                          | Implicit  | Fișier sursă                                | Descriere                                                                                                                                                                                                                                                            |
+| ---------------------------------- | --------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Când `1`, sare conexiunile al căror buget de token-uri pe fereastră (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) nu poate suporta costul estimat al cererii înainte de expediere. Fail-open când nu este configurat niciun buget.                        |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(activ)_ | `open-sse/services/estimatorCalibration.ts` | Calibrarea feedback-ului estimatorului de token-uri de context-guard (#14931): EMA per (provider, model, unelte prezente) a `usage.prompt_tokens` / estimare, limitată la 0.15–2.0, doar în memorie. `off`, `0` sau `false` dezactivează înregistrarea și aplicarea. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`   | `open-sse/config/imageRegistry.ts`          | Înregistrează rutele de imagini `xai-oauth` (`xao`) și `grok-cli`. Flag-ul de caracteristică al tabloului de bord cu același nume; o suprascriere DB câștigă în fața acestei valori.                                                                                 |

@@ -1318,11 +1318,11 @@ OmniRoute は、それらのリレーがリクエストを受け入れられる�
 
 ---
 
-## デプロイシナリオ
+## デプロイメントシナリオ
 
-リレーバックエンドのSREガイダンス（ts/bifrost/autoの動作、9routerとCLIProxyAPIの配置、および高スループット時のフォールバック戦略）については、[リレーバックエンド戦略](/docs/reference/RELAY_BACKEND_STRATEGY.md)を参照してください。
+リレーバックエンドSREガイダンス（ts/bifrost/auto動作、9router対CLIProxyAPI配置、および高スループットフォールバック戦略）については、[Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md)を参照してください。
 
-### 最小構成のローカル開発
+### 最小限のローカル開発
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1332,7 +1332,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker本番環境
+### Dockerプロダクション
 
 ```bash
 JWT_SECRET=<generated>
@@ -1351,7 +1351,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### エアギャップ環境 / CI
+### エアギャップ / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1362,7 +1362,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### リバースプロキシを使用するVPS（nginx + Cloudflare）
+### VPSとリバースプロキシ（nginx + Cloudflare）
 
 ```bash
 JWT_SECRET=<generated>
@@ -1377,8 +1377,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills サンドボックス（v3.8.0+）
 
@@ -1783,23 +1781,27 @@ OmniRoute インスタンスから取得した正確な `limit.context` およ�
 
 ---
 
-## OmniConductor ブリッジ
+## OmniConductor Bridge
 
-OmniConductor ハブのタスクをローカルの A2A TaskManager（`src/lib/conductor/`）にミラーリングする、長時間稼働型の SSE コンシューマーです。オプトイン方式であり、ブリッジは `CONDUCTOR_HUB_URL` が設定されている場合にのみ起動します。サーバー側限定です。ハブトークンをブラウザに渡してはなりません。
+長期間稼働するSSEコンシューマーで、OmniConductorハブタスクをローカルA2A TaskManager（`src/lib/conductor/`）にミラーリングします。オプトイン — `CONDUCTOR_HUB_URL`が設定されているときのみブリッジが開始されます。サーバーサイドのみ：ハブトークンはブラウザに到達してはいけません。
 
-| 変数                           | デフォルト              | ソースファイル                   | 説明                                                                                                                         |
-| ------------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _（空）_                | `src/lib/conductor/boot.ts`      | OmniConductor ハブのベース URL（例：`http://127.0.0.1:7910`）。未設定の場合、ブリッジは無効になります。                      |
-| `CONDUCTOR_HUB_TOKEN`          | _（空）_                | `src/lib/conductor/boot.ts`      | SSE フィード用のハブ認証情報。ハブ上で `spokesperson` 種別のピアを発行します（`POST /v1/peers`、管理者権限）。               |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _（空）_                | `src/lib/conductor/hubProxy.ts`  | 受信する A2A→ハブのタスク委任（`POST /v1/tasks`）用の認証情報。未設定の場合は `CONDUCTOR_HUB_TOKEN` にフォールバックします。 |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ダッシュボードのチャットプロキシ（`/api/conductor/ask`）の背後にある spokesperson（Faro）サービスのベース URL。              |
+| 変数                           | デフォルト              | ソースファイル                   | 説明                                                                                                                |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(空)_                  | `src/lib/conductor/boot.ts`      | OmniConductorハブのベースURL（例：`http://127.0.0.1:7910`）。未設定 = ブリッジ無効。                                |
+| `CONDUCTOR_HUB_TOKEN`          | _(空)_                  | `src/lib/conductor/boot.ts`      | SSEフィードのためのハブ資格情報 — ハブ上に`spokesperson`タイプのピアを発行します（`POST /v1/peers`、管理者）。      |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(空)_                  | `src/lib/conductor/hubProxy.ts`  | A2A→ハブタスク委任のための資格情報（`POST /v1/tasks`）；未設定の場合は`CONDUCTOR_HUB_TOKEN`にフォールバックします。 |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ダッシュボードチャットプロキシ（`/api/conductor/ask`）の背後にあるスポークスパーソン（Faro）サービスのベースURL。   |
 
-### クォータ対応スケジューリング
+### Video Bridge isolated validation
 
-`open-sse/services/combo.ts` および `src/lib/quota/quotaScheduler.ts` が、リクエスト前のトークン予算チェックに使用します。オプトイン方式であり、未設定の場合、デフォルトのルーティング動作は変更されません。
+`scripts/ad-hoc/video-live-isolation.ts --prepare` は、`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`を必要とし、`storage.sqlite`を含む絶対ディレクトリの名前を指定します。デフォルトはありません。このツールは、そのデータベースを読み取り専用で開き、隔離されたクライアントキーと設定を持つプライベートな一時コピーを準備します；資格情報は検証ホストに残ります。この変数は明示的な準備コマンドのためだけに使用され、通常のサーバー起動では消費されません。準備はモデルを呼び出さず、別のライブスモークコマンドは`--execute-real`を必要とします。
 
-| 変数                               | デフォルト | ソースファイル                              | 説明                                                                                                                                                                                                                                                                                         |
-| ---------------------------------- | ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | `1` の場合、ウィンドウごとのトークン予算（`rateLimitOverrides.tpm`、テーブル `provider_quota_state`）ではディスパッチ前に推定リクエストコストを賄えない接続をスキップします。予算が設定されていない場合はフェイルオープンになります。                                                        |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _（オン）_ | `open-sse/services/estimatorCalibration.ts` | コンテキストガードのトークン推定器（#14931）のフィードバック較正です。（provider、model、tools の有無）ごとに `usage.prompt_tokens` / 推定値の EMA を算出し、0.15～2.0 の範囲に制限します。メモリ内でのみ保持されます。`off`、`0`、または `false` を指定すると、記録と適用が無効になります。 |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | `xai-oauth`（`xao`）および `grok-cli` の画像ルートを登録します。同名のダッシュボード機能フラグです。DB のオーバーライドがこの値より優先されます。                                                                                                                                            |
+### Quota-aware scheduling
+
+`open-sse/services/combo.ts`および`src/lib/quota/quotaScheduler.ts`によって、リクエスト前のトークン予算チェックに使用されます。オプトイン — 未設定の場合、デフォルトのルーティング動作は変更されません。
+
+| 変数                               | デフォルト | ソースファイル                              | 説明                                                                                                                                                                                                                                                     |
+| ---------------------------------- | ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | `1`のとき、ディスパッチ前に推定リクエストコストを負担できないウィンドウごとのトークン予算（`rateLimitOverrides.tpm`、テーブル`provider_quota_state`）の接続をスキップします。予算が設定されていない場合はフェイルオープン。                              |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_     | `open-sse/services/estimatorCalibration.ts` | コンテキストガードトークンエスティメーターのフィードバックキャリブレーション (#14931)：（プロバイダー、モデル、ツールの存在）ごとの`usage.prompt_tokens` / 推定のEMA、0.15〜2.0に制限、メモリ内のみ。`off`、`0`または`false`は記録と適用を無効にします。 |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | `xai-oauth`（`xao`）および`grok-cli`画像ルートを登録します。同名のダッシュボード機能フラグ；DBオーバーライドがこの値に勝ちます。                                                                                                                         |

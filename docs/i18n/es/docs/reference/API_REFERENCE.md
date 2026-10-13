@@ -254,7 +254,10 @@ Jina v5 Omni (`jina-ai/jina-embeddings-v5-omni-small`, `jina-ai/jina-embeddings-
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
+      "content": [
+        { "text": "caption" },
+        { "image": "data:image/png;base64,..." }
+      ]
     }
   ]
 }
@@ -916,51 +919,48 @@ X-OmniRoute-No-Cache: true
 
 ---
 
-## Panel de control y gestión
+## Tablero y Gestión
 
-Las rutas de gestión (`/api/*`, excepto las públicas de autenticación/inicio de sesión) **no** admiten autorización mediante claves API de inferencia convencionales. Familias de credenciales, ámbitos y ejemplos con curl:
-[Autenticación de gestión](../guides/MANAGEMENT-AUTH.md).
+Las rutas de gestión (`/api/*` excepto la autenticación pública /login) **no** están autorizadas por claves API de inferencia ordinarias. Familias de credenciales, ámbitos y ejemplos de curl: [Autenticación de Gestión](../guides/MANAGEMENT-AUTH.md).
 
 ### Autenticación
 
-| Endpoint                      | Método  | Descripción                                          |
-| ----------------------------- | ------- | ---------------------------------------------------- |
-| `/api/auth/login`             | POST    | Iniciar sesión                                       |
-| `/api/auth/logout`            | POST    | Cerrar sesión                                        |
-| `/api/settings/require-login` | GET/PUT | Activar o desactivar el inicio de sesión obligatorio |
+| Endpoint                      | Método  | Descripción                                |
+| ----------------------------- | ------- | ------------------------------------------ |
+| `/api/auth/login`             | POST    | Iniciar sesión                             |
+| `/api/auth/logout`            | POST    | Cerrar sesión                              |
+| `/api/settings/require-login` | GET/PUT | Alternar requerimiento de inicio de sesión |
 
-### Gestión de proveedores
+### Gestión de Proveedores
 
-| Endpoint                                | Método                    | Descripción                                                                                                                                                                     |
-| --------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/providers`                        | GET/POST                  | Enumerar / crear proveedores                                                                                                                                                    |
-| `/api/providers/[id]`                   | GET/PUT/DELETE            | Gestionar un proveedor                                                                                                                                                          |
-| `/api/providers/[id]/test`              | POST                      | Probar la conexión del proveedor                                                                                                                                                |
-| `/api/providers/[id]/models`            | GET                       | Enumerar los modelos del proveedor                                                                                                                                              |
-| `/api/providers/validate`               | POST                      | Validar la configuración del proveedor                                                                                                                                          |
-| `/api/providers/bulk`                   | POST                      | Añadir en bloque claves API para UN proveedor                                                                                                                                   |
-| `/api/providers/import`                 | POST                      | Importar una LISTA heterogénea de proveedores desde un archivo CSV/JSON analizado (#6836); resultados de fallos parciales por fila                                              |
-| `/api/provider-nodes*`                  | Varios                    | Gestión de nodos de proveedores                                                                                                                                                 |
-| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | Modelos personalizados y anulaciones por modelo (añadir, actualizar, ocultar/mostrar, eliminar)                                                                                 |
-| `/api/provider-models/validate-and-add` | POST                      | Validación opcional de conexión estricta autenticada para gestión y registro atómico de modelos personalizados; consulte [Validación de modelos](../guides/MODEL-VALIDATION.md) |
+| Endpoint                                | Método                    | Descripción                                                                                                                                                             |
+| --------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/providers`                        | GET/POST                  | Listar / crear proveedores                                                                                                                                              |
+| `/api/providers/[id]`                   | GET/PUT/DELETE            | Gestionar un proveedor                                                                                                                                                  |
+| `/api/providers/[id]/test`              | POST                      | Probar conexión del proveedor                                                                                                                                           |
+| `/api/providers/[id]/models`            | GET                       | Listar modelos del proveedor                                                                                                                                            |
+| `/api/providers/validate`               | POST                      | Validar configuración del proveedor                                                                                                                                     |
+| `/api/providers/bulk`                   | POST                      | Agregar en bloque claves API para UN proveedor                                                                                                                          |
+| `/api/providers/import`                 | POST                      | Importar una LISTA de proveedores heterogéneos desde un archivo CSV/JSON analizado (#6836); resultados de fallos parciales por fila                                     |
+| `/api/provider-nodes*`                  | Varios                    | Gestión de nodos del proveedor                                                                                                                                          |
+| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | Modelos personalizados y sobreescrituras por modelo (agregar, actualizar, ocultar/mostrar, eliminar)                                                                    |
+| `/api/provider-models/validate-and-add` | POST                      | Validación de conexión estricta opt-in autenticada por gestión y registro atómico de modelos personalizados; ver [Validación de modelos](../guides/MODEL-VALIDATION.md) |
 
-Para los modelos sincronizados/importados, `PUT /api/provider-models` acepta `provider`, `modelId` y
-`maxOutputTokenOverride`: un entero positivo establece el límite manual de tokens de salida y `null`
-lo elimina para restaurar el valor predeterminado. `GET /api/provider-models?provider=<provider>` devuelve estos
-valores en `modelOutputOverrides`, incluidos los modelos sin una fila de modelo personalizado. La anulación
-utiliza la capacidad `max_output_tokens` en tiempo de ejecución y persiste tras volver a sincronizar el modelo. La página
-del proveedor compatible con OpenAI ofrece los mismos controles para editar/eliminar y marca los modelos con compatibilidad explícita con visión.
+Para modelos sincronizados/importados, `PUT /api/provider-models` acepta `provider`, `modelId`, y
+`maxOutputTokenOverride`: un entero positivo establece el límite manual de tokens de salida, y `null`
+lo borra para restaurar el valor predeterminado. `GET /api/provider-models?provider=<provider>` devuelve estos
+valores en `modelOutputOverrides`, incluidos modelos sin una fila de modelo personalizado. La sobreescritura
+utiliza la capacidad de `max_output_tokens` en tiempo de ejecución y sobrevive a una re-sincronización de modelo. La página del proveedor compatible con OpenAI
+ofrece los mismos controles de edición/borrado y marca modelos con soporte de visión explícito.
 
-Los nodos personalizados de Chat Completions adaptan las desactivaciones explícitas del razonamiento al backend ascendente. Una
-prueba de conexión correcta selecciona automáticamente los controles de plantilla de chat para cada ID de modelo exacto
-cuya entrada en `/models` demuestre un valor `owned_by` reconocido: `vllm`, `sglang` o `llamacpp`.
-Los wrappers transparentes compatibles con OpenAI pueden conservar la entrada original del modelo dentro de un objeto
-`openai` anidado; la detección sigue hasta tres envoltorios de este tipo. Los modelos con una propiedad ausente, desconocida o
-conflictiva mantienen el comportamiento habitual de OpenAI. La detección reutiliza la solicitud de catálogo existente,
-no genera tokens de completado y se invalida cuando cambia el endpoint de conexión.
+Los nodos de Completions de Chat personalizados adaptan las exclusiones de razonamiento explícito al backend upstream. Una
+prueba de conexión exitosa selecciona automáticamente los controles de plantilla de chat para cada ID de modelo exacto
+cuyo entrada `/models` demuestra un valor `owned_by` reconocido: `vllm`, `sglang`, o `llamacpp`.
+Los envoltorios compatibles con OpenAI transparentes pueden preservar la entrada de modelo original dentro de un objeto `openai` anidado; la detección sigue hasta tres de tales envoltorios. Los modelos con propiedad faltante, desconocida o
+conflictiva mantienen el comportamiento ordinario de OpenAI. La detección reutiliza la solicitud de catálogo existente,
+no genera tokens de completación y se invalida cuando cambia el punto final de conexión.
 
-Para fijar el comportamiento de un backend que no expone esos metadatos, utilice la API existente de actualización parcial
-del proveedor:
+Para fijar el comportamiento de un backend que no expone esos metadatos, utiliza la API de actualización parcial de proveedor existente:
 
 ```json
 {
@@ -970,15 +970,13 @@ del proveedor:
 }
 ```
 
-Envíe ese cuerpo con `PUT /api/providers/<connection-id>`. En esa conexión, un esfuerzo de
-razonamiento explícito de `none` se envía como `chat_template_kwargs.thinking=false` y
-`chat_template_kwargs.enable_thinking=false`. Los valores explícitos de la plantilla nativa siguen teniendo prioridad,
-a menos que una regla de razonamiento del lado del servidor fuerce un esfuerzo. La configuración solo se aplica cuando una conexión
-personalizada compatible con OpenAI envía un cuerpo de Chat Completions; las solicitudes de Responses y los proveedores
-convencionales mantienen su formato de solicitud nativo. Establezca `reasoningControl` en `openai` para forzar el paso directo normal de
-`reasoning_effort` de OpenAI, u omítalo/establézcalo en `null` para utilizar la detección automática.
+Envía ese cuerpo con `PUT /api/providers/<connection-id>`. En esa conexión, un esfuerzo de razonamiento explícito de `none` se envía como `chat_template_kwargs.thinking=false` y
+`chat_template_kwargs.enable_thinking=false`. Los valores de plantilla nativos explícitos permanecen autoritativos
+a menos que una regla de razonamiento del lado del servidor fuerce un esfuerzo. La configuración se aplica solo cuando una conexión personalizada
+compatible con OpenAI despacha un cuerpo de Completions de Chat; las solicitudes de Respuestas y los proveedores ordinarios mantienen su forma de solicitud nativa. Establece `reasoningControl` en `openai` para forzar el
+passthrough de `reasoning_effort` ordinario de OpenAI, o omítelo/establezca en `null` para usar la detección automática.
 
-Las solicitudes del clasificador del modo automático de Claude Code desactivan de forma predeterminada el razonamiento nativo cuando no contienen controles de razonamiento explícitos. La detección utiliza el marcador del sistema del clasificador en las solicitudes con formato de Claude, no los nombres de los modelos ni los límites de finalización. Los controles explícitos del cuerpo, los encabezados de esfuerzo/razonamiento compatibles, las reglas de enrutamiento y el esfuerzo resuelto del modelo conservan su prioridad actual. Ambas etapas del clasificador mantienen sus indicaciones, límites de finalización, secuencias de detención y veredictos reales de permisos del servicio de origen; la segunda etapa aún puede producir el razonamiento visible solicitado como texto ordinario.
+Claude Code auto-mode classifier solicita que el pensamiento nativo predeterminado esté desactivado cuando no contienen controles de razonamiento explícitos. La detección utiliza el marcador del sistema del clasificador en solicitudes en formato Claude, no nombres de modelos o límites de finalización. Los controles de cuerpo explícitos, los encabezados de esfuerzo/pensamiento soportados, las reglas de enrutamiento y el esfuerzo de modelo resuelto mantienen su prioridad existente. Ambas etapas del clasificador retienen sus indicaciones, límites de finalización, secuencias de parada y veredictos de permiso en tiempo real; la segunda etapa aún puede producir su razonamiento visible solicitado como texto ordinario.
 
 ### Flujos de OAuth
 
@@ -986,61 +984,61 @@ Las solicitudes del clasificador del modo automático de Claude Code desactivan 
 | -------------------------------- | ------ | ------------------------------ |
 | `/api/oauth/[provider]/[action]` | Varios | OAuth específico del proveedor |
 
-### Enrutamiento y configuración
+### Enrutamiento y Configuración
 
 | Endpoint              | Método   | Descripción                            |
 | --------------------- | -------- | -------------------------------------- |
 | `/api/models/alias`   | GET/POST | Alias de modelos                       |
-| `/api/models/catalog` | GET      | Todos los modelos por proveedor y tipo |
-| `/api/combos*`        | Varios   | Gestión de combinaciones               |
-| `/api/keys*`          | Varios   | Gestión de claves de API               |
-| `/api/pricing`        | GET      | Precios de los modelos                 |
+| `/api/models/catalog` | GET      | Todos los modelos por proveedor + tipo |
+| `/api/combos*`        | Varios   | Gestión de combos                      |
+| `/api/keys*`          | Varios   | Gestión de claves API                  |
+| `/api/pricing`        | GET      | Precios de modelos                     |
 
-### Uso y análisis
+### Uso y Analíticas
 
-| Endpoint                         | Método          | Descripción                                                                                                                                                                                                                                                                                                                                                                            |
-| -------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/usage/history`             | GET             | Historial de uso                                                                                                                                                                                                                                                                                                                                                                       |
-| `/api/usage/logs`                | GET             | Registros de uso                                                                                                                                                                                                                                                                                                                                                                       |
-| `/api/usage/request-logs`        | GET             | Registros por solicitud                                                                                                                                                                                                                                                                                                                                                                |
-| `/api/usage/[connectionId]`      | GET             | Uso por conexión                                                                                                                                                                                                                                                                                                                                                                       |
-| `/api/usage/token-limits`        | GET/POST/DELETE | Presupuestos de límites de tokens por clave de API                                                                                                                                                                                                                                                                                                                                     |
-| `/api/usage/model-latency-stats` | GET             | Agregado móvil de latencia por proveedor/modelo (promedio/p50/p95/p99, tasa de éxito); filtros: `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                                                                                                                        |
-| `/api/usage/cache-health`        | GET             | Resumen del estado de la caché de indicaciones en `call_logs`: proporción de escritura/lectura, distribución p50/p90/p99 del tamaño de escritura, concentración de escrituras intensivas, desglose por modelo y un veredicto `healthy`/`degraded`/`thrash`/`no-data`; parámetros de consulta `range` (`1h`\|`24h`\|`7d`\|`30d`, valor predeterminado `24h`) y `model` opcional (#8827) |
+| Endpoint                         | Método          | Descripción                                                                                                                                                                                                                                                                                                                                           |
+| -------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/usage/history`             | GET             | Historial de uso                                                                                                                                                                                                                                                                                                                                      |
+| `/api/usage/logs`                | GET             | Registros de uso                                                                                                                                                                                                                                                                                                                                      |
+| `/api/usage/request-logs`        | GET             | Registros a nivel de solicitud                                                                                                                                                                                                                                                                                                                        |
+| `/api/usage/[connectionId]`      | GET             | Uso por conexión                                                                                                                                                                                                                                                                                                                                      |
+| `/api/usage/token-limits`        | GET/POST/DELETE | Presupuestos de límite de token por clave API                                                                                                                                                                                                                                                                                                         |
+| `/api/usage/model-latency-stats` | GET             | Agregado de latencia por proveedor/modelo (promedio/p50/p95/p99, tasa de éxito); filtros: `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                                                                                             |
+| `/api/usage/cache-health`        | GET             | Resumen de salud de caché de indicaciones sobre `call_logs` — relación de escritura/lectura, distribución de tamaño de escritura p50/p90/p99, concentración de escritura pesada, división por modelo, y un veredicto de `healthy`/`degraded`/`thrash`/`no-data`; parámetros de consulta `range` (`1h`\|`24h`\|`7d`\|`30d`, por defecto `24h`) (#8827) |
 
-### Permisos de las claves de API
+### Permisos de clave API
 
-`PATCH /api/keys/{id}` actualiza los permisos de una clave existente. Al igual que todas las rutas `/api/keys*`, requiere autorización de administración (consulta [Autenticación de administración](../guides/MANAGEMENT-AUTH.md)), no una clave de inferencia. Envía únicamente los campos que quieras cambiar; una solicitud que no incluya ninguno de ellos se rechaza con `No valid fields to update`. Los campos aceptados se definen mediante `updateKeyPermissionsSchema` en `src/shared/validation/schemas/keys.ts`.
+`PATCH /api/keys/{id}` actualiza los permisos de una clave existente. Al igual que cada ruta de `/api/keys*`, necesita autorización de gestión (ver [Autenticación de Gestión](../guides/MANAGEMENT-AUTH.md)), no una clave de inferencia. Envíe solo los campos que desea cambiar; una solicitud sin ninguno de ellos es rechazada con `No valid fields to update`. Los campos aceptados están definidos por `updateKeyPermissionsSchema` en `src/shared/validation/schemas/keys.ts`.
 
-| Campo                                       | Tipo                                                                 | Notas                                                                                                                        |
-| ------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `name`                                      | cadena, 1-200 caracteres                                             |                                                                                                                              |
-| `isActive`                                  | booleano                                                             |                                                                                                                              |
-| `isBanned`                                  | booleano                                                             |                                                                                                                              |
-| `expiresAt`                                 | fecha y hora ISO 8601 o `null`                                       | `null` elimina la fecha de expiración                                                                                        |
-| `modelAccessMode`                           | `all` \| `restricted`                                                | `allowedModels` debe estar vacío cuando el modo es `all`                                                                     |
-| `allowedModels`, `blockedModels`            | matriz de cadenas, hasta 1000                                        |                                                                                                                              |
-| `allowedCombos`                             | matriz de cadenas, hasta 500                                         | Controla qué combos puede invocar la clave; los modelos directos se rigen por `modelAccessMode` / `allowedModels`            |
-| `connectionAccessMode`                      | `all` \| `restricted`                                                | `allowedConnections` no debe estar vacío cuando es `restricted` y debe estar vacío cuando es `all`                           |
-| `allowedConnections`                        | matriz de UUID, hasta 100                                            |                                                                                                                              |
-| `allowAutoCombos`                           | booleano                                                             | `false` rechaza las solicitudes de modelos `auto/*` con esta clave; se permiten las claves que nunca lo hayan definido       |
-| `catalogScope`                              | `all` \| `combos` \| `models`                                        | Lo que `GET /v1/models` muestra para esta clave (solo combos, solo modelos o ambos); no cambia lo que la clave puede invocar |
-| `noLog`, `autoResolve`                      | booleano                                                             |                                                                                                                              |
-| `throttleDelayMs`                           | entero, 0-300000                                                     |                                                                                                                              |
-| `maxSessions`                               | entero, 0-10000                                                      |                                                                                                                              |
-| `rateLimits`                                | matriz de `{ limit, window }` (enteros positivos, hasta 50) o `null` | `null` elimina los límites                                                                                                   |
-| `accessSchedule`                            | objeto de programación o `null`                                      | `null` elimina la programación                                                                                               |
-| `scopes`                                    | matriz de cadenas, hasta 32                                          |                                                                                                                              |
-| `allowedEndpoints`                          | matriz de cadenas, hasta 20                                          |                                                                                                                              |
-| `streamDefaultMode`                         | `legacy` \| `json`                                                   |                                                                                                                              |
-| `cacheDefaultMode`                          | `legacy` \| `bypass`                                                 | Consulte [Omisión de caché por clave](#per-key-cache-bypass)                                                                 |
-| `compressionEnabled`                        | booleano                                                             |                                                                                                                              |
-| `codexServiceMode`                          | uno de los modos de servicio Codex                                   |                                                                                                                              |
-| `disableNonPublicModels`                    | booleano                                                             |                                                                                                                              |
-| `allowUsageCommand`                         | boolean                                                              |                                                                                                                              |
-| `usageLimitEnabled`                         | boolean                                                              |                                                                                                                              |
-| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 o `null`                                                 |                                                                                                                              |
-| `chaosModeEnabled`                          | boolean                                                              |                                                                                                                              |
+| Campo                                       | Tipo                                                                          | Notas                                                                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `name`                                      | cadena, 1-200 caracteres                                                      |                                                                                                                            |
+| `isActive`                                  | boolean                                                                       |                                                                                                                            |
+| `isBanned`                                  | boolean                                                                       |                                                                                                                            |
+| `expiresAt`                                 | fecha y hora ISO 8601 o `null`                                                | `null` elimina la fecha de expiración                                                                                      |
+| `modelAccessMode`                           | `all` \| `restricted`                                                         | `allowedModels` debe estar vacío cuando el modo es `all`                                                                   |
+| `allowedModels`, `blockedModels`            | arreglo de cadenas, hasta 1000                                                |                                                                                                                            |
+| `allowedCombos`                             | arreglo de cadenas, hasta 500                                                 | Puertas que combos puede llamar la clave; los modelos directos están gobernados por `modelAccessMode` / `allowedModels`    |
+| `connectionAccessMode`                      | `all` \| `restricted`                                                         | `allowedConnections` debe ser no vacío cuando `restricted` y vacío cuando `all`                                            |
+| `allowedConnections`                        | arreglo de UUIDs, hasta 100                                                   |                                                                                                                            |
+| `allowAutoCombos`                           | boolean                                                                       | `false` rechaza solicitudes para modelos `auto/*` con esta clave; las claves que nunca lo establecen son permitidas        |
+| `catalogScope`                              | `all` \| `combos` \| `models`                                                 | Lo que `GET /v1/models` lista para esta clave (solo combos, solo modelos, o ambos); no cambia lo que la clave puede llamar |
+| `noLog`, `autoResolve`                      | boolean                                                                       |                                                                                                                            |
+| `throttleDelayMs`                           | entero, 0-300000                                                              |                                                                                                                            |
+| `maxSessions`                               | entero, 0-10000                                                               |                                                                                                                            |
+| `rateLimits`                                | arreglo de `{ limit, window }` (números enteros positivos, hasta 50) o `null` | `null` elimina los límites                                                                                                 |
+| `accessSchedule`                            | objeto de programación o `null`                                               | `null` elimina la programación                                                                                             |
+| `scopes`                                    | arreglo de cadenas, hasta 32                                                  |                                                                                                                            |
+| `allowedEndpoints`                          | arreglo de cadenas, hasta 20                                                  |                                                                                                                            |
+| `streamDefaultMode`                         | `legacy` \| `json`                                                            |                                                                                                                            |
+| `cacheDefaultMode`                          | `legacy` \| `bypass`                                                          | Ver [Bypass de caché por clave](#per-key-cache-bypass)                                                                     |
+| `compressionEnabled`                        | boolean                                                                       |                                                                                                                            |
+| `codexServiceMode`                          | uno de los modos de servicio de Codex                                         |                                                                                                                            |
+| `disableNonPublicModels`                    | boolean                                                                       |                                                                                                                            |
+| `allowUsageCommand`                         | boolean                                                                       |                                                                                                                            |
+| `usageLimitEnabled`                         | boolean                                                                       |                                                                                                                            |
+| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 or `null`                                                         |                                                                                                                            |
+| `chaosModeEnabled`                          | boolean                                                                       |                                                                                                                            |
 
 ```bash
 curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
@@ -1051,120 +1049,144 @@ curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
 
 ### Configuración
 
-| Endpoint                              | Método        | Descripción                                                                                                                                                                                                     |
-| ------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/settings`                       | GET/PUT/PATCH | Configuración general                                                                                                                                                                                           |
-| `/api/settings/proxy`                 | GET/PUT       | Configuración del proxy de red                                                                                                                                                                                  |
-| `/api/settings/proxy/test`            | POST          | Probar la conexión del proxy                                                                                                                                                                                    |
-| `/api/settings/ip-filter`             | GET/PUT       | Lista de permitidos/bloqueados de IP                                                                                                                                                                            |
-| `/api/settings/thinking-budget`       | GET/PUT       | Modo de reescritura de **solicitudes** de pensamiento/razonamiento (passthrough / auto-strip / custom / adaptive). Independiente de la compresión. Consulte [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md). |
-| `/api/settings/system-prompt`         | GET/PUT       | Prompt global del sistema                                                                                                                                                                                       |
-| `/api/settings/compression`           | GET/PUT       | Configuración global de compresión                                                                                                                                                                              |
-| `/api/settings/purge-request-history` | POST          | Borrar las filas del registro de solicitudes y los artefactos locales del registro de llamadas                                                                                                                  |
+| Endpoint                              | Método        | Descripción                                                                                                                                                                                                       |
+| ------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/settings`                       | GET/PUT/PATCH | Configuración general                                                                                                                                                                                             |
+| `/api/settings/proxy`                 | GET/PUT       | Configuración del proxy de red                                                                                                                                                                                    |
+| `/api/settings/proxy/test`            | POST          | Probar conexión del proxy                                                                                                                                                                                         |
+| `/api/settings/ip-filter`             | GET/PUT       | Lista de permitidos/bloqueados de IP                                                                                                                                                                              |
+| `/api/settings/thinking-budget`       | GET/PUT       | Modo de reescritura de **solicitud** de pensamiento/razonamiento (passthrough / auto-strip / personalizado / adaptativo). Independiente de la compresión. Ver [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md). |
+| `/api/settings/system-prompt`         | GET/PUT       | Aviso global del sistema                                                                                                                                                                                          |
+| `/api/settings/compression`           | GET/PUT       | Configuración global de compresión                                                                                                                                                                                |
+| `/api/settings/purge-request-history` | POST          | Limpiar filas del registro de solicitudes y artefactos del registro de llamadas locales                                                                                                                           |
 
-### Contexto y compresión
+### Contexto y Compresión
 
-| Endpoint                               | Método         | Descripción                                                                                                |
-| -------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------- |
-| `/api/compression/preview`             | POST           | Previsualizar la compresión off/lite/standard/aggressive/ultra/RTK/stacked                                 |
-| `/api/compression/language-packs`      | GET            | Listar los paquetes de idioma de Caveman disponibles                                                       |
-| `/api/compression/rules`               | GET            | Listar los metadatos de las reglas de Caveman                                                              |
-| `/api/context/caveman/config`          | GET/PUT        | Alias de configuración específica de Caveman                                                               |
-| `/api/context/rtk/config`              | GET/PUT        | Configuración específica de RTK, incluidos filtros personalizados y conservación de la salida sin procesar |
-| `/api/context/rtk/filters`             | GET            | Catálogo de filtros de RTK y diagnósticos de filtros personalizados                                        |
-| `/api/context/rtk/test`                | POST           | Ejecutar una vista previa/prueba de RTK con una carga de texto                                             |
-| `/api/context/rtk/raw-output/[id]`     | GET            | Leer la salida sin procesar redactada y conservada mediante el id del puntero                              |
-| `/api/context/combos`                  | GET/POST       | Listar/crear combinaciones de compresión                                                                   |
-| `/api/context/combos/[id]`             | GET/PUT/DELETE | Detalle/actualización/eliminación de una combinación de compresión                                         |
-| `/api/context/combos/[id]/assignments` | GET/PUT        | Asignar combinaciones de compresión a combinaciones de enrutamiento                                        |
-| `/api/context/analytics`               | GET            | Alias de análisis de compresión                                                                            |
+| Endpoint                               | Método         | Descripción                                                                                          |
+| -------------------------------------- | -------------- | ---------------------------------------------------------------------------------------------------- |
+| `/api/compression/preview`             | POST           | Vista previa de compresión off/lite/standard/aggressive/ultra/RTK/stacked                            |
+| `/api/compression/language-packs`      | GET            | Listar paquetes de idioma Caveman disponibles                                                        |
+| `/api/compression/rules`               | GET            | Listar metadatos de reglas de Caveman                                                                |
+| `/api/context/caveman/config`          | GET/PUT        | Alias de configuraciones específicas de Caveman                                                      |
+| `/api/context/rtk/config`              | GET/PUT        | Configuraciones específicas de RTK, incluyendo filtros personalizados y retención de salida en bruto |
+| `/api/context/rtk/filters`             | GET            | Catálogo de filtros RTK y diagnósticos de filtros personalizados                                     |
+| `/api/context/rtk/test`                | POST           | Ejecutar vista previa/prueba de RTK contra una carga de texto                                        |
+| `/api/context/rtk/raw-output/[id]`     | GET            | Leer salida en bruto redactada retenida por id de puntero                                            |
+| `/api/context/combos`                  | GET/POST       | Lista/crear combinaciones de compresión                                                              |
+| `/api/context/combos/[id]`             | GET/PUT/DELETE | Detalle/actualizar/eliminar combinación de compresión                                                |
+| `/api/context/combos/[id]/assignments` | GET/PUT        | Asignar combinaciones de compresión a combinaciones de enrutamiento                                  |
+| `/api/context/analytics`               | GET            | Alias de análisis de compresión                                                                      |
 
-### Monitorización
+### Monitoreo
 
-| Endpoint                             | Método     | Descripción                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/sessions`                      | GET        | Seguimiento de sesiones activas                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `/api/rate-limits`                   | GET        | Límites de solicitudes por cuenta                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `/api/monitoring/health`             | GET        | Comprobación de estado + resumen de proveedores (`catalogCount`, `configuredCount`, `activeCount`, `monitoredCount`). La vista de administración incluye `credentialHealth`: valores escalares de la caché de sondeos, `failedConnections` cuando `failed>0` y `staleDbNonOkCount` (`test_status` persistente de SQLite, no el indicador). Consulte [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status). |
-| `/api/cache/stats`                   | GET/DELETE | Estadísticas de la caché / vaciado                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `/api/modality-bridge/stats`         | GET        | `attempts` en memoria, éxitos/`bridged`, fallos, aciertos de caché, `totalLatencyMs`, `latencySamples`, `averageLatencyMs` calculado según el número de muestras y hora del último uso (se restablece al reiniciar; autenticación de administración)                                                                                                                                                                                                      |
-| `/api/modality-bridge/video/runtime` | GET        | Comprobación estricta de bucle invertido de confianza antes de la autenticación/sondeo de administración; disponibilidad y versiones saneadas de FFmpeg/ffprobe (sin almacenamiento)                                                                                                                                                                                                                                                                      |
-| `/api/modality-bridge/video/extract` | POST       | Intermediario interno autenticado de bytes mediante bucle invertido de confianza; entrada de 50 MiB, cola limitada/salida de 32 MiB, `503` por capacidad, `499` por desconexión, `504` por vencimiento del plazo; no es una API pública de carga de archivos                                                                                                                                                                                              |
+| Endpoint                             | Método     | Descripción                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/sessions`                      | GET        | Seguimiento de sesiones activas                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/api/rate-limits`                   | GET        | Límites de tasa por cuenta                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `/api/monitoring/health`             | GET        | Verificación de salud + resumen del proveedor (`catalogCount`, `configuredCount`, `activeCount`, `monitoredCount`). La vista de gestión incluye `credentialHealth`: escalares de caché de sondeo, `failedConnections` cuando `failed>0`, y `staleDbNonOkCount` (estado de prueba `test_status` de SQLite, no el medidor). Ver [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status). |
+| `/api/cache/stats`                   | GET/DELETE | Estadísticas de caché / limpiar                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/api/modality-bridge/stats`         | GET        | `attempts` en memoria, éxitos/`bridged`, fracasos, aciertos de caché, `totalLatencyMs`, `latencySamples`, `averageLatencyMs` denominados por muestra, y tiempo de último uso (reiniciado en el arranque; autenticación de gestión)                                                                                                                                                                                                  |
+| `/api/modality-bridge/video/runtime` | GET        | Verificación estricta de bucle de confianza antes de la autenticación/sondeo de gestión; disponibilidad y versiones de FFmpeg/ffprobe sanitizadas (sin almacenamiento)                                                                                                                                                                                                                                                              |
+| `/api/modality-bridge/video/extract` | POST       | Corredor de bytes de bucle de confianza autenticado interno; entrada de 50 MiB, cola limitada/salida de 32 MiB, capacidad `503`, desconexión `499`, plazo `504`; no es una API de carga pública                                                                                                                                                                                                                                     |
 
-### Copia de seguridad y exportación/importación
+### Análisis detallado de fotogramas de video
 
-| Endpoint                    | Método | Descripción                                                   |
-| --------------------------- | ------ | ------------------------------------------------------------- |
-| `/api/db-backups`           | GET    | Enumerar las copias de seguridad disponibles                  |
-| `/api/db-backups`           | PUT    | Crear una copia de seguridad manual                           |
-| `/api/db-backups`           | POST   | Restaurar desde una copia de seguridad específica             |
-| `/api/db-backups/export`    | GET    | Descargar la base de datos como archivo .sqlite               |
-| `/api/db-backups/import`    | POST   | Cargar un archivo .sqlite para reemplazar la base de datos    |
-| `/api/db-backups/exportAll` | GET    | Descargar la copia de seguridad completa como archivo .tar.gz |
+`GET /api/v1/video-bridge/drilldown` lee un identificador opaco vinculado al inquilino devuelto en
+`x-omniroute-video-drilldown` después de una solicitud de Video Bridge explícitamente consentida.
+Tanto las lecturas como el `DELETE` siempre requieren una clave API válida y el permiso independiente
+`modalityBridgeVideoDrilldownRemoteEnabled` del operador. La retención en producción además
+requiere `modalityBridgeVideoDrilldownEnabled` y `drilldown: true` estricto por parte.
 
-### Sincronización en la nube
+Consulta GET: `handle` requerido; `variant` opcional (`preview`, `standard`, `detail`),
+`limit` (1–8; `frames` legado es aceptado pero no puede combinarse con `limit`),
+`page` basado en cero, y segundos `start`/`end`. Cuando se suministran ambos límites de enfoque,
+`end` debe ser mayor que `start`. Las claves de consulta duplicadas/desconocidas son
+rechazadas. Las respuestas exitosas contienen `derivation`, `durationSeconds`, `frames`,
+`hasMore`, `page`, `variant`, y `focusWindow` opcional; JSON sin almacenamiento está limitado a
+32 MiB incluyendo Base64. La salida sobredimensionada devuelve 413; solicita menos fotogramas.
+
+`DELETE /api/v1/video-bridge/drilldown?handle=...` devuelve `{ "removed": 0|1 }`.
+GETs desconocidos, caducados y de clave cruzada son respuestas 404 indistinguibles; el DELETE de clave cruzada
+no puede eliminar la entrada del propietario. El acceso deshabilitado devuelve 403, autenticación faltante/inválida 401, consultas inválidas 400, cancelación 499 y errores temporales 503.
+Los identificadores son locales al proceso, caducan después de diez minutos y no sobreviven a un reinicio.
+Los nuevos identificadores utilizan `v1.` más un token Base64URL aleatorio de 32 bytes; solo se retienen los hashes de tokens. Los tokens hexadecimales de 64 bits heredados siguen siendo sintácticamente legibles por compatibilidad.
+Ver [guardrails de Video Bridge](../security/GUARDRAILS.md#video-bridge-videobridgets-videobridgepipelinets)
+para detalles sobre consentimiento, cuotas y derivación de variantes.
+
+### Respaldo y Exportar/Importar
+
+| Endpoint                    | Método | Descripción                                                |
+| --------------------------- | ------ | ---------------------------------------------------------- |
+| `/api/db-backups`           | GET    | Listar copias de seguridad disponibles                     |
+| `/api/db-backups`           | PUT    | Crear una copia de seguridad manual                        |
+| `/api/db-backups`           | POST   | Restaurar desde una copia de seguridad específica          |
+| `/api/db-backups/export`    | GET    | Descargar base de datos como archivo .sqlite               |
+| `/api/db-backups/import`    | POST   | Subir archivo .sqlite para reemplazar la base de datos     |
+| `/api/db-backups/exportAll` | GET    | Descargar copia de seguridad completa como archivo .tar.gz |
+
+### Sincronización en la Nube
 
 | Endpoint               | Método | Descripción                              |
 | ---------------------- | ------ | ---------------------------------------- |
 | `/api/sync/cloud`      | Varios | Operaciones de sincronización en la nube |
-| `/api/sync/initialize` | POST   | Inicializar la sincronización            |
-| `/api/cloud/*`         | Varios | Administración de la nube                |
+| `/api/sync/initialize` | POST   | Inicializar sincronización               |
+| `/api/cloud/*`         | Varios | Gestión de la nube                       |
 
 ### Túneles
 
-| Endpoint                   | Método | Descripción                                                                           |
-| -------------------------- | ------ | ------------------------------------------------------------------------------------- |
-| `/api/tunnels/cloudflared` | GET    | Consultar el estado de instalación/ejecución de Cloudflare Quick Tunnel para el panel |
-| `/api/tunnels/cloudflared` | POST   | Habilitar o deshabilitar Cloudflare Quick Tunnel (`action=enable/disable`)            |
-| `/api/tunnels/ngrok`       | GET    | Consultar el estado de ejecución de ngrok Tunnel para el panel                        |
-| `/api/tunnels/ngrok`       | POST   | Habilitar o deshabilitar ngrok Tunnel (`action=enable/disable`)                       |
+| Endpoint                   | Método | Descripción                                                                              |
+| -------------------------- | ------ | ---------------------------------------------------------------------------------------- |
+| `/api/tunnels/cloudflared` | GET    | Leer estado de instalación/ejecución de Cloudflare Quick Tunnel para el panel de control |
+| `/api/tunnels/cloudflared` | POST   | Habilitar o deshabilitar el Cloudflare Quick Tunnel (`action=enable/disable`)            |
+| `/api/tunnels/ngrok`       | GET    | Leer estado de ejecución del túnel ngrok para el panel de control                        |
+| `/api/tunnels/ngrok`       | POST   | Habilitar o deshabilitar el túnel ngrok (`action=enable/disable`)                        |
 
-### Herramientas de CLI
+### Herramientas CLI
 
-| Endpoint                           | Método | Descripción                       |
-| ---------------------------------- | ------ | --------------------------------- |
-| `/api/cli-tools/claude-settings`   | GET    | Estado de Claude CLI              |
-| `/api/cli-tools/codex-settings`    | GET    | Estado de Codex CLI               |
-| `/api/cli-tools/droid-settings`    | GET    | Estado de Droid CLI               |
-| `/api/cli-tools/openclaw-settings` | GET    | Estado de OpenClaw CLI            |
-| `/api/cli-tools/runtime/[toolId]`  | GET    | Entorno de ejecución CLI genérico |
+| Endpoint                           | Método | Descripción               |
+| ---------------------------------- | ------ | ------------------------- |
+| `/api/cli-tools/claude-settings`   | GET    | Estado de Claude CLI      |
+| `/api/cli-tools/codex-settings`    | GET    | Estado de Codex CLI       |
+| `/api/cli-tools/droid-settings`    | GET    | Estado de Droid CLI       |
+| `/api/cli-tools/openclaw-settings` | GET    | Estado de OpenClaw CLI    |
+| `/api/cli-tools/runtime/[toolId]`  | GET    | Ejecución genérica de CLI |
 
-Las respuestas de la CLI incluyen: `installed`, `runnable`, `command`, `commandPath`, `runtimeMode`, `reason`.
+Las respuestas de CLI incluyen: `installed`, `runnable`, `command`, `commandPath`, `runtimeMode`, `reason`.
 
 ### Agentes ACP
 
-| Endpoint          | Método | Descripción                                                                      |
-| ----------------- | ------ | -------------------------------------------------------------------------------- |
-| `/api/acp/agents` | GET    | Enumera todos los agentes detectados (integrados + personalizados) con su estado |
-| `/api/acp/agents` | POST   | Añade un agente personalizado o actualiza la caché de detección                  |
-| `/api/acp/agents` | DELETE | Elimina un agente personalizado mediante el parámetro de consulta `id`           |
+| Endpoint          | Método | Descripción                                                                  |
+| ----------------- | ------ | ---------------------------------------------------------------------------- |
+| `/api/acp/agents` | GET    | Listar todos los agentes detectados (integrados + personalizados) con estado |
+| `/api/acp/agents` | POST   | Agregar agente personalizado o actualizar caché de detección                 |
+| `/api/acp/agents` | DELETE | Eliminar un agente personalizado por parámetro de consulta `id`              |
 
-La respuesta GET incluye `agents[]` (id, name, binary, version, installed, protocol, isCustom) y `summary` (total, installed, notFound, builtIn, custom).
+La respuesta GET incluye `agents[]` (id, nombre, binario, versión, instalado, protocolo, isCustom) y `summary` (total, instalado, notFound, builtIn, custom).
 
-### Resiliencia y límites de velocidad
+### Resiliencia y Límites de Tasa
 
-| Endpoint                          | Método    | Descripción                                                                                                                   |
-| --------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `/api/resilience`                 | GET/PATCH | Obtiene/actualiza la cola de solicitudes, el tiempo de espera de conexión, el disyuntor del proveedor y los ajustes de espera |
-| `/api/resilience/reset`           | POST      | Restablece los disyuntores de circuito de los proveedores                                                                     |
-| `/api/resilience/model-cooldowns` | GET       | Enumera los bloqueos activos por (proveedor, conexión, modelo), ordenados por tiempo restante                                 |
-| `/api/resilience/model-cooldowns` | DELETE    | Elimina un bloqueo de modelo — cuerpo `{provider, model}` o `{all: true}` para eliminar todos                                 |
-| `/api/rate-limits`                | GET       | Estado del límite de velocidad por cuenta                                                                                     |
-| `/api/rate-limit`                 | GET       | Configuración global del límite de velocidad                                                                                  |
+| Endpoint                          | Método    | Descripción                                                                                                                |
+| --------------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `/api/resilience`                 | GET/PATCH | Obtener/actualizar cola de solicitudes, tiempo de espera de conexión, interruptor de proveedor y configuraciones de espera |
+| `/api/resilience/reset`           | POST      | Restablecer interruptores de circuito del proveedor                                                                        |
+| `/api/resilience/model-cooldowns` | GET       | Listar bloqueos activos por (proveedor, conexión, modelo), ordenados por tiempo restante                                   |
+| `/api/resilience/model-cooldowns` | DELETE    | Limpiar un bloqueo de modelo — cuerpo `{provider, model}` o `{all: true}` para borrar todo                                 |
+| `/api/rate-limits`                | GET       | Estado del límite de tasa por cuenta                                                                                       |
+| `/api/rate-limit`                 | GET       | Configuración global del límite de tasa                                                                                    |
 
-> Las cuatro rutas `/api/resilience/*` requieren **autenticación de administración** (`requireManagementAuth`). Consulta [Resiliencia (ampliada)](#resilience-extended) para obtener un desglose completo del disyuntor del proveedor, el tiempo de espera de conexión y el bloqueo de modelo.
+> Todas las cuatro rutas `/api/resilience/*` requieren **autenticación de gestión** (`requireManagementAuth`). Consulta [Resiliencia (extendida)](#resilience-extended) para un desglose completo de interruptor de proveedor vs tiempo de espera de conexión vs bloqueo de modelo.
 
 ### Evaluaciones
 
-| Endpoint     | Método   | Descripción                                              |
-| ------------ | -------- | -------------------------------------------------------- |
-| `/api/evals` | GET/POST | Enumera conjuntos de evaluación / ejecuta una evaluación |
+| Endpoint     | Método   | Descripción                                       |
+| ------------ | -------- | ------------------------------------------------- |
+| `/api/evals` | GET/POST | Listar suites de evaluación / ejecutar evaluación |
 
 ### Políticas
 
-| Endpoint        | Método          | Descripción                            |
-| --------------- | --------------- | -------------------------------------- |
-| `/api/policies` | GET/POST/DELETE | Gestiona las políticas de enrutamiento |
+| Endpoint        | Método          | Descripción                         |
+| --------------- | --------------- | ----------------------------------- |
+| `/api/policies` | GET/POST/DELETE | Gestionar políticas de enrutamiento |
 
 ### Cumplimiento
 
@@ -1172,30 +1194,30 @@ La respuesta GET incluye `agents[]` (id, name, binary, version, installed, proto
 | --------------------------- | ------ | ------------------------------------------------- |
 | `/api/compliance/audit-log` | GET    | Registro de auditoría de cumplimiento (últimos N) |
 
-### v1beta (compatible con Gemini)
+### v1beta (Compatible con Gemini)
 
-| Endpoint                   | Método | Descripción                          |
-| -------------------------- | ------ | ------------------------------------ |
-| `/v1beta/models`           | GET    | Enumera modelos en formato Gemini    |
-| `/v1beta/models/{...path}` | POST   | Endpoint `generateContent` de Gemini |
+| Endpoint                   | Método | Descripción                             |
+| -------------------------- | ------ | --------------------------------------- |
+| `/v1beta/models`           | GET    | Listar modelos en formato Gemini        |
+| `/v1beta/models/{...path}` | POST   | Punto final `generateContent` de Gemini |
 
-Estos endpoints replican el formato de la API de Gemini para clientes que requieren compatibilidad nativa con el SDK de Gemini.
+Estos endpoints reflejan el formato de la API de Gemini para clientes que esperan compatibilidad nativa con el SDK de Gemini.
 
-### API internas / del sistema
+### APIs Internas / del Sistema
 
 | Endpoint                 | Método | Descripción                                                                     |
 | ------------------------ | ------ | ------------------------------------------------------------------------------- |
-| `/api/init`              | GET    | Comprobación de inicialización de la aplicación (usada en la primera ejecución) |
-| `/api/tags`              | GET    | Etiquetas de modelos compatibles con Ollama (para clientes Ollama)              |
-| `/api/restart`           | POST   | Activa el reinicio ordenado del servidor                                        |
-| `/api/shutdown`          | POST   | Activa el apagado ordenado del servidor                                         |
-| `/api/system/env/repair` | POST   | Repara las variables de entorno de proveedores OAuth                            |
-| `/api/system/version`    | GET    | Versión actual/más reciente, estado de actualización y canal de publicación     |
-| `/api/system/version`    | POST   | Inicia una actualización compatible con el despliegue a la versión más reciente |
+| `/api/init`              | GET    | Verificación de inicialización de la aplicación (usado en la primera ejecución) |
+| `/api/tags`              | GET    | Etiquetas de modelo compatibles con Ollama (para clientes de Ollama)            |
+| `/api/restart`           | POST   | Iniciar un reinicio del servidor de manera controlada                           |
+| `/api/shutdown`          | POST   | Iniciar un apagado del servidor de manera controlada                            |
+| `/api/system/env/repair` | POST   | Reparar variables de entorno del proveedor de OAuth                             |
+| `/api/system/version`    | GET    | Versión actual/última, estado de actualización, canal de lanzamiento            |
+| `/api/system/version`    | POST   | Iniciar una actualización consciente del despliegue a la última versión         |
 
-> **Nota:** El sistema utiliza estos endpoints internamente o para ofrecer compatibilidad con clientes Ollama. Normalmente, los usuarios finales no los invocan.
+> **Nota:** Estos endpoints son utilizados internamente por el sistema o para la compatibilidad con clientes de Ollama. No son llamados típicamente por los usuarios finales.
 
-### Reparación del entorno OAuth _(v3.6.1+)_
+### Reparación del Entorno OAuth _(v3.6.1+)_
 
 ```bash
 POST /api/system/env/repair
@@ -1206,23 +1228,26 @@ Content-Type: application/json
 }
 ```
 
-Repara las variables de entorno OAuth ausentes o dañadas de un proveedor específico. Devuelve:
+Repara las variables de entorno de OAuth que faltan o están corruptas para un proveedor específico. Devuelve:
 
 ```json
 {
   "success": true,
-  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
+  "repaired": [
+    "CLAUDE_CODE_OAUTH_CLIENT_ID",
+    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
+  ],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
 
-### Versión y canal de publicación
+### Versión y Canal de Lanzamiento
 
 ```bash
 GET /api/system/version
 ```
 
-Ruta de administración exclusiva para la interfaz de bucle invertido (autenticación de administrador). Devuelve la versión en ejecución, la versión publicada más reciente y el estado de actualización automática. `releaseChannel` y `channels` son campos adicionales (rama 3.8.54); `channel` conserva su significado: el modo de despliegue que utiliza el actualizador del panel (`npm`, `source` o `docker-compose`).
+Ruta de gestión solo para loopback (autenticación de administrador). Devuelve la versión en ejecución, la última versión publicada y el estado de auto-actualización. `releaseChannel` y `channels` son campos aditivos (rail 3.8.54); `channel` mantiene su significado: el modo de despliegue que utiliza el actualizador del panel (`npm`, `source` o `docker-compose`).
 
 ```json
 {
@@ -1238,17 +1263,17 @@ Ruta de administración exclusiva para la interfaz de bucle invertido (autentica
 }
 ```
 
-- `releaseChannel` — canal de npm de la compilación en ejecución: `nightly` para las versiones `-nightly.*`,
-  `next` para otras versiones preliminares (`-rc.*`, `-beta.*`, `-alpha.*`), `lts` para una versión estable de una
-  versión principal anterior a `channels.latest`; de lo contrario, `latest`. Se aplican las mismas reglas que en
-  `scripts/release/dist-tag.mjs`, que selecciona la etiqueta dist-tag de npm en el momento de la publicación.
-- `channels` — versión más reciente publicada de cada dist-tag, obtenida de `npm view omniroute dist-tags` (con el
-  registro HTTP como alternativa), almacenada en caché con el mismo TTL de 10 minutos que `latest`. `latest` siempre está presente
-  (recurre al campo `latest` y, después, a `"unavailable"`); `next`, `nightly` y `lts` aparecen
-  únicamente cuando existe esa dist-tag. Una solicitud con `Cache-Control: no-cache` actualiza ambas consultas.
+- `releaseChannel` — canal npm de la construcción en ejecución: `nightly` para versiones `-nightly.*`,
+  `next` para otros pre-lanzamientos (`-rc.*`, `-beta.*`, `-alpha.*`), `lts` para una versión estable de un
+  mayor anterior a `channels.latest`, de lo contrario `latest`. Las mismas reglas que
+  `scripts/release/dist-tag.mjs`, que elige el dist-tag de npm en el momento de la publicación.
+- `channels` — cabeza publicada de cada dist-tag, desde `npm view omniroute dist-tags` (fallback HTTP del registro),
+  almacenado en caché con el mismo TTL de 10 minutos que `latest`. `latest` siempre está presente
+  (se retrocede al campo `latest`, luego a `"unavailable"`); `next`, `nightly` y `lts` aparecen
+  solo cuando ese dist-tag existe. Una solicitud `Cache-Control: no-cache` actualiza ambas búsquedas.
 
-El modelo de canales (`latest` = v3 hasta la disponibilidad general de la versión 4.0, `next` = rc, `nightly` = compilaciones de `develop`,
-`lts` = parches de v3 posteriores a la disponibilidad general de la versión 4.0) se describe en `docs/ops/RELEASE_STRATEGY.md`.
+El modelo de canal (`latest` = v3 hasta el 4.0 GA, `next` = rc, `nightly` = construcciones `develop`,
+`lts` = parches v3 después del 4.0 GA) se describe en `docs/ops/RELEASE_STRATEGY.md`.
 
 ---
 

@@ -1349,11 +1349,11 @@ Fún àwọn aṣàmúlò láyè láti jabo àwọn ìṣòro tààrà láti Das
 
 ---
 
-## Àwọn Ìlànà Ìfìránṣẹ́ Síṣẹ́
+## Awọn Ipo Itusilẹ
 
-Fún ìtọ́sọ́nà SRE ẹ̀yìn relay (ìhùwàsí ts/bifrost/auto, ibi tí a ó gbé 9router ní ìfiwéra pẹ̀lú CLIProxyAPI, àti ọ̀nà ìpadà-sẹ́yìn fún ìṣàn-gíga), wo [Ìlànà Ẹ̀yìn Relay](/docs/reference/RELAY_BACKEND_STRATEGY.md).
+Fun itọsọna SRE ẹhin relay (ts/bifrost/auto ihuwasi, 9router vs CLIProxyAPI ipo, ati ilana fallback ti o ni iwọn-giga), wo [Ilana Ẹhin Relay](/docs/reference/RELAY_BACKEND_STRATEGY.md).
 
-### Ìdàgbàsókè Agbègbè Tó Kéré Jù
+### Idagbasoke Agbegbe Kekere
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1363,7 +1363,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Ìmújáde Docker
+### iṣelọpọ Docker
 
 ```bash
 JWT_SECRET=<generated>
@@ -1382,7 +1382,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### Láìsí Ìsopọ̀ Nẹ́tíwọ́ọ̀kì / CI
+### Air-Gapped / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1393,7 +1393,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### VPS Pẹ̀lú Aṣojú Ìyípadà (nginx + Cloudflare)
+### VPS pẹlu Iṣakoso Atilẹyin (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1408,8 +1408,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills Sandbox (v3.8.0+)
 
@@ -1822,23 +1820,33 @@ A kò nílò rẹ̀ fún iṣẹ́ déédéé — ohun èlò fún olùgbéejáde
 
 ---
 
-## Afárá OmniConductor
+## OmniConductor Bridge
 
-Olùjẹ SSE aláìpẹ́ tí ń ṣe àwòkọ́ṣe àwọn iṣẹ́ hub OmniConductor sínú A2A TaskManager agbègbè (`src/lib/conductor/`). Yíyan-láti-lò ni — afárá náà máa ń bẹ̀rẹ̀ nìkan nígbà tí a bá ṣètò `CONDUCTOR_HUB_URL`. Ẹ̀gbẹ́ olupin nìkan: àmì hub kò gbọdọ̀ dé inú aṣàwákiri láé.
+Iṣelọpọ SSE ti o pẹ to ti o n ṣe afiwe awọn iṣẹ OmniConductor hub sinu A2A TaskManager agbegbe (`src/lib/conductor/`). Opt-in — àgbáyé naa bẹrẹ nikan nigbati `CONDUCTOR_HUB_URL` ti ṣeto. Iṣẹ-ṣiṣe ẹgbẹ-server nikan: a ko gbọdọ jẹ ki token hub de ẹrọ aṣawakiri.
 
-| Àyípadà                        | Àìpéye                  | Fáìlì Orísun                     | Àpèjúwe                                                                                                               |
-| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(òfo)_                 | `src/lib/conductor/boot.ts`      | URL ìpìlẹ̀ ti hub OmniConductor (fún àpẹẹrẹ `http://127.0.0.1:7910`). Bí a kò bá ṣètò rẹ̀ = afárá ti di aláṣiṣẹ́.        |
-| `CONDUCTOR_HUB_TOKEN`          | _(òfo)_                 | `src/lib/conductor/boot.ts`      | Ẹ̀rí ìdánimọ̀ hub fún ìṣàn SSE — dá ojúgbà irú `spokesperson` sílẹ̀ lórí hub (`POST /v1/peers`, admin).                  |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(òfo)_                 | `src/lib/conductor/hubProxy.ts`  | Ẹ̀rí ìdánimọ̀ fún fífi iṣẹ́ A2A→hub tí ń wọlé ránṣẹ́ (`POST /v1/tasks`); yóò lo `CONDUCTOR_HUB_TOKEN` bí a kò bá ṣètò rẹ̀. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL ìpìlẹ̀ ti iṣẹ́ spokesperson (Faro) lẹ́yìn aṣojú ìfọ̀rọ̀wérọ̀ dashboard (`/api/conductor/ask`).                          |
+| Variable                       | Default                 | Source File                      | Description                                                                                         |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | URL ipilẹ ti hub OmniConductor (e.g. `http://127.0.0.1:7910`). Ti a ko ṣeto = àgbáyé ti wa ni dènà. |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | Ẹri hub fun ṣiṣan SSE — tu `spokesperson`-iru alabaṣiṣẹpọ jade lori hub (`POST /v1/peers`, admin).  |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | Ẹri fun ikọkọ A2A→hub iṣẹ-ṣiṣe (`POST /v1/tasks`); pada si `CONDUCTOR_HUB_TOKEN` nigbati a ko ṣeto. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL ipilẹ ti iṣẹ spokesperson (Faro) ti o wa lẹhin proxy iwiregbe dashboard (`/api/conductor/ask`). |
 
-### Ìṣètò iṣẹ́ tó mọ iye ìpín
+### Video Bridge isolated validation
 
-`open-sse/services/combo.ts` àti `src/lib/quota/quotaScheduler.ts` ń lò ó fún àyẹ̀wò ìnáwó àmì kí ìbéèrè tó wáyé. Yíyan-láti-lò ni — ìhùwàsí ìdarí àìpéye kò yí padà bí a kò bá ṣètò rẹ̀.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` nilo
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` lati pe orukọ itọsọna ti o ni
+`storage.sqlite`. Ko si aiyipada. Ọpa naa ṣii ibi ipamọ yẹn ni kika nikan ati
+n ṣe afihan ẹda ikọkọ aladani pẹlu awọn bọtini alabara ti a ya sọtọ ati awọn eto;
+ẹri naa wa lori olugbala idanwo. Oniruuru yii jẹ fun aṣẹ
+preparation ti a sọtọ nikan ati pe ko ni lo nipasẹ ibẹrẹ server deede. Iṣelọpọ
+ko pe awoṣe kan; aṣẹ iwariri laaye ti o yapa nilo `--execute-real`.
 
-| Àyípadà                            | Àìpéye  | Fáìlì Orísun                                | Àpèjúwe                                                                                                                                                                                                                                     |
-| ---------------------------------- | ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Nígbà tí ó jẹ́ `1`, foju kọ àwọn ìsopọ̀ tí ìnáwó àmì wọn fún fèrèsé kọ̀ọ̀kan (`rateLimitOverrides.tpm`, tábìlì `provider_quota_state`) kò lè bo iye owó ìbéèrè tí a fojú díwọ̀n kí a tó rán an lọ. Jẹ́ kí ó tẹ̀síwájú bí kò bá sí ìnáwó tí a ṣètò. |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(tàn)_ | `open-sse/services/estimatorCalibration.ts` | Ìṣàtúnṣe àbájáde fún olùṣírò àmì olùṣọ́ àyíká (#14931): EMA fún (provider, model, tools present) kọ̀ọ̀kan ti `usage.prompt_tokens` / ìṣírò, tí a fi ààlà 0.15–2.0 sí, nínú ìrántí nìkan. `off`, `0` tàbí `false` máa ń pa ìkọsílẹ̀ àti ìlò rẹ̀.  |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Forúkọsílẹ̀ àwọn ipa ọ̀nà àwòrán `xai-oauth` (`xao`) àti `grok-cli`. Àmì ẹ̀ya dashboard tó ní orúkọ kan náà; àtúnkọ DB máa borí iye yìí.                                                                                                       |
+### Quota-aware scheduling
+
+Ti a lo nipasẹ `open-sse/services/combo.ts` ati `src/lib/quota/quotaScheduler.ts` fun awọn ayẹwo token-budget ṣaaju ibeere. Opt-in — ihuwasi itọsọna aiyipada ko yipada nigbati a ko ṣeto.
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                   |
+| ---------------------------------- | ------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Nigbati `1`, fo awọn asopọ ti o ko le ni anfani lati sanwo idiyele ibeere ti a ṣe iṣiro ṣaaju ki o to firanṣẹ. Fail-open nigbati ko si isuna ti a ṣeto.                                                                       |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Iṣiro esi ti oluyẹwo token ti o da lori ọrọ (#14931): fun (olutaja, awoṣe, awọn irinṣẹ ti o wa) EMA ti `usage.prompt_tokens` / iṣiro, ti a fi si 0.15–2.0, ni iranti nikan. `off`, `0` tabi `false` dènà gbigba ati ohun elo. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Forukọsilẹ awọn ọna aworan `xai-oauth` (`xao`) ati `grok-cli`. Aami ẹya dashboard ti orukọ kanna; aiyipada DB bori lori iye yii.                                                                                              |

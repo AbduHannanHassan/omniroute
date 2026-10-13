@@ -1825,21 +1825,31 @@ Default global untuk browser headless dan tunnel alat keluar. Nilai koneksi yang
 
 ## Jembatan OmniConductor
 
-Konsumen SSE berumur panjang yang mencerminkan tugas hub OmniConductor ke A2A TaskManager lokal (`src/lib/conductor/`). Bersifat opsional — jembatan hanya dimulai ketika `CONDUCTOR_HUB_URL` ditetapkan. Hanya untuk sisi server: token hub tidak boleh sampai ke browser.
+Konsumen SSE yang bertahan lama yang mencerminkan tugas hub OmniConductor ke dalam TaskManager A2A lokal (`src/lib/conductor/`). Opsional — jembatan hanya mulai ketika `CONDUCTOR_HUB_URL` diatur. Hanya di sisi server: token hub tidak boleh sampai ke browser.
 
-| Variabel                       | Default                 | File Sumber                      | Deskripsi                                                                                                                                        |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(kosong)_              | `src/lib/conductor/boot.ts`      | URL dasar hub OmniConductor (misalnya `http://127.0.0.1:7910`). Tidak ditetapkan = jembatan dinonaktifkan.                                       |
-| `CONDUCTOR_HUB_TOKEN`          | _(kosong)_              | `src/lib/conductor/boot.ts`      | Kredensial hub untuk umpan SSE — buat peer berjenis `spokesperson` di hub (`POST /v1/peers`, admin).                                             |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(kosong)_              | `src/lib/conductor/hubProxy.ts`  | Kredensial untuk delegasi tugas A2A→hub yang masuk (`POST /v1/tasks`); menggunakan `CONDUCTOR_HUB_TOKEN` sebagai fallback jika tidak ditetapkan. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL dasar layanan spokesperson (Faro) di balik proksi obrolan dasbor (`/api/conductor/ask`).                                                     |
+| Variabel                       | Default                 | File Sumber                      | Deskripsi                                                                                                               |
+| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(kosong)_              | `src/lib/conductor/boot.ts`      | URL dasar dari hub OmniConductor (misalnya `http://127.0.0.1:7910`). Tidak diatur = jembatan dinonaktifkan.             |
+| `CONDUCTOR_HUB_TOKEN`          | _(kosong)_              | `src/lib/conductor/boot.ts`      | Kredensial hub untuk umpan SSE — mengeluarkan peer jenis `spokesperson` di hub (`POST /v1/peers`, admin).               |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(kosong)_              | `src/lib/conductor/hubProxy.ts`  | Kredensial untuk delegasi tugas A2A→hub masuk (`POST /v1/tasks`); kembali ke `CONDUCTOR_HUB_TOKEN` ketika tidak diatur. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL dasar dari layanan spokesperson (Faro) di belakang proxy chat dasbor (`/api/conductor/ask`).                        |
 
-### Penjadwalan yang mempertimbangkan kuota
+### Validasi isolasi Jembatan Video
 
-Digunakan oleh `open-sse/services/combo.ts` dan `src/lib/quota/quotaScheduler.ts` untuk pemeriksaan anggaran token sebelum permintaan. Bersifat opsional — perilaku perutean default tidak berubah jika tidak ditetapkan.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` memerlukan
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` untuk menamai direktori absolut yang berisi
+`storage.sqlite`. Tidak ada default. Alat ini membuka database tersebut dalam mode baca saja dan
+menyiapkan salinan sementara pribadi dengan kunci dan pengaturan klien yang terisolasi;
+kredensial tetap di host validasi. Variabel ini hanya untuk perintah persiapan eksplisit
+dan tidak digunakan oleh startup server normal. Persiapan
+tidak memanggil model; perintah asap langsung terpisah memerlukan `--execute-real`.
 
-| Variabel                           | Default   | File Sumber                                 | Deskripsi                                                                                                                                                                                                                                                  |
-| ---------------------------------- | --------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Jika `1`, lewati koneksi yang anggaran token per jendelanya (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) tidak dapat menanggung perkiraan biaya permintaan sebelum pengiriman. Tetap melanjutkan jika tidak ada anggaran yang dikonfigurasi.   |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(aktif)_ | `open-sse/services/estimatorCalibration.ts` | Kalibrasi umpan balik estimator token penjaga konteks (#14931): EMA per (penyedia, model, keberadaan alat) dari `usage.prompt_tokens` / estimasi, dibatasi pada 0.15–2.0, hanya di memori. `off`, `0`, atau `false` menonaktifkan perekaman dan penerapan. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`   | `open-sse/config/imageRegistry.ts`          | Mendaftarkan rute gambar `xai-oauth` (`xao`) dan `grok-cli`. Flag fitur dasbor dengan nama yang sama; override DB mengungguli nilai ini.                                                                                                                   |
+### Penjadwalan yang sadar kuota
+
+Digunakan oleh `open-sse/services/combo.ts` dan `src/lib/quota/quotaScheduler.ts` untuk pemeriksaan anggaran token sebelum permintaan. Opsional — perilaku routing default tidak berubah ketika tidak diatur.
+
+| Variabel                           | Default | File Sumber                                 | Deskripsi                                                                                                                                                                                                                                                          |
+| ---------------------------------- | ------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Ketika `1`, lewati koneksi yang anggaran token per-jendela (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) tidak dapat memenuhi biaya permintaan yang diperkirakan sebelum pengiriman. Gagal terbuka ketika tidak ada anggaran yang dikonfigurasi.        |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Kalibrasi umpan balik dari estimator token penjaga konteks (#14931): EMA per (penyedia, model, alat yang ada) dari `usage.prompt_tokens` / estimasi, dibatasi antara 0.15–2.0, hanya dalam memori. `off`, `0` atau `false` menonaktifkan pencatatan dan penerapan. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Mendaftarkan rute gambar `xai-oauth` (`xao`) dan `grok-cli`. Bendera fitur dasbor dengan nama yang sama; penggantian DB mengalahkan nilai ini.                                                                                                                     |

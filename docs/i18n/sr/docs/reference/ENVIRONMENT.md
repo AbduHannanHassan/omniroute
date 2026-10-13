@@ -1821,23 +1821,33 @@ OmniRoute инстанце. Ништа од овога није потребно
 
 ---
 
-## OmniConductor мост
+## OmniConductor Bridge
 
-Дуготрајни SSE потрошач који пресликава задатке OmniConductor чворишта у локални A2A TaskManager (`src/lib/conductor/`). Опционо — мост се покреће само када је `CONDUCTOR_HUB_URL` подешен. Искључиво на страни сервера: токен чворишта никада не сме доспети до прегледача.
+Dugotrajni SSE potrošač koji odražava zadatke OmniConductor čvorišta u lokalnom A2A TaskManager-u (`src/lib/conductor/`). Opcionalno — most se pokreće samo kada je postavljen `CONDUCTOR_HUB_URL`. Samo na serverskoj strani: token čvorišta nikada ne sme da dođe do pregledača.
 
-| Променљива                     | Подразумевано           | Изворна датотека                 | Опис                                                                                                                           |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(празно)_              | `src/lib/conductor/boot.ts`      | Основни URL OmniConductor чворишта (нпр. `http://127.0.0.1:7910`). Није подешено = мост је онемогућен.                         |
-| `CONDUCTOR_HUB_TOKEN`          | _(празно)_              | `src/lib/conductor/boot.ts`      | Акредитив чворишта за SSE ток — на чворишту емитујте равноправни чвор врсте `spokesperson` (`POST /v1/peers`, администратор).  |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(празно)_              | `src/lib/conductor/hubProxy.ts`  | Акредитив за делегирање долазних A2A→чвориште задатака (`POST /v1/tasks`); ако није подешен, користи се `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Основни URL услуге посредника (Faro) иза проксија за ћаскање на контролној табли (`/api/conductor/ask`).                       |
+| Varijabla                      | Podrazumevano           | Izvorna datoteka                 | Opis                                                                                                                      |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(prazno)_              | `src/lib/conductor/boot.ts`      | Osnovni URL OmniConductor čvorišta (npr. `http://127.0.0.1:7910`). Ako nije postavljen = most onemogućen.                 |
+| `CONDUCTOR_HUB_TOKEN`          | _(prazno)_              | `src/lib/conductor/boot.ts`      | Akreditiv čvorišta za SSE feed — emitujte peer tipa `spokesperson` na čvorištu (`POST /v1/peers`, admin).                 |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prazno)_              | `src/lib/conductor/hubProxy.ts`  | Akreditiv za delegaciju A2A→čvorište zadataka (`POST /v1/tasks`); vraća se na `CONDUCTOR_HUB_TOKEN` kada nije postavljen. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Osnovni URL portparola (Faro) servisa iza proxy-a za chat na kontrolnoj tabli (`/api/conductor/ask`).                     |
 
-### Распоређивање уз уважавање квота
+### Video Bridge izolovana validacija
 
-Користе га `open-sse/services/combo.ts` и `src/lib/quota/quotaScheduler.ts` за проверу буџета токена пре захтева. Опционо — подразумевано понашање усмеравања остаје непромењено када није подешено.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` zahteva
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` da imenuje apsolutni direktorijum koji sadrži
+`storage.sqlite`. Nema podrazumevanu vrednost. Alat otvara tu bazu podataka samo za čitanje i
+priprema privatnu privremenu kopiju sa izolovanim ključeva i podešavanjima klijenata;
+akreditivi ostaju na hostu za validaciju. Ova varijabla je samo za eksplicitnu
+komandu pripreme i ne koristi se pri normalnom pokretanju servera. Priprema
+ne poziva model; odvojena komanda za live dimnu zahteva `--execute-real`.
 
-| Променљива                         | Подразумевано | Изворна датотека                            | Опис                                                                                                                                                                                                                                                                     |
-| ---------------------------------- | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | Када је `1`, прескаче везе чији буџет токена по временском прозору (`rateLimitOverrides.tpm`, табела `provider_quota_state`) не може да покрије процењени трошак захтева пре слања. Ако буџет није конфигурисан, захтев се пропушта.                                     |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(укључено)_  | `open-sse/services/estimatorCalibration.ts` | Повратна калибрација процењивача токена заштите контекста (#14931): EMA односа `usage.prompt_tokens` / процена за сваку комбинацију (добављач, модел, присутност алата), ограничена на 0.15–2.0, само у меморији. `off`, `0` или `false` онемогућава бележење и примену. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Региструје путање за слике `xai-oauth` (`xao`) и `grok-cli`. Заставица функције на контролној табли има исти назив; вредност из базе података има предност над овом вредношћу.                                                                                           |
+### Planiranje s obzirom na kvote
+
+Koristi se u `open-sse/services/combo.ts` i `src/lib/quota/quotaScheduler.ts` za provere budžeta tokena pre zahteva. Opcionalno — podrazumevano ponašanje rutiranja ostaje nepromenjeno kada nije postavljeno.
+
+| Varijabla                          | Podrazumevano | Izvorna datoteka                            | Opis                                                                                                                                                                                                                                                                 |
+| ---------------------------------- | ------------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | Kada je `1`, preskočite veze čiji budžet tokena po prozoru (`rateLimitOverrides.tpm`, tabela `provider_quota_state`) ne može da priušti procenjeni trošak zahteva pre slanja. Otvorena greška kada nije konfigurisan budžet.                                         |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(uključeno)_ | `open-sse/services/estimatorCalibration.ts` | Kalibracija povratne informacije kontekstualnog čuvara za procenu tokena (#14931): po (provajder, model, prisutni alati) EMA `usage.prompt_tokens` / procena, ograničeno na 0.15–2.0, samo u memoriji. `isključeno`, `0` ili `false` onemogućava snimanje i primenu. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Registruje rute slika `xai-oauth` (`xao`) i `grok-cli`. Zastavica funkcije kontrolne table istog imena; DB preklapanje pobedi ovu vrednost.                                                                                                                          |

@@ -1351,11 +1351,11 @@ Benarkan pengguna melaporkan isu secara langsung daripada Dashboard.
 
 ---
 
-## Senario Penggunaan
+## Senario Penyebaran
 
-Untuk panduan SRE bahagian belakang geganti (tingkah laku ts/bifrost/auto, penempatan 9router berbanding CLIProxyAPI, dan strategi sandaran daya pemprosesan tinggi), lihat [Strategi Bahagian Belakang Geganti](/docs/reference/RELAY_BACKEND_STRATEGY.md).
+Untuk panduan SRE backend relay (tingkah laku ts/bifrost/auto, penempatan 9router vs CLIProxyAPI, dan strategi fallback throughput tinggi), lihat [Strategi Backend Relay](/docs/reference/RELAY_BACKEND_STRATEGY.md).
 
-### Pembangunan Tempatan Minimum
+### Pembangunan Tempatan Minimal
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1384,7 +1384,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### Persekitaran Terasing / CI
+### Air-Gapped / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1395,7 +1395,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### VPS dengan Proksi Songsang (nginx + Cloudflare)
+### VPS dengan Proksi Terbalik (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1410,8 +1410,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Kotak Pasir Kemahiran (v3.8.0+)
 
@@ -1826,21 +1824,31 @@ Tetapan lalai global untuk pelayar tanpa kepala dan terowong alat keluar. Nilai 
 
 ## Jambatan OmniConductor
 
-Pengguna SSE berjangka panjang yang mencerminkan tugasan hab OmniConductor ke dalam A2A TaskManager setempat (`src/lib/conductor/`). Ikut serta — jambatan hanya bermula apabila `CONDUCTOR_HUB_URL` ditetapkan. Sebelah pelayan sahaja: token hab tidak boleh sampai ke pelayar.
+Pengguna SSE yang bertahan lama yang mencerminkan tugas hub OmniConductor ke dalam Pengurus Tugas A2A tempatan (`src/lib/conductor/`). Pilihan — jambatan hanya bermula apabila `CONDUCTOR_HUB_URL` ditetapkan. Hanya di sisi pelayan: token hub tidak boleh sampai ke pelayar.
 
-| Pemboleh ubah                  | Lalai                   | Fail Sumber                      | Penerangan                                                                                                                                              |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(kosong)_              | `src/lib/conductor/boot.ts`      | URL asas hab OmniConductor (cth. `http://127.0.0.1:7910`). Tidak ditetapkan = jambatan dinyahdayakan.                                                   |
-| `CONDUCTOR_HUB_TOKEN`          | _(kosong)_              | `src/lib/conductor/boot.ts`      | Bukti kelayakan hab untuk suapan SSE — keluarkan rakan setara jenis `spokesperson` pada hab (`POST /v1/peers`, pentadbir).                              |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(kosong)_              | `src/lib/conductor/hubProxy.ts`  | Bukti kelayakan untuk perwakilan tugasan A2A→hab masuk (`POST /v1/tasks`); menggunakan `CONDUCTOR_HUB_TOKEN` sebagai sandaran apabila tidak ditetapkan. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL asas perkhidmatan jurucakap (Faro) di belakang proksi sembang papan pemuka (`/api/conductor/ask`).                                                  |
+| Pembolehubah                   | Lalai                   | Fail Sumber                      | Penerangan                                                                                                                      |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(kosong)_              | `src/lib/conductor/boot.ts`      | URL asas hub OmniConductor (contoh: `http://127.0.0.1:7910`). Tidak ditetapkan = jambatan dinyahaktifkan.                       |
+| `CONDUCTOR_HUB_TOKEN`          | _(kosong)_              | `src/lib/conductor/boot.ts`      | Kelayakan hub untuk aliran SSE — mengeluarkan rakan sebaya jenis `spokesperson` di hub (`POST /v1/peers`, admin).               |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(kosong)_              | `src/lib/conductor/hubProxy.ts`  | Kelayakan untuk delegasi tugas A2A→hub masuk (`POST /v1/tasks`); kembali kepada `CONDUCTOR_HUB_TOKEN` apabila tidak ditetapkan. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL asas perkhidmatan spokesperson (Faro) di belakang proksi sembang papan pemuka (`/api/conductor/ask`).                       |
 
-### Penjadualan peka kuota
+### Pengesahan pengasingan Jambatan Video
 
-Digunakan oleh `open-sse/services/combo.ts` dan `src/lib/quota/quotaScheduler.ts` untuk semakan bajet token prapermintaan. Ikut serta — tingkah laku penghalaan lalai tidak berubah apabila tidak ditetapkan.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` memerlukan
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` untuk menamakan direktori mutlak yang mengandungi
+`storage.sqlite`. Tiada lalai. Alat ini membuka pangkalan data itu dalam mod baca sahaja dan
+menyediakan salinan sementara peribadi dengan kunci dan tetapan klien yang terasing;
+kelayakan kekal di hos pengesahan. Pembolehubah ini hanya untuk perintah
+persediaan yang jelas dan tidak digunakan oleh permulaan pelayan biasa. Persediaan
+tidak memanggil model; perintah asap langsung yang berasingan memerlukan `--execute-real`.
 
-| Pemboleh ubah                      | Lalai     | Fail Sumber                                 | Penerangan                                                                                                                                                                                                                                                                         |
-| ---------------------------------- | --------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Apabila `1`, langkau sambungan yang bajet token setiap tetingkapnya (`rateLimitOverrides.tpm`, jadual `provider_quota_state`) tidak mampu menampung anggaran kos permintaan sebelum penghantaran. Teruskan apabila gagal jika tiada bajet dikonfigurasikan.                        |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(aktif)_ | `open-sse/services/estimatorCalibration.ts` | Penentukuran maklum balas bagi penganggar token pengawal konteks (#14931): EMA untuk setiap (penyedia, model, alat tersedia) bagi `usage.prompt_tokens` / anggaran, dihadkan kepada 0.15–2.0, dalam memori sahaja. `off`, `0` atau `false` menyahdayakan perekodan dan penggunaan. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`   | `open-sse/config/imageRegistry.ts`          | Mendaftarkan laluan imej `xai-oauth` (`xao`) dan `grok-cli`. Bendera ciri papan pemuka dengan nama yang sama; penggantian DB mengatasi nilai ini.                                                                                                                                  |
+### Penjadualan yang peka kuota
+
+Digunakan oleh `open-sse/services/combo.ts` dan `src/lib/quota/quotaScheduler.ts` untuk pemeriksaan bajet token pra-permintaan. Pilihan — tingkah laku penghalaan lalai tidak berubah apabila tidak ditetapkan.
+
+| Pembolehubah                       | Lalai   | Fail Sumber                                 | Penerangan                                                                                                                                                                                                                                                      |
+| ---------------------------------- | ------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Apabila `1`, langkau sambungan yang bajet token per tingkapnya (`rateLimitOverrides.tpm`, jadual `provider_quota_state`) tidak mampu menampung kos permintaan yang dianggarkan sebelum dihantar. Gagal terbuka apabila tiada bajet yang dikonfigurasikan.       |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Kalibrasi maklum balas bagi penganggar token penjaga konteks (#14931): EMA per (penyedia, model, alat yang ada) bagi `usage.prompt_tokens` / anggaran, terhad kepada 0.15–2.0, hanya dalam memori. `off`, `0` atau `false` menyahaktifkan rakaman dan aplikasi. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Mendaftar laluan imej `xai-oauth` (`xao`) dan `grok-cli`. Bendera ciri papan pemuka dengan nama yang sama; penggantian DB mengatasi nilai ini.                                                                                                                  |

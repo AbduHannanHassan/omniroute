@@ -17,12 +17,12 @@ Ang system ay **fail-open**: kung mag-throw ang isang guardrail habang isinasaga
 ang error at nagpapatuloy sa susunod na guardrail sa halip na mabigo ang
 request. Ang pag-block ay isang tahasang desisyon (`block: true`), at hindi kailanman aksidente.
 
-## Mga Built-in na Guardrail
+## Mga Naka-built-in na Guardrails
 
-Ang registry ay awtomatikong naglo-load ng anim na guardrail sa pagkakasunud-sunod ng priyoridad sa pag-import
+Awtomatikong naglo-load ang registry ng anim na guardrails sa prayoridad na pagkakasunod-sunod sa pag-import
 (tingnan ang `registry.ts` → `registerDefaultGuardrails()`):
 
-| Priyoridad | Pangalan            | Stage(s)       | File                  |
+| Prayoridad | Pangalan            | Yugto(s)       | File                  |
 | ---------- | ------------------- | -------------- | --------------------- |
 | `5`        | `vision-bridge`     | `preCall`      | `visionBridge.ts`     |
 | `6`        | `audio-bridge`      | `preCall`      | `audioBridge.ts`      |
@@ -31,79 +31,78 @@ Ang registry ay awtomatikong naglo-load ng anim na guardrail sa pagkakasunud-sun
 | `20`       | `prompt-injection`  | `preCall`      | `promptInjection.ts`  |
 | `95`       | `credential-masker` | `pre` + `post` | `credentialMasker.ts` |
 
-Ang mas mababang numero ng priyoridad ay tumatakbo **muna**.
+Ang mas mababang mga numero ng prayoridad ay tumatakbo **una**.
 
 ### Vision Bridge (`visionBridge.ts`) — Modality Bridge PR-1
 
-Sinusuri ang mga kahilingan na may dalang imahe na nakatuon sa **mga modelong hindi pang-vision** at alinman
-ay iniruruta ang buong kahilingan sa isang modelong may kakayahang pang-vision o pinapalitan ang mga bahagi ng imahe
-ng mga paglalarawan ng teksto na ginawa ng isang configurable na modelong pang-vision bago
-ang upstream na tawag. Nagbibigay-daan ito sa mga text-only na provider na transparent na hawakan
-ang mga multimodal na payload.
+Nagsasagawa ng intercept sa mga kahilingan na may dalang imahe na nakatuon sa **mga non-vision model** at alinman
+na nire-route ang buong kahilingan sa isang vision-capable na modelo o pinapalitan ang mga bahagi ng imahe
+ng mga paglalarawan ng teksto na ginawa ng isang configurable na vision model bago ang upstream call. Pinapayagan nito ang mga text-only na provider na transparently na hawakan
+ang multimodal payloads.
 
 Daloy:
 
 1. Laktawan kung ang target na modelo ay sumusuporta na sa vision (maliban kung ito ay lumilitaw sa
-   listahan ng pinilit na tulay na `isVisionBridgeForcedModel`).
-2. I-extract ang mga bahagi ng imahe sa pamamagitan ng `extractImageParts(messages)`
-   (`visionBridgeHelpers.ts`), na nagtatalaga sa **unified media
+   forced-bridge list `isVisionBridgeForcedModel`).
+2. Kunin ang mga bahagi ng imahe sa pamamagitan ng `extractImageParts(messages)`
+   (`visionBridgeHelpers.ts`), na nag-delegate sa **unified media
    detector** `detectMediaParts()` sa `open-sse/utils/mediaParts.ts` — ang
-   nag-iisang pinagmulan ng katotohanan na ibinahagi sa combo compatibility filter.
-   Ang pagkuha ay pinapayagan sa mga top-level na bahagi ng mga hugis na
-   maaaring ibalik ng `replaceImageParts` (ang extract↔replace contract): OpenAI
+   nag-iisang pinagmulan ng katotohanan na ibinabahagi sa combo compatibility filter.
+   Ang extraction ay pinapayagan lamang sa mga top-level na bahagi ng mga hugis
+   na maaaring i-splice muli ng `replaceImageParts` (ang extract↔replace na kontrata): OpenAI
    `image_url`, Anthropic base64 `source.type:"base64"`, Anthropic URL
-   `source.type:"url"`, at Responses API `input_image`. Ang mga nested na hit at
-   mga hugis na indikator lamang ay materyal ng combo-filter at hindi kailanman kinukuha.
-   Laktawan kung walang nakita.
-3. Lutasin ang runtime config sa pamamagitan ng `resolveVisionBridgeRuntimeSettings()`
+   `source.type:"url"`, at Responses API `input_image`. Ang mga nested hits at
+   indicator-only na hugis ay materyal para sa combo-filter at hindi kailanman kinukuha.
+   Laktawan kung walang natagpuan.
+3. I-resolve ang runtime config sa pamamagitan ng `resolveVisionBridgeRuntimeSettings()`
    (`src/shared/constants/modalityBridgeDefaults.ts`): ang mga bagong `modalityBridge*`
-   na key ng setting ang mananalo; ang mga legacy na `visionBridge*` na key ay nananatiling **isang-cycle
-   fallback** (rollback window). Laktawan bago ang anumang paglalakbay sa media kapag ang
-   tulay ay hindi pinagana.
-4. Ang mode selector (`modalityBridgeVisionMode`, tingnan ang talahanayan sa ibaba) ay nagpapasya
-   sa reroute vs describe. Ang reroute ay nagbabalik ng `modifiedPayload` na may `model` lamang
+   na mga key ng setting ay nananalo; ang legacy `visionBridge*` na mga key ay nananatiling isang **one-cycle
+   fallback** (rollback window). Laktawan bago ang anumang media traversal kapag ang
+   bridge ay hindi pinagana.
+4. Ang mode selector (`modalityBridgeVisionMode`, tingnan ang talahanayan sa ibaba) ay nagpasya
+   sa reroute vs describe. Ang reroute ay nagbabalik ng `modifiedPayload` na may tanging `model`
    na pinalitan, kasama ang meta `{ rerouted, fromModel, toModel, imagesKept }`.
-5. Path ng paglalarawan: i-cap ang mga imahe sa `maxImages`, buuin ang task-aware na prompt,
-   konsultahin ang describe cache, tawagan ang vision model **nang sabay-sabay**
+5. Describe path: limitahan ang mga imahe sa `maxImages`, bumuo ng task-aware na prompt,
+   kumonsulta sa describe cache, tawagan ang vision model **sa parallel**
    (`Promise.allSettled`), at i-inject ang `[Image N]: <description>` na mga bahagi ng teksto sa
-   kanilang lugar. Ang isang nabigong paglalarawan ay nagbibigay ng `null` at ang orihinal na bahagi ng imahe ay
-   **pinapanatili** (#4012) — maliban sa combo describe path kapag nabigo ang bawat
-   paglalarawan, kung saan ang isang kumpirmadong non-vision upstream ay nakakakuha ng
+   kanilang lugar. Ang nabigong describe ay nagbabalik ng `null` at ang orihinal na bahagi ng imahe ay
+   **napanatili** (#4012) — maliban sa combo describe path kapag bawat
+   describe ay nabigo, kung saan ang isang nakumpirmang non-vision upstream ay nakakakuha ng
    `(unavailable — no vision-capable provider connected)` stub sa halip (#8430).
 6. Ibalik ang `modifiedPayload` + meta (`imagesProcessed`, `descriptions`,
    `processingTimeMs`, `visionModel`).
 
 #### Mode selector (`modalityBridgeVisionMode`)
 
-| Mode       | Default | Pag-uugali                                                                                                                                                                                                                                                                                                          |
-| ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auto`     | ✔       | Legacy heuristic, hindi nagalaw (#6640/#7204): ang mga non-combo/`auto/` na modelo ay iniruruta sa pinakamahusay na vision model maliban kung ang orihinal na modelo ay mayroon nang magagamit na mga kredensyal (pagkatapos ay ilarawan); ang mga combo target ay laging naglalarawan.                             |
-| `describe` |         | Laging ilarawan — ang reroute block ay ganap na nilalaktawan; ang napiling modelo ng user ang laging sumasagot.                                                                                                                                                                                                     |
-| `reroute`  |         | Pilitin ang reroute: ang keep-credentialed-model guard ay nilalampasan. Ang reroute-**target** credential guard ay nalalapat pa rin — kapag walang magagamit na vision target, ang kahilingan ay bumabagsak sa describe upang ang mga raw na imahe ay hindi kailanman umabot sa isang text-only na backend (#8430). |
+| Mode       | Default | Behavior                                                                                                                                                                                                                                                                                                               |
+| ---------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auto`     | ✔       | Legacy heuristic, untouched (#6640/#7204): non-combo/`auto/` models ay nire-route sa pinakamahusay na vision model maliban kung ang orihinal na modelo ay may mga magagamit na kredensyal (kung gayon ay describe); ang mga combo target ay palaging nagde-describe.                                                   |
+| `describe` |         | Palaging nagde-describe — ang reroute block ay ganap na nalaktawan; ang napiling modelo ng gumagamit ay palaging sumasagot.                                                                                                                                                                                            |
+| `reroute`  |         | Pinipilit ang reroute: ang keep-credentialed-model guard ay nalaktawan. Ang reroute-**target** credential guard ay nananatiling naaangkop — kapag walang magagamit na vision target, ang kahilingan ay bumabagsak sa describe upang ang mga raw na imahe ay hindi kailanman umabot sa isang text-only backend (#8430). |
 
-Ang mga pinilit na mode ay short-circuit **bago** tumakbo ang auto heuristic; ang pag-uugali ng `auto`
+Ang mga pinilit na mode ay nag-short-circuit **bago** tumakbo ang auto heuristic; ang `auto` na pag-uugali
 ay byte-identical sa pre-PR-1 guardrail.
 
 #### Task-aware describe prompt (`modalityBridgeVisionTaskAware`)
 
-Default **true**. Ang `composeVisionPrompt()` (`visionBridgeHelpers.ts`) ay nagdaragdag
-ng teksto ng **huling mensahe ng user** (pinutol sa 500 character) sa base
-describe prompt, na nagtutulak sa paglalarawan patungo sa kung ano ang aktwal na tinanong ng user
+Default **true**. Ang `composeVisionPrompt()` (`visionBridgeHelpers.ts`) ay nagdadagdag
+ng teksto ng **huling mensahe ng gumagamit** (na pinutol sa 500 chars) sa base
+describe prompt, na nagdidirekta sa paglalarawan patungo sa kung ano talaga ang tinanong ng gumagamit
 (codex-vision-proxy pattern) at humihiling sa vision model na i-transcribe ang nakikitang
-teksto. Kapag naka-off ang flag — o walang teksto ng user — ang base prompt ay ginagamit nang hindi binabago.
+teksto. Kapag ang flag ay naka-off — o walang teksto ng gumagamit — ang base prompt ay ginagamit nang walang pagbabago.
 
-Ang describe self-loop's sariling OpenAI-compatible request (`callVisionModelSingle()`
-sa `visionBridgeHelpers.ts`) ay laging humihingi ng `image_url.detail: "high"` —
-walang kondisyon, para sa bawat tumatawag/provider, hindi nakasalalay sa anumang signal ng kliyente.
-Ang low-detail sampling ay nagpapababa ng katumpakan ng OCR para mismo sa text-transcription
-task na hinihingi ng prompt na ito, kaya ang describe call mismo ay laging humihingi ng high
-detail anuman ang detail level na ginamit ng orihinal na inbound request. Ito
+Ang describe self-loop's own OpenAI-compatible request (`callVisionModelSingle()`
+sa `visionBridgeHelpers.ts`) ay palaging humihiling ng `image_url.detail: "high"` —
+walang kondisyon, para sa bawat caller/provider, hindi nakasalalay sa anumang signal ng kliyente.
+Ang low-detail sampling ay nagpapababa ng OCR accuracy para sa eksaktong text-transcription
+na gawain na hinihiling ng prompt na ito, kaya ang describe call mismo ay palaging humihiling ng mataas
+na detalye anuman ang antas ng detalye na ginamit ng orihinal na inbound request. Ito
 ay nakakaapekto lamang sa internal describe request body; hindi nito binabago kung paano
-ipapasa ng OmniRoute ang sariling `image_url.detail` ng tumatawag sa primary request —
-ang default na iyon ay inilalapat nang hiwalay, at para lamang sa mga natukoy na OpenCode client, sa
+ipinapasa ng OmniRoute ang sariling `image_url.detail` ng caller sa pangunahing request —
+ang default na ito ay inilalapat nang hiwalay, at tanging para sa mga natukoy na OpenCode clients, sa
 `defaultImageDetail()` (`open-sse/handlers/chatCore/upstreamBody.ts`). Ang
 Anthropic wire-format branch ng describe self-loop ay walang `detail` field
-at hindi apektado ng alinmang default.
+at hindi naapektuhan ng alinman sa default.
 
 #### Describe output cap (`modalityBridgeVisionMaxChars`)
 
@@ -111,28 +110,28 @@ at hindi apektado ng alinmang default.
 | ------------------------------ | ------- | --------------- |
 | `modalityBridgeVisionMaxChars` | `0`     | `0` o 100–50000 |
 
-Ang `0` (default) ay nangangahulugang **walang cap** — ang deskripsyon na ibinalik ng
-`callVisionModel()` ay ipinapasa nang walang pagbabago, pinapanatili ang kasalukuyang
-ugali. Anumang halaga sa 100–50000 range ay pinuputol ang deskripsyon na may
-`…` suffix bago ito isama bilang `[Image N]: <description>`
+`0` (default) ay nangangahulugang **walang cap** — ang description na ibinabalik ng
+`callVisionModel()` ay ipinapasa nang hindi binabago, pinapanatili ang umiiral na
+behavior. Anumang halaga sa saklaw na 100–50000 ay pinutol ang description na may
+`…` suffix bago ito ipasok muli bilang `[Image N]: <description>`
 (`VisionBridgeGuardrail.preCall()` sa `src/lib/guardrails/visionBridge.ts`).
-Taasan ito para sa mga OCR task na nangangailangan ng maraming detalye kung saan kailangan ng downstream model ang
-buong transkripsyon; babaan ito upang limitahan ang paggamit ng token sa mga chatty vision model.
+Itataas ito para sa mga detalye-heavy OCR tasks kung saan kailangan ng downstream model ang
+buong transcription; babaan ito upang limitahan ang paggamit ng token sa mga chatty vision models.
 Ang field ng dashboard ay nasa Advanced panel ng Vision tab
-(`modality-bridge-max-chars` sa `ModalityBridgeVisionTab.tsx`) at nililimitahan ang anumang
-halaga sa pagitan ng 1 at 99 hanggang sa 100 floor habang iniiwan ang isang tahasang `0`
-na hindi nagalaw — ang `0` ay isang valid na Zod value sa sarili nitong karapatan
+(`modality-bridge-max-chars` sa `ModalityBridgeVisionTab.tsx`) at pinipigilan ang anumang
+halaga sa pagitan ng 1 at 99 pataas sa 100 floor habang iniiwan ang isang tahasang `0`
+na hindi nababago — ang `0` ay isang wastong Zod value sa sarili nitong karapatan
 (`z.union([z.literal(0), z.number().int().min(100).max(50000)])`), hindi lamang
 ang "unset" default.
 
 #### Describe cache (`modalityBridge/bridgeCache.ts`)
 
-In-memory LRU + TTL cache para sa mga describe output, shared sa buong proseso.
+In-memory LRU + TTL cache para sa describe outputs, ibinabahagi sa buong proseso.
 Key = `sha256(imageRef + composedPrompt + configuredBridgeModel)` na may
-length-prefix framing (walang field-boundary collisions). Ang bahagi ng model ay
+length-prefix framing (walang field-boundary collisions). Ang model component ay
 ang **configured** bridge model, hindi ang model na talagang sumagot —
-maaaring mag-fallback ang `callVisionModel` sa loob, at ang pag-key per attempt ay
-magpapira-piraso sa cache. Ang mga nabigong describe ay hindi kailanman naka-cache. Mga Setting:
+`callVisionModel` ay maaaring bumalik sa loob, at ang pag-key per attempt ay
+magpapalubog sa cache. Ang mga nabigong describe ay hindi kailanman naka-cache. Mga setting:
 
 | Key                             | Default | Range   |
 | ------------------------------- | ------- | ------- |
@@ -142,137 +141,142 @@ magpapira-piraso sa cache. Ang mga nabigong describe ay hindi kailanman naka-cac
 
 #### Remote image normalization (self-loop describe/base64 fetch)
 
-Kapag ang bridge mismo ang kumukuha ng **remote** na imahe — ang Anthropic describe
+Kapag ang bridge ay kumukuha ng isang **remote** na imahe mismo — ang Anthropic describe
 self-call at ang claude-wire-format base64 conversion
 (`ensureBase64ImagesForClaudeWire`), parehong sa pamamagitan ng
-`fetchRemoteImageAsDataUri()` sa `visionBridgeHelpers.ts` — ang nagreresultang data
+`fetchRemoteImageAsDataUri()` sa `visionBridgeHelpers.ts` — ang resulta ng data
 URI ay ipinapasa sa `normalizeDataUri()`
-(`open-sse/utils/imageNormalize.ts`) bago ito i-embed sa vision-model
-request. Ang mga oversized na imahe ay dinodownscale sa isang **2048px long edge** (katulad
-ng resize cap na inilalapat na ng OpenAI/Anthropic server-side), na nagbabawas ng
-upload bytes/latency nang hindi binabago ang nakikita ng vision model. Ang pag-resize
-ay gumagamit ng `sharp`, na nilo-load sa pamamagitan ng dynamic import: sa isang platform kung saan ang native
-binary nito ay nabigo sa paglo-load, ang `normalizeDataUri()` **ay hindi kailanman nagta-throw** — ito ay nagfa-fallback
-sa isang passthrough ng orihinal na bytes, kaya ang describe/base64-conversion
-path ay laging gumagana. Ang mga non-image bytes (isang fetch na hindi nagbalik ng
-decodable na imahe) ay ipinapasa rin nang hindi nagalaw. Ang normalization na ito ay
-nakatuon sa mga imahe na kinukuha ng bridge para sa sarili nitong self-call — hindi ito
-kailanman inilalapat sa raw passthrough payload ng tumatawag, na naaayon sa
+(`open-sse/utils/imageNormalize.ts`) bago ito isama sa vision-model
+request. Ang mga oversized na imahe ay pinapababa sa isang **2048px long edge** (na tumutugma
+sa resize cap na inilalapat na ng OpenAI/Anthropic sa server-side), na nagpapababa
+ng upload bytes/latency nang hindi binabago kung ano ang nakikita ng vision model. Ang resizing
+ay gumagamit ng `sharp`, na na-load sa pamamagitan ng dynamic import: sa isang platform kung saan ang
+native binary nito ay nabigong mag-load, ang `normalizeDataUri()` **hindi kailanman nag-throw** — bumabalik ito
+sa passthrough ng orihinal na bytes, kaya ang describe/base64-conversion
+path ay palaging patuloy na gumagana. Ang mga non-image bytes (isang fetch na hindi nagbalik ng
+decodable image) ay ipinapasa rin nang hindi nababago. Ang normalization na ito ay
+naka-scope sa mga imahe na kinukuha ng bridge para sa sarili nitong self-call — hindi ito kailanman
+inaangkop sa raw passthrough payload ng caller, na naaayon sa
 opt-in-only mutation principle (Hard Rule #20).
 
 #### Settings schema + migration
 
 Ang mga bagong `modalityBridge*` keys ay Zod-validated sa `updateSettingsSchema`
 (`src/shared/validation/settingsSchemas.ts`): `modalityBridgeVisionEnabled`,
-`modalityBridgeVisionMode`, `modalityBridgeVisionModel`, `modalityBridgeVisionTaskAware`,
-`modalityBridgeVisionPrompt`, `modalityBridgeVisionTimeout`, `modalityBridgeVisionMaxImages`,
+`modalityBridgeVisionMode`, `modalityBridgeVisionModel`,
+`modalityBridgeVisionTaskAware`, `modalityBridgeVisionPrompt`,
+`modalityBridgeVisionTimeout`, `modalityBridgeVisionMaxImages`,
 `modalityBridgeVisionMaxChars`, ang `modalityBridgeCache*` trio, at ang
 `modalityBridgeAudio*` group na ginagamit ng Audio Bridge. Ang migration
-`141_modality_bridge_settings.sql` ay kinokopya ang mga umiiral na legacy
-`visionBridge*` values sa mga katugmang bagong keys (idempotent, hindi kailanman ino-overwrite
-ang isang operator-set `modalityBridge*` value); ang mga legacy keys ay nananatiling tinatanggap bilang isang
+`141_modality_bridge_settings.sql` ay kumokopya ng umiiral na legacy
+`visionBridge*` values sa tumutugmang bagong keys (idempotent, hindi kailanman nag-o-overwrite
+ng operator-set `modalityBridge*` value); ang mga legacy keys ay mananatiling tinatanggap bilang isang
 read fallback para sa isang release cycle.
 
 #### Transparency header + stats
 
-Ang mga describe-transformed na tugon ay may
+Ang mga describe-transformed responses ay nagdadala ng
 `x-omniroute-modality-bridge: image->text;model=<visionModel>;parts=<n>`
-(binuo ng `buildModalityBridgeHeader()` sa `modalityBridge/bridgeStats.ts`,
-nilagyan ng selyo ng `withModalityBridgeHeader()` sa `src/sse/handlers/chatHelpers.ts`).
-Ang mga rerouted na request ay **walang** header — ang payload ay hindi nagalaw at ang
-pagpapalit ng model ay nakikita na sa `model` field ng response body.
+(built by `buildModalityBridgeHeader()` sa `modalityBridge/bridgeStats.ts`,
+stamped by `withModalityBridgeHeader()` sa `src/sse/handlers/chatHelpers.ts`).
+Ang mga rerouted requests ay walang **header** — ang payload ay hindi nabago at ang model
+swap ay nakikita na sa `model` field ng response body.
 
-Ang `GET /api/modality-bridge/stats` (management auth, kaparehong tier ng
+`GET /api/modality-bridge/stats` (management auth, parehong tier bilang
 `GET /api/settings`) ay nagbabalik ng in-memory per-modality counters
 `{ attempts, successes, bridged, cacheHits, failures, totalLatencyMs,
 latencySamples, averageLatencyMs, lastUsedAt }` para sa `vision`, `audio`, at
-`video`. Ang `averageLatencyMs` ay gumagamit ng `latencySamples`, hindi lahat ng attempts, bilang
-denominator nito; ang isang operasyon na walang timing ay hindi gumagawa ng zero-millisecond
+`video`. Ang `averageLatencyMs` ay gumagamit ng `latencySamples`, hindi lahat ng attempts, bilang denominator; ang isang operasyon na walang timing ay hindi gumagawa ng zero-millisecond
 sample. Ang `bridged` ay nananatiling backward-compatible alias para sa matagumpay
-na conversion; ang mga nabigong attempts ay hindi nagpapataas nito.
-Ang mga counter ay nagre-reset sa pag-restart ng proseso sa disenyo
+na conversions; ang mga nabigong attempts ay hindi ito pinapataas.
+Ang mga counter ay nire-reset sa pag-restart ng proseso ayon sa disenyo
 (telemetry, hindi accounting).
 
 #### Dashboard configuration
 
 Ang nakalaang pahina ng dashboard ay
-`/dashboard/settings/modality-bridge`. Ang mga tab nitong `Vision`, `Audio`,
-at `Video` na naa-address sa URL ay pinapanatili ang mga parameter ng query habang binabago ang halaga ng `tab`.
-Ang tab na Vision ay naglalantad ng pagpapagana, mode, pagpili ng modelo (kabilang ang awtomatikong
-default), pag-prompt na may kamalayan sa gawain, mga advanced na limitasyon sa timeout/larawan/haba ng deskripsyon/cache, mga counter ng
-runtime, at isang binabantayang sample na kahilingan. Ang tab na Audio ay live din: naglalantad ito
-ng pagpapagana, isang tagapili ng modelo na STT-only na may Auto, mga limitasyon sa timeout/max-clip, mga counter ng audio, at isang sample na pagsubok ng `input_audio`. Ang tab na Video ay gumagana: nag-uulat ito
+`/dashboard/settings/modality-bridge`. Ang URL-addressable na mga tab na `Vision`, `Audio`,
+at `Video` ay nagpapanatili ng mga query parameter habang pinapalitan ang halaga ng `tab`.
+Ang tab na Vision ay naglalantad ng enablement, mode, pagpili ng modelo (kasama ang awtomatikong
+default), task-aware prompting, advanced timeout/image/description-length/cache
+limits, runtime
+counters, at isang guarded sample request. Ang tab na Audio ay aktibo rin: ito ay naglalantad
+ng enablement, isang STT-only model picker na may Auto, timeout/max-clip limits, audio
+counters, at isang `input_audio` sample test. Ang tab na Video ay functional: ito ay nag-uulat
 ng estado ng runtime ng FFmpeg/ffprobe — isa sa apat na tahasang estado ng UI (`unknown` habang
-isinasagawa ang probe o hindi nakumpleto, `restricted` sa isang non-loopback
-na host ng dashboard kung saan nilaktawan ang probe sa panig ng kliyente, `unavailable` kapag na-probe
-at nakumpirmang nawawala, o `available` kasama ang mga bersyon ng FFmpeg/ffprobe) — pinapanatili
-ang mga limitasyon sa pagpapagana/modelo/frame/video/timeout, sinasala ang tagapili ng modelo sa mga modelong may kakayahang pang-vision,
-at naglalantad ng mga counter ng video.
+ang probe ay nasa flight o hindi nakumpleto, `restricted` sa isang non-loopback
+dashboard host kung saan ang probe ay na-skip sa client-side, `unavailable` kapag na-probe
+at nakumpirmang nawawala, o `available` kasama ang mga bersyon ng FFmpeg/ffprobe) — nagpapanatili
+ng enable/model/frame/video/timeout limits, sinasala ang model picker sa mga vision-capable
+models, at naglalantad ng video counters.
 
-Ang dating Vision Bridge card sa ilalim ng mga setting ng AI ay isang link ng compatibility sa
-bagong pahina; hindi na ito nagmamay-ari ng pangalawang kopya ng form. Ang Media Providers din
-ay nagli-link ng mga workflow ng Image-to-Text at Speech-to-Text sa kaukulang mga tab ng Modality
-Bridge nang hindi inaalis ang kasalukuyang Speech-to-Text playground.
+Ang dating Vision Bridge card sa ilalim ng mga setting ng AI ay isang compatibility link sa
+bagong pahina; wala na itong pangalawang kopya ng form. Ang Media Providers ay nag-uugnay din
+ng Image-to-Text at Speech-to-Text workflows sa mga kaukulang Modality
+Bridge tabs nang hindi inaalis ang umiiral na Speech-to-Text playground.
 
-**Bypass ng pagtanggap sa self-loop:** kapag ang tawag sa paglalarawan ay dumadaan sa sariling `/v1` self-loop ng OmniRoute
-(hindi-standard na modelo ng provider), ang sub-request ay nagpapadala ng
-`x-omniroute-admission-bypass: internal` at na-authenticate gamit ang naresolbang
+**Self-loop admission bypass:** kapag ang describe call ay dumadaan sa sariling `/v1` self-loop ng OmniRoute
+(non-standard provider model), ang sub-request ay nagpapadala ng
+`x-omniroute-admission-bypass: internal` at na-authenticate gamit ang na-resolved
 self-loop credential — ang lokal na `sk_omniroute` sentinel sa lokal na mode, o ang
-operator-configured na `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` env key (#1350) upang
-ang mga deployment na `REQUIRE_API_KEY=true` ay maaari pa ring patakbuhin ang tawag sa paglalarawan. Ang bypass
-ay iginagalang lamang para sa mga eksaktong credential na iyon, kaya hindi maaaring gamitin
-ng mga panlabas na kliyente ang header upang laktawan ang pagtanggap.
+operator-configured na `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` env key (#1350) kaya
+ang `REQUIRE_API_KEY=true` deployments ay maaari pa ring patakbuhin ang describe call. Ang bypass
+ay iginagalang lamang para sa mga eksaktong credential na iyon, kaya ang mga panlabas na kliyente ay hindi
+maaaring gamitin ang header upang laktawan ang admission.
 
-Ang mga lumang default ay matatagpuan sa `src/shared/constants/visionBridgeDefaults.ts`; ang
-mga bagong default ng mode/task-aware/cache at ang settings resolver ay matatagpuan sa
-`src/shared/constants/modalityBridgeDefaults.ts`. Ang guardrail ay naglalantad ng opsyon sa
-constructor na `deps` upang ang mga pagsubok ay maaaring mag-inject ng pekeng `getSettings` at
-`callVisionModel` na implementasyon.
+Ang mga legacy defaults ay nasa `src/shared/constants/visionBridgeDefaults.ts`; ang
+mga bagong mode/task-aware/cache defaults at ang settings resolver ay nasa
+`src/shared/constants/modalityBridgeDefaults.ts`. Ang guardrail ay naglalantad ng isang
+`deps` constructor option upang ang mga pagsubok ay makapag-inject ng pekeng `getSettings` at
+`callVisionModel` implementations.
 
 ### Audio Bridge (`audioBridge.ts`) — Modality Bridge PR-3
 
-Sinusuri ang mga kahilingan sa chat na may dalang audio bago sila makarating sa isang target na hindi
-alam na tumatanggap ng audio input. Hindi kailanman muling iruruta ang kahilingan sa chat: ang mga bahagi ng audio ay
-tinatranscribe sa pamamagitan ng umiiral na OpenAI-compatible multipart endpoint at ang
-napiling modelo ng chat ay nagpapatuloy sa mga text transcript.
+Nagsasagawa ng intercept sa mga audio-bearing chat requests bago sila umabot sa isang target na hindi
+alam na tumatanggap ng audio input. Hindi nito nire-route ang chat request: ang mga audio parts ay
+naka-transcribe sa pamamagitan ng umiiral na OpenAI-compatible multipart endpoint at ang
+napiling chat model ay nagpapatuloy gamit ang mga text transcripts.
 
 Daloy:
 
-1.  I-resolve ang `supportsAudio` sa pamamagitan ng `getResolvedModelCapabilities()`. Ang tahasang
-    metadata ng provider-registry ang mananalo, pagkatapos ay ang static na metadata ng modelo, pagkatapos ay ang naka-sync na
-    `modalities_input`. Ang isang idineklarang listahan ng input na walang `audio` ay `false`; walang
-    ebidensya ng kakayahan ang nananatiling `null`. Parehong `false` at `null` ang nagpapagana sa
-    konserbatibong tulay, habang ang `true` ay nilalaktawan ito.
-2.  I-resolve ang mga setting ng `modalityBridgeAudio*` at kunin ang mga spliceable na top-level na bahagi ng audio
-    mula sa bawat mensahe sa pamamagitan ng shared `detectMediaParts()` detector. Ang mga sinusuportahang
-    wire shape ay OpenAI `input_audio`, `audio_url`, at `source.media_type: "audio/*"`. Ang nested audio ay
-    natutukoy para sa pagruruta ngunit hindi inaalis ng splice path. Ang trabaho ay limitado ng `modalityBridgeAudioMaxClips`;
-    ang mga huling bahagi ay nananatiling hindi nagalaw.
-3.  Igalang ang isang naka-configure na `provider/model`, o hayaan ang `selectAudioBridgeModel()` na dumaan
-    sa `AUDIO_TRANSCRIPTION_PROVIDERS` sa stable na pagkakasunud-sunod ng catalog at piliin ang unang
-    modelo na may magagamit na aktibong credential ng provider.
-4.  Ang `callAudioTranscription()` ay nagko-convert ng base64/data-URI audio sa isang multipart `file`,
-    o nagda-download ng remote na `audio_url` sa pamamagitan ng public-only outbound guard na may DNS pinning at
-    25 MB na limitasyon. Pagkatapos ay nagpo-POST ito ng file at napiling modelo sa lokal na
-    `/v1/audio/transcriptions` self-loop, na-authenticate gamit ang `resolveSelfLoopBearer()`. Ang umiiral na
-    ruta ng transkripsyon ay nagsasagawa ng normal na paghahanap ng credential, paghawak ng cooldown/rate-limit, at pagpapadala ng provider.
-5.  Ang mga matagumpay na tawag ay pinapalitan ang kanilang mga bahagi ng `[Audio N]: <transcript>`. Ang mga tawag
-    ay tumatakbo gamit ang `Promise.allSettled`: ang isang indibidwal na pagkabigo ay pinapanatili ang orihinal na bahagi ng audio na iyon (#4012 contract). Kung nabigo ang bawat tawag at ang target ay napatunayang
-    `supportsAudio === false`, ang mga bahagi ay magiging
-    `[Audio N]: (unavailable — no STT provider connected)` (#8430 contract). Para
-    sa isang hindi kilalang target (`null`), ang isang resulta ng lahat ng pagkabigo ay nananatiling hindi nagalaw. Ang isang napatunayang
-    text-only na target na walang magagamit na STT credential ay tumatanggap ng parehong tahasang
-    stub nang hindi naglalabas ng network call.
+1. I-resolve ang `supportsAudio` sa pamamagitan ng `getResolvedModelCapabilities()`. Ang tahasang
+   provider-registry metadata ang mananaig, pagkatapos ay static model metadata, pagkatapos ay synced
+   `modalities_input`. Ang isang idineklarang input list na walang `audio` ay `false`; walang
+   ebidensya ng kakayahan ay mananatiling `null`. Parehong `false` at `null` ay nag-activate sa
+   conservative bridge, habang ang `true` ay lumalaktaw dito.
+2. I-resolve ang `modalityBridgeAudio*` settings at kunin ang spliceable top-level
+   audio parts mula sa bawat mensahe sa pamamagitan ng shared `detectMediaParts()`
+   detector. Ang mga suportadong wire shapes ay OpenAI `input_audio`, `audio_url`, at
+   `source.media_type: "audio/*"`. Ang nested audio ay nadedetect para sa routing ngunit hindi
+   tinatanggal ng splice path. Ang trabaho ay nakatakda sa `modalityBridgeAudioMaxClips`;
+   ang mga susunod na bahagi ay mananatiling hindi nababago.
+3. I-honor ang isang naka-configure na `provider/model`, o hayaan ang `selectAudioBridgeModel()` na maglakbay
+   sa `AUDIO_TRANSCRIPTION_PROVIDERS` sa stable catalog order at piliin ang unang
+   modelo na may magagamit na aktibong provider credential.
+4. Ang `callAudioTranscription()` ay nagko-convert ng base64/data-URI audio sa isang multipart
+   `file`, o nagda-download ng remote `audio_url` sa pamamagitan ng public-only outbound
+   guard na may DNS pinning at isang 25 MB bound. Pagkatapos ay ipinapadala nito ang file at napiling
+   modelo sa lokal na `/v1/audio/transcriptions` self-loop, na na-authenticate gamit ang
+   `resolveSelfLoopBearer()`. Ang umiiral na transcription route ay nagsasagawa ng normal
+   credential lookup, cooldown/rate-limit handling, at provider dispatch.
+5. Ang matagumpay na tawag ay pinapalitan ang kanilang mga bahagi ng `[Audio N]: <transcript>`. Ang mga tawag
+   ay tumatakbo gamit ang `Promise.allSettled`: ang isang indibidwal na pagkabigo ay nagpapanatili ng orihinal na
+   audio part (#4012 contract). Kung ang bawat tawag ay nabigo at ang target ay napatunayan
+   `supportsAudio === false`, ang mga bahagi ay nagiging
+   `[Audio N]: (unavailable — no STT provider connected)` (#8430 contract). Para sa
+   isang hindi kilalang target (`null`), ang lahat ng pagkabigo ay nananatiling hindi nababago. Ang isang napatunayang
+   text-only target na walang magagamit na STT credential ay tumatanggap ng parehong tahasang
+   stub nang hindi naglalabas ng network call.
 
-Ang mga matagumpay na transcript ay gumagamit ng process-wide Modality Bridge LRU/TTL cache. Ang
-key ay pinagsasama ang audio reference, ang stable na label ng operasyon na `audio-transcription`,
-at ang napiling modelo ng STT; ang mga pagkabigo ay hindi kailanman naka-cache. Ang mga pagtatangka sa audio ay nag-a-update
-ng shared na `bridged`, `cacheHits`, `failures`, at `lastUsedAt` na mga counter.
-Ang mga binagong tugon ay nagdadala ng
-`x-omniroute-modality-bridge: audio->text;model=<sttModel>;parts=<n>`; ang mga hindi nagalaw
-na kahilingan ay hindi tumatanggap ng segment ng Audio Bridge.
+Ang matagumpay na transcripts ay gumagamit ng process-wide Modality Bridge LRU/TTL cache. Ang
+key ay pinagsasama ang audio reference, ang stable na `audio-transcription` operation
+label, at napiling STT model; ang mga pagkabigo ay hindi kailanman naka-cache. Ang mga audio attempts ay nag-a-update
+ng shared `bridged`, `cacheHits`, `failures`, at `lastUsedAt` counters.
+Ang mga na-transform na responses ay nagdadala ng
+`x-omniroute-modality-bridge: audio->text;model=<sttModel>;parts=<n>`; ang mga untouched
+requests ay hindi tumatanggap ng Audio Bridge segment.
 
-Ang mga setting ng runtime ay naka-back sa DB at Zod-validated:
+Ang mga runtime settings ay DB-backed at Zod-validated:
 
 | Key                           | Default | Range         |
 | ----------------------------- | ------- | ------------- |
@@ -286,142 +290,260 @@ Ang shared cache ay nananatiling kontrolado ng `modalityBridgeCacheEnabled`,
 
 ### Video Bridge (`videoBridge.ts`, `videoBridgePipeline.ts`)
 
-Sinusuri ang mga top-level na bahagi ng video sa `messages` ng Chat Completions at `input` ng Responses API bago tawagin ang isang target na walang kilalang native na suporta sa video. Ang mga sinusuportahang hugis ay `input_video`, `video_url`, `video_source`, HTTPS URLs, at `data:video/*;base64,...` data URIs. Ang mga simpleng filename sa text ay hindi itinuturing na video.
+Intercepts top-level video parts in Chat Completions `messages` at mga Responses
+API `input` bago tawagin ang isang target na walang kilalang katutubong suporta sa video.
+Ang mga suportadong anyo ay `input_video`, `video_url`, `video_source`, HTTPS URLs,
+at `data:video/*;base64,...` data URIs. Ang mga simpleng filename sa teksto ay hindi itinuturing
+bilang video.
 
-`VideoBridgeGuardrail.preCall` (`videoBridge.ts`) ang may hawak ng pagtawid ng kahilingan, ang pagsusuri ng kakayahan/patakaran, pag-iipon bawat kahilingan, at ang response payload. Ang trabaho bawat video — pagkuha, ang cache ng buong resulta, paglalarawan ng sequence ng frame (na nagsasama ng anumang audio transcript na idineklara ng tumatawag), at mga sukatan/pagkansela/paglilinis bawat pagtatangka — ay nakatago sa likod ng `processVideoPart` sa `videoBridgePipeline.ts`, na tinatawag nang isang beses bawat bahagi ng video sa loob ng loop ng `preCall`. Ang module na iyon ay nagtatakda rin ng mga tahasang hangganan ng port na `VideoMediaBrokerPort` (pagkuha ng bytes at pagkuha ng mga sampled frame), `VideoAudioTranscriptionPort` (pagsasama ng audio transcript na idineklara ng tumatawag sa mga sampled caption), at `VideoDrilldownPort` (ang hangganan ng pagpapanatili ng frame drill-down; hindi pa nakakonekta sa `processVideoPart` — tanging ang hiwalay na `/api/modality-bridge/video/drilldown` route lamang ang nagsusulat ng mga drill-down entry ngayon).
+`VideoBridgeGuardrail.preCall` (`videoBridge.ts`) ang may-ari ng request traversal, ang
+capability/policy check, per-request aggregation, at ang response payload.
+Per-video work — acquisition, ang whole-result cache, paglalarawan ng isang frame
+sequence (na pinagsasama ang anumang caller-declared audio transcript), at per-attempt
+metrics/abort/cleanup — ay nakatago sa likod ng `processVideoPart` sa
+`videoBridgePipeline.ts`, na tinatawag isang beses sa bawat bahagi ng video sa loob ng loop ng `preCall`.
+Ang module na iyon ay nagtatakda rin ng mga tiyak na hangganan ng port `VideoMediaBrokerPort`
+(pagkuha ng bytes at pagkuha ng sampled frames), `VideoAudioTranscriptionPort`
+(pagsasama ng isang caller-declared audio transcript sa mga sampled captions), at
+`VideoDrilldownPort` (ang legacy raw-store shape). Ang production STT at frame retention
+ay binubuo sa paligid ng naglalarawang port sa pamamagitan ng `createVideoSttAdapter` at
+`createVideoDrilldownAdapter`; ang huli ay gumagamit ng shared opaque-handle lifecycle.
 
-Ang pampublikong `/v1` request path ay hindi kailanman nag-i-import o nagpapatawag ng subprocess. Ang mga remote na video ay dina-download sa ilalim ng limitasyong 50 MiB; ang mga inline na base64 na video ay may konserbatibong 36 MiB na decoded per-video cap upang ang model/messages/framing envelope ay manatili sa loob ng pampublikong JSON request admission limit na 50 MiB. Ang inline na haba at mga pagtatantya ng decoded-size ay sinusuri bago ang alokasyon. Kinakailangan ang HTTPS sa paunang remote URL at sa bawat redirect, gamit ang umiiral na public-only outbound guard na may DNS pinning. Ang mga bytes ay tumatawid sa eksaktong internal na `POST /api/modality-bridge/video/extract` broker boundary. Ang route na iyon ay parehong `LOCAL_ONLY` at `SPAWN_CAPABLE`, tumatanggap lamang ng per-process authenticated, trusted-loopback request, at hindi kailanman tumatanggap ng URL, filesystem path, executable, o listahan ng argumento. Ang API body-size pipeline at ang incremental body reader ng handler ay independiyenteng nagpapatupad ng 50 MiB broker input cap. Ang bounded queue nito ay nagpapatakbo ng isang extraction sa isang pagkakataon, nagpapahintulot ng apat na nakabinbing trabaho, at nililimitahan ang nakabinbing input sa 100 MiB.
+Ang pampublikong `/v1` request path ay hindi kailanman nag-iimport o nag-iinvoke ng subprocess. Ang mga remote
+na video ay dinownload sa ilalim ng 50 MiB na limitasyon; ang inline base64 na mga video ay may
+konserbatibong 36 MiB na decoded per-video cap upang ang modelo/mga mensahe/framing envelope
+ay maaaring manatili sa loob ng pampublikong JSON request admission limit na 50 MiB. Ang inline
+length at decoded-size estimates ay sinusuri bago ang allocation. HTTPS ay
+kinakailangan sa paunang remote URL at bawat redirect, gamit ang umiiral na
+public-only outbound guard na may DNS pinning. Ang mga bytes ay tumatawid sa eksaktong internal
+`POST /api/modality-bridge/video/extract` broker boundary. Ang ruta na iyon ay parehong
+`LOCAL_ONLY` at `SPAWN_CAPABLE`, tumatanggap lamang ng isang per-process authenticated,
+trusted-loopback request, at hindi kailanman tumatanggap ng URL, filesystem path, executable,
+o argument list. Ang API body-size pipeline at ang incremental body reader ng handler
+ay independiyenteng nagpapatupad ng 50 MiB broker input cap. Ang nakabound na queue nito ay tumatakbo
+ng isang extraction sa isang pagkakataon, pinapayagan ang apat na pending jobs, at naglalagay ng cap sa pending input sa
+100 MiB.
 
-Sa loob ng broker, binabasa ng `ffprobe` ang isang pribadong lokal na file; ang fixed format allowlist ay hindi kasama ang mga playlist at manifest format. Para sa mga pinahihintulutang MOV-family container, ang mga external na MOV data reference ay nananatiling disabled bilang default, at ang fixed command ay hindi pumipili sa mga ito. Parehong ginagamit ng `ffprobe` at `ffmpeg` ang `file`-only protocol whitelist, isang thread, fixed argument arrays, walang shell, at mga executable na niresolba mula sa `PATH`. Ang mga attached-picture cover stream ay hindi mga playable na kandidato. Lahat ng playable stream ay dapat sumunod sa mga limitasyon, at isang tahasang default stream ang mas pinipili bago ang deterministic lowest-index fallback. Ang mga video ay limitado sa 600 segundo, 8,192 pixels bawat dimensyon, at 33,554,432 source pixels. Ang FFmpeg ay nagsa-sample ng 1–16 midpoint JPEG frames, binabawasan ang mahabang gilid sa maximum na 1,024 pixels nang walang upscaling ng mas maliliit na input, at hindi kailanman tumatanggap ng URL. Ang sampling ay `uniform` bilang default. Ang opsyonal na `scene_aware` at eksperimental na `segment_aware` na mga patakaran ay nagsasagawa ng isang karagdagang fixed FFmpeg pass sa na-validate nang lokal na stream, pumipili ng bounded `showinfo` scene timestamps, at bumabalik nang deterministically sa parehong uniform midpoints sa pagkabigo ng detector, timeout, malformed output, o isang walang laman na candidate set. Ang segment-aware mode ay naglalaan ng midpoint samples nang proporsyonal sa mga na-validate na scene interval; ang segment-aware na ebidensya at fallback behavior ay detalyado sa ibaba. Ang hard 16-frame cap ay inilalapat pagkatapos ng pagpili sa bawat patakaran. Kapag ang isang scene-aware na kahilingan ay mayroon lamang isang frame na budget, ginagamit nito ang uniform midpoint ng aktibong full-video o focus window at nag-uulat ng `policyEffective: uniform`: ang isang napiling scene frame ay hindi kayang panatilihin ang parehong temporal na dulo. Ang isang tumatawag ay maaaring opsyonal na magbigay ng isang finite focus window (`start`/`end` seconds); ang mga hangganan ay naka-clamp sa media duration, ang mga reversed o non-finite na window ay tinatanggihan, at lahat ng sampling policy ay isinasagawa lamang sa loob ng normalized interval. Ang nagreresultang window ay kasama sa sampling metadata at sa untrusted description prefix upang ang mga downstream na modelo ay makilala ang isang nakatutok na excerpt mula sa buong timeline.
+Sa loob ng broker, `ffprobe` ay nagbabasa ng isang pribadong lokal na file; ang fixed format
+allowlist ay nag-eexclude ng playlist at manifest formats. Para sa pinapayagang MOV-family
+containers, ang external MOV data references ay nananatiling hindi pinagana sa default, at ang
+fixed command ay hindi nag-oopt in sa kanila. Parehong `ffprobe` at `ffmpeg` ay gumagamit ng
+`file`-only protocol whitelist, isang thread, fixed argument arrays, walang shell,
+at mga executable na nalutas mula sa `PATH`. Ang mga attached-picture cover streams ay hindi
+maaaring maging playable candidates. Lahat ng playable streams ay dapat sumunod sa mga limitasyon, at isang
+explicit default stream ang pinapaboran bago ang deterministic lowest-index
+fallback. Ang mga video ay limitado sa 600 segundo, 8,192 pixels bawat dimensyon, at
+33,554,432 source pixels. Ang FFmpeg ay kumukuha ng 1–16 midpoint JPEG frames, pinapaliit ang
+mahahabang gilid sa pinakababa ng 1,024 pixels nang hindi nag-uupscale ng mas maliliit na inputs, at
+hindi kailanman tumatanggap ng URL. Ang sampling ay `uniform` sa default. Ang opsyonal na
+`scene_aware` at experimental na `segment_aware` policies ay nagsasagawa ng isang karagdagang
+fixed FFmpeg pass sa na-validate na lokal na stream, pumipili ng bounded
+`showinfo` scene timestamps, at bumabalik nang deterministic sa parehong
+uniform midpoints sa pagkabigo ng detector, timeout, maling output, o isang walang laman
+na candidate set. Ang segment-aware mode ay nag-aallocate ng midpoint samples nang proporsyonal sa
+validated scene intervals; ang segment-aware evidence at fallback behavior ay
+detalyado sa ibaba. Ang hard 16-frame cap ay
+ipinapataw pagkatapos ng pagpili sa bawat policy. Kapag ang isang scene-aware request ay may
+isang one-frame budget lamang, ginagamit nito ang uniform midpoint ng aktibong full-video o focus
+window at nag-uulat ng `policyEffective: uniform`: isang napiling scene frame
+ay hindi maaaring mapanatili ang parehong temporal ends. Ang isang caller ay maaaring opsyonal na magbigay ng
+isang finite focus window (`start`/`end` seconds); ang mga hangganan ay nakatakda sa media
+duration, ang mga reversed o non-finite windows ay tinatanggihan, at lahat ng sampling
+policies ay isinasagawa lamang sa loob ng normalized interval. Ang resulting
+window ay kasama sa sampling metadata at sa untrusted description
+prefix upang ang downstream models ay makapag-iba ng isang focused excerpt mula sa buong
+timeline.
 
-Ang semantic caption focus ay isang hiwalay, tahasang setting. Ang default na `full` analysis mode ay nagpapanatili ng umiiral na frame prompt at hindi kailanman nagpapasa ng request text sa caption model. Sa `focused` mode, binabasa lamang ng bridge ang pinakabagong non-empty na `text`/`input_text` na isinulat ng user mula sa parehong Chat o Responses container, nino-normalize ito sa NFC, pinagsasama ang mga control character at whitespace, at nililimitahan ito sa 500 Unicode code points. Ang isang walang laman na resulta ay bumabalik sa eksaktong `full` prompt. Ang isang magagamit na pahiwatig ay sineserye bilang JSON sa isang dedikadong untrusted-user-context block at maaaring unahin lamang ang mga nakikitang detalye; hindi nito kayang i-override ang hiwalay na babala laban sa pagsunod sa mga tagubilin na nakikita o naririnig sa media. Ang textual focus ay hindi kailanman nagpapahiwatig ng `start`/`end` o nagbabago ng temporal sampler.
+Ang semantic caption focus ay isang hiwalay, explicit na setting. Ang default na `full`
+analysis mode ay nagpapanatili ng umiiral na frame prompt at hindi kailanman ipinapasa ang request
+text sa caption model. Sa `focused` mode, ang bridge ay nagbabasa lamang ng pinakabago
+na non-empty user-authored `text`/`input_text` mula sa parehong Chat o Responses
+container, normalizes ito sa NFC, pinagsasama ang control characters at whitespace,
+at nililimitahan ito sa 500 Unicode code points. Ang isang walang laman na resulta ay bumabalik sa
+eksaktong `full` prompt. Ang isang magagamit na hint ay serialized bilang JSON sa isang nakalaang
+untrusted-user-context block at maaaring mag-prioritize lamang ng observable details; hindi ito
+maaaring mag-override sa hiwalay na babala laban sa pagsunod sa mga tagubilin na nakikita
+o naririnig sa media. Ang textual focus ay hindi kailanman nag-iinfer ng `start`/`end` o nagbabago
+sa temporal sampler.
 
-#### FU-07 ebidensya ng structural segment
+#### FU-07 structural segment evidence
 
-Gumagamit ang `segment_aware` ng isang bounded pre-analysis pass sa na-validate nang lokal na video stream. Ang fixed filter chain ay unang nag-i-scale sa maximum na 320 pixels ang lapad, nakakakita ng mga pagbabago sa eksena at mga frozen na interval, pagkatapos ay nagsa-sample sa 1 frame bawat segundo para sa blur, average luma, at spatial/temporal na impormasyon. Ang pass ay limitado sa 600 structural samples, isang FFmpeg/filter thread, ang parehong `file`-only protocol at container allowlists, isang 1 MiB process-output bound, at maximum na 30 segundo sa loob ng shared abort/deadline ng broker. Hindi ito kailanman tumatanggap ng command, filter, path, o URL mula sa kahilingan.
+`segment_aware` ay gumagamit ng isang bounded pre-analysis pass sa na-validate
+na lokal na video stream. Ang fixed filter chain ay unang nag-scale sa pinakababa ng 320 pixels
+wide, nag-detect ng mga pagbabago sa scene at frozen intervals, pagkatapos ay kumukuha ng 1 frame bawat
+segundo para sa blur, average luma, at spatial/temporal information. Ang pass ay
+nililimitahan sa 600 structural samples, isang FFmpeg/filter thread, ang parehong
+`file`-only protocol at container allowlists, isang 1 MiB process-output bound,
+at sa pinakababa ng 30 segundo sa loob ng shared abort/deadline ng broker. Hindi ito kailanman
+tumatanggap ng command, filter, path, o URL mula sa request.
 
-Ang mga structural value ay deterministic sampling evidence, hindi semantic video understanding. Hindi nila hinuhulaan ang mga paksa, aksyon, caption, pananalita, o intensyon ng user. Ang mga hangganan ng eksena at freeze ay bumubuo ng mga segment; ang freeze coverage, blur, exposure, spatial detail, at temporal change ay nakakaimpluwensya lamang kung paano inilalaan ang kasalukuyang 1–16 frame budget. Ang isang ganap na frozen na segment ay limitado sa isang frame, habang ang mga non-frozen na segment ay naglalaban para sa natitirang budget. Kapag mas marami ang mga hangganan kaysa sa mga frame, pinapanatili ang pare-parehong timeline coverage upang hindi maitago ng mabilis na maagang pagputol ang isang mahabang trailing segment. Ang mga hangganan ng eksena sa loob ng 1-segundong resolution ng pagsusuri ng isang freeze boundary ay pinagsasama.
+Ang mga estruktural na halaga ay deterministic sampling evidence, hindi semantic video understanding. Hindi nila pinapalagay ang mga paksa, aksyon, caption, pagsasalita, o intensyon ng gumagamit. Ang mga hangganan ng eksena at freeze ay bumubuo ng mga segment; ang freeze coverage, blur, exposure, spatial detail, at temporal change ay nakakaapekto lamang sa kung paano inilalaan ang umiiral na 1–16 frame budget. Ang isang ganap na frozen na segment ay nakatakdang maging isang frame, habang ang mga non-frozen na segment ay nakikipagkumpitensya para sa natitirang budget. Kapag ang mga hangganan ay mas marami kaysa sa mga frame, ang uniform timeline coverage ay pinanatili upang ang mabilis na maagang cuts ay hindi makapagtagong ng isang mahabang trailing segment. Ang mga hangganan ng eksena sa loob ng 1-segundong analysis resolution ng isang freeze boundary ay pinagsasama-sama.
 
-Ang mga nawawalang filter, malformed/empty evidence, error sa detector, o ang bounded pre-analysis timeout ay nagiging sanhi ng pagkabigo sa eksaktong uniform midpoint policy. Ang pag-abort ng caller o deadline ng broker ay hindi nagiging sanhi ng pagkabigo: tinatapos nito ang in-flight subprocess, pinipigilan ang pagkuha ng mga frame sa huli, at ang pribadong temporary tree ay tinatanggal sa `finally`.
+Ang mga nawawalang filter, maling anyo/empty evidence, isang error sa detector, o ang bounded pre-analysis timeout ay nabibigo sa eksaktong uniform midpoint policy. Ang isang caller abort o broker deadline ay hindi nabibigo sa bukas: tinatapos nito ang in-flight subprocess, pinipigilan ang susunod na frame extraction, at ang pribadong pansamantalang puno ay tinatanggal sa `finally`.
 
-Ang `scripts/perf/video-bridge-fu07-eval.ts` ay bumubuo ng deterministic real FFmpeg fixtures para sa post-dedup caption-call savings, dense-motion budget allocation, blur/exposure/SI-TI evidence, mabilis na pagputol na may mahabang buntot, at gradual-fade false positives. Itinatala nito ang pre-analysis wall time at, kung saan available ang `/usr/bin/time`, ang child CPU at peak RSS. Ang mga pagsusuri sa kalidad nito ay structural oracles lamang. Ang kalidad ng real caption-model ay nananatiling `HOLD` dahil ang harness na ito ay walang awtorisadong endpoint o frozen judge. Ang monetary savings ay nananatili ring `HOLD` maliban kung ang `--caption-cost-per-call-usd` ay nagbibigay ng isang malinaw na positibong per-call estimate; hindi kailanman gumagawa ang script ng alinman sa mga resulta.
+`scripts/perf/video-bridge-fu07-eval.ts` ay bumubuo ng deterministic real FFmpeg fixtures para sa post-dedup caption-call savings, dense-motion budget allocation, blur/exposure/SI-TI evidence, rapid cuts na may mahabang tail, at gradual-fade false positives. Ito ay nagtatala ng pre-analysis wall time at, kung saan ang `/usr/bin/time` ay available, child CPU at peak RSS. Ang mga quality checks nito ay structural oracles lamang. Ang tunay na caption-model quality ay nananatiling `HOLD` dahil ang harness na ito ay walang awtorisadong endpoint o frozen judge. Ang mga monetary savings ay nananatiling `HOLD` maliban kung ang `--caption-cost-per-call-usd` ay nagbibigay ng isang tahasang positibong per-call estimate; ang script ay hindi kailanman gumagawa ng alinman sa mga resulta.
 
-Ang bawat frame ay limitado sa 4 MiB, ang lahat ng raw frames nang magkasama ay sa 23 MiB, at ang serialized broker response ay sa 32 MiB. Ang isang pribadong temporary directory ay tinatanggal sa `finally`. Hindi kasama ng OmniRoute ang FFmpeg at hindi tumatanggap ng custom executable path. Bago ang captioning, inilalapat ng bridge ang isang konserbatibong visual deduplication pass: ang bawat JPEG ay binabawasan sa isang 16×16 grayscale buffer at inihahambing lamang sa huling frame na napanatili. Para sa isang hiniling na caption budget na higit sa isang frame, ang pagkuha ay nagbibigay ng isang bounded candidate pool na hanggang dalawang beses ng budget na iyon at hindi hihigit sa 16 na frame. Ang hiniling na cap ay inilalapat lamang pagkatapos ng deduplication, kasama ang una at huling napiling kandidato na pinapanatili sa panahon ng final thinning kapag ang budget ay hindi bababa sa dalawa. Ang versioned `grayscale-16x16-mean-cells-v2` policy ay gumagamit ng mas malaki sa mean luma delta at ang ratio ng thumbnail cells na ang normalized delta ay hindi bababa sa 0.05. Ang duplicate threshold ay ang constant na 0.04, pinili para sa predictability sa halip na ilantad bilang isang runtime setting. Ang pangalawang high-contrast signal na ito ay nagpapanatili ng maliit na galaw at mga pagbabago sa nakikitang teksto na maaaring itago ng mean-only na paghahambang. Ang mga error sa comparator o decoder ay nagiging sanhi ng pagkabigo at pinapanatili ang coverage. Ang output metadata ay naghihiwalay ng mga extracted candidate, matagumpay na nagamit na frame, at mga visual duplicate na ibinaba.
+Bawat frame ay limitado sa 4 MiB, lahat ng raw frames ay sama-samang 23 MiB, at ang serialized broker response ay 32 MiB. Ang isang pribadong pansamantalang direktoryo ay tinatanggal sa `finally`. Ang OmniRoute ay hindi nagbubundok ng FFmpeg at hindi tumatanggap ng custom executable path. Bago ang captioning, ang tulay ay nag-aaplay ng isang konserbatibong visual deduplication pass: bawat JPEG ay binabawasan sa isang 16×16 grayscale buffer at ikinumpara lamang sa huling frame na napanatili. Para sa isang hiniling na caption budget na higit sa isang frame, ang extraction ay nagbibigay ng isang bounded candidate pool ng hanggang dalawang beses na budget na iyon at hindi kailanman higit sa 16 frames. Ang hiniling na cap ay inilalapat lamang pagkatapos ng deduplication, kasama ang unang at huling napiling kandidato na pinanatili sa panahon ng huling thinning kapag ang budget ay hindi bababa sa dalawa. Ang versioned `grayscale-16x16-mean-cells-v2` policy ay gumagamit ng mas malaki sa mean luma delta at ang ratio ng thumbnail cells na ang normalized delta ay hindi bababa sa 0.05. Ang duplicate threshold ay ang constant na 0.04, na pinili para sa predictability sa halip na ilantad bilang isang runtime setting. Ang pangalawang high-contrast signal na ito ay nagpapanatili ng maliit na paggalaw at mga pagbabago sa nakikitang teksto na maaaring itago ng mean-only comparison. Ang mga error sa comparator o decoder ay nabibigo sa bukas at pinapanatili ang coverage. Ang output metadata ay naghihiwalay ng mga extracted candidates, matagumpay na ginamit na frames, at mga visual duplicates na tinanggal.
 
-Ang isang malinaw na minarkahang bahagi ng video ay maaaring humiling ng timestamped contact sheet. Ang bridge ay bumubuo ng pinakamataas na 4-column, 16-frame na JPEG grid. Ang bawat 512-pixel cell ay naglalagay ng source timestamp nito sa isang high-contrast bottom band, habang ang parehong mga timestamp ay nananatili sa textual metadata para sa downstream association at audit. Ang kumpletong JPEG ay nananatiling limitado sa 32 MiB. Kung hindi kayang i-decode o i-compose ng `sharp` ang grid, bumabalik ang bridge sa mga indibidwal na JPEG frame; ang pag-abort ng client ay kumakalat pa rin sa operasyon ng sheet.
+Ang isang tahasang minarkahang bahagi ng video ay maaaring humiling ng isang timestamped contact sheet. Ang tulay ay bumubuo ng hindi hihigit sa isang 4-column, 16-frame JPEG grid. Bawat 512-pixel cell ay nag-uukit ng source timestamp nito sa isang high-contrast bottom band, habang ang parehong timestamps ay nananatili sa textual metadata para sa downstream association at audit. Ang kumpletong JPEG ay nananatiling nakatakdang 32 MiB. Kung ang `sharp` ay hindi makapag-decode o makapag-compose ng grid, ang tulay ay bumabalik sa mga indibidwal na JPEG frames; ang isang client abort ay patuloy na kumakalat sa operasyon ng sheet.
 
-Ang promotion evidence ay sadyang hiwalay sa synthetic composition microbenchmark. Ang `scripts/perf/video-bridge-contact-sheet-eval.ts` ay nagtatakda ng isang schema-versioned A/B harness para sa mga real OpenAI-compatible vision model. Sinusukat nito ang provider-reported tokens, end-to-end wall latency (kasama ang sheet composition), model-call count, at manifest-defined fact retention. Ang mga raw model response ay hindi isinusulat sa ulat; tanging ang SHA-256 digests at matched fact IDs lamang ang pinapanatili. Ang harness ay hindi gumagawa ng network o bayad na model call maliban kung ipinasa ang `--execute-real` at naka-configure ang `--model`, `OMNIROUTE_BASE_URL`, at `OMNIROUTE_API_KEY`. Kung walang malinaw na real run na iyon, ang machine-readable verdict nito ay nananatiling `HOLD`; ang synthetic payload/call-count measurements lamang ay hindi promotion evidence.
+Ang promotion evidence ay tahasang hiwalay mula sa synthetic composition microbenchmark. `scripts/perf/video-bridge-contact-sheet-eval.ts` ay nagtatakda ng isang schema-versioned A/B harness para sa tunay na OpenAI-compatible vision models. Sinusukat nito ang provider-reported tokens, end-to-end wall latency (kasama ang sheet composition), model-call count, at manifest-defined fact retention. Ang mga raw model responses ay hindi isinusulat sa ulat; tanging SHA-256 digests at mga matched fact IDs ang pinanatili. Ang harness ay walang network o paid model call maliban kung ang `--execute-real` ay ipinasa at ang `--model`, `OMNIROUTE_BASE_URL`, at `OMNIROUTE_API_KEY` ay na-configure. Nang walang tahasang tunay na run, ang machine-readable verdict nito ay nananatiling `HOLD`; ang synthetic payload/call-count measurements lamang ay hindi promotion evidence.
 
-Maaaring maglakip ang mga caller ng isang opsyonal na `transcript.cues` array sa isang sinusuportahang bahagi ng video kapag mayroon na silang aligned text. Ang bawat cue ay dapat maglaman ng `text`, isang finite `start`/`end` interval sa loob ng probed duration, at isang whitelisted `source` (`client`, `embedded`, o `audio-bridge`); ang `confidence` ay nagde-default sa `1` at dapat manatili sa pagitan ng `0` at `1`. Ang eksaktong duplicate cues ay pinagsasama. Hindi kailanman sinisimulan ng OmniRoute ang transcription mula sa metadata na ito: ang mga validated cue ay kinokopya sa inilarawang resulta kasama ang source, confidence, at interval, at ipinapakita bilang untrusted observations kasama ng mga frame caption. Ang invalid, out-of-range, o provenance-free na teksto ay tinatanggihan sa halip na ihalo sa caption stream. Ang `source` field ay kasalukuyang caller-declared, hindi server-verified: ipinapatupad ng OmniRoute na ang halaga ay isa sa tatlong pinahihintulutang string, ngunit hindi pa nito cryptographically kinukumpirma na ang isang `embedded` o `audio-bridge` label ay talagang nagmula sa isang server-owned extraction. Ituring ang `source` bilang isang untrusted hint hanggang sa dumating ang pag-verify na iyon; huwag bumuo ng mga desisyon sa awtorisasyon batay dito.
+Ang hiwalay na `scripts/perf/video-bridge-promotion-eval.ts` ay kumokonsumo ng FU-07 o FU-09 observations. Ang promotion admission ay nangangailangan ng lahat ng walong synthetic scenario kinds kasama ang isang sanitized real clip, hindi bababa sa tatlong nasusukat na repetitions bawat role at case, lahat ng sampung idineklarang metrics, frozen media/prompt/expected-fact/settings digests, natatanging observation IDs at verified seeded A/B order. Ang execution receipt ay nag-uugnay sa corpus digest, eksaktong candidate SHA at model revision. Ang mga nawawalang o hindi wastong sukat ay nananatiling `HOLD`, kasama ang CPU na higit sa 30 s, peak RSS na higit sa 512 MiB o pre-analysis na higit sa 30 s. Ang mga ito ay mga evidence-admission caps, hindi isang bagong runtime RSS enforcement guarantee.
 
-Ang isang advanced na tumatawag ay maaaring magbigay ng isang `audioTranscript` track na awtorisado na para sa parehong video. Ang fusion seam ay nagpapatakbo ng mga visual at audio na obserbasyon sa ilalim ng isang deadline at abort signal, inaayos ang mga ito sa isang karaniwang timeline, pinagsasama ang eksaktong mga duplicate, at nag-uulat ng isang bahagyang resulta kapag isang panig lamang ang nagtagumpay. Ang isang invalid na `audioTranscript` ay bumababa sa bahagyang resultang iyon — ang visual na paglalarawan ay pinananatili at ang audio branch ay nagtatala ng isang sanitized failure code — sa halip na ipagpalya ang buong video. Ang per-branch availability, ang partial flag, at ang mga sanitized failure code ay pinananatili sa inilarawang resulta, sa guardrail metadata (`audioFusionRuns`/`audioFusionPartials`/`audioFusionFailureCodes`), sa result-cache metadata, at sa bridge fusion counters. Ang default na path ng Video Bridge ay hindi nagpapagana ng speech-to-text o nagda-download ng pangalawang kopya ng media; nang walang tahasang track na iyon, nananatili itong video-only.
+Ang FU-07 ay nangangailangan ng hindi bababa sa 98% quality retention at p95 latency na hindi hihigit sa 1.2x baseline, kasama ang alinman sa isang 0.05 absolute case-balanced mean recall improvement sa katumbas na mean caption calls, o hindi bababa sa 10% na mas kaunting mean post-dedup caption calls. Ang FU-09 ay nangangailangan ng hindi bababa sa 0.85 quality, 95% retention, 20% p95 latency reduction at 10% token reduction. Ang critical-fact loss, injection compliance o nawawalang paggamit ay pumipigil sa promotion. Ang isang execution ay hindi maaaring mag-promote ng anuman: ang `--previous-report` ay nagpapatunay ng dalawang magkakaibang, hindi nag-o-overlap, sunud-sunod na eligible executions ng parehong policy/model revision/candidate/corpus. Ang isang sampling experiment ay hindi maaaring magpatunay ng isang contact-sheet experiment.
 
-**Pagpapanatili ng Transcript (#12150 P1).** Awtomatiko itong nalalapat tuwing ang Video Bridge (na opt-in mismo) ay nagre-render ng isang transcript cue — walang hiwalay na retention flag. Kapag ang isang kahilingan ay nagre-render ng anumang transcript cue (isang `transcript` na idineklara ng tumatawag o isang fused `audioTranscript`), minarkahan ito ng guardrail bilang `videoBridgeObserved` at gumagawa ng isang redacted shadow ng paglalarawan ng video — isang magkaparehong rendering kung saan ang free-text body ng bawat cue ay pinapalitan ng `[redacted-video-transcript]`, na binuo sa pamamagitan ng pagpapalit ng structured cue field bago buuin ang string (hindi kailanman sa pamamagitan ng pag-parse ng flattened text, kaya walang nilalaman ng cue — adversarial o ordinaryo, kabilang ang mga body na naglalaman ng `]` tulad ng `[inaudible]`/`[music]` — ang maaaring manatili). Ang persisted call-log request body ay pinapalitan ang bawat video-derived text part para sa redacted shadow na iyon, na tinutugma sa pamamagitan ng content equality; ang `fullText` anchor ay muling binabasa mula sa natapos na pre-call guardrail payload, kaya ang pagtutugma ay nagtatagumpay pa rin pagkatapos ng mga susunod na chain guardrail (ang PII at credential maskers, priorities 10/95) na muling isulat ang description text sa lugar at pagkatapos ng system-prompt/handoff/memory injection na muling hubugin ang message array. Ang body na ipinadala upstream sa modelo ay hindi nagbabago. Ang isang observed request ay hindi rin nagpupuno ng anumang durable Memory (parehong request- at response-derived extraction ay nilalaktawan), kaya ang sariling tugon ng modelo ay hindi maaaring mag-echo ng transcript text sa Memory.
+Dapat i-score ng mga kolektor ang mga tugon sa memorya at i-save ang `responseDigest` kasama ang mga metrics at observation bindings, hindi kailanman ang response text. Ang consumer ay nagbabasa din ng mga legacy raw observations ngunit hindi kailanman kinokopya ang text na iyon sa mga ulat nito. Eksaktong isa sa `responseDigest` o `rawResponseText` ang tinatanggap para sa bawat observation. Ang versioned allowlist ay nananatiling walang laman na may immutable na `hold` default. Ang isang karapat-dapat na entry ay nangangailangan ng ebidensya na reference, patakaran, model revision, eksaktong candidate SHA, manifest digest at dalawang natatanging run IDs; ang mga nagkokontradik na konteksto ay tinatanggihan. Ang mga metadata na ito ay isang audit contract, hindi patunay na ang isang referenced file ay naglalaman ng tunay na sukat. Suriin ang aktwal na resibo bago magdagdag ng anumang entry. Ang management stats endpoint at Video dashboard ay naglalantad ng konserbatibong readiness. Ang isang naka-configure na model alias lamang ay hindi nagtatakda ng kanyang revision o ang tumatakbong candidate SHA, kaya ang kasalukuyang dashboard ay nag-uulat ng `HOLD` sa halip na muling gamitin ang eligibility mula sa ibang execution context. Ang tahasang experimental selection ay nananatiling hiwalay mula sa promotion; walang default na awtomatikong nagbabago.
 
-**Mga hilaw na field ng video (#12430).** Kapag aktibo ang bridge at hindi alam o walang katutubong suporta sa video, ina-activate din ng mga nakatakdang `transcript`/`audioTranscript` field ang `videoBridgeObserved`, kahit mabigo ang paglalarawan o maabot ang limitasyong `maxVideos`. Kasama ang `null` at mga bakanteng string; hindi kasama ang nawawalang field at metadata na hindi para sa video. Itinatago ng mga nakaimbak na kopya ang mga field na ito o inaalis ang request, at nilalampasan ang mga cache/Memory. Hindi nagbabago ang payload na ipinapadala sa provider.
+Maaaring mag-attach ang mga caller ng optional na `transcript.cues` array sa isang suportadong bahagi ng video kapag mayroon na silang naka-align na text. Ang bawat cue ay dapat magdala ng `text`, isang finite na `start`/`end` interval sa loob ng nasusuring tagal, at isang whitelisted na `source` (`client`, `embedded`, o `audio-bridge`); ang `confidence` ay default sa `1` at dapat manatili sa pagitan ng `0` at `1`. Ang mga eksaktong duplicate na cues ay pinagsasama. Ang OmniRoute ay hindi kailanman nagsisimula ng transcription mula sa metadata na ito: ang validated cues ay kinokopya sa inilarawang resulta kasama ang source, confidence, at interval, at inilalarawan bilang hindi mapagkakatiwalaang observations kasama ang mga caption ng frame. Ang hindi wasto, out-of-range, o walang provenance na text ay tinatanggihan sa halip na ihalo sa caption stream. Ang parehong request-body transcript channels ay nag-normalize ng ibinigay na provenance sa `client`, kabilang ang self-asserted na `embedded` o `audio-bridge` labels. Tanging isang server-owned adapter ang maaaring magtalaga ng mga pinagkakatiwalaang label sa pamamagitan ng code-only na `trustedSource` argument; ang isang request JSON field ay hindi makararating sa argument na iyon. Ang transcript text ay nananatiling hindi mapagkakatiwalaang media-derived content, anuman ang provenance nito, at hindi dapat kailanman magtakda ng authorization.
 
-Ang mga karagdagang retained copy ay gumagamit ng parehong observed-request signal. Ang raw pre-guardrail client-request snapshot, in-memory pending request, at early rejected-request log ay structurally pinapalitan ang mga transcript field sa mga bahagi ng video; ang mga string prompt na na-synthesize ng mga pipeline stage at context handoff ay nire-redact sa persisted-request-body sink. Ang persisted `video_content_removed` marker ay nagiging sanhi upang ang `previous_response_id` continuation ay mag-fail closed sa halip na muling buuin ang text na sadyang itinapon. Kung ang isang observed request ay mawalan ng per-part redaction shadow nito bago mag-log, o kahit isa sa ilang video shadow ay hindi tumugma pagkatapos ng mga susunod na request mutation, ang retained request body ay ganap na tinatanggal sa halip na panatilihin ang isang partially redacted transcript.
+Ang isang advanced caller ay maaaring magbigay ng `audioTranscript` track para sa parehong video; ito ay itinuturing na client-provided text, hindi patunay ng server transcription. Ang fusion seam ay nagpapatakbo ng visual at audio observations sa ilalim ng isang deadline at abort signal, inuutusan ang mga ito sa isang karaniwang timeline, pinagsasama ang mga eksaktong duplicate, at nag-uulat ng partial result kapag isa lamang sa mga bahagi ang nagtagumpay. Ang isang hindi wasto na `audioTranscript` ay bumababa sa partial result — ang visual description ay pinanatili at ang audio branch ay nagtatala ng sanitized failure code — sa halip na mabigo ang buong video. Ang per-branch availability, ang partial flag, at ang sanitized failure codes ay pinanatili sa inilarawang resulta, sa guardrail metadata (`audioFusionRuns`/`audioFusionPartials`/`audioFusionFailureCodes`), sa result-cache metadata, at sa bridge fusion counters. Ang default na Video Bridge path ay hindi nag-iinvoke ng speech-to-text o nagda-download ng pangalawang media copy; nang walang tahasang track na iyon, ito ay nananatiling video-only.
 
-Para sa isang observed request, ang tugon ng modelo ay maaaring mag-quote ng anumang bahagi ng transcript nang walang structured cue boundary. Ang persisted call-log `responseBody` nito ay samakatuwid ay pinapalitan ng isang omission marker; ang detalyadong pipeline artifact (na maaaring magsama ng upstream/client bodies at stream chunks) ay hindi pinananatili. Ang mga semantic, idempotency, at reasoning-replay cache ay nilalaktawan ang mga pagbasa at pagsusulat para sa kahilingang iyon. Ang provider request at client-visible response ay nananatiling hindi nagbabago. Ang mga early keepalive byte ay dinidiskarga mula sa temporary buffer kapag ang detalyadong artifact ay tinanggal. Ang malformed EventStream warning ni Kiro ay nag-uulat lamang ng payload byte count, hindi kailanman ang nilalaman nito o ang raw error ng JSON parser. Hindi nito inaangkin na ang bawat hindi kaugnay na provider/plugin diagnostic ay na-audit na; ang mas malawak na retained-sink sweep ay sinusubaybayan sa #11658.
+**Transcript retention (#12150 P1).** Ito ay awtomatikong nalalapat sa tuwing ang Video Bridge (na opt-in) ay nag-render ng transcript cue — walang hiwalay na retention flag. Kapag ang isang request ay nag-render ng anumang transcript cue (isang caller-declared na `transcript` o isang fused na `audioTranscript`), ang guardrail ay minamarkahan ito bilang `videoBridgeObserved` at gumagawa ng redacted shadow ng video description — isang magkaparehong rendering kung saan ang bawat cue's free-text body ay pinalitan ng `[redacted-video-transcript]`, na binuo sa pamamagitan ng pagpapalit ng structured cue field bago ang string ay ma-assemble (hindi sa pamamagitan ng pag-parse ng flattened text, kaya walang cue content — adversarial o ordinary, kabilang ang mga body na naglalaman ng `]` tulad ng `[inaudible]`/`[music]` — ang makakaligtas). Ang persisted call-log request body ay pinapalitan ang bawat video-derived text part para sa redacted shadow na iyon, na tumutugma sa content equality; ang `fullText` anchor ay muling binabasa mula sa natapos na pre-call guardrail payload, kaya ang match ay nagtatagumpay pa rin pagkatapos ng mga susunod na chain guardrails (ang PII at credential maskers, priorities 10/95) ay muling isinulat ang description text in place at pagkatapos ng system-prompt/handoff/memory injection ay nagbago ng message array. Ang body na ipinadala pataas sa model ay hindi nagbago. Ang isang observed request ay hindi rin nagpopopulate ng anumang durable Memory (parehong request- at response-derived extraction ay nilaktawan), kaya ang sariling reply ng model ay hindi maaaring umulit ng transcript text sa Memory.
 
-Ang internal na `/api/modality-bridge/video/drilldown` lifecycle ay isang hiwalay, loopback/token-authenticated cache substrate. Ang bawat operasyon ay nangangailangan din ng isang canonical opaque principal ID. Bago paganahin ang isang production caller, dapat nitong makuha ang ID na iyon mula sa authenticated tenant at hindi dapat kailanman ipasa ang isang client-selected value. Ang mga cache key ay nagbubuklod sa principal na iyon sa canonical session at video-reference ID, nag-iimbak lamang ng kanilang mga SHA-256-derived key, at sumasaklaw sa parehong pagbasa at pagtanggal sa parehong principal. Ang cache ay nag-iimbak ng hanggang 16 na derived JPEG frame bawat entry, pinapa-expire ang mga ito pagkatapos ng sampung minuto, at sumusuporta sa bounded `start`/`end` reads o tahasang pagtanggal ng session.
+**Raw video fields (#12430).** Kapag ang bridge ay naka-enable at ang native video support ay hindi alam o wala, ang mga tinukoy na `transcript`/`audioTranscript` fields ay nag-activate din ng `videoBridgeObserved`, kahit pagkatapos ng pagkabigo sa description o isang `maxVideos` limit. Ang `null` at mga empty string ay binibilang; ang mga nawawalang fields at non-video metadata ay hindi. Ang mga retained copies ay nag-redact ng mga fields na ito o hindi isinasama ang request, at ang caches/Memory ay nilaktawan. Ang provider payload ay nananatiling hindi nagbago.
 
-Ang bawat principal ay limitado sa 16 na entry at 64 MiB ng canonical JPEG data. Ang mga limitasyong iyon ay independiyente mula sa global na 64-entry/256 MiB ceiling: ang principal quota pressure ay nagtatanggal lamang ng mga least-recently-used entry ng principal na iyon bago isaalang-alang ang global LRU eviction. Ang mga expired na entry ay tinatanggal mula sa parehong principal at global accounting sa aktibidad ng cache, habang ang pag-cancel at validation failure ay hindi nagko-commit ng isang partial replacement.
+Ang karagdagang retained copies ay gumagamit ng parehong observed-request signal. Ang raw pre-guardrail client-request snapshot, in-memory pending request, at maagang rejected-request log ay estruktural na pinapalitan ang transcript fields sa mga bahagi ng video; ang mga string prompts na synthesized ng pipeline stages at context handoff ay nire-redact sa persisted-request-body sink. Ang persisted na `video_content_removed` marker ay nagpapagawa ng `previous_response_id` continuation na mabigo sa closed sa halip na muling buuin ang text na sinadyang itinapon. Kung ang isang observed request ay nawawalan ng per-part redaction shadow bago ang logging, o kahit isa sa maraming video shadows ay nabigong tumugma pagkatapos ng mga susunod na mutation ng request, ang retained request body ay ganap na tinanggal sa halip na panatilihin ang isang partially redacted transcript.
 
-Tinanggihan ng cache ang non-canonical Base64, labis na padding, non-JPEG media, malformed o truncated JPEG, at mga JPEG na gumagawa ng babala sa panahon ng isang bounded full-image `sharp` decode. Muli nitong ini-encode ang bawat tinanggap na imahe bilang isang canonical JPEG, kinukuha ang lapad at taas mula sa decoded bytes sa halip na magtiwala sa mga caller field, at itinatapon ang anumang trailing polyglot bytes sa halip na panatilihin ang mga ito. Tanging ang bounded canonical compressed buffer lamang ang sinisingil sa parehong quota. Kasama sa JSON wire limit ang Base64 overhead para sa 32 MiB decoded-input ceiling. Ang bawat nakaimbak na derivation ay nagtatala ng validated JPEG format/resolution nito, sampling policy, derivation version, creation time, server-computed content hash, at hashed parent reference kasama ang parent-content hash ng pinagkakatiwalaang tumatawag. Ang pag-cancel ay sinusuri sa pagitan ng asynchronous decode/hash phases bago ang atomic cache commit.
+Para sa isang naobserbahang kahilingan, ang tugon ng modelo ay maaaring mag-quote ng anumang bahagi ng transcript nang walang nakastrukturang cue boundary. Ang naitalang call-log `responseBody` ay pinapalitan ng isang marker ng pag-alis; ang detalyadong artifact ng pipeline (na maaaring kabilang ang upstream/client bodies at stream chunks) ay hindi pinapanatili. Ang mga cache ng semantika, idempotency, at reasoning-replay ay lumalampas sa mga pagbabasa at pagsusulat para sa kahilingang iyon. Ang provider request at client-visible response ay nananatiling hindi nagbabago. Ang mga maagang keepalive bytes ay tinatanggal mula sa pansamantalang buffer kapag ang detalyadong artifact ay inalis. Ang babala ng maling EventStream ni Kiro ay nag-uulat lamang ng bilang ng payload byte, hindi kailanman ang nilalaman nito o ang raw error ng JSON parser.
+Hindi ito nag-aangkin na ang bawat hindi kaugnay na diagnostic ng provider/plugin ay na-audit; ang mas malawak na retained-sink sweep ay sinusubaybayan sa #11658.
 
-Ang tranche na ito ay hindi pa nagkokonekta ng isang production producer sa ruta at hindi nagbibigay ng multi-resolution variant selection. Samakatuwid, ang transparent na Video Bridge request path ay walang idinagdag na trabaho, habang ang tenant-bound principal derivation at ang buong FU-08 multi-resolution lifecycle ay nananatiling malinaw na follow-up na trabaho sa halip na idokumento bilang kumpletong pag-uugali.
+Ang panloob na `/api/modality-bridge/video/drilldown` lifecycle ay isang hiwalay, loopback/token-authenticated cache substrate. Ang bawat operasyon ay nangangailangan din ng isang canonical opaque principal ID. Bago ma-enable ang isang production caller, kailangan nitong kunin ang ID mula sa authenticated tenant at hindi kailanman dapat ipasa ang isang client-selected value. Ang mga cache key ay nagbubuklod sa principal na iyon sa canonical session at video-reference IDs, nag-iimbak lamang ng kanilang SHA-256-derived keys, at nililimitahan ang parehong pagbabasa at pagtanggal sa parehong principal. Ang cache ay nag-iimbak ng hindi hihigit sa 16 na derived JPEG frames bawat entry, nag-e-expire sa loob ng sampung minuto, at sumusuporta sa bounded `start`/`end` reads o tahasang session deletion.
 
-Ang mga frame ay nilalagyan ng caption nang sunud-sunod gamit ang naka-configure na modelo ng Video. Ang isang walang laman na Video override ay nagmamana ng setting ng Vision; kung pareho silang walang laman, pipiliin ng Vision auto-router ang epektibong modelong may kakayahang-paningin. Ang matagumpay na mga caption ay pumapalit sa orihinal na bahagi ng isang stable na `[Video description:` prefix na nagmamarka rin sa teksto bilang isang hindi pinagkakatiwalaang obserbasyon na nagmula sa media at nagsasabi sa mga downstream na modelo na huwag sundin ang mga tagubilin na matatagpuan sa media. Kasama sa mga key ng cache ng frame-caption ang JPEG bytes, prompt, timestamp, at epektibong modelo; tanging ang matagumpay na mga caption lamang ang naka-cache. Pinapanatili ng mga entry ng cache ang aktwal na matagumpay na producer model, kabilang ang isang fallback model; iniuulat ng bridge ang `mixed` kapag ang iba't ibang frame ay ginawa ng iba't ibang modelo. Ang isang cache hit ay muling ginagamit ang pagkakakilanlan ng producer na iyon sa halip na muling lagyan ito ng label bilang hiniling na routing plan. Ang whole-video result cache ay naka-key sa bawat input na nagbabago sa output — prompt, epektibong modelo, sampling policy, frame count, semantic analysis mode, ang SHA-256 fingerprint ng normalized focus hint, focus window, `transcript`, `audioTranscript`, at ang contact-sheet flag — kaya ang pagbabago ng alinman sa mga dimensyong iyon ay isang cache miss, hindi kailanman isang lumang muling paggamit. Ang bersyon ng visual dedup policy, threshold, at bounded candidate-frame count ay malinaw din sa result-cache key at metadata; samakatuwid, ang pagbabago ng policy ay hindi maaaring muling gumamit ng lumang whole-video description. Pinapanatili ng Result-cache v4 metadata ang mode at fingerprint, hindi kailanman ang raw user task. Iniulat ng Guardrail metadata ang parehong hiniling at epektibong analysis modes; ang isang hiniling na `focused` mode na walang magagamit na user text ay iniuulat bilang epektibong `full`.
+Bawat principal ay limitado sa 16 na entries at 64 MiB ng canonical JPEG data. Ang mga limitasyong iyon ay hindi nakadepende sa global 64-entry/256 MiB ceiling: ang pressure ng principal quota ay nag-aalis lamang ng mga least-recently-used entries ng principal na iyon bago isaalang-alang ang global LRU eviction. Ang mga expired entries ay tinatanggal mula sa parehong principal at global accounting sa cache activity, habang ang cancellation at validation failure ay hindi nagko-commit ng partial replacement.
 
-Kinukuha ng guardrail ang bawat sinusuportahang bahagi ng video ngunit naglalarawan ng hindi hihigit sa `modalityBridgeVideoMaxVideos`. Para sa isang target na napatunayang may `supportsVideo === false`, ang mga nabigo at lumampas sa limitasyong video ay nagiging malinaw na safe text markers upang walang raw video ang makaligtas. Kapag hindi alam ang kakayahan, ang mga bahaging iyon ay nananatiling hindi nagagalaw. Ang mga target na may `supportsVideo === true` ay lumalampas sa bridge. Ang client request abort signal ay kumakalat sa download, broker queue, subprocesses, at caption calls; ang mga abort ay humihinto sa pagitan ng mga video at hindi kailanman nabibigo na magbukas sa raw media.
+Tinanggihan ng cache ang non-canonical Base64, labis na padding, non-JPEG media, maling anyo o truncated JPEGs, at JPEGs na nagbubunga ng babala sa panahon ng bounded full-image `sharp` decode. Ire-reencode nito ang bawat tinanggap na imahe bilang isang canonical JPEG, kukunin ang lapad at taas mula sa decoded bytes sa halip na umasa sa mga field ng caller, at itinatapon ang anumang trailing polyglot bytes sa halip na panatilihin ang mga ito. Tanging ang bounded canonical compressed buffer ang sinisingil sa parehong quotas. Ang limitasyon ng JSON wire ay kinabibilangan ng Base64 overhead para sa 32 MiB decoded-input ceiling. Bawat
+naka-imbak na derivation ay nagtatala ng validated JPEG format/resolution, sampling policy,
+derivation version, creation time, server-computed content hash, at hashed parent
+reference kasama ang trusted caller's parent-content hash. Ang cancellation ay sinusuri
+sa pagitan ng asynchronous decode/hash phases bago ang atomic cache commit.
 
-Ang mga setting ng runtime ay sinusuportahan ng DB at Zod-validated:
+Ang production producer ay muling gumagamit ng mga na-derive na broker frames lamang pagkatapos ng matagumpay na visual analysis, nang walang pangalawang video download/extraction. Nangangailangan ito ng operator
+`modalityBridgeVideoDrilldownEnabled=true`, mahigpit na per-part `drilldown: true`, at
+isang authenticated API-key record ID. Ang mga client-declared principal/session values ay hindi kailanman nagtatag ng pagmamay-ari. Nang walang lahat ng tatlong kondisyon, hindi ito nagha-hash, nagre-resize o nagtatago ng karagdagang frames. Ang pagkabigo sa retention ay nagpapanatili ng magagamit na visual response. Ang mga consented requests ay lumalampas sa buong-video result cache kaya ang mga cached results ay hindi kailanman nagre-replay ng handles.
 
-| Key                                 | Default     | Saklaw / pag-uugali                                                                                                                 |
-| :---------------------------------- | :---------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `modalityBridgeVideoEnabled`        | `false`     | Opsyonal na runtime, opt-in                                                                                                         |
-| `modalityBridgeVideoAnalysisMode`   | `"full"`    | pinapanatili ng `full` ang mga generic na caption; ginagamit ng `focused` ang bounded, hindi pinagkakatiwalaang latest-user context |
-| `modalityBridgeVideoModel`          | `""`        | Minamana ang modelo ng Vision Bridge                                                                                                |
-| `modalityBridgeVideoFrameCount`     | `8`         | 1–16                                                                                                                                |
-| `modalityBridgeVideoSamplingPolicy` | `"uniform"` | `uniform`, `scene_aware`, o proportional `segment_aware`; ang pagkabigo ng detector ay bumabalik sa `uniform`                       |
-| `modalityBridgeVideoMaxVideos`      | `1`         | 1–4                                                                                                                                 |
-| `modalityBridgeVideoTimeout`        | `120000`    | 1000–120000 ms                                                                                                                      |
+Ang matagumpay na JSON at SSE responses ay naglalantad ng hindi hihigit sa apat na opaque handles sa bounded `x-omniroute-video-drilldown` header. Ang mga awtorisadong browser origins ay maaaring magbasa ng header na iyon nang hindi pinapalawak ang CORS origin policy. Ang mga bagong handles ay gumagamit ng `v1.<32-byte random base64url token>`, at ang registry ay nag-iimbak lamang ng kanilang SHA-256 hashes. Ang reader/header parser ay tumatanggap din ng legacy 64-hex tokens. Ang authenticated public consumer ay
+`GET /api/v1/video-bridge/drilldown?handle=...`, na independiyenteng naka-gate ng
+`modalityBridgeVideoDrilldownRemoteEnabled=true`. Ang tahasang persisted false ay nag-aalis
+ng access kahit na ang legacy `OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_REMOTE_ENABLED` env
+fallback ay naka-enable. Ang production retention ay may katulad na legacy
+`OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_ENABLED` fallback. Parehong fallback ay default na off.
 
-Ang mga legacy na persisted na halaga ng Video timeout na higit sa 120 segundo ay ikinakabit sa broker deadline; ang mga bagong setting writes na higit sa limitasyong iyon ay tinatanggihan. Ang `GET /api/modality-bridge/video/runtime` ay nangangailangan ng pinagkakatiwalaang stamped loopback locality bago ang authentication o runtime probing, pagkatapos ay nangangailangan ng management auth. Ibinabalik lamang nito ang `available`, sanitized na bersyon ng FFmpeg/ffprobe, at isang nakapirming dahilan kapag hindi available ang runtime. Ang internal extraction endpoint ay hindi isang pampublikong upload API: ang queue saturation ay nagbabalik ng `503` kasama ang `Retry-After`, ang caller disconnect ay nagbabalik ng `499`, at ang nakapirming broker deadline ay nagbabalik ng `504`. Ang mga na-convert na tugon ay nagdaragdag ng `video->text;model=<visionModel>;parts=<videos>` sa sentral na `x-omniroute-modality-bridge` header nang hindi inaalis ang mga segment ng Vision o Audio.
+Ang consumer ay kumukuha ng pagmamay-ari mula sa authenticated key, nag-aaplay ng key policy, at
+nagbabalik ng parehong 404 para sa hindi kilala, expired at ibang key's handles. Tumatanggap ito ng
+`variant=preview|standard|detail` (maximum JPEG dimension 320/640/1280, hindi kailanman upscaled),
+`limit=1..8` (o ang legacy `frames` alias, hindi kailanman pareho), zero-based `page`, at optional
+`start`/`end` focus seconds. Ang mga duplicate
+query keys at reversed focus windows ay tinatanggihan. Bawat ibinalik na variant ay may hash
+ng aktwal na nilalaman nito at aktwal na resolution metadata, na naka-link sa retained source.
+Ang mga variants ay kinukuha sa pagbabasa sa halip na naka-imbak bilang karagdagang retained copies. Ang JSON
+response, kasama ang Base64/envelope, ay may limitasyon na 32 MiB; ang oversized page ay nagbabalik
+ng 413 at ang client ay dapat humiling ng mas kaunting frames. Ang mga pagbabasa ay nagche-check ng cancellation sa paligid ng bawat
+resize at nire-recheck ang handle validity bago ibalik. Ang `DELETE` ng may-ari ay idempotent;
+ang pagtanggal o TTL expiry ay naglalabas ng retained source at usage accounting.
+
+Ang shared store ay process-local: ang mga handles ay nag-e-expire sa restart at hindi transferable
+sa pagitan ng mga independiyenteng proseso ng OmniRoute. Ang mga management stats ay naglalantad ng epektibong retention/
+remote policy at aggregate retained entries/bytes lamang, hindi kailanman media, references,
+principal IDs o handles. Ang Video settings panel ay nagpapakita ng mga halagang iyon at maaaring panatilihin
+parehong consent switches. Ang dokumentasyong ito ng implementasyon ay hindi live deployment o
+promotion evidence; ang real-model acceptance ay sinusubaybayan nang hiwalay.
+
+Frames ay may mga caption na sunud-sunod na naka-configure gamit ang Video model. Ang isang walang laman na Video override ay nagmamana ng Vision setting; kung pareho silang walang laman, ang Vision auto-router ay pumipili ng epektibong vision-capable model. Ang matagumpay na mga caption ay pinapalitan ang orihinal na bahagi gamit ang isang matatag na `[Video description:` prefix na nagmamarka rin sa teksto bilang isang untrusted media-derived observation at nagsasabi sa downstream models na huwag sundin ang mga tagubilin na matatagpuan sa media. Ang mga key ng frame-caption cache ay kinabibilangan ng JPEG bytes, prompt, timestamp, at epektibong model; tanging matagumpay na mga caption ang naka-cache. Ang mga entry ng cache ay nagtatago ng aktwal na matagumpay na producer model, kasama ang isang fallback model; ang tulay ay nag-uulat ng `mixed` kapag ang iba't ibang frames ay ginawa ng iba't ibang models. Ang isang cache hit ay muling ginagamit ang pagkakakilanlan ng producer na iyon sa halip na muling lagyan ito ng label bilang hinihinging routing plan. Ang buong-video result cache ay nakabatay sa bawat input na nagbabago ng output — prompt, epektibong model, sampling policy, frame count, semantic analysis mode, ang SHA-256 fingerprint ng normalized focus hint, focus window, `transcript`, `audioTranscript`, at ang contact-sheet flag — kaya ang pagbabago ng alinman sa mga sukat na iyon ay isang cache miss, hindi kailanman isang stale reuse. Ang bersyon ng visual dedup policy, threshold, at bounded candidate-frame count ay malinaw din sa result-cache key at metadata; ang pagbabago ng policy ay hindi makakagamit ng stale whole-video description. Ang result-cache v4 metadata ay nagtatago ng mode at fingerprint, hindi kailanman ang raw user task. Ang guardrail metadata ay nag-uulat ng parehong hinihinging at epektibong analysis modes; ang hinihinging `focused` mode na walang magagamit na user text ay iniulat bilang epektibong `full`.
+
+Ang guardrail ay nag-eextract ng bawat suportadong bahagi ng video ngunit naglalarawan ng hindi hihigit sa `modalityBridgeVideoMaxVideos`. Para sa isang target na napatunayan na may `supportsVideo === false`, ang mga nabigong at over-limit na video ay nagiging mga tahasang ligtas na text markers kaya walang raw video ang nakaligtas. Kapag ang kakayahan ay hindi alam, ang mga bahagi na iyon ay nananatiling hindi nagalaw. Ang mga target na may `supportsVideo === true` ay lumalampas sa tulay. Ang client request abort signal ay kumakalat sa download, broker queue, subprocesses, at caption calls; ang mga abort ay humihinto sa pagitan ng mga video at hindi kailanman bumabagsak sa raw media.
+
+Ang mga runtime settings ay naka-backup sa DB at Zod-validated:
+
+| Key                                 | Default     | Range / behavior                                                                                                 |
+| ----------------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| `modalityBridgeVideoEnabled`        | `false`     | Opsyonal na runtime, opt-in                                                                                      |
+| `modalityBridgeVideoAnalysisMode`   | `"full"`    | `full` ay nag-iingat ng generic captions; `focused` ay gumagamit ng bounded, untrusted latest-user context       |
+| `modalityBridgeVideoModel`          | `""`        | Nagmamana ng Vision Bridge model                                                                                 |
+| `modalityBridgeVideoFrameCount`     | `8`         | 1–16                                                                                                             |
+| `modalityBridgeVideoSamplingPolicy` | `"uniform"` | `uniform`, `scene_aware`, o proporsyonal na `segment_aware`; ang pagkabigo ng detector ay bumabalik sa `uniform` |
+| `modalityBridgeVideoMaxVideos`      | `1`         | 1–4                                                                                                              |
+| `modalityBridgeVideoTimeout`        | `120000`    | 1000–120000 ms                                                                                                   |
+
+Ang mga legacy persisted Video timeout values na higit sa 120 segundo ay pinipigilan sa broker deadline; ang mga bagong setting na nakasulat sa itaas ng limitasyong iyon ay tinatanggihan. Ang `GET /api/modality-bridge/video/runtime` ay nangangailangan ng trusted stamped loopback locality bago ang authentication o runtime probing, pagkatapos ay nangangailangan ng management auth. Ito ay nagbabalik lamang ng `available`, sanitized FFmpeg/ffprobe versions, at isang fixed reason kapag ang runtime ay hindi available. Ang internal extraction endpoint ay hindi isang pampublikong upload API: ang saturation ng queue ay nagbabalik ng `503` kasama ang `Retry-After`, ang pag-disconnect ng caller ay nagbabalik ng `499`, at ang fixed broker deadline ay nagbabalik ng `504`. Ang mga na-convert na tugon ay nagdadagdag ng `video->text;model=<visionModel>;parts=<videos>` sa sentral na `x-omniroute-modality-bridge` header nang hindi inaalis ang Vision o Audio segments.
 
 ### PII Masker (`piiMasker.ts`)
 
-Tumatakbo sa **parehong** yugto.
+Tumakbo sa **parehong** yugto.
 
-- Kinokopya ng `preCall` ang payload, nilalakad ang `system`, `messages`, `input`, at `prompt` (kabilang ang mga plain string item), at inilalapat ang `processPII()` (mula sa `@/shared/utils/inputSanitizer`) sa mga string `content`/`text` field. Kapag `PII_REDACTION_ENABLED=true`, ang natukoy na PII ay nire-redact sa outbound payload. Ito ay independiyente sa `INPUT_SANITIZER_MODE` (na kumokontrol lamang sa prompt-injection policy). Kapag naka-off ang redaction, itinatala ng tawag ang detection counts nang hindi muling isinusulat ang nilalaman.
-- Ang `postCall` ay deep-clones ang tugon, pinapatakbo ang `sanitizePIIResponse()` kasama ang Responses-API-shape masker (`maskResponsesOutput` — sumasaklaw sa `output_text` at `output[].content[].text`). Kung may anumang redaction na mangyari, papalitan ng binagong tugon ang orihinal.
+- **`preCall`** ay nag-clone ng payload, naglalakad sa `system`, `messages`, `input`, at `prompt` (kasama ang mga plain string items), at nag-aaplay ng `processPII()` (mula sa `@/shared/utils/inputSanitizer`) sa mga string `content`/`text` fields. Kapag `PII_REDACTION_ENABLED=true`, ang natukoy na PII ay tinatanggal sa outbound payload. Ito ay independyente sa `INPUT_SANITIZER_MODE` (na nagkokontrol lamang sa prompt-injection policy). Kapag ang redaction ay off, ang tawag ay nagtatala ng mga bilang ng detection nang hindi nire-rewrite ang nilalaman.
+- **`postCall`** ay nag-deep-clone ng response, tumatakbo ng `sanitizePIIResponse()` kasama ang Responses-API-shape masker (`maskResponsesOutput` — sumasaklaw sa `output_text` at `output[].content[].text`). Kung may anumang redaction na naganap, ang binagong response ay pinapalitan ang orihinal.
 
-Hindi kailanman humaharang ang guardrail; ito ay nag-aanotate lamang (`meta.detections`, `meta.redacted`) o nagsusulat muli.
+Ang guardrail ay hindi kailanman nagba-block; ito ay nag-aannotate lamang (`meta.detections`, `meta.redacted`) o nagre-rewrite.
 
 ### Prompt Injection (`promptInjection.ts`)
 
-Nakakakita ng mga adversarial na istruktura sa nilalaman na ibinigay ng user at ipinapatupad ang naka-configure na policy. Ang pag-uugali ay hinihimok ng mga environment variable at constructor options:
+Nagtutukoy ng mga adversarial structures sa nilalaman na ibinigay ng user at nagpapatupad ng naka-configure na policy. Ang pag-uugali ay pinapatakbo ng mga environment variables at constructor options:
 
-| Setting | Env var | Default | Epekto |
-| --------------- | ----------------------------------------------------------------------------------------------------- | ------- | Kapag `false`, ang guardrail ay short-circuit. |
-| Mode | `INJECTION_GUARD_MODE` / `INPUT_SANITIZER_MODE` | `warn` | Patakaran sa pag-inject: `block`, `warn`, o `log`. (Ang `redact` ay tinatanggap para sa back-compat ngunit **hindi** nito tinatanggal ang injection text; ang kahilingan sa PII rewrite ay kinokontrol ng `PII_REDACTION_ENABLED`.) |
-| Block threshold | `blockThreshold` option / `INPUT_SANITIZER_BLOCK_THRESHOLD` (alias `INJECTION_GUARD_BLOCK_THRESHOLD`) | `high` | Minimum na kalubhaan na kinakailangan upang harangan. Ang Medium ay observe-only sa default. |
+| Setting         | Env var                                                                                               | Default | Effect                                                                                                                                                                                                         |
+| --------------- | ----------------------------------------------------------------------------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enabled         | `INPUT_SANITIZER_ENABLED`                                                                             | `true`  | Kapag `false`, ang guardrail ay nag-short-circuit.                                                                                                                                                             |
+| Mode            | `INJECTION_GUARD_MODE` / `INPUT_SANITIZER_MODE`                                                       | `warn`  | Injection policy: `block`, `warn`, o `log`. (`redact` ay tinatanggap para sa back-compat ngunit hindi nito tinatanggal ang injection text; ang request PII rewrite ay kinokontrol ng `PII_REDACTION_ENABLED`.) |
+| Block threshold | `blockThreshold` option / `INPUT_SANITIZER_BLOCK_THRESHOLD` (alias `INJECTION_GUARD_BLOCK_THRESHOLD`) | `high`  | Minimum severity na kinakailangan upang i-block. Medium ay observe-only sa default.                                                                                                                            |
 
-**Precedence ng Mode** (`getMode`): caller `options.mode` →
+**Mode precedence** (`getMode`): caller `options.mode` →
 `INJECTION_GUARD_MODE` **DB feature-flag override** (Dashboard → Settings →
 Feature Flags) → `INJECTION_GUARD_MODE` env → `INPUT_SANITIZER_MODE` env →
-`warn`. Samakatuwid, ang isang dashboard override ay mas matimbang kaysa sa mga env var, kaya kinokontrol ng UI ng Feature Flags ang tumatakbong guard nang live (walang restart). Ang pagbasa ng DB ay fail-safe:
-kung ito ay mag-error, ang guard ay babalik sa env-based na pag-uugali, at kapag walang override na nakatakda, ang pag-uugali ay kapareho ng env-only resolution.
+`warn`. Ang dashboard override ay nananalo sa env vars, kaya ang Feature
+Flags UI ay kumokontrol sa tumatakbong guard live (walang restart). Ang DB read ay fail-safe:
+kung ito ay nag-error, ang guard ay bumabalik sa env-based na pag-uugali, at kapag walang
+override na nakaset ang pag-uugali ay katulad ng env-only resolution.
 
-Mga pinagmulan ng deteksiyon:
+Detection sources:
 
-1.  `sanitizeRequest()` mula sa `@/shared/utils/inputSanitizer` (nakabahaging detector
-    set na ginagamit sa ibang bahagi ng pipeline).
-2.  Built-in na `DEFAULT_GUARD_PATTERNS` (kasalukuyang `system_override_inline` at
-    `markdown_system_block`, parehong `high` severity).
-3.  Opsyonal na `customPatterns` na ipinasa sa pamamagitan ng constructor options (mga string, regex,
-    o `{ name, pattern, severity }` na mga record).
+1. `sanitizeRequest()` mula sa `@/shared/utils/inputSanitizer` (shared detector
+   set na ginamit sa ibang bahagi ng pipeline).
+2. Built-in `DEFAULT_GUARD_PATTERNS` (kasalukuyang `system_override_inline` at
+   `markdown_system_block`, parehong `high` severity).
+3. Optional `customPatterns` na ipinasa sa constructor options (strings, regex,
+   o `{ name, pattern, severity }` records).
 
-Kapag `mode === "block"` **at** hindi bababa sa isang deteksiyon ang nakakatugon sa severity
-threshold, ang `preCall` ay nagbabalik ng `{ block: true, message: "Request rejected:
-suspicious content detected" }`. Sa `warn`/`log` modes, ang guardrail ay nagla-log ngunit
-pinapayagan ang tawag. Ang nakabahaging helper na `evaluatePromptInjection()` ay ini-export din
-para sa mga tumatawag na kailangang suriin ang mga prompt nang hindi dumadaan sa registry.
+Kapag `mode === "block"` **at** ang hindi bababa sa isang detection ay nakakatugon sa severity
+threshold, `preCall` ay nagbabalik ng `{ block: true, message: "Request rejected:
+suspicious content detected" }`. Sa `warn`/`log` modes ang guardrail ay nag-log ngunit
+pinapayagan ang tawag. Ang shared helper `evaluatePromptInjection()` ay na-export din
+para sa mga caller na kailangang suriin ang mga prompt nang hindi dumadaan sa registry.
 
-**Scan bound (v3.8.20):** sinusuri lamang ng detector ang **unang 16 KB** ng
+**Scan bound (v3.8.20):** ang detector ay tanging sumusuri sa **unang 16 KB** ng
 pinagsamang prompt text — `MAX_INJECTION_SCAN_BYTES = 16 * 1024` (16 384 bytes) sa
 `src/shared/utils/inputSanitizer.ts`. Parehong `detectInjection()` at
-`evaluatePromptInjection()` `slice(0, MAX_INJECTION_SCAN_BYTES)` bago patakbuhin
-ang pattern loop. Ang mga direktiba ng injection ay matatagpuan malapit sa tuktok ng isang input, kaya
-nililimitahan nito ang regex CPU/GC sa multi-hundred-KB na mga payload nang hindi
-pinapahina ang deteksiyon (cf. #3932, #4041).
+`evaluatePromptInjection()` `slice(0, MAX_INJECTION_SCAN_BYTES)` bago tumakbo
+ang pattern loop. Ang mga injection directives ay nakaupo malapit sa tuktok ng isang input, kaya ito
+ay naglilimita sa regex CPU/GC sa multi-hundred-KB payloads nang hindi nagpapahina sa detection (cf.
+#3932, #4041).
 
 ### Credential Masker (`credentialMasker.ts`)
 
-Tumatakbo sa **parehong** yugto, huli sa default na chain (priority `95`). Nirere-redact
-ang mga kilalang API-key / secret-token na pattern mula sa outbound payload (nilalaman ng mensahe,
-mga argumento ng tool-call, mga resulta ng tool) **at** ang tugon ng provider, kaya ang isang
-credential na na-paste sa isang prompt (o ibinalik ng isang resulta ng tool) ay hindi
-na-leak sa upstream provider o pabalik sa client.
+Tumatakbo sa **parehong** yugto, huli sa default chain (priority `95`). Tinatanggal
+ang mga kilalang API-key / secret-token patterns mula sa outbound payload (nilalaman ng mensahe,
+mga argumento ng tool-call, mga resulta ng tool) **at** ang provider response, kaya ang
+credential na ipinaste sa isang prompt (o ibinalik ng isang tool result) ay hindi na-leak
+sa upstream provider o pabalik sa client.
 
-- **Opt-in lamang**, parehong kumbensyon tulad ng PII redaction (Hard Rule #20-adjacent):
+- **Opt-in lamang**, parehong convention tulad ng PII redaction (Hard Rule #20-adjacent):
   hindi pinagana maliban kung `settings.credentialRedactionEnabled === true` **o**
-  `CREDENTIAL_REDACTION_ENABLED=true`. Kapag naka-off ito, ang guardrail ay isang no-op —
-  hindi ito kailanman humaharang at hindi kailanman nagsusulat muli.
+  `CREDENTIAL_REDACTION_ENABLED=true`. Kapag ito ay off, ang guardrail ay isang no-op —
+  hindi ito kailanman nagba-block at hindi kailanman nag-rewrite.
 - `redactCredentials()` ay naglalakad sa buong payload/response tree (`walkValue()`,
   prototype-pollution-safe, cycle-safe sa pamamagitan ng `WeakSet`) at pinapalitan ang mga tugma ng
-  isang `[REDACTED:<type>]` placeholder, kinokopya lamang ang mga sangay na talagang
+  isang `[REDACTED:<type>]` placeholder, kinokopya lamang ang mga sanga na talagang
   nagbago.
-- Sakop ng `CREDENTIAL_PATTERNS` ang mga key ng LLM provider (OpenAI, OpenAI-proj,
-  Anthropic, Google, Hugging Face, Replicate), mga token ng VCS/SaaS (GitHub, Slack,
-  Linear, Notion, npm, Postman, Discord), mga key ng pagbabayad (Stripe, Square), mga key ng cloud (AWS access key, Twilio, SendGrid, Mailgun), mga pribadong key / JWT,
-  mga string ng koneksyon na nagdadala ng credential (`mongodb://user:pass@...`, atbp.), at
-  isang generic na `Authorization`/`x-api-key`/`api-key`/`apikey` na pattern ng header-value. Ang mga key na hugis-header (`authorization`, `x-api-key`, `api-key`,
-  `apikey`) ay nire-redact nang istruktura (halaga lamang, ang scheme prefix tulad ng
-  `Bearer `/`Basic ` ay pinapanatili) sa halip na sa pamamagitan ng generic na text regex.
-- Hindi kailanman humaharang ang guardrail; nagsusulat lamang ito muli (`modifiedPayload` /
-  `modifiedResponse`) at naglalagay ng anotasyon (`meta.credentialsRedacted`, `meta.count`).
+- `CREDENTIAL_PATTERNS` ay sumasaklaw sa mga LLM provider keys (OpenAI, OpenAI-proj,
+  Anthropic, Google, Hugging Face, Replicate), VCS/SaaS tokens (GitHub, Slack,
+  Linear, Notion, npm, Postman, Discord), payment keys (Stripe, Square), cloud
+  keys (AWS access key, Twilio, SendGrid, Mailgun), private keys / JWTs,
+  credential-bearing connection strings (`mongodb://user:pass@...`, atbp.), at
+  isang generic na `Authorization`/`x-api-key`/`api-key`/`apikey` header-value
+  pattern. Ang mga header-shaped keys (`authorization`, `x-api-key`, `api-key`,
+  `apikey`) ay tinatanggal nang estruktural (value lamang, scheme prefix tulad ng
+  `Bearer `/`Basic ` ay pinanatili) sa halip na sa pamamagitan ng generic text regex.
+- Ang guardrail ay hindi kailanman nagba-block; ito ay nag-rewrite lamang (`modifiedPayload` /
+  `modifiedResponse`) at nag-annotate (`meta.credentialsRedacted`, `meta.count`).
 
 Regression guard: `tests/unit/credential-masker-guardrail.test.ts`.
 
@@ -435,9 +557,15 @@ class BaseGuardrail {
 
   constructor(name: string, options?: { enabled?: boolean; priority?: number });
 
-  async preCall(payload: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
+  async preCall(
+    payload: unknown,
+    context: GuardrailContext,
+  ): Promise<GuardrailResult | void>;
 
-  async postCall(response: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
+  async postCall(
+    response: unknown,
+    context: GuardrailContext,
+  ): Promise<GuardrailResult | void>;
 }
 
 interface GuardrailResult<TValue = unknown> {

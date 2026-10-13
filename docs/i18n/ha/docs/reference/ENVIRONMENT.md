@@ -1824,23 +1824,33 @@ Saitunan tsoho na gama-gari don headless browser da tool-tunnel mai fita. Ƙimom
 
 ---
 
-## Gadar OmniConductor
+## OmniConductor Bridge
 
-Mai karɓar SSE mai dogon rai wanda ke kwaikwayon ayyukan cibiyar OmniConductor zuwa cikin A2A TaskManager na gida (`src/lib/conductor/`). Na zaɓi ne — gadar tana farawa ne kawai idan an saita `CONDUCTOR_HUB_URL`. Na ɓangaren sabar kawai: dole ne token ɗin cibiyar kada ya taɓa isa burauza.
+Mai amfani da SSE mai tsawo wanda ke kwatanta ayyukan OmniConductor hub a cikin A2A TaskManager na gida (`src/lib/conductor/`). Zaɓi — gado yana farawa ne kawai idan `CONDUCTOR_HUB_URL` an saita. Kawai a gefen uwar garken: token na hub ba ya kamata ya kai ga mai bincike.
 
-| Sauyi                          | Tsoho                   | Fayil ɗin Asali                  | Bayani                                                                                                                              |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(babu)_                | `src/lib/conductor/boot.ts`      | URL na asali na cibiyar OmniConductor (misali `http://127.0.0.1:7910`). Idan ba a saita ba = an kashe gadar.                        |
-| `CONDUCTOR_HUB_TOKEN`          | _(babu)_                | `src/lib/conductor/boot.ts`      | Shaidar cibiyar don rafin SSE — ƙirƙiri takwarar nau'in `spokesperson` a cibiyar (`POST /v1/peers`, mai gudanarwa).                 |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(babu)_                | `src/lib/conductor/hubProxy.ts`  | Shaida don wakilta ayyuka masu shigowa daga A2A→cibiya (`POST /v1/tasks`); idan ba a saita ba, ana amfani da `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL na asali na sabis ɗin mai magana da yawun jama'a (Faro) da ke bayan wakilin tattaunawar dashboard (`/api/conductor/ask`).       |
+| Canji                          | Default                 | Fayil na Asali                   | Bayani                                                                                                                    |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(babu)_                | `src/lib/conductor/boot.ts`      | Babban URL na OmniConductor hub (misali `http://127.0.0.1:7910`). Idan an cire = gado an kashe.                           |
+| `CONDUCTOR_HUB_TOKEN`          | _(babu)_                | `src/lib/conductor/boot.ts`      | Takardar shaidar hub don SSE feed — fitar da abokin tarayya na nau'in `spokesperson` a kan hub (`POST /v1/peers`, admin). |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(babu)_                | `src/lib/conductor/hubProxy.ts`  | Takardar shaidar don aikace-aikacen A2A→hub (`POST /v1/tasks`); yana komawa zuwa `CONDUCTOR_HUB_TOKEN` idan an cire.      |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Babban URL na sabis na spokesperson (Faro) a bayan gado na tattaunawa (`/api/conductor/ask`).                             |
 
-### Tsarawa bisa la'akari da ƙayyadadden kaso
+### Tabbatar da tantancewar gado na bidiyo
 
-Ana amfani da shi a `open-sse/services/combo.ts` da `src/lib/quota/quotaScheduler.ts` don binciken kasafin token kafin buƙata. Na zaɓi ne — halayen turawa na asali ba ya canzawa idan ba a saita ba.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` yana buƙatar
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` don sanya sunan babban directory wanda ke ƙunshe da
+`storage.sqlite`. Babu wani tsoho. Kayan aikin yana buɗe wannan bayanan a cikin karatu kawai kuma
+yana shirya kwafin wucin gadi na musamman tare da maɓallan abokin ciniki da saituna masu zaman kansu;
+takardun shaidar suna nan a kan mai tabbatarwa. Wannan canjin yana nan ne kawai don umarnin
+shiryawa na musamman kuma ba a amfani da shi ta hanyar farawa na uwar garken na yau da kullum. Shirya
+ba ya kira wani samfur; umarnin hayaki na wucin gadi yana buƙatar `--execute-real`.
 
-| Sauyi                              | Tsoho     | Fayil ɗin Asali                             | Bayani                                                                                                                                                                                                                                                                                    |
-| ---------------------------------- | --------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`       | `open-sse/services/combo.ts`                | Idan `1`, a tsallake haɗin da kasafin token ɗinsa na kowane taga (`rateLimitOverrides.tpm`, teburin `provider_quota_state`) ba zai iya ɗaukar kiyasin kuɗin buƙatar ba kafin aikawa. A ci gaba idan babu kasafin da aka saita.                                                            |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(kunne)_ | `open-sse/services/estimatorCalibration.ts` | Daidaitawar mai ƙididdigar token na kariyar mahalli ta hanyar martani (#14931): EMA na `usage.prompt_tokens` / kiyasi ga kowane (mai bayarwa, samfuri, akwai kayan aiki), an iyakance shi zuwa 0.15–2.0, kuma a cikin ƙwaƙwalwa kawai. `off`, `0` ko `false` suna kashe rikodi da amfani. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`   | `open-sse/config/imageRegistry.ts`          | Yana rijistar hanyoyin hoto na `xai-oauth` (`xao`) da `grok-cli`. Tutar fasali ta dashboard mai suna iri ɗaya; ƙimar maye gurbi ta DB tana rinjayar wannan ƙimar.                                                                                                                         |
+### Tsarin jadawalin da ya san ƙayyadaddun
+
+Ana amfani da shi ta `open-sse/services/combo.ts` da `src/lib/quota/quotaScheduler.ts` don binciken kasafin kuɗi na token kafin buƙata. Zaɓi — halayen jigilar kaya na tsoho ba su canza ba idan an cire.
+
+| Canji                              | Default  | Fayil na Asali                              | Bayani                                                                                                                                                                                                                                                               |
+| ---------------------------------- | -------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | Lokacin da `1`, tsallake haɗin da kasafin kuɗin token na kowane taga (`rateLimitOverrides.tpm`, tebur `provider_quota_state`) ba zai iya ɗaukar farashin buƙatar da aka kiyasta kafin a aika. Fita-bude lokacin da babu kasafin kuɗi da aka tsara.                   |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(akan)_ | `open-sse/services/estimatorCalibration.ts` | Tabbatar da ma'aunin shaidar token na mai kula (#14931): kowane (mai bayarwa, samfur, kayan aikin da ke akwai) EMA na `usage.prompt_tokens` / kiyasta, an kulle zuwa 0.15–2.0, a cikin ƙwaƙwalwar kawai. `off`, `0` ko `false` yana kashe rikodin da aikace-aikacen. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Yana rajistar hanyoyin hoton `xai-oauth` (`xao`) da `grok-cli`. Alamar fasalin dashboard na wannan suna; override na DB yana cin nasara akan wannan ƙimar.                                                                                                           |

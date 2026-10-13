@@ -1818,23 +1818,33 @@ Globálne predvolené hodnoty pre bezhlavý prehliadač a odchádzajúci tunel n
 
 ---
 
-## Most OmniConductor
+## OmniConductor Bridge
 
-Dlhodobo bežiaci spotrebiteľ SSE, ktorý zrkadlí úlohy centra OmniConductor do lokálneho A2A TaskManagera (`src/lib/conductor/`). Voliteľná funkcia — most sa spustí iba vtedy, keď je nastavená premenná `CONDUCTOR_HUB_URL`. Iba na strane servera: token centra sa nikdy nesmie dostať do prehliadača.
+Dlhodobý SSE spotrebiteľ, ktorý zrkadlí úlohy OmniConductor hubu do miestneho A2A TaskManager (`src/lib/conductor/`). Voliteľné — most sa spustí iba vtedy, keď je nastavená `CONDUCTOR_HUB_URL`. Iba na serverovej strane: token hubu sa nikdy nesmie dostať do prehliadača.
 
-| Premenná                       | Predvolená hodnota      | Zdrojový súbor                   | Popis                                                                                                                                        |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(prázdne)_             | `src/lib/conductor/boot.ts`      | Základná URL centra OmniConductor (napr. `http://127.0.0.1:7910`). Nenastavená = most je vypnutý.                                            |
-| `CONDUCTOR_HUB_TOKEN`          | _(prázdne)_             | `src/lib/conductor/boot.ts`      | Prihlasovací údaj centra pre kanál SSE — v centre vytvorte partnera druhu `spokesperson` (`POST /v1/peers`, správca).                        |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prázdne)_             | `src/lib/conductor/hubProxy.ts`  | Prihlasovací údaj na delegovanie prichádzajúcich úloh A2A→centrum (`POST /v1/tasks`); ak nie je nastavený, použije sa `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Základná URL služby spokesperson (Faro) za proxy konverzácie ovládacieho panela (`/api/conductor/ask`).                                      |
+| Premenná                       | Predvolená hodnota      | Zdrojový súbor                   | Popis                                                                                                                 |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(prázdny)_             | `src/lib/conductor/boot.ts`      | Základná URL adresa OmniConductor hubu (napr. `http://127.0.0.1:7910`). Nezadané = most je zakázaný.                  |
+| `CONDUCTOR_HUB_TOKEN`          | _(prázdny)_             | `src/lib/conductor/boot.ts`      | Hub poverenie pre SSE prúd — emitujte peer typu `spokesperson` na hube (`POST /v1/peers`, admin).                     |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(prázdny)_             | `src/lib/conductor/hubProxy.ts`  | Poverenie pre prichádzajúcu A2A→hub delegáciu úloh (`POST /v1/tasks`); pri nezadaní sa použije `CONDUCTOR_HUB_TOKEN`. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Základná URL adresa služby spokesperson (Faro) za proxy chatom na palubnej doske (`/api/conductor/ask`).              |
 
-### Plánovanie zohľadňujúce kvóty
+### Izolovaná validácia video mosta
 
-Používa sa v súboroch `open-sse/services/combo.ts` a `src/lib/quota/quotaScheduler.ts` na kontroly rozpočtu tokenov pred požiadavkou. Voliteľná funkcia — ak nie je nastavená, predvolené správanie smerovania zostáva nezmenené.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` vyžaduje
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, aby pomenoval absolútny adresár obsahujúci
+`storage.sqlite`. Neexistuje žiadna predvolená hodnota. Nástroj otvorí túto databázu iba na čítanie a
+pripraví súkromnú dočasnú kópiu s izolovanými klientskými kľúčmi a nastaveniami;
+poverenia zostávajú na validačnom hostiteľovi. Táto premenná je určená iba pre explicitný
+prípravný príkaz a nie je spotrebovaná normálnym spustením servera. Príprava
+nevolá model; samostatný príkaz na živé testovanie vyžaduje `--execute-real`.
 
-| Premenná                           | Predvolená hodnota | Zdrojový súbor                              | Popis                                                                                                                                                                                                                                                                                                     |
-| ---------------------------------- | ------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`                | `open-sse/services/combo.ts`                | Pri hodnote `1` preskočí pripojenia, ktorých rozpočet tokenov na časové okno (`rateLimitOverrides.tpm`, tabuľka `provider_quota_state`) nestačí na odhadované náklady požiadavky pred jej odoslaním. Ak nie je nakonfigurovaný žiadny rozpočet, požiadavka sa povolí.                                     |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(zapnuté)_        | `open-sse/services/estimatorCalibration.ts` | Kalibrácia odhadu tokenov ochrany kontextu na základe spätnej väzby (#14931): EMA pomeru `usage.prompt_tokens` / odhad pre každú kombináciu (poskytovateľ, model, prítomnosť nástrojov), obmedzená na rozsah 0,15–2,0, iba v pamäti. Hodnoty `off`, `0` alebo `false` zakážu zaznamenávanie a používanie. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`            | `open-sse/config/imageRegistry.ts`          | Zaregistruje obrazové trasy `xai-oauth` (`xao`) a `grok-cli`. Príznak funkcie ovládacieho panela s rovnakým názvom; prepísanie v databáze má prednosť pred touto hodnotou.                                                                                                                                |
+### Plánovanie s ohľadom na kvóty
+
+Používa sa v `open-sse/services/combo.ts` a `src/lib/quota/quotaScheduler.ts` na kontroly rozpočtu tokenov pred požiadavkami. Voliteľné — predvolené správanie smerovania sa nezmení, keď nie je nastavené.
+
+| Premenná                           | Predvolená hodnota | Zdrojový súbor                              | Popis                                                                                                                                                                                                                                                           |
+| ---------------------------------- | ------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`                | `open-sse/services/combo.ts`                | Keď je `1`, preskočte pripojenia, ktorých rozpočet tokenov na okno (`rateLimitOverrides.tpm`, tabuľka `provider_quota_state`) si nemôže dovoliť odhadované náklady na požiadavku pred odoslaním. Fail-open, keď nie je nastavený žiadny rozpočet.               |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(zapnuté)_        | `open-sse/services/estimatorCalibration.ts` | Kalibrácia spätnej väzby odhadovača tokenov kontextového strážcu (#14931): per (poskytovateľ, model, prítomné nástroje) EMA `usage.prompt_tokens` / odhad, obmedzené na 0.15–2.0, iba v pamäti. `vypnuté`, `0` alebo `false` zakáže zaznamenávanie a aplikáciu. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`            | `open-sse/config/imageRegistry.ts`          | Registruje trasy obrázkov `xai-oauth` (`xao`) a `grok-cli`. Funkcia na palubnej doske s rovnakým názvom; pre tento hodnotu vyhrá prepis do DB.                                                                                                                  |

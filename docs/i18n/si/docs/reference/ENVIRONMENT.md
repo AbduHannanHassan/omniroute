@@ -1342,11 +1342,11 @@ Dashboard වෙතින් සෘජුවම ගැටලු වාර්ත�
 
 ---
 
-## යෙදවීමේ අවස්ථා
+## නිකුත් කිරීමේ දර්ශන
 
-රිලේ පසුබිම් පද්ධතිය සඳහා SRE මාර්ගෝපදේශය (`ts`/`bifrost`/`auto` හැසිරීම, `9router` සහ `CLIProxyAPI` ස්ථානගත කිරීම, සහ ඉහළ කාර්යප්රවාහ අනුපාතයක් සඳහා වන විකල්ප උපායමාර්ගය) සඳහා, [රිලේ පසුබිම් පද්ධති උපායමාර්ගය](/docs/reference/RELAY_BACKEND_STRATEGY.md) බලන්න.
+රෙලේ පසුබැසීම SRE මාර්ගෝපදේශය සඳහා (ts/bifrost/auto හැසිරීම, 9router සහ CLIProxyAPI ස්ථානය, සහ ඉහළ-ඉක්මන් පසුබැසීමේ යෝජනා), [රෙලේ පසුබැසීමේ යෝජනා](/docs/reference/RELAY_BACKEND_STRATEGY.md) බලන්න.
 
-### අවම දේශීය සංවර්ධන සැකසුම
+### අවම දේශීය සංවර්ධනය
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1356,7 +1356,7 @@ PORT=20128
 NODE_ENV=development
 ```
 
-### Docker නිෂ්පාදන සැකසුම
+### Docker නිෂ්පාදනය
 
 ```bash
 JWT_SECRET=<generated>
@@ -1375,7 +1375,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### ජාලයෙන් හුදකලා කළ / CI සැකසුම
+### වායු-ගැප් / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1386,7 +1386,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### ප්රතිලෝම ප්රොක්සියක් සහිත VPS සැකසුම (nginx + Cloudflare)
+### VPS සමඟ ප්‍රතිපත්ති ප්‍රතිපත්ති (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1401,8 +1401,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills Sandbox (v3.8.0+)
 
@@ -1815,23 +1813,33 @@ headless browser එක සහ outbound tool tunnel එක සඳහා ගෝ�
 
 ---
 
-## OmniConductor පාලම
+## OmniConductor Bridge
 
-OmniConductor හබ් කාර්යයන් දේශීය A2A TaskManager (`src/lib/conductor/`) වෙත පිළිබිඹු කරන දිගුකාලීන SSE පාරිභෝගිකයෙකි. භාවිතයට තේරීමෙන් සක්රිය කළ යුතුය — පාලම ආරම්භ වන්නේ `CONDUCTOR_HUB_URL` සකසා ඇති විට පමණි. සේවාදායක පැත්තට පමණි: හබ් ටෝකනය කිසිවිටෙකත් බ්රවුසරය වෙත ළඟා නොවිය යුතුය.
+දිගුකාලීන SSE පාරිභෝගිකයෙක් වන අතර OmniConductor හබ කාර්යයන් ප්‍රදේශීය A2A TaskManager (`src/lib/conductor/`) වෙත අනුකරණය කරයි. කැමැත්තෙන් — පාලකය ආරම්භ වන්නේ `CONDUCTOR_HUB_URL` සකසන විට පමණි. සේවාදායක පැත්තේ පමණක්: හබ ටෝකනය බ්‍රව්සරයට ළඟා විය යුතු නැහැ.
 
-| විචල්යය                        | පෙරනිමිය                | මූලාශ්ර ගොනුව                    | විස්තරය                                                                                                                    |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(හිස්)_                | `src/lib/conductor/boot.ts`      | OmniConductor හබ්හි මූලික URL එක (උදා. `http://127.0.0.1:7910`). සකසා නොමැති නම් = පාලම අක්රියයි.                          |
-| `CONDUCTOR_HUB_TOKEN`          | _(හිස්)_                | `src/lib/conductor/boot.ts`      | SSE සංග්රහය සඳහා හබ් අක්තපත්රය — හබ් එකෙහි `spokesperson` වර්ගයේ සමපාර්ශ්විකයෙකු නිකුත් කරන්න (`POST /v1/peers`, පරිපාලක). |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(හිස්)_                | `src/lib/conductor/hubProxy.ts`  | ඇතුළට එන A2A→හබ් කාර්ය පැවරීම සඳහා අක්තපත්රය (`POST /v1/tasks`); සකසා නොමැති විට `CONDUCTOR_HUB_TOKEN` භාවිතයට ආපසු යයි.   |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | උපකරණ පුවරුවේ කතාබස් ප්රොක්සිය (`/api/conductor/ask`) පිටුපස ඇති spokesperson (Faro) සේවාවේ මූලික URL එක.                  |
+| Variable                       | Default                 | Source File                      | Description                                                                                                 |
+| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | OmniConductor හබයේ මූලික URL (උදාහරණයක් ලෙස `http://127.0.0.1:7910`). සකසන ලද නැතිනම් = පාලකය අක්‍රිය වේ.   |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | SSE ආහාරය සඳහා හබ ධාරිතාවය — හබයේ `spokesperson` වර්ගයේ සහකාරයෙකු නිකුත් කරන්න (`POST /v1/peers`, පරිපාලක). |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | A2A→හබ කාර්ය නියෝජනය සඳහා ධාරිතාවය (`POST /v1/tasks`); සකසන ලද නැතිනම් `CONDUCTOR_HUB_TOKEN` වෙත පසුබැසෙයි. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | ඩෑෂ්බෝර්ඩ් කතාබහ ප්‍රොක්සි පසුබැසීමේ `spokesperson` (Faro) සේවාවේ මූලික URL (`/api/conductor/ask`).         |
 
-### කෝටා-සංවේදී කාලසටහන්කරණය
+### Video Bridge isolated validation
 
-ඉල්ලීමට පෙර ටෝකන් අයවැය පරීක්ෂා සඳහා `open-sse/services/combo.ts` සහ `src/lib/quota/quotaScheduler.ts` විසින් භාවිත කෙරේ. භාවිතයට තේරීමෙන් සක්රිය කළ යුතුය — සකසා නොමැති විට පෙරනිමි මාර්ගගත කිරීමේ හැසිරීම නොවෙනස්ව පවතී.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` සඳහා අවශ්‍ය වේ
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` යනු සම්පූර්ණ ඩිරෙක්ටරියක් නම් කරයි
+`storage.sqlite`. ඕනෑම පෙරනිමියක් නැත. මෙය කියවීම සඳහා පමණක් ඩේටාබේස් එක විවෘත කරයි සහ
+අයිසොලේටඩ් පාරිභෝගික යතුරු සහ සැකසුම් සමඟ පෞද්ගලික තාවකාලික පිටපතක් සකසයි;
+ධාරිතාවය වලංගුකරණ ආශ්‍රිත සත්කාරකය මත රැඳී ඇත. මෙම විශේෂාංගය පමණක් නිශ්චිත
+සකසන කමාන්ඩ් සඳහා වන අතර සාමාන්‍ය සේවාදායක ආරම්භය මඟින් භාවිතා නොවේ. සකසන කාර්යයක්
+මොඩලයක් ඇමතීමක් නොකරයි; වෙනත් සජීවී දුම්කොළ කමාන්ඩ් එක `--execute-real` අවශ්‍ය වේ.
 
-| විචල්යය                            | පෙරනිමිය   | මූලාශ්ර ගොනුව                               | විස්තරය                                                                                                                                                                                                                                                              |
-| ---------------------------------- | ---------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | `1` වන විට, යැවීමට පෙර ඇස්තමේන්තුගත ඉල්ලීම් පිරිවැය දැරිය නොහැකි කාල-කවුළුවකට අදාළ ටෝකන් අයවැයක් (`rateLimitOverrides.tpm`, `provider_quota_state` වගුව) ඇති සම්බන්ධතා මඟ හරියි. අයවැයක් වින්යාස කර නොමැති විට විවෘත ලෙස අසාර්ථක වේ.                                 |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(සක්රිය)_ | `open-sse/services/estimatorCalibration.ts` | සන්දර්භ-ආරක්ෂක ටෝකන් ඇස්තමේන්තුකරුගේ (#14931) ප්රතිපෝෂණ ක්රමාංකනය: එක් එක් (සපයන්නා, ආකෘතිය, මෙවලම් තිබීම) සඳහා `usage.prompt_tokens` / ඇස්තමේන්තුවේ EMA අගය, 0.15–2.0 අතර සීමා කර, මතකයේ පමණක් තබයි. `off`, `0` හෝ `false` මඟින් වාර්තා කිරීම සහ යෙදීම අක්රිය කරයි. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) සහ `grok-cli` රූප මාර්ග ලියාපදිංචි කරයි. එම නමම ඇති උපකරණ පුවරු විශේෂාංග ධජය; DB අතික්රමණයක් මෙම අගයට වඩා ප්රමුඛ වේ.                                                                                                                             |
+### Quota-aware scheduling
+
+`open-sse/services/combo.ts` සහ `src/lib/quota/quotaScheduler.ts` මගින් පෙර-ඇනවුම් ටෝකන්-බජට් පරීක්ෂා කිරීම් සඳහා භාවිතා වේ. කැමැත්තෙන් — සකසන ලද නැතිනම් පෙරනිමියක් නොවෙනස් වේ.
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                        |
+| ---------------------------------- | ------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | `1` වන විට, සම්බන්ධතා පරික්ෂා කරන්න, එහි ප්‍රති-කවුළු ටෝකන් බජට් (`rateLimitOverrides.tpm`, කාටු `provider_quota_state`) අනුමාන කරන ලද ඇනවුම් වියදමට අනුකූල නොවේ නම්. බජට් එකක් සකසන ලද නැතිනම් අසාර්ථක වේ.                        |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | පරිපාලක ටෝකන් අනුමානකරු (#14931) සඳහා ප්‍රතිපෝෂණ සකසනය: (පරිපාලක, මොඩලය, මෙවලම් පවතින) EMA එක `usage.prompt_tokens` / අනුමානය, 0.15–2.0 දක්වා සීමා කර ඇත, මතකයේ පමණි. `off`, `0` හෝ `false` යනු සටහන් කිරීම සහ යෙදුම අක්‍රිය කරයි. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) සහ `grok-cli` රූප මාර්ග ලියාපදිංචි කරයි. ඩෑෂ්බෝර්ඩ් විශේෂාංගයේ නාමය; DB අතිරේකයක් මෙම අගය මත ජයග්‍රහණය කරයි.                                                                                                   |

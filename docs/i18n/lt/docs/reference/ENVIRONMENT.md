@@ -1817,23 +1817,33 @@ Visuotinės numatytosios naršyklės be grafinės sąsajos ir siunčiamo įranki
 
 ---
 
-## OmniConductor tiltas
+## OmniConductor Bridge
 
-Ilgai veikiantis SSE naudotojas, kuris atvaizduoja OmniConductor telkinio užduotis vietinėje A2A TaskManager (`src/lib/conductor/`). Pasirenkama funkcija — tiltas paleidžiamas tik tada, kai nustatytas `CONDUCTOR_HUB_URL`. Tik serverio pusėje: telkinio prieigos raktas niekada neturi pasiekti naršyklės.
+Ilgalaikis SSE vartotojas, kuris atspindi OmniConductor hub užduotis į vietinį A2A TaskManager (`src/lib/conductor/`). Pasirinktinai — tiltas pradeda veikti tik tada, kai nustatytas `CONDUCTOR_HUB_URL`. Tik serverio pusėje: hub token niekada neturi pasiekti naršyklės.
 
-| Kintamasis                     | Numatytoji reikšmė      | Šaltinio failas                  | Aprašymas                                                                                                                                             |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(tuščia)_              | `src/lib/conductor/boot.ts`      | Bazinis OmniConductor telkinio URL (pvz., `http://127.0.0.1:7910`). Nenustatyta reikšmė reiškia, kad tiltas išjungtas.                                |
-| `CONDUCTOR_HUB_TOKEN`          | _(tuščia)_              | `src/lib/conductor/boot.ts`      | Telkinio prisijungimo duomenys SSE srautui — telkinyje sukurkite `spokesperson` tipo lygiavertį mazgą (`POST /v1/peers`, administratoriaus teisėmis). |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tuščia)_              | `src/lib/conductor/hubProxy.ts`  | Prisijungimo duomenys gaunamų A2A→telkinio užduočių delegavimui (`POST /v1/tasks`); jei nenustatyta, naudojamas `CONDUCTOR_HUB_TOKEN`.                |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Bazinis atstovo (Faro) paslaugos URL, naudojamas valdymo skydelio pokalbių tarpinio serverio (`/api/conductor/ask`).                                  |
+| Kintamasis                     | Numatytoji              | Šaltinio failas                  | Aprašymas                                                                                                             |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tuščias)_             | `src/lib/conductor/boot.ts`      | Pagrindinis URL adresas OmniConductor hub (pvz. `http://127.0.0.1:7910`). Nustatytas = tiltas išjungtas.              |
+| `CONDUCTOR_HUB_TOKEN`          | _(tuščias)_             | `src/lib/conductor/boot.ts`      | Hub kredencialas SSE srautui — išleisti `spokesperson` tipo partnerį hub (`POST /v1/peers`, administratorius).        |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tuščias)_             | `src/lib/conductor/hubProxy.ts`  | Kredencialas A2A→hub užduočių delegavimui (`POST /v1/tasks`); grįžta prie `CONDUCTOR_HUB_TOKEN`, kai nėra nustatytas. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Pagrindinis URL adresas atstovo (Faro) paslaugai už valdymo skydelio pokalbių proxy (`/api/conductor/ask`).           |
 
-### Kvotas įvertinantis planavimas
+### Video Bridge izoliuota validacija
 
-Naudojama `open-sse/services/combo.ts` ir `src/lib/quota/quotaScheduler.ts` išankstinėms užklausos prieigos raktų biudžeto patikroms. Pasirenkama funkcija — kai reikšmė nenustatyta, numatytoji maršruto parinkimo elgsena nesikeičia.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` reikalauja
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, kad nurodytų absoliutų katalogą, kuriame yra
+`storage.sqlite`. Numatytojo nėra. Įrankis atidaro tą duomenų bazę tik skaitymui ir
+paruošia privačią laikiną kopiją su izoliuotais kliento raktais ir nustatymais;
+kredencialai lieka validacijos hoste. Šis kintamasis skirtas tik aiškiai
+paruošimo komandai ir nėra naudojamas normaliam serverio paleidimui. Paruošimas
+nepaskambina modeliui; atskira gyva dūmų komanda reikalauja `--execute-real`.
 
-| Kintamasis                         | Numatytoji reikšmė | Šaltinio failas                             | Aprašymas                                                                                                                                                                                                                                                                                                                       |
-| ---------------------------------- | ------------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`                | `open-sse/services/combo.ts`                | Kai nustatyta `1`, prieš siunčiant užklausą praleidžiami ryšiai, kurių vieno laikotarpio prieigos raktų biudžeto (`rateLimitOverrides.tpm`, lentelė `provider_quota_state`) nepakanka apskaičiuotai užklausos kainai padengti. Jei biudžetas nesukonfigūruotas, užklausa leidžiama.                                             |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(įjungta)_        | `open-sse/services/estimatorCalibration.ts` | Konteksto apsaugos prieigos raktų įverčio skaičiuoklės grįžtamojo ryšio kalibravimas (#14931): kiekvieno (teikėjo, modelio, įrankių buvimo) `usage.prompt_tokens` / įverčio eksponentinis slankusis vidurkis (EMA), apribotas iki 0.15–2.0 ir saugomas tik atmintyje. `off`, `0` arba `false` išjungia registravimą ir taikymą. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`            | `open-sse/config/imageRegistry.ts`          | Užregistruoja `xai-oauth` (`xao`) ir `grok-cli` vaizdų maršrutus. Tai yra valdymo skydelio funkcijos vėliavėlė tuo pačiu pavadinimu; DB perrašymas turi pirmenybę prieš šią reikšmę.                                                                                                                                            |
+### Kvotą atsižvelgiantis tvarkymas
+
+Naudojamas `open-sse/services/combo.ts` ir `src/lib/quota/quotaScheduler.ts` priešužklausų token-biudžeto patikrinimams. Pasirinktinai — numatytoji maršrutizavimo elgsena nepasikeičia, kai nėra nustatyta.
+
+| Kintamasis                         | Numatytoji  | Šaltinio failas                             | Aprašymas                                                                                                                                                                                                                                           |
+| ---------------------------------- | ----------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Kai `1`, praleisti ryšius, kurių per langą token biudžetas (`rateLimitOverrides.tpm`, lentelė `provider_quota_state`) negali sau leisti numatomos užklausos kainos prieš išsiuntimą. Nepavyksta, kai biudžetas nėra sukonfigūruotas.                |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(įjungta)_ | `open-sse/services/estimatorCalibration.ts` | Atsiliepimų kalibracija konteksto-apsaugos token estimatoriui (#14931): pagal (teikėją, modelį, esamus įrankius) EMA `usage.prompt_tokens` / įvertinimą, ribojama iki 0.15–2.0, tik atmintyje. `off`, `0` arba `false` išjungia įrašymą ir taikymą. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Registruoja `xai-oauth` (`xao`) ir `grok-cli` vaizdų maršrutus. Valdymo skydelio funkcijų vėliava to paties pavadinimo; DB perrašymas laimi prieš šią vertę.                                                                                        |

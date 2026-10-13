@@ -1824,21 +1824,30 @@ Chaguo-msingi za jumla za kivinjari cha headless na handaki la zana zinazotoka. 
 
 ## Daraja la OmniConductor
 
-Mtumiaji wa SSE wa muda mrefu ambaye huakisi majukumu ya kitovu cha OmniConductor kwenye A2A TaskManager ya ndani (`src/lib/conductor/`). Ni ya hiari — daraja huanza tu wakati `CONDUCTOR_HUB_URL` imewekwa. Upande wa seva pekee: tokeni ya kitovu haipaswi kamwe kufika kwenye kivinjari.
+Mteja wa SSE wa muda mrefu anayekariri kazi za kituo cha OmniConductor kwenye Meneja wa Kazi wa A2A wa ndani (`src/lib/conductor/`). Chaguo — daraja linaanza tu wakati `CONDUCTOR_HUB_URL` imewekwa. Kando ya seva tu: token ya kituo haipaswi kufikia kivinjari.
 
-| Kigezo                         | Chaguo-msingi           | Faili Chanzo                     | Maelezo                                                                                                                                                |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(tupu)_                | `src/lib/conductor/boot.ts`      | URL msingi ya kitovu cha OmniConductor (k.m. `http://127.0.0.1:7910`). Ikiwa haijawekwa = daraja limezimwa.                                            |
-| `CONDUCTOR_HUB_TOKEN`          | _(tupu)_                | `src/lib/conductor/boot.ts`      | Kitambulisho cha kitovu kwa mpasho wa SSE — toa peer ya aina ya `spokesperson` kwenye kitovu (`POST /v1/peers`, msimamizi).                            |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tupu)_                | `src/lib/conductor/hubProxy.ts`  | Kitambulisho cha ukabidhi wa majukumu yanayoingia kutoka A2A kwenda kwenye kitovu (`POST /v1/tasks`); hutumia `CONDUCTOR_HUB_TOKEN` ikiwa hakijawekwa. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL msingi ya huduma ya msemaji (Faro) iliyo nyuma ya proksi ya gumzo ya dashibodi (`/api/conductor/ask`).                                             |
+| Kigezo                         | Kiwango cha Kawaida     | Faili ya Chanzo                  | Maelezo                                                                                                                     |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(bila)_                | `src/lib/conductor/boot.ts`      | URL ya msingi ya kituo cha OmniConductor (mfano `http://127.0.0.1:7910`). Iwapo haijawekwa = daraja limezimwa.              |
+| `CONDUCTOR_HUB_TOKEN`          | _(bila)_                | `src/lib/conductor/boot.ts`      | Kitambulisho cha kituo kwa ajili ya mlo wa SSE — tolea `spokesperson`-aina ya rika kwenye kituo (`POST /v1/peers`, admin).  |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(bila)_                | `src/lib/conductor/hubProxy.ts`  | Kitambulisho cha uhamasishaji wa kazi za A2A→kituo (`POST /v1/tasks`); inarudi kwa `CONDUCTOR_HUB_TOKEN` wakati haijawekwa. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL ya msingi ya huduma ya msemaji (Faro) nyuma ya proxy ya mazungumzo ya dashibodi (`/api/conductor/ask`).                 |
 
-### Upangaji unaozingatia mgao
+### Uthibitishaji wa daraja la video lililotengwa
 
-Hutumiwa na `open-sse/services/combo.ts` na `src/lib/quota/quotaScheduler.ts` kwa ukaguzi wa bajeti ya tokeni kabla ya ombi. Ni ya hiari — tabia chaguo-msingi ya uelekezaji haibadiliki ikiwa haijawekwa.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` inahitaji
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` kutaja saraka kamili inayoshikilia
+`storage.sqlite`. Hakuna kiwango cha kawaida. Chombo hiki kinafungua hifadhidata hiyo kwa kusoma pekee na
+kuandaa nakala ya muda ya kibinafsi yenye funguo na mipangilio iliyotengwa;
+vitambulisho vinabaki kwenye mwenyeji wa uthibitishaji. Kigezo hiki ni kwa ajili ya amri ya maandalizi maalum na hakitumiwi na uzinduzi wa kawaida wa seva. Maandalizi
+hayapigi simu kwa mfano; amri tofauti ya moshi wa moja kwa moja inahitaji `--execute-real`.
 
-| Kigezo                             | Chaguo-msingi | Faili Chanzo                                | Maelezo                                                                                                                                                                                                                                                                        |
-| ---------------------------------- | ------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | Ikiwa ni `1`, ruka miunganisho ambayo bajeti yake ya tokeni kwa kila dirisha (`rateLimitOverrides.tpm`, jedwali `provider_quota_state`) haiwezi kugharamia makadirio ya ombi kabla ya kulituma. Endelea bila kuzuia ikiwa hakuna bajeti iliyosanidiwa.                         |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(imewashwa)_ | `open-sse/services/estimatorCalibration.ts` | Urekebishaji wa maoni kwa kikadiria tokeni cha ulinzi wa muktadha (#14931): EMA kwa kila (mtoa huduma, modeli, uwepo wa zana) ya `usage.prompt_tokens` / makadirio, iliyowekewa mipaka ya 0.15–2.0, kwenye kumbukumbu pekee. `off`, `0` au `false` huzima kurekodi na kutumia. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Husajili njia za picha za `xai-oauth` (`xao`) na `grok-cli`. Bendera ya kipengele ya dashibodi yenye jina sawa; ubatilishaji wa DB hutangulia thamani hii.                                                                                                                     |
+### Ratiba inayojua kuhusu quota
+
+Inatumika na `open-sse/services/combo.ts` na `src/lib/quota/quotaScheduler.ts` kwa ajili ya ukaguzi wa bajeti ya token kabla ya ombi. Chaguo — tabia ya kawaida ya routing haibadiliki wakati haijawekwa.
+
+| Kigezo                             | Kiwango cha Kawaida | Faili ya Chanzo                             | Maelezo                                                                                                                                                                                                                                    |
+| ---------------------------------- | ------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`                 | `open-sse/services/combo.ts`                | Wakati `1`, skip connections ambazo bajeti ya token kwa kila dirisha (`rateLimitOverrides.tpm`, jedwali `provider_quota_state`) haiwezi kumudu gharama ya ombi iliyokadiriwa kabla ya kutolewa. Fail-open wakati hakuna bajeti iliyowekwa. |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(imewashwa)_       | `open-sse/services/estimatorCalibration.ts` | Urekebishaji wa maoni ya mhesabu wa token (#14931): kwa (mtoa, mfano, zana zilizopo) EMA ya `usage.prompt_tokens` / makadirio, imefungwa kwa 0.15–2.0, kwenye kumbukumbu pekee. `off`, `0` au `false` inazima kurekodi na matumizi.        |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`             | `open-sse/config/imageRegistry.ts`          | Inasajili njia za picha za `xai-oauth` (`xao`) na `grok-cli`. Bendera ya kipengele cha dashibodi ya jina sawa; urekebishaji wa DB unashinda juu ya thamani hii.                                                                            |

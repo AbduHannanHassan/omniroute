@@ -1824,23 +1824,33 @@ Globālie noklusējumi bezgalvas pārlūkam un izejošajam rīku tunelim. Inform
 
 ---
 
-## OmniConductor tilts
+## OmniConductor Bridge
 
-Ilglaicīgs SSE patērētājs, kas spoguļo OmniConductor centrmezgla uzdevumus lokālajā A2A TaskManager (`src/lib/conductor/`). Izvēles funkcija — tilts tiek palaists tikai tad, ja ir iestatīts `CONDUCTOR_HUB_URL`. Tikai servera pusē: centrmezgla pilnvara nekad nedrīkst nonākt pārlūkprogrammā.
+Ilgstošs SSE patērētājs, kas atspoguļo OmniConductor centrālo uzdevumu vietējā A2A TaskManager (`src/lib/conductor/`). Opt-in — tilts sāk darboties tikai tad, kad ir iestatīts `CONDUCTOR_HUB_URL`. Tikai servera pusē: centrālais tokens nedrīkst nonākt pārlūkprogrammā.
 
-| Mainīgais                      | Noklusējums             | Avota fails                      | Apraksts                                                                                                                                          |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(tukšs)_               | `src/lib/conductor/boot.ts`      | OmniConductor centrmezgla bāzes URL (piem., `http://127.0.0.1:7910`). Nav iestatīts = tilts ir atspējots.                                         |
-| `CONDUCTOR_HUB_TOKEN`          | _(tukšs)_               | `src/lib/conductor/boot.ts`      | Centrmezgla akreditācijas dati SSE plūsmai — centrmezglā izveidojiet `spokesperson` veida vienādranga mezglu (`POST /v1/peers`, administratoram). |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tukšs)_               | `src/lib/conductor/hubProxy.ts`  | Akreditācijas dati ienākošo A2A→centrmezgla uzdevumu deleģēšanai (`POST /v1/tasks`); ja nav iestatīts, tiek izmantots `CONDUCTOR_HUB_TOKEN`.      |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Aiz informācijas paneļa tērzēšanas starpniekservera (`/api/conductor/ask`) esošā spokesperson (Faro) pakalpojuma bāzes URL.                       |
+| Mainīgais                      | Noklusējums             | Avota fails                      | Apraksts                                                                                                                    |
+| ------------------------------ | ----------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tukšs)_               | `src/lib/conductor/boot.ts`      | OmniConductor centra pamata URL (piemēram, `http://127.0.0.1:7910`). Neiestatīts = tilts atslēgts.                          |
+| `CONDUCTOR_HUB_TOKEN`          | _(tukšs)_               | `src/lib/conductor/boot.ts`      | Centrālā akreditācija SSE plūsmai — izsūtīt `spokesperson`-veida partneri centrā (`POST /v1/peers`, administrators).        |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tukšs)_               | `src/lib/conductor/hubProxy.ts`  | Akreditācija ienākošai A2A→centrā uzdevumu deleģēšanai (`POST /v1/tasks`); neiestatīts atgriežas pie `CONDUCTOR_HUB_TOKEN`. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Pamata URL pārstāvim (Faro) pakalpojumam aiz informācijas paneļa čata proxy (`/api/conductor/ask`).                         |
 
-### Kvotas ievērojoša plānošana
+### Video Bridge izolēta validācija
 
-Izmanto `open-sse/services/combo.ts` un `src/lib/quota/quotaScheduler.ts`, lai pirms pieprasījuma pārbaudītu tokenu budžetu. Izvēles funkcija — ja tā nav iestatīta, noklusējuma maršrutēšanas darbība nemainās.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` prasa
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR`, lai norādītu absolūtu direktoriju, kas satur
+`storage.sqlite`. Noklusējuma nav. Rīks atver šo datubāzi tikai lasīšanai un
+sagatavo privātu pagaidu kopiju ar izolētiem klientu atslēgām un iestatījumiem;
+akreditācijas paliek validācijas hostā. Šis mainīgais ir paredzēts tikai
+izteiktai sagatavošanas komandai un netiek izmantots normālā servera palaišanā. Sagatavošana
+neizsauc modeli; atsevišķā tiešraides dūmu komanda prasa `--execute-real`.
 
-| Mainīgais                          | Noklusējums  | Avota fails                                 | Apraksts                                                                                                                                                                                                                                                                                                         |
-| ---------------------------------- | ------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`          | `open-sse/services/combo.ts`                | Ja vērtība ir `1`, izlaiž savienojumus, kuru katra loga tokenu budžets (`rateLimitOverrides.tpm`, tabula `provider_quota_state`) pirms nosūtīšanas nespēj segt aplēstās pieprasījuma izmaksas. Ja budžets nav konfigurēts, pieprasījums tiek atļauts.                                                            |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ieslēgts)_ | `open-sse/services/estimatorCalibration.ts` | Konteksta ierobežojuma tokenu novērtētāja atgriezeniskās saites kalibrēšana (#14931): `usage.prompt_tokens` / aplēses EMA katrai (pakalpojumu sniedzēja, modeļa, rīku esamības) kombinācijai, ierobežota diapazonā 0.15–2.0 un glabāta tikai atmiņā. `off`, `0` vai `false` atspējo reģistrēšanu un piemērošanu. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`      | `open-sse/config/imageRegistry.ts`          | Reģistrē `xai-oauth` (`xao`) un `grok-cli` attēlu maršrutus. Informācijas paneļa funkcijas karogs ar tādu pašu nosaukumu; datubāzes pārrakstīšanas vērtībai ir prioritāte pār šo vērtību.                                                                                                                        |
+### Kvotu apzināta plānošana
+
+Tiek izmantota `open-sse/services/combo.ts` un `src/lib/quota/quotaScheduler.ts` priekš pirmspieprasījuma token-budžeta pārbaudēm. Opt-in — noklusējuma maršrutēšanas uzvedība nemainās, kad nav iestatīts.
+
+| Mainīgais                          | Noklusējums  | Avota fails                                 | Apraksts                                                                                                                                                                                                                                                                              |
+| ---------------------------------- | ------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`          | `open-sse/services/combo.ts`                | Kad `1`, izlaist savienojumus, kuru katra loga token budžets (`rateLimitOverrides.tpm`, tabula `provider_quota_state`) nevar atļauties novērtēto pieprasījuma izmaksu pirms nosūtīšanas. Neizdodas, ja nav konfigurēts budžets.                                                       |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ieslēgts)_ | `open-sse/services/estimatorCalibration.ts` | Atgriezeniskā saite konteksta aizsargājošā token novērtētāja kalibrācijai (#14931): katram (piegādātājam, modelim, pieejamajiem rīkiem) EMA no `usage.prompt_tokens` / novērtējums, ierobežots līdz 0.15–2.0, tikai atmiņā. `off`, `0` vai `false` atslēdz ierakstīšanu un lietošanu. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`      | `open-sse/config/imageRegistry.ts`          | Reģistrē `xai-oauth` (`xao`) un `grok-cli` attēlu maršrutus. Informācijas paneļa funkciju karogs ar to pašu nosaukumu; DB pārsvars uzvar šo vērtību.                                                                                                                                  |

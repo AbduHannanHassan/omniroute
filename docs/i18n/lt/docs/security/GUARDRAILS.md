@@ -17,12 +17,12 @@ Sistema yra **fail-open**: jei vykdant apsaugos priemonę įvyksta išimtis, reg
 įrašo klaidą ir tęsia darbą su kita apsaugos priemone, užuot atmetęs
 užklausą. Blokavimas visada yra sąmoningas sprendimas (`block: true`), o ne atsitiktinumas.
 
-## Integruotos apsaugos priemonės
+## Įmontuoti apsauginiai mechanizmai
 
-Registras automatiškai įkelia šešias apsaugos priemones prioriteto tvarka importuojant
+Registras automatiškai įkelia šešis apsauginius mechanizmus prioritetų tvarka importuojant
 (žr. `registry.ts` → `registerDefaultGuardrails()`):
 
-| Prioritetas | Pavadinimas         | Etapas (-ai)   | Failas                |
+| Prioritetas | Pavadinimas         | Etapas(-ai)    | Failas                |
 | ----------- | ------------------- | -------------- | --------------------- |
 | `5`         | `vision-bridge`     | `preCall`      | `visionBridge.ts`     |
 | `6`         | `audio-bridge`      | `preCall`      | `audioBridge.ts`      |
@@ -31,419 +31,657 @@ Registras automatiškai įkelia šešias apsaugos priemones prioriteto tvarka im
 | `20`        | `prompt-injection`  | `preCall`      | `promptInjection.ts`  |
 | `95`        | `credential-masker` | `pre` + `post` | `credentialMasker.ts` |
 
-Mažesni prioriteto numeriai vykdomi **pirmiausia**.
+Mažesni prioritetai vykdomi **pirmiausia**.
 
-### Vizijos tiltas (`visionBridge.ts`) – Modality Bridge PR-1
+### Vision Bridge (`visionBridge.ts`) — Modality Bridge PR-1
 
-Perima užklausas su vaizdais, skirtas **ne vizijos modeliams**, ir arba nukreipia visą užklausą į vizijos modelį, arba pakeičia vaizdo dalis teksto aprašymais, sugeneruotais konfigūruojamu vizijos modeliu prieš iškvietimą. Tai leidžia tik teksto teikėjams skaidriai apdoroti daugiamodalius duomenis.
+Perima vaizdus turinčius užklausas, skirtas **nevaizdo modeliams**, ir arba
+peradresuoja visą užklausą į modelį, galintį dirbti su vaizdais, arba pakeičia vaizdo
+dalis tekstinėmis aprašymomis, kurias sukuria konfigūruojamas vaizdo modelis prieš
+aukštesnę užklausą. Tai leidžia tik tekstinius teikėjus skaidriai tvarkyti
+multimodalius krovinius.
 
-Eiga:
+Srautas:
 
-1. Praleisti, jei tikslinis modelis jau palaiko viziją (nebent jis yra priverstinio tilto sąraše `isVisionBridgeForcedModel`).
-2. Išskirti vaizdo dalis per `extractImageParts(messages)`
-   (`visionBridgeHelpers.ts`), kuri deleguoja į **vieningą medijos detektorių** `detectMediaParts()` faile `open-sse/utils/mediaParts.ts` – vienintelį tiesos šaltinį, bendrinamą su kombinuotu suderinamumo filtru.
-   Išskyrimas leidžiamas tik aukščiausio lygio dalims, kurias `replaceImageParts` gali sujungti atgal (išskyrimo↔pakeitimo sutartis): OpenAI `image_url`, Anthropic base64 `source.type:"base64"`, Anthropic URL `source.type:"url"` ir Responses API `input_image`. Įdėtiniai atitikmenys ir tik indikatorinės formos yra kombinuoto filtro medžiaga ir niekada nėra išskiriamos. Praleisti, jei nerasta.
-3. Išspręsti vykdymo konfigūraciją per `resolveVisionBridgeRuntimeSettings()`
-   (`src/shared/constants/modalityBridgeDefaults.ts`): nauji `modalityBridge*` nustatymų raktai laimi; senieji `visionBridge*` raktai lieka **vieno ciklo atsarginiu variantu** (grąžinimo langas). Praleisti prieš bet kokį medijos apdorojimą, kai tiltas yra išjungtas.
-4. Režimo selektorius (`modalityBridgeVisionMode`, žr. lentelę žemiau) sprendžia, ar nukreipti, ar aprašyti. Nukreipimas grąžina `modifiedPayload` tik su pakeistu `model`, plius meta `{ rerouted, fromModel, toModel, imagesKept }`.
-5. Aprašymo kelias: apriboti vaizdus iki `maxImages`, sudaryti užduotį atitinkantį raginimą, patikrinti aprašymo talpyklą, iškviesti vizijos modelį **lygiagrečiai**
-   (`Promise.allSettled`) ir įterpti `[Image N]: <description]` teksto dalis jų vietoje. Nepavykęs aprašymas grąžina `null`, o originali vaizdo dalis yra **išsaugoma** (#4012) – išskyrus kombinuoto aprašymo kelią, kai visi aprašymai nepavyko, kur patvirtintas ne vizijos šaltinis gauna `(nepasiekiamas – neprijungtas joks vizijos teikėjas)` vietoj (#8430).
+1. Praleisti, jei tikslinis modelis jau palaiko vaizdą (nebent jis yra
+   priverstų tiltų sąraše `isVisionBridgeForcedModel`).
+2. Išgauti vaizdo dalis naudojant `extractImageParts(messages)`
+   (`visionBridgeHelpers.ts`), kuris perduoda užduotį **suvienytam medijos
+   detektoriui** `detectMediaParts()` `open-sse/utils/mediaParts.ts` — tai
+   vienintelis tiesos šaltinis, bendrinamas su derinimo suderinamumo filtru.
+   Išgavimas leidžiamas tik viršutinio lygio dalims, kurias
+   `replaceImageParts` gali vėl sujungti (išgauti↔pakeisti sutartis): OpenAI
+   `image_url`, Anthropic base64 `source.type:"base64"`, Anthropic URL
+   `source.type:"url"`, ir Responses API `input_image`. Įdėtiniai hitai ir
+   tik indikatorių formos yra derinimo filtro medžiaga ir niekada nėra išgaunami.
+   Praleisti, jei nieko nerasta.
+3. Išspręsti vykdymo konfigūraciją naudojant `resolveVisionBridgeRuntimeSettings()`
+   (`src/shared/constants/modalityBridgeDefaults.ts`): nauji `modalityBridge*`
+   nustatymų raktai laimi; senieji `visionBridge*` raktai lieka **vieno ciklo
+   atsarginiu** (atsarginio lango). Praleisti prieš bet kokį medijos perėjimą, kai
+   tiltas yra išjungtas.
+4. Režimo pasirinkiklis (`modalityBridgeVisionMode`, žr. žemiau esančią lentelę) nusprendžia
+   peradresuoti ar aprašyti. Peradresavimas grąžina `modifiedPayload` su tik `model`
+   pakeistu, plius meta `{ rerouted, fromModel, toModel, imagesKept }`.
+5. Aprašymo kelias: apriboti vaizdus iki `maxImages`, sudaryti užduotį atitinkantį
+   raginimą, pasikonsultuoti su aprašymo talpykla, iškviesti vaizdo modelį **paraleliai**
+   (`Promise.allSettled`), ir įterpti `[Image N]: <description>` teksto dalis jų
+   vietoje. Nepavykęs aprašymas grąžina `null`, o originali vaizdo dalis yra
+   **išsaugota** (#4012) — išskyrus derinimo aprašymo kelią, kai kiekvienas
+   aprašymas nepavyko, kur patvirtintas nevaizdo aukštesnis lygis gauna
+   `(unavailable — no vision-capable provider connected)` stubą vietoj (#8430).
 6. Grąžinti `modifiedPayload` + meta (`imagesProcessed`, `descriptions`,
    `processingTimeMs`, `visionModel`).
 
-#### Režimo selektorius (`modalityBridgeVisionMode`)
+#### Režimo pasirinkiklis (`modalityBridgeVisionMode`)
 
-| Režimas | Numatytasis | Elgesys  
-| `auto` | ✔ | Senoji heuristika, nepakeista (#6640/#7204): ne kombinuoti/`auto/` modeliai nukreipia į geriausią vizijos modelį, nebent originalus modelis jau turi tinkamus kredencialus (tada aprašo); kombinuoti tikslai visada aprašo. |
-| `describe` | | Visada aprašyti – nukreipimo blokas praleidžiamas visiškai; vartotojo pasirinktas modelis visada atsako. |
-| `reroute` | | Priverstinis nukreipimas: kredencialų turinčio modelio apsauga apeinama. Nukreipimo-**tikslinio** kredencialų apsauga vis dar taikoma – kai nėra tinkamo vizijos tikslo, užklausa patenka į aprašymą, kad neapdoroti vaizdai niekada nepasiektų tik teksto galinės sistemos (#8430). |
+| Režimas    | Numatytoji | Elgesys                                                                                                                                                                                                                                                                                            |
+| ---------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auto`     | ✔          | Senoji heuristika, nepaliesta (#6640/#7204): ne derinimo/`auto/` modeliai peradresuoja į geriausią vaizdo modelį, nebent originalus modelis jau turi naudojamus kredencialus (tuomet aprašo); derinimo tikslai visada aprašo.                                                                      |
+| `describe` |            | Visada aprašyti — peradresavimo blokas visiškai praleidžiamas; vartotojo pasirinktas modelis visada atsako.                                                                                                                                                                                        |
+| `reroute`  |            | Priverstinis peradresavimas: kredencialų modelio apsaugos mechanizmas apeinamas. Peradresavimo-**tikslo** kredencialų apsaugos mechanizmas vis tiek taikomas — kai nėra naudojamo vaizdo tikslo, užklausa pereina į aprašymą, todėl žali vaizdai niekada nepasiekia tik tekstinio backend (#8430). |
 
-Priverstiniai režimai trumpina grandinę **prieš** automatinės heuristikos paleidimą; `auto` elgesys yra identiškas prieš PR-1 apsaugos priemonei.
+Priverstiniai režimai trumpina **prieš** automatinę heuristiką; `auto` elgesys
+yra bitų identiškas prieš PR-1 apsauginį mechanizmą.
 
 #### Užduotį atitinkantis aprašymo raginimas (`modalityBridgeVisionTaskAware`)
 
-Numatytasis **true**. `composeVisionPrompt()` (`visionBridgeHelpers.ts`) prideda **paskutinio vartotojo pranešimo** tekstą (sutrumpintą iki 500 simbolių) prie bazinio aprašymo raginimo, nukreipdamas aprašymą link to, ko vartotojas iš tikrųjų prašė (codex-vision-proxy modelis) ir prašydamas vizijos modelio transkribuoti matomą tekstą. Išjungus vėliavėlę – arba be vartotojo teksto – bazinis raginimas naudojamas nepakeistas.
+Numatytoji **tiesa**. `composeVisionPrompt()` (`visionBridgeHelpers.ts`) prideda
+paskutinės vartotojo žinutės tekstą (sutrumpintą iki 500 simbolių) prie pagrindinio
+aprašymo raginimo, nukreipdama aprašymą į tai, ko vartotojas iš tikrųjų prašė
+(codex-vision-proxy modelis) ir prašydama vaizdo modelio transkribuoti matomą
+tekstą. Išjungus šią vėliavą — arba jei nėra vartotojo teksto — naudojamas
+pagrindinis raginimas be pakeitimų.
 
-Aprašymo savarankiško ciklo nuosava su OpenAI suderinama užklausa (`callVisionModelSingle()` faile `visionBridgeHelpers.ts`) visada prašo `image_url.detail: "high"` – besąlygiškai, kiekvienam iškvietėjui/teikėjui, nepriklausomai nuo jokio kliento signalo. Mažo detalumo mėginių ėmimas pablogina OCR tikslumą būtent teksto transkripcijos užduočiai, kurios prašo šis raginimas, todėl pats aprašymo iškvietimas visada prašo didelio detalumo, nepriklausomai nuo to, kokio detalumo lygio buvo naudojama pradinė gaunama užklausa. Tai paveikia tik vidinį aprašymo užklausos turinį; tai nekeičia, kaip OmniRoute persiunčia iškvietėjo `image_url.detail` pirminėje užklausoje – tas numatytasis nustatymas taikomas atskirai ir tik aptiktiems OpenCode klientams, `defaultImageDetail()` (`open-sse/handlers/chatCore/upstreamBody.ts`). Anthropic formato aprašymo savarankiško ciklo šaka neturi `detail` lauko ir jai neturi įtakos joks numatytasis nustatymas.
+Aprašyti savęs ciklo OpenAI suderinamą užklausą (`callVisionModelSingle()`
+faile `visionBridgeHelpers.ts`) visada prašo `image_url.detail: "high"` —
+be jokių sąlygų, kiekvienam skambinančiam/tiekėjui, nesiremiant jokiu kliento signalu.
+Žemos detalės mėginiai sumažina OCR tikslumą būtent tekstų transkripcijos
+užduočiai, dėl kurios šis užklausimas yra, todėl aprašymo užklausa visada prašo
+aukštos detalės, nepriklausomai nuo to, kokio detalumo lygį naudojo originali
+įeinanti užklausa. Tai veikia tik vidinę aprašymo užklausos kūną; tai nekeičia
+to, kaip OmniRoute perduoda skambinančiojo `image_url.detail` pirminėje
+užklausoje — tas numatytasis taikomas atskirai, ir tik aptiktiems OpenCode
+klientams, faile `defaultImageDetail()` (`open-sse/handlers/chatCore/upstreamBody.ts`).
+Anthropic laidų formato aprašymo savęs ciklas neturi `detail` lauko
+ir nėra paveiktas jokio numatytojo.
 
-#### Aprašymo išvesties apribojimas (`modalityBridgeVisionMaxChars`)
+#### Aprašymo išvesties riba (`modalityBridgeVisionMaxChars`)
 
-| Raktas                         | Numatytasis | Diapazonas         |
-| ------------------------------ | ----------- | ------------------ |
-| `modalityBridgeVisionMaxChars` | `0`         | `0` arba 100–50000 |
+| Raktas                         | Numatytoji | Diapazonas         |
+| ------------------------------ | ---------- | ------------------ |
+| `modalityBridgeVisionMaxChars` | `0`        | `0` arba 100–50000 |
 
-`0` (numatytasis) reiškia **be apribojimų** – `callVisionModel()` grąžinamas aprašymas perduodamas nepakeistas, išsaugant esamą elgesį. Bet kokia reikšmė 100–50000 diapazone sutrumpina aprašymą su `…` priesaga, prieš jį įterpiant atgal kaip `[Image N]: <description>` (`VisionBridgeGuardrail.preCall()` faile `src/lib/guardrails/visionBridge.ts`). Padidinkite šią reikšmę detalėms turtingoms OCR užduotims, kur pasrovinis modelis reikalauja visos transkripcijos; sumažinkite ją, kad apribotumėte žetonų naudojimą kalbiškuose vizijos modeliuose. Prietaisų skydelio laukas yra Vizijos skirtuko Išplėstiniame skydelyje (`modality-bridge-max-chars` faile `ModalityBridgeVisionTab.tsx`) ir apriboja bet kokią reikšmę tarp 1 ir 99 iki 100 apatinės ribos, paliekant aiškų `0` nepakeistą – `0` yra savaime galiojanti Zod reikšmė (`z.union([z.literal(0), z.number().int().min(100).max(50000)])`), o ne tik „nenustatytas“ numatytasis.
+`0` (numatytoji) reiškia **jokios ribos** — aprašymas, grąžintas iš
+`callVisionModel()`, perduodamas nepakitęs, išlaikant esamą elgesį. Bet koks
+vertė 100–50000 diapazone sutrumpina aprašymą su `…` priesaga prieš jį
+sujungiant kaip `[Image N]: <description>`
+(`VisionBridgeGuardrail.preCall()` faile `src/lib/guardrails/visionBridge.ts`).
+Padidinkite tai detalėms turtingiems OCR užduotims, kur žemyn esantis modelis
+reikia pilnos transkripcijos; sumažinkite, kad apribotumėte simbolių
+naudojimą kalbantiems vizijos modeliams. Valdymo skydelio laukas yra
+Vizijos skyriaus Išplėstiniame skydelyje
+(`modality-bridge-max-chars` faile `ModalityBridgeVisionTab.tsx`) ir riboja bet
+kokią vertę nuo 1 iki 99 iki 100 grindų, palikdamas aiškų `0`
+nepakitusį — `0` yra galiojanti Zod vertė savaime
+(`z.union([z.literal(0), z.number().int().min(100).max(50000)])`), o ne tik
+"nustatyta" numatytoji.
 
 #### Aprašymo talpykla (`modalityBridge/bridgeCache.ts`)
 
-Atminties LRU + TTL talpykla aprašymo išvestims, bendrinama visame procese.
+Atmintyje LRU + TTL talpykla aprašymo išvestims, bendrinama visame procese.
 Raktas = `sha256(imageRef + composedPrompt + configuredBridgeModel)` su
-ilgio prefikso rėmeliu (jokių lauko ribų susidūrimų). Modelio komponentas yra
-**sukonfigūruotas** tilto modelis, o ne modelis, kuris iš tikrųjų atsakė –
-`callVisionModel` gali viduje grįžti prie atsarginio varianto, o raktų kūrimas kiekvienam bandymui suskaidytų talpyklą. Nepavykę aprašymai niekada nėra talpinami. Nustatymai:
+ilgio prefiksu (be lauko ribų kolizijų). Modelio komponentas yra
+**nustatytas** tilto modelis, o ne modelis, kuris iš tikrųjų atsakė —
+`callVisionModel` gali viduje grįžti atgal, o raktavimas pagal bandymą
+suskaidytų talpyklą. Nepavykę aprašymai niekada nėra talpinami. Nustatymai:
 
-| Raktas                          | Numatytasis | Diapazonas |
-| ------------------------------- | ----------- | ---------- |
-| `modalityBridgeCacheEnabled`    | `true`      | —          |
-| `modalityBridgeCacheTtlMinutes` | `60`        | 1–1440     |
-| `modalityBridgeCacheMaxEntries` | `200`       | 10–5000    |
+| Raktas                          | Numatytoji | Diapazonas |
+| ------------------------------- | ---------- | ---------- |
+| `modalityBridgeCacheEnabled`    | `true`     | —          |
+| `modalityBridgeCacheTtlMinutes` | `60`       | 1–1440     |
+| `modalityBridgeCacheMaxEntries` | `200`      | 10–5000    |
 
-#### Nuotolinio vaizdo normalizavimas (savarankiško ciklo aprašymas/base64 gavimas)
+#### Nuotolinių vaizdų normalizavimas (savęs ciklo aprašymas/base64 gavimas)
 
-Kai tiltas pats gauna **nuotolinį** vaizdą – Anthropic aprašymo savarankiškas iškvietimas ir claude-wire-format base64 konversija
-(`ensureBase64ImagesForClaudeWire`), abu per
-`fetchRemoteImageAsDataUri()` faile `visionBridgeHelpers.ts` – gautas duomenų
+Kai tiltas pats gauna **nuotolinį** vaizdą — Anthropic aprašymo
+savęs užklausa ir claude-laidų formato base64 konversija
+(`ensureBase64ImagesForClaudeWire`), abi per
+`fetchRemoteImageAsDataUri()` faile `visionBridgeHelpers.ts` — gautas duomenų
 URI perduodamas per `normalizeDataUri()`
-(`open-sse/utils/imageNormalize.ts`) prieš įterpiant jį į vizijos modelio
-užklausą. Per dideli vaizdai sumažinami iki **2048px ilgio kraštinės** (atitinka
-OpenAI/Anthropic jau taikomą serverio pusės dydžio apribojimą), o tai sumažina
-įkėlimo baitus/vėlavimą nekeičiant to, ką mato vizijos modelis. Dydžio keitimui
-naudojamas `sharp`, įkeliamas per dinaminį importą: platformoje, kurioje jo
-vietinis dvejetainis failas nepavyksta įkelti, `normalizeDataUri()` **niekada nemeta išimties** – jis grįžta
-prie originalių baitų perdavimo, todėl aprašymo/base64 konversijos
-kelias visada veikia. Ne vaizdo baitai (gavimas, kuris negrąžino dekoduojamo vaizdo)
-taip pat perduodami nepakeisti. Šis normalizavimas taikomas vaizdams, kuriuos
-tiltas gauna savo savarankiškam iškvietimui – jis niekada
-netaikomas iškvietėjo neapdorotam perdavimo duomenų paketui, atsižvelgiant į
-tik pasirinktinio mutacijos principą (Griežta taisyklė #20).
+(`open-sse/utils/imageNormalize.ts`) prieš jį įterpiant į vizijos modelio
+užklausą. Per dideli vaizdai sumažinami iki **2048px ilgo krašto** (atitinka
+perdarymo ribą, kurią OpenAI/Anthropic jau taiko serverio pusėje), kas sumažina
+įkėlimo baitus/latenciją, nekeisdami to, ką vizijos modelis mato. Perdarymas
+naudoja `sharp`, įkeltą per dinaminį importą: platformoje, kurioje jos
+nativus binarinis failas nepavyksta įkelti, `normalizeDataUri()` **niekada
+nepaleidžia** — jis grįžta prie originalių baitų, todėl aprašymo/base64
+konversijos kelias visada veikia. Nevaizdiniai baitai (užklausa, kuri negrąžino
+dekoduojamo vaizdo) taip pat perduodami nepakitę. Ši normalizacija taikoma
+tik vaizdams, kuriuos tiltas gauna savo savęs užklausai — ji niekada
+netaikoma skambinančiojo žaliam perduodamajam kroviniui, laikantis
+pasirinktinio mutacijos principo (Griežta taisyklė #20).
 
 #### Nustatymų schema + migracija
 
-Nauji `modalityBridge*` raktai yra patvirtinami Zod pagalba `updateSettingsSchema`
+Nauji `modalityBridge*` raktai yra Zod patvirtinti `updateSettingsSchema`
 (`src/shared/validation/settingsSchemas.ts`): `modalityBridgeVisionEnabled`,
 `modalityBridgeVisionMode`, `modalityBridgeVisionModel`,
 `modalityBridgeVisionTaskAware`, `modalityBridgeVisionPrompt`,
 `modalityBridgeVisionTimeout`, `modalityBridgeVisionMaxImages`,
-`modalityBridgeVisionMaxChars`, `modalityBridgeCache*` trejetas ir
-`modalityBridgeAudio*` grupė, naudojama Garso tilto. Migracija
-`141_modality_bridge_settings.sql` nukopijuoja esamas senas
-`visionBridge*` reikšmes į atitinkamus naujus raktus (idempotentiška, niekada neperrašo
-operatoriaus nustatytos `modalityBridge*` reikšmės); senieji raktai lieka priimami kaip
-skaitymo atsarginis variantas vienam išleidimo ciklui.
+`modalityBridgeVisionMaxChars`, `modalityBridgeCache*` trio, ir
+`modalityBridgeAudio*` grupė, naudojama Audio Bridge. Migracija
+`141_modality_bridge_settings.sql` kopijuoja esamas senas
+`visionBridge*` vertes į atitinkamus naujus raktus (idempotentinis, niekada
+neperrašys operatoriaus nustatyto `modalityBridge*` vertės); senieji raktai
+lieka priimami kaip skaitymo atsarginė parinktis vienam leidimo ciklui.
 
 #### Skaidrumo antraštė + statistika
 
-Aprašymu transformuoti atsakymai turi
+Aprašymo transformuoti atsakymai turi
 `x-omniroute-modality-bridge: image->text;model=<visionModel>;parts=<n>`
 (sukurtas `buildModalityBridgeHeader()` faile `modalityBridge/bridgeStats.ts`,
 pažymėtas `withModalityBridgeHeader()` faile `src/sse/handlers/chatHelpers.ts`).
-Peradresuotos užklausos **neturi** antraštės – duomenų paketas nebuvo paliestas, o modelio
-keitimas jau matomas atsakymo turinio `model` lauke.
+Peradresuoti užklausimai **neturi** antraštės — krovinys buvo nepakitęs ir modelio
+keitimas jau matomas atsakymo kūno `model` lauke.
 
-`GET /api/modality-bridge/stats` (valdymo autentifikavimas, tas pats lygis kaip
-`GET /api/settings`) grąžina atmintyje esančius kiekvienos modalumo skaitiklius
+`GET /api/modality-bridge/stats` (valdymo autentifikacija, tas pats lygis kaip
+`GET /api/settings`) grąžina atmintyje esančius per-modalinius skaitiklius
 `{ attempts, successes, bridged, cacheHits, failures, totalLatencyMs,
-latencySamples, averageLatencyMs, lastUsedAt }` vizijai, garsui ir
-vaizdui. `averageLatencyMs` naudoja `latencySamples`, o ne visus bandymus, kaip savo
-vardiklį; operacija be laiko matavimo nesukuria nulio milisekundžių
-pavyzdžio. `bridged` išlieka atgaliniu suderinamuoju sėkmingų
-konversijų pseudonimu; nepavykę bandymai jo nepadidina.
-Skaitikliai atstatomi paleidus procesą iš naujo pagal numatytąjį nustatymą
-(telemetrija, o ne apskaita).
+latencySamples, averageLatencyMs, lastUsedAt }` `vision`, `audio` ir
+`video`. `averageLatencyMs` naudoja `latencySamples`, o ne visus bandymus, kaip
+savo vardiklį; operacija be laiko nesukuria nulio milisekundžių
+pavyzdžio. `bridged` lieka atgal suderinamu aliastu sėkmingoms
+konversijoms; nepavykę bandymai jo nepadidina.
+Skaitikliai iš naujo nustatomi proceso perkrovimo metu pagal dizainą
+(telemetrija, ne apskaita).
 
-#### Prietaisų skydelio konfigūracija
+#### Valdymo skydelio konfigūracija
 
-Skirta prietaisų skydelio pusė yra
-`/dashboard/settings/modality-bridge`. Jos URL adresuojami `Vision`, `Audio` ir
-`Video` skirtukai išsaugo užklausos parametrus keičiant `tab` reikšmę.
-„Vision“ skirtukas atskleidžia įjungimą, režimą, modelio pasirinkimą (įskaitant automatinį
-numatytąjį), užduotį atitinkantį raginimą, išplėstinius laiko limito / vaizdo / aprašymo ilgio / talpyklos
-apribojimus, vykdymo laiko skaitiklius ir apsaugotą pavyzdinę užklausą. „Audio“ skirtukas taip pat veikia: jis atskleidžia
-įjungimą, tik STT modelio pasirinkiklį su „Auto“, laiko limito / maksimalaus klipo apribojimus, garso
-skaitiklius ir `input_audio` pavyzdinį testą. „Video“ skirtukas yra funkcionalus: jis praneša
-FFmpeg/ffprobe vykdymo būseną – vieną iš keturių aiškių vartotojo sąsajos būsenų (`unknown`, kol
-zondas vykdomas arba negalėjo būti baigtas, `restricted` ne grįžtamojo ryšio prietaisų skydelio pagrindiniame kompiuteryje,
-kur zondas praleidžiamas kliento pusėje, `unavailable`, kai patikrinus patvirtinama, kad trūksta, arba
-`available` su FFmpeg/ffprobe versijomis) – išsaugo įjungimo / modelio / kadro / vaizdo / laiko limito apribojimus,
-filtruoja modelio pasirinkiklį, kad būtų rodomi vaizdo įrašus palaikantys modeliai, ir atskleidžia vaizdo įrašų skaitiklius.
+Skirta informacijos suvestinės puslapis yra
+`/dashboard/settings/modality-bridge`. Jo URL adresuojami `Vision`, `Audio`
+ir `Video` skyriai išlaiko užklausos parametrus keičiant `tab` reikšmę.
+Vision skyrius atskleidžia galimybes, režimą, modelio pasirinkimą (įskaitant automatinį
+numatytąjį), užduotims jautrų užklausimą, pažangius laiko/išvaizdos/aprašymo ilgio/kešavimo
+ribas, vykdymo
+skaitiklius ir saugomą pavyzdžio užklausą. Audio skyrius taip pat yra aktyvus: jis atskleidžia
+galimybes, STT tik modelio pasirinkiklį su Auto, laiko/max-clip ribas, garso
+skaitiklius ir `input_audio` pavyzdžio testą. Video skyrius veikia: jis praneša
+FFmpeg/ffprobe vykdymo būseną — viena iš keturių aiškių UI būsenų (`unknown`, kai
+probas yra vykdomas arba negalėjo būti užbaigtas, `restricted` ne ciklinio
+informacijos suvestinės serverio, kur probas yra praleidžiamas kliento pusėje, `unavailable`, kai
+probas buvo atliktas ir patvirtintas kaip trūkstamas, arba `available` su FFmpeg/ffprobe versijomis) — išlaiko
+galimybes/modelį/rėmelį/video/laiko ribas, filtruoja modelio pasirinkiklį iki vizijos galinčių
+modelių ir atskleidžia video skaitiklius.
 
-Ankstesnė „Vision Bridge“ kortelė, esanti AI nustatymuose, yra suderinamumo nuoroda į
-naują puslapį; ji nebeturi antros formos kopijos. „Media Providers“ taip pat
-susieja „Image-to-Text“ ir „Speech-to-Text“ darbo eigas su atitinkamais „Modality
-Bridge“ skirtukais, nepašalindama esamos „Speech-to-Text“ žaidimų aikštelės.
+Ankstesnė Vision Bridge kortelė AI nustatymuose yra suderinamumo nuoroda į
+naują puslapį; ji daugiau neturi antros formos kopijos. Media Providers taip pat
+susieja Image-to-Text ir Speech-to-Text darbo eigas su atitinkamais Modality
+Bridge skyriais, nepašalindama esamos Speech-to-Text žaidimų aikštelės.
 
-**Savaiminio ciklo leidimo apėjimas:** kai aprašymo iškvietimas nukreipiamas per OmniRoute
-savaiminį `/v1` ciklą (nestandartinis teikėjo modelis), papildoma užklausa siunčia
+**Savarankiško ciklo priėmimo apeitis:** kai aprašymo užklausa nukreipiama per OmniRoute
+savo `/v1` savarankišką ciklą (ne standartinio tiekėjo modelis), sub-užklausa siunčia
 `x-omniroute-admission-bypass: internal` ir yra autentifikuojama su išspręstu
-savaiminio ciklo kredencialu – vietiniu `sk_omniroute` sargybiniu vietiniu režimu, arba
-operatoriaus sukonfigūruotu `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` aplinkos kintamojo raktu (#1350),
-kad `REQUIRE_API_KEY=true` diegimai vis tiek galėtų vykdyti aprašymo iškvietimą.
-Apėjimas galioja tik tiems tiksliems kredencialams, todėl išoriniai klientai negali
-naudoti antraštės, kad praleistų leidimą.
+savarankiško ciklo akreditu — vietiniu `sk_omniroute` sargybinio vietiniame režime, arba
+operatoriaus sukonfigūruotu `OMNIROUTE_API_KEY` / `ROUTER_API_KEY` aplinkos raktu (#1350), kad
+`REQUIRE_API_KEY=true` diegimai vis tiek galėtų vykdyti aprašymo užklausą. Apeitis
+yra gerbiama tik tiems tiksliai akreditams, todėl išoriniai klientai negali naudoti
+antraštės, kad praleistų priėmimą.
 
-Palikimo numatytosios reikšmės yra `src/shared/constants/visionBridgeDefaults.ts`;
-naujo režimo / užduoties atpažinimo / talpyklos numatytosios reikšmės ir nustatymų sprendiklis yra
-`src/shared/constants/modalityBridgeDefaults.ts`. Apsaugos mechanizmas atskleidžia
-`deps` konstruktoriaus parinktį, kad testai galėtų įterpti netikras `getSettings` ir
-`callVisionModel` implementacijas.
+Paveldėti numatyti nustatymai gyvena `src/shared/constants/visionBridgeDefaults.ts`;
+nauji režimo/užduotims jautrūs/kešavimo numatyti nustatymai ir nustatymų sprendėjas gyvena
+`src/shared/constants/modalityBridgeDefaults.ts`. Saugiklis atskleidžia
+`deps` konstruktoriaus parinktį, kad testai galėtų įterpti netikrus `getSettings` ir
+`callVisionModel` įgyvendinimus.
 
-### Garso tiltas (`audioBridge.ts`) – Modality Bridge PR-3
+### Audio Bridge (`audioBridge.ts`) — Modality Bridge PR-3
 
-Perima garso turinčias pokalbių užklausas, kol jos pasiekia tikslą, kuris nėra
-žinomas kaip priimantis garso įvestį. Jis niekada nenukreipia pokalbio užklausos:
-garso dalys transkribuojamos per esamą su OpenAI suderinamą daugiašalį galinį tašką,
-o pasirinktas pokalbių modelis tęsia darbą su teksto transkripcijomis.
+Perima garso turinčias pokalbių užklausas prieš joms pasiekiant tikslą, kuris nėra
+žinomas kaip priimantis garso įvestį. Jis niekada neperadresuoja pokalbių užklausos: garso dalys
+yra transkribuojamos per esamą OpenAI suderinamą multipart galinį tašką, o pasirinktas pokalbių modelis
+tęsiasi su tekstinėmis transkripcijomis.
 
-Eiga:
+Srautas:
 
-1.  Išspręskite `supportsAudio` per `getResolvedModelCapabilities()`. Aiškūs
-    teikėjo registro metaduomenys laimi, tada statiniai modelio metaduomenys, tada sinchronizuoti
-    `modalities_input`. Deklaruotas įvesties sąrašas be `audio` yra `false`; jokių
-    galimybių įrodymų nelieka (`null`). Tiek `false`, tiek `null` aktyvuoja
-    konservatyvų tiltą, o `true` jį apeina.
-2.  Išspręskite `modalityBridgeAudio*` nustatymus ir ištraukite sujungiamas aukščiausio lygio
-    garso dalis iš kiekvieno pranešimo per bendrą `detectMediaParts()` detektorių.
-    Palaikomos laidų formos yra OpenAI `input_audio`, `audio_url` ir
-    `source.media_type: "audio/*"`. Įdėtas garsas aptinkamas nukreipimui, bet
-    nepašalinamas sujungimo keliu. Darbas apribojamas `modalityBridgeAudioMaxClips`;
-    vėlesnės dalys lieka nepaliestos.
-3.  Gerbkite sukonfigūruotą `provider/model` arba leiskite `selectAudioBridgeModel()`
-    pereiti `AUDIO_TRANSCRIPTION_PROVIDERS` stabilia katalogo tvarka ir pasirinkti
-    pirmąjį modelį su tinkamu aktyviu teikėjo kredencialu.
-4.  `callAudioTranscription()` konvertuoja base64/data-URI garsą į daugiašalį
-    `file` arba atsisiunčia nuotolinį `audio_url` per tik viešą išorinę apsaugą
-    su DNS prisegimu ir 25 MB apribojimu. Tada jis POST'ina failą ir pasirinktą
-    modelį į vietinį `/v1/audio/transcriptions` savaiminį ciklą, autentifikuotą
-    naudojant `resolveSelfLoopBearer()`. Esamas transkripcijos maršrutas atlieka
-    įprastą kredencialų paiešką, atvėsimo / dažnio apribojimo valdymą ir teikėjo
-    išsiuntimą.
-5.  Sėkmingi iškvietimai pakeičia savo dalis į `[Audio N]: <transkripcija>`. Iškvietimai
-    vykdomi su `Promise.allSettled`: individualus gedimas išsaugo tą originalią
-    garso dalį (#4012 sutartis). Jei kiekvienas iškvietimas nepavyksta ir tikslas
-    yra įrodytas kaip `supportsAudio === false`, dalys tampa
-    `[Audio N]: (neprieinama – nėra prijungto STT teikėjo)` (#8430 sutartis).
-    Nežinomam tikslui (`null`) visų gedimų rezultatas lieka nepaliestas. Įrodytas
-    tik teksto tikslas be tinkamo STT kredencialo gauna tą patį aiškų šabloną,
-    neišduodant tinklo iškvietimo.
+1. Išspręskite `supportsAudio` per `getResolvedModelCapabilities()`. Aiškūs
+   tiekėjo registracijos metaduomenys laimi, tada statiniai modelio metaduomenys, tada sinchronizuoti
+   `modalities_input`. Deklaruota įvesties sąrašas be `audio` yra `false`; jokie
+   galimybių įrodymai lieka `null`. Tiek `false`, tiek `null` aktyvuoja
+   konservatyvų tiltą, o `true` jį apeina.
+2. Išspręskite `modalityBridgeAudio*` nustatymus ir ištraukite sujungiamas viršutinio lygio
+   garso dalis iš kiekvienos žinutės per bendrą `detectMediaParts()`
+   detektorių. Palaikomi laidų formatai yra OpenAI `input_audio`, `audio_url` ir
+   `source.media_type: "audio/*"`. Įdėtas garsas yra aptinkamas nukreipimui, bet ne
+   pašalinamas per sujungimo kelią. Darbas yra ribojamas `modalityBridgeAudioMaxClips`;
+   vėlesnės dalys lieka nepaliestos.
+3. Gerbkite sukonfigūruotą `provider/model`, arba leiskite `selectAudioBridgeModel()` pereiti
+   per `AUDIO_TRANSCRIPTION_PROVIDERS` stabilia katalogo tvarka ir pasirinkti pirmą
+   modelį su naudojamu aktyviu tiekėjo akreditu.
+4. `callAudioTranscription()` konvertuoja base64/data-URI garso į multipart
+   `file`, arba atsisiunčia nuotolinį `audio_url` per tik viešą išėjimo
+   sargybinį su DNS fiksavimu ir 25 MB riba. Tada jis POST'ina failą ir pasirinktą
+   modelį į vietinį `/v1/audio/transcriptions` savarankišką ciklą, autentifikuotą su
+   `resolveSelfLoopBearer()`. Esamas transkripcijos maršrutas atlieka normalų
+   akreditų paiešką, atvėsinimo/greičio ribojimo tvarkymą ir tiekėjo siuntimą.
+5. Sėkmingos užklausos pakeičia savo dalis į `[Audio N]: <transcript>`. Užklausos
+   vykdomos su `Promise.allSettled`: individualus nesėkmingas atvejis išlaiko tą originalią
+   garso dalį (#4012 sutartis). Jei kiekviena užklausa nepavyksta ir tikslas įrodytas
+   `supportsAudio === false`, dalys tampa
+   `[Audio N]: (nepasiekiamas — jokio STT tiekėjo neprijungta)` (#8430 sutartis). Nežinomam
+   tikslui (`null`), visi nesėkmių rezultatai lieka nepaliesti. Įrodytas
+   tik tekstui skirtas tikslas be naudojamo STT akredito gauna tą patį aiškų
+   stubą, neišsiunčiant tinklo užklausos.
 
-Sėkmingos transkripcijos naudoja visos sistemos „Modality Bridge“ LRU/TTL talpyklą.
-Raktas apjungia garso nuorodą, stabilią `audio-transcription` operacijos etiketę
-ir pasirinktą STT modelį; gedimai niekada nėra talpinami. Garso bandymai atnaujina
+Sėkmingos transkripcijos naudoja procesą plačiai Modality Bridge LRU/TTL kešą. Raktas
+sujungia garso nuorodą, stabilų `audio-transcription` operacijos
+etiketę ir pasirinktą STT modelį; nesėkmės niekada nėra kešuojamos. Garso bandymai atnaujina
 bendrus `bridged`, `cacheHits`, `failures` ir `lastUsedAt` skaitiklius.
-Transformuoti atsakymai turi `x-omniroute-modality-bridge: audio->text;model=<sttModel>;parts=<n>`;
-nepaliestos užklausos negauna garso tilto segmento.
+Transformuoti atsakymai neša
+`x-omniroute-modality-bridge: audio->text;model=<sttModel>;parts=<n>`; nepaliestos
+užklausos negauna Audio Bridge segmento.
 
-Vykdymo laiko nustatymai yra saugomi duomenų bazėje ir patvirtinami Zod:
+Vykdymo nustatymai yra DB pagrindu ir Zod patvirtinti:
 
-| Key                           | Default | Range          |
-| :---------------------------- | :------ | :------------- |
-| `modalityBridgeAudioEnabled`  | `true`  | —              |
-| `modalityBridgeAudioModel`    | `""`    | Auto or STT ID |
-| `modalityBridgeAudioTimeout`  | `60000` | 1000–300000    |
-| `modalityBridgeAudioMaxClips` | `3`     | 1–10           |
+| Raktas                        | Numatytoji | Diapazonas       |
+| ----------------------------- | ---------- | ---------------- |
+| `modalityBridgeAudioEnabled`  | `true`     | —                |
+| `modalityBridgeAudioModel`    | `""`       | Auto arba STT ID |
+| `modalityBridgeAudioTimeout`  | `60000`    | 1000–300000      |
+| `modalityBridgeAudioMaxClips` | `3`        | 1–10             |
 
-Bendra talpykla lieka valdoma `modalityBridgeCacheEnabled`,
+Bendras kešas lieka kontroliuojamas `modalityBridgeCacheEnabled`,
 `modalityBridgeCacheTtlMinutes` ir `modalityBridgeCacheMaxEntries`.
 
-### Vaizdo tiltas (`videoBridge.ts`, `videoBridgePipeline.ts`)
+### Video Bridge (`videoBridge.ts`, `videoBridgePipeline.ts`)
 
-Perima aukščiausio lygio vaizdo įrašų dalis pokalbių užbaigimo `messages` ir atsakymų API `input` prieš iškviečiant tikslą be žinomos vietinės vaizdo įrašų palaikymo.
-Palaikomi formatai yra `input_video`, `video_url`, `video_source`, HTTPS URL ir `data:video/*;base64,...` duomenų URI. Paprasti failų pavadinimai tekste nėra traktuojami kaip vaizdo įrašai.
+Interceptuoja aukščiausio lygio vaizdo dalis Chat Completions `messages` ir Responses
+API `input` prieš tai, kai yra iškviečiamas tikslas, neturintis žinomos natūralios vaizdo palaikymo.
+Palaikomos formos yra `input_video`, `video_url`, `video_source`, HTTPS URL,
+ir `data:video/*;base64,...` duomenų URI. Paprasti failų pavadinimai tekste nėra laikomi
+vaizdo.
 
-`VideoBridgeGuardrail.preCall` (`videoBridge.ts`) valdo užklausų peržiūrą, galimybių/politikos patikrinimą, agregavimą pagal užklausą ir atsakymo duomenų srautą.
-Darbas su kiekvienu vaizdo įrašu – įsigijimas, viso rezultato talpykla, kadrų sekos aprašymas (kuris sujungia bet kokį skambinančiojo deklaruotą garso transkriptą) ir metrikos/nutraukimo/valymo veiksmai pagal bandymą – yra paslėptas už `processVideoPart` `videoBridgePipeline.ts` faile, iškviečiamas vieną kartą kiekvienai vaizdo įrašo daliai `preCall` ciklo metu.
-Šis modulis taip pat apibrėžia aiškias prievadų ribas `VideoMediaBrokerPort` (baitų įsigijimas ir atrinktų kadrų ištraukimas), `VideoAudioTranscriptionPort` (skambinančiojo deklaruoto garso transkripto sujungimas su atrinktais subtitrais) ir `VideoDrilldownPort` (kadrų išsamios informacijos išsaugojimo riba; dar neįtraukta į `processVideoPart` – tik atskiras `/api/modality-bridge/video/drilldown` maršrutas šiandien rašo išsamios informacijos įrašus).
+`VideoBridgeGuardrail.preCall` (`videoBridge.ts`) atsako už užklausų perėjimą,
+galimybių/politikos patikrinimą, užklausų agregavimą ir atsakymo turinį.
+Kiekvienam vaizdui skirti darbai — įsigijimas, viso rezultato talpykla, kadro
+seka (kuri sujungia bet kokį skambinančiojo deklaruotą garso transkriptą) ir
+kiekvieno bandymo metrika/nutraukimas/valymas — yra paslėpti už `processVideoPart`
+`videoBridgePipeline.ts`, kuris yra iškviečiamas kartą per vaizdo dalį `preCall` cikle.
+Tas modulis taip pat apibrėžia aiškias prievado ribas `VideoMediaBrokerPort`
+(įsigyjant baitus ir išgaunant mėginius), `VideoAudioTranscriptionPort`
+(sujungiant skambinančiojo deklaruotą garso transkriptą su mėginiu užrašais), ir
+`VideoDrilldownPort` (senos žaliavos saugojimo forma). Gamybos STT ir kadro išlaikymas
+yra sudaryti aplink aprašomą prievadą per `createVideoSttAdapter` ir
+`createVideoDrilldownAdapter`; pastarasis naudoja bendrą opakų rankenų gyvavimo ciklą.
 
-Viešasis `/v1` užklausos kelias niekada neimportuoja ir neiškviečia papildomo proceso. Nuotoliniai vaizdo įrašai atsisiunčiami su 50 MiB riba; įterpti base64 vaizdo įrašai turi konservatyvią 36 MiB iššifruotą ribą vienam vaizdo įrašui, kad modelio/pranešimų/įrėminimo apvalkalas galėtų likti viešojo JSON užklausos priėmimo ribose, t. y. 50 MiB. Įterptojo ilgio ir iššifruoto dydžio įvertinimai tikrinami prieš paskirstymą. HTTPS reikalingas pradiniam nuotoliniam URL ir kiekvienam peradresavimui, naudojant esamą tik viešą išorinę apsaugą su DNS prisegimu. Tada baitai kerta tikslią vidinę `POST /api/modality-bridge/video/extract` brokerio ribą. Šis maršrutas yra ir `LOCAL_ONLY`, ir `SPAWN_CAPABLE`, priima tik vienam procesui autentifikuotą, patikimą atgalinio ryšio užklausą ir niekada nepriima URL, failų sistemos kelio, vykdomojo failo ar argumentų sąrašo. API kūno dydžio srautas ir tvarkyklės laipsniškas kūno skaitytuvas nepriklausomai taiko 50 MiB brokerio įvesties ribą. Jo ribota eilė vienu metu vykdo vieną ištraukimą, leidžia keturis laukiančius darbus ir riboja laukiančią įvestį iki 100 MiB.
+Viešas `/v1` užklausų kelias niekada neimportuoja ir neįvykdo subprocess. Nuotoliniai
+vaizdai yra atsisiunčiami pagal 50 MiB ribą; įterpti base64 vaizdai turi
+konservatyvią 36 MiB dekoduotą per-vaizdo ribą, kad modelis/žinutės/rėmelio aplankas
+galėtų likti viešo JSON užklausų priėmimo riboje, kuri yra 50 MiB. Įterptos
+ilgio ir dekoduoto dydžio vertinimai yra tikrinami prieš paskirstymą. HTTPS yra
+reikalingas pradiniam nuotoliniam URL ir kiekvienam peradresavimui, naudojant esamą
+viešą tik išėjimo apsaugą su DNS fiksavimu. Baitai tada kerta tikslų vidinį
+`POST /api/modality-bridge/video/extract` brokerio ribą. Tas maršrutas yra tiek
+`LOCAL_ONLY`, tiek `SPAWN_CAPABLE`, priima tik per procesą autentifikuotą,
+patikimą atgalinę užklausą ir niekada nepriima URL, failų sistemos kelio, vykdomojo
+failo ar argumentų sąrašo. API kūno dydžio pipeline ir tvarkyklės inkrementinis kūno
+skaitytuvas nepriklausomai užtikrina 50 MiB brokerio įvesties ribą. Jo ribota eilė
+vykdo vieną išgavimą vienu metu, leidžia keturis laukiančius darbus ir riboja laukiančią
+įvestį iki 100 MiB.
 
-Brokerio viduje `ffprobe` nuskaito privatų vietinį failą; fiksuotas formatų leidžiamų sąrašas neįtraukia grojaraščių ir manifestų formatų. Leidžiamiems MOV šeimos konteineriams išorinės MOV duomenų nuorodos išlieka išjungtos pagal numatytuosius nustatymus, o fiksuota komanda jų neįjungia. Tiek `ffprobe`, tiek `ffmpeg` naudoja tik `file` protokolo baltąjį sąrašą, vieną giją, fiksuotus argumentų masyvus, be apvalkalo ir vykdomuosius failus, išspręstus iš `PATH`. Pridėtos nuotraukos viršelio srautai nėra tinkami grojimui. Visi grojami srautai turi atitikti ribas, o aiškus numatytasis srautas yra pageidaujamas prieš deterministinį mažiausio indekso atsarginį variantą. Vaizdo įrašai yra apriboti iki 600 sekundžių, 8 192 pikselių vienai dimensijai ir 33 554 432 šaltinio pikselių. FFmpeg atrenka 1–16 vidurio JPEG kadrų, sumažina ilgąją kraštinę iki ne daugiau kaip 1 024 pikselių, nedidindamas mažesnių įvesties duomenų, ir niekada negauna URL. Atranka pagal numatytuosius nustatymus yra `uniform`. Pasirenkamos `scene_aware` ir eksperimentinės `segment_aware` politikos atlieka vieną papildomą fiksuotą FFmpeg praleidimą per jau patvirtintą vietinį srautą, pasirenka ribotas `showinfo` scenos laiko žymas ir deterministiškai grįžta prie tų pačių vienodų vidurio taškų, jei detektorius sugenda, baigiasi laikas, išvestis yra neteisinga arba kandidatų rinkinys yra tuščias. Segmentų atpažinimo režimas proporcingai paskirsto vidurio taškų pavyzdžius patvirtintiems scenos intervalams; segmentų atpažinimo įrodymai ir atsarginis elgesys išsamiau aprašyti toliau. Kieta 16 kadrų riba taikoma po pasirinkimo kiekvienoje politikoje. Kai scenos atpažinimo užklausa turi tik vieno kadro biudžetą, ji naudoja vienodą aktyvaus viso vaizdo įrašo arba fokusavimo lango vidurio tašką ir praneša `policyEffective: uniform`: vienas pasirinktas scenos kadras negali išsaugoti abiejų laiko galų. Skambinantysis gali pasirinktinai pateikti baigtinį fokusavimo langą (`start`/`end` sekundės); ribos yra apribojamos iki medijos trukmės, atvirkštiniai arba nebaigtiniai langai atmetami, o visos atrankos politikos atliekamos tik normalizuotame intervale. Gautas langas įtraukiamas į atrankos metaduomenis ir į nepatikimą aprašymo priešdėlį, kad tolesni modeliai galėtų atskirti fokusuotą ištrauką nuo visos laiko juostos.
+Brokerio viduje `ffprobe` skaito privatų vietinį failą; fiksuotas formatų
+leidimų sąrašas neįtraukia grojaraščio ir manifestų formatų. Leidžiamiems MOV šeimos
+konteineriams išoriniai MOV duomenų nuorodos pagal numatytuosius nustatymus yra
+išjungtos, o fiksuotas komandas jų neįtraukia. Tiek `ffprobe`, tiek `ffmpeg` naudoja
+`tik failo` protokolo leidimų sąrašą, vieną giją, fiksuotas argumentų masyvas, be
+šalies, ir vykdomuosius failus, išspręstus iš `PATH`. Prikabintų paveikslėlių viršeliai
+nėra žaidžiami kandidatai. Visi žaidžiami srautai turi atitikti ribas, o
+aiškiai nustatytas srautas yra pageidautinas prieš deterministinį žemiausio indekso
+atsarginį variantą. Vaizdai yra ribojami iki 600 sekundžių, 8,192 pikselių per
+matmenį ir 33,554,432 šaltinio pikselių. FFmpeg mėgina 1–16 vidurio JPEG kadrų,
+sumažina ilgą kraštą iki ne daugiau kaip 1,024 pikselių, nesumažindamas mažesnių
+įvestų, ir niekada nepriima URL. Mėginimas yra `uniform` pagal numatytuosius
+nustatymus. Pasirinktinės `scene_aware` ir eksperimentinės `segment_aware` politikos
+atlieka vieną papildomą fiksuotą FFmpeg praeitį per jau patvirtintą vietinį srautą,
+pasirenka ribotus `showinfo` scenos laiko žymenis ir deterministiškai grįžta
+prie tų pačių vienodų vidurių, kai detektorius nepavyksta, laikas baigiasi, išvestis
+yra netinkama arba kandidato rinkinys yra tuščias. Segmentų sąmoningumo režimas
+paskirsto vidurio mėginius proporcingai patvirtintoms scenos intervalams; segmentų
+sąmoningumo įrodymai ir atsarginio elgesio detalės pateikiamos žemiau. Kieta 16 kadrų
+riba taikoma po pasirinkimo kiekvienoje politikoje. Kai scenos sąmoningumo užklausa
+turi tik vieno kadro biudžetą, ji naudoja vienodą vidurį aktyvaus viso vaizdo ar
+fokusavimo lango ir praneša `policyEffective: uniform`: vienas pasirinktas scenos
+kadrų negali išlaikyti abiejų laiko galų. Skambinantysis gali pasirinktinai pateikti
+ribotą fokusavimo langą (`start`/`end` sekundėmis); ribos yra pririštos prie
+medijos trukmės, atvirkštinės arba neribotos langai yra atmesti, o visi mėginimo
+politikai atliekami tik normalizuotame intervale. Gautas langas yra įtrauktas į
+mėginimo metaduomenis ir nepatikimo aprašymo prefiksą, kad žemyniniai modeliai
+galėtų atskirti fokusuotą ištrauką nuo viso laiko juostos.
 
-Semantinis antraščių fokusavimas yra atskiras, aiškus nustatymas. Numatytasis `full` analizės režimas išsaugo esamą kadro raginimą ir niekada neperduoda užklausos teksto antraščių modeliui. `focused` režimu tiltas nuskaito tik naujausią ne tuščią vartotojo sukurtą `text`/`input_text` iš to paties pokalbio ar atsakymų konteinerio, normalizuoja jį į NFC, suglaudina valdymo simbolius ir tarpus bei apriboja jį iki 500 Unicode kodų taškų. Tuščias rezultatas grįžta prie tikslaus `full` raginimo. Naudingas patarimas serializuojamas kaip JSON specialiame nepatikimo vartotojo konteksto bloke ir gali tik nustatyti stebimų detalių prioritetus; jis negali pakeisti atskiro įspėjimo dėl nurodymų, matomų ar girdimų medijoje, vykdymo. Tekstinis fokusavimas niekada nenustato `start`/`end` ar nekeičia laiko imtuvo.
+Semantinis užrašų fokusas yra atskiras, aiškus nustatymas. Numatytoji `full`
+analizės režimas išlaiko esamą kadro užklausą ir niekada neperduoda užklausos
+teksto užrašų modeliui. `focused` režimu tiltas skaito tik naujausią
+ne tuščią vartotojo sukurtą `text`/`input_text` iš to paties Chat arba Responses
+konteinerio, normalizuoja jį į NFC, sujungia valdymo simbolius ir tarpus,
+ir riboja iki 500 Unicode kodų taškų. Tuščias rezultatas grįžta prie tikslaus
+`full` užklausos. Naudojamas užuomina yra serializuojama kaip JSON specialiame
+nepatikimo vartotojo konteksto bloke ir gali tik prioritetizuoti pastebimus
+detalius; ji negali pakeisti atskiro įspėjimo dėl instrukcijų, matomų ar girdimų
+medijoje. Tekstinis fokusas niekada nenustato `start`/`end` arba nekeičia
+laiko mėgintuvo.
 
 #### FU-07 struktūrinio segmento įrodymai
 
-`segment_aware` naudoja vieną ribotą išankstinės analizės praleidimą per jau patvirtintą vietinį vaizdo srautą. Fiksuota filtrų grandinė pirmiausia sumažina mastelį iki ne daugiau kaip 320 pikselių pločio, aptinka scenos pokyčius ir užšaldytus intervalus, tada atrenka 1 kadrą per sekundę, kad nustatytų suliejimą, vidutinį šviesumą ir erdvinę/laikinę informaciją. Praleidimas yra apribotas iki 600 struktūrinių pavyzdžių, vienos FFmpeg/filtro gijos, to paties tik `file` protokolo ir konteinerių leidžiamų sąrašų, 1 MiB proceso išvesties ribos ir ne daugiau kaip 30 sekundžių brokerio bendrame nutraukimo/termino laike. Jis niekada nepriima komandos, filtro, kelio ar URL iš užklausos.
+`segment_aware` naudoja vieną ribotą išankstinį analizės praeitį per jau
+patvirtintą vietinį vaizdo srautą. Fiksuota filtrų grandinė pirmiausia sumažina
+iki ne daugiau kaip 320 pikselių pločio, nustato scenos pokyčius ir užšaldytus
+intervalus, tada mėgina 1 kadrą per sekundę dėl neryškumo, vidutinės liumenų
+ir erdvinių/laiko informacijos. Praeitis yra ribojama iki 600 struktūrinių
+mėginių, vienos FFmpeg/filter gijos, to paties `file`-tik protokolo ir konteinerių
+leidimų sąrašų, 1 MiB proceso išvesties ribos ir ne daugiau kaip 30 sekundžių
+brokerio bendro nutraukimo/termino viduje. Ji niekada nepriima komandos, filtro,
+kelio ar URL iš užklausos.
 
-Struktūrinės vertės yra deterministiniai mėginių ėmimo įrodymai, o ne semantinis vaizdo įrašų supratimas. Jos nenustato subjektų, veiksmų, antraščių, kalbos ar vartotojo ketinimų. Scenos ir sustabdymo ribos sudaro segmentus; sustabdymo aprėptis, suliejimas, ekspozicija, erdvinės detalės ir laiko pokyčiai tik įtakoja, kaip paskirstomas esamas 1–16 kadrų biudžetas. Visiškai sustabdytas segmentas apribojamas vienu kadru, o nesustabdyti segmentai konkuruoja dėl likusio biudžeto. Kai ribų skaičius viršija kadrų skaičių, išlaikoma vienoda laiko juostos aprėptis, kad greiti ankstyvi iškirpimai negalėtų paslėpti ilgo vėluojančio segmento. Scenos ribos, esančios 1 sekundės analizės skiriamojoje geboje nuo sustabdymo ribos, sujungiamos.
+Struktūrinės vertės yra deterministinės mėginių ėmimo įrodymų, o ne semantinio vaizdo supratimo. Jos neinferuoja subjektų, veiksmų, antraščių, kalbos ar vartotojo ketinimų. Scenos ir sustojimo ribos formuoja segmentus; sustojimo aprėptis, neryškumas, ekspozicija, erdviniai detalės ir laikini pokyčiai tik įtakoja, kaip esamas 1–16 kadro biudžetas yra paskirstomas. Visiškai sustabdytas segmentas yra apribotas iki vieno kadro, o nesustabdytų segmentų konkurencija vyksta dėl likusio biudžeto. Kai ribos viršija kadrus, išlaikoma vienoda laiko juostos aprėptis, todėl greiti ankstyvi pjūviai negali paslėpti ilgo sekamo segmento. Scenos ribos, esančios 1 sekundės analizės rezoliucijoje, yra sujungtos.
 
-Trūkstami filtrai, netinkami/tušti įrodymai, detektoriaus klaida arba apribotas išankstinės analizės laiko limitas atveria tikslią vienodo vidurio taško politiką. Skambintojo nutraukimas arba tarpininko terminas neatveria: tai nutraukia vykdomą posistemį, neleidžia vėliau išgauti kadrų, o privati laikina medžio struktūra pašalinama `finally` bloke.
+Trūkstami filtrai, netinkami/tušti įrodymai, detektoriaus klaida arba ribotas išankstinės analizės laiko limitas atveria tikslų vienodą vidurio politiką. Skambintojo nutraukimas arba brokerio terminas nesukelia atviro nesėkmės: jis nutraukia vykdomą subprocess, neleidžia vėlesniam kadro išgavimui, o privatus laikinas medis yra pašalinamas `finally`.
 
-`scripts/perf/video-bridge-fu07-eval.ts` generuoja deterministinius tikrus FFmpeg fiksatorius, skirtus sutaupyti po dublikatų pašalinimo antraščių iškvietimams, tankaus judesio biudžeto paskirstymui, suliejimo/ekspozicijos/SI-TI įrodymams, greitiems kirpimams su ilga uodega ir laipsniškam išblukimui, sukeliantiems klaidingus teigiamus rezultatus. Jis registruoja išankstinės analizės realųjį laiką ir, jei `/usr/bin/time` yra prieinamas, vaiko CPU ir didžiausią RSS. Jo kokybės patikrinimai yra tik struktūriniai orakulai. Tikra antraščių modelio kokybė išlieka `HOLD`, nes ši testavimo sistema neturi autorizuoto galinio taško ar patvirtinto vertintojo. Piniginiai sutaupymai taip pat išlieka `HOLD`, nebent `--caption-cost-per-call-usd` pateikia aiškų teigiamą iškvietimo kainos įvertinimą; scenarijus niekada nesukuria nė vieno rezultato.
+`scripts/perf/video-bridge-fu07-eval.ts` generuoja deterministinius realius FFmpeg
+priedus po dedup antraščių išlaidų, tankaus judesio biudžeto paskirstymo,
+neryškumo/ekspozicijos/SI-TI įrodymų, greitų pjūvių su ilgu uodega ir palaipsniui išblukusių klaidingų teiginių. Jis fiksuoja išankstinės analizės sienos laiką ir, kur `/usr/bin/time`
+yra prieinama, vaiko CPU ir maksimalų RSS. Jo kokybės patikrinimai yra struktūriniai orakulai
+tik. Realių antraščių modelio kokybė lieka `HOLD`, nes šis įrenginys neturi
+įgalioto galinio taško ar sustabdytos teisėjų. Monetarinės taupymo priemonės taip pat lieka `HOLD`
+nebent `--caption-cost-per-call-usd` pateikia aiškų teigiamą per skambutį
+įvertinimą; skriptas niekada nesukuria jokio rezultato.
 
-Kiekvienas kadras apribotas iki 4 MiB, visi neapdoroti kadrai kartu iki 23 MiB, o serializuotas tarpininko atsakymas iki 32 MiB. Privatus laikinasis katalogas pašalinamas `finally` bloke. OmniRoute nekomplektuoja FFmpeg ir nepriima pasirinktinio vykdomojo failo kelio. Prieš kuriant antraštes, tiltas taiko konservatyvų vizualinio dublikatų pašalinimo etapą: kiekvienas JPEG sumažinamas iki 16×16 pilkumo atspalvių buferio ir lyginamas tik su paskutiniu išsaugotu kadru. Kai prašomas antraščių biudžetas viršija vieną kadrą, ištraukimas pateikia apribotą kandidatų telkinį, kuris yra iki dviejų kartų didesnis už tą biudžetą ir niekada neviršija 16 kadrų. Prašomas apribojimas taikomas tik po dublikatų pašalinimo, o pirmasis ir paskutinis pasirinkti kandidatai išsaugomi galutinio retinimo metu, kai biudžetas yra bent du. Versijuota `grayscale-16x16-mean-cells-v2` politika naudoja didesnę iš vidutinės liumos deltos ir miniatiūrų langelių, kurių normalizuota delta yra bent 0.05, santykio. Dublikatų slenkstis yra konstanta 0.04, pasirinkta dėl nuspėjamumo, o ne kaip vykdymo laiko nustatymas. Šis antrinis didelio kontrasto signalas išsaugo nedidelius judesius ir matomo teksto pokyčius, kuriuos vien tik vidurkio palyginimas gali paslėpti. Palyginimo ar dekoderio klaidos atveria ir išlaiko aprėptį. Išvesties metaduomenys atskiria išgautus kandidatus, sėkmingai panaudotus kadrus ir atmestus vizualinius dublikatus.
+Kiekvienas kadras yra apribotas iki 4 MiB, visi žali kadrai kartu iki 23 MiB, o
+serializuotas brokerio atsakymas iki 32 MiB. Privatus laikinas katalogas yra pašalinamas
+`finally`. OmniRoute nesujungia FFmpeg ir nepriima individualaus
+vykdomojo kelio. Prieš antraščių pridėjimą, tiltas taiko konservatyvų vizualinį
+deduplicavimo procesą: kiekvienas JPEG yra sumažinamas iki 16×16 pilkos spalvos buferio ir
+palyginamas tik su paskutiniu išlaikytu kadru. Prašant antraščių biudžeto
+virš vieno kadro, išgavimas pateikia
+apribotą kandidatų baseiną iki dvigubo to biudžeto ir niekada daugiau nei 16 kadrų.
+Prašomas limitas taikomas tik po deduplicavimo, pirmieji ir galutiniai
+pasirinkti kandidatai išlaikomi galutinio plonėjimo metu, kai biudžetas yra bent
+du. Versijomis
+`grayscale-16x16-mean-cells-v2` politika naudoja didesnį iš vidutinio luma delta ir
+thumbnail ląstelių, kurių normalizuotas delta yra bent 0.05, santykio. Dublikatų slenkstis yra pastovus 0.04, pasirinktas dėl prognozuojamumo, o ne
+pateiktas kaip vykdymo nustatymas. Šis antrinis
+aukšto kontrasto signalas išlaiko mažą judesį ir matomus teksto pokyčius, kuriuos
+vidutinio palyginimas gali paslėpti. Palyginimo ar dekodavimo klaidos atveria ir išlaiko
+aprėptį. Išvesties metaduomenys atskiria išgautus kandidatus, sėkmingai naudotus
+kadrus ir vizualinius dublikatus, kurie buvo atmesti.
 
-Aiškiai pažymėta vaizdo įrašo dalis gali prašyti kontaktinio lapo su laiko žymėmis. Tiltas sukuria daugiausiai 4 stulpelių, 16 kadrų JPEG tinklelį. Kiekviena 512 pikselių langelis įrašo savo šaltinio laiko žymę į didelio kontrasto apatinę juostą, o tos pačios laiko žymės lieka tekstiniuose metaduomenyse, skirtuose tolesniam susiejimui ir auditui. Visas JPEG išlieka apribotas iki 32 MiB. Jei `sharp` negali dekoduoti ar sukomponuoti tinklelio, tiltas grįžta prie atskirų JPEG kadrų; kliento nutraukimas vis tiek perduodamas per lapo operaciją.
+Aiškiai pažymėta vaizdo dalis gali prašyti laiko žymėto kontaktinio lapo. Tilto
+sukuria ne daugiau kaip 4 stulpelių, 16 kadro JPEG tinklą. Kiekviena 512 pikselių ląstelė
+įrašo savo šaltinio laiko žymę į aukšto kontrasto apatinį juostą, o tos pačios laiko žymės
+lieka tekstiniuose metaduomenyse tolesniam susiejimui ir auditui. Pilnas
+JPEG lieka apribotas iki 32 MiB. Jei `sharp` negali dekoduoti ar sudaryti tinklo, tiltas
+grįžta prie individualių JPEG kadrų; kliento nutraukimas vis tiek plinta
+per lapo operaciją.
 
-Reklamos įrodymai yra sąmoningai atskirti nuo sintetinės kompozicijos mikroetalono. `scripts/perf/video-bridge-contact-sheet-eval.ts` apibrėžia schemos versijos A/B testavimo sistemą, skirtą tikriems su OpenAI suderinamiems vizijos modeliams. Ji matuoja tiekėjo praneštus žetonus, bendrą realųjį delsą (įskaitant lapo kompoziciją), modelio iškvietimų skaičių ir manifeste apibrėžtą faktų išsaugojimą. Neapdoroti modelio atsakymai į ataskaitą nerašomi; išsaugomi tik SHA-256 santraukos ir atitinkami faktų ID. Testavimo sistema neatlieka jokių tinklo ar mokamų modelio iškvietimų, nebent perduodamas `--execute-real` ir sukonfigūruoti `--model`, `OMNIROUTE_BASE_URL` bei `OMNIROUTE_API_KEY`. Be šio aiškaus realaus vykdymo, jos mašininis verdiktas išlieka `HOLD`; vien tik sintetiniai naudingosios apkrovos/iškvietimų skaičiaus matavimai nėra reklamos įrodymai.
+Skatinimo įrodymai yra sąmoningai atskirti nuo sintetinio sudarymo
+mikrobandymo. `scripts/perf/video-bridge-contact-sheet-eval.ts` apibrėžia
+schemos versiją A/B įrenginį realiems OpenAI suderinamiems vizijos modeliams. Jis matuoja
+teikėjo praneštus žetonus, galutinį sienos delsą (įskaitant lapo sudarymą),
+modelio skambučio skaičių ir manifestu apibrėžtą faktų išlaikymą. Žali modelio atsakymai nėra
+rašomi į ataskaitą; tik SHA-256 santrumpos ir atitinkantys faktų ID yra išlaikomi. Įrenginys nedaro jokio tinklo ar mokamo modelio skambučio, nebent `--execute-real` yra perduodamas ir
+`--model`, `OMNIROUTE_BASE_URL`, ir `OMNIROUTE_API_KEY` yra sukonfigūruoti. Be
+to aiškaus realaus vykdymo, jo mašininio skaitomo nuosprendžio lieka `HOLD`; sintetinių
+krovinių/skambučio skaičiaus matavimai patys nėra skatinimo įrodymai.
 
-Skambintojai gali pridėti pasirenkamą `transcript.cues` masyvą prie palaikomos vaizdo įrašo dalies, jei jau turi suderintą tekstą. Kiekvienas signalas turi turėti `text`, baigtinį `start`/`end` intervalą zondo trukmės viduje ir baltajame sąraše esantį `source` (`client`, `embedded` arba `audio-bridge`); `confidence` numatytoji reikšmė yra `1` ir turi būti tarp `0` ir `1`. Tikslūs pasikartojantys signalai yra sugrupavami. OmniRoute niekada nepradeda transkripcijos iš šių metaduomenų: patvirtinti signalai nukopijuojami į aprašytą rezultatą su šaltiniu, patikimumu ir intervalu, ir pateikiami kaip nepatikimi stebėjimai kartu su kadrų antraštėmis. Netinkamas, už diapazono ribų esantis arba kilmės neturintis tekstas atmetamas, o ne maišomas į antraščių srautą. `source` laukas šiuo metu yra deklaruojamas skambintojo, o ne patvirtinamas serverio: OmniRoute užtikrina, kad reikšmė yra viena iš trijų leidžiamų eilučių, tačiau dar kriptografiškai nepatvirtina, kad `embedded` arba `audio-bridge` etiketė iš tikrųjų atėjo iš serverio valdomo ištraukimo. Laikykite `source` nepatikimu patarimu, kol nebus atliktas patvirtinimas; nekurdami autorizacijos sprendimų remdamiesi juo.
+Atskiras `scripts/perf/video-bridge-promotion-eval.ts` naudoja FU-07 arba
+FU-09 stebėjimus. Skatinimo priėmimas reikalauja visų aštuonių sintetinių scenarijų
+tipų plius sanizuotas realus klipas, bent trijų matuotų pakartojimų kiekvienai rolė ir atvejui, visų dešimties paskelbtų metrikų, sustabdytų medijų/prompt/numatytų faktų/nustatymų
+santrumpų, unikalių stebėjimo ID ir patvirtintų sėklų A/B tvarkos. Vykdymo
+kvitas sieja korpuso santrumpą, tikslų kandidato SHA ir modelio versiją. Trūkstami
+ar netinkami matavimai lieka `HOLD`, įskaitant CPU virš 30 s, maksimalų RSS virš 512 MiB arba išankstinę analizę virš 30 s. Tai yra įrodymų priėmimo limitai, o ne naujas
+vykdymo RSS užtikrinimo garantija.
 
-Pažangus iškvietėjas gali pateikti jau autorizuotą `audioTranscript` takelį tam pačiam vaizdo įrašui. Suliejimo siūlė apdoroja vaizdinius ir garso stebėjimus pagal vieną terminą ir nutraukimo signalą, išdėsto juos bendroje laiko juostoje, pašalina tikslias kopijas ir praneša apie dalinį rezultatą, kai sėkmingai pavyksta tik vienai pusei. Neteisingas `audioTranscript` pablogėja iki to dalinio rezultato – vizualinis aprašymas išsaugomas, o garso šaka įrašo išvalytą gedimo kodą – užuot sugadinus visą vaizdo įrašą. Kiekvienos šakos prieinamumas, dalinis žymeklis ir išvalyti gedimo kodai išsaugomi aprašytame rezultate, apsaugos metaduomenyse (`audioFusionRuns`/`audioFusionPartials`/`audioFusionFailureCodes`), rezultatų talpyklos metaduomenyse ir tilto suliejimo skaitikliuose. Numatytasis „Video Bridge“ kelias neiškviečia kalbos į tekstą konvertavimo ir neatsisiunčia antros medijos kopijos; be to aiškaus takelio jis lieka tik vaizdo įrašu.
+FU-07 reikalauja bent 98% kokybės išlaikymo ir p95 delsos ne daugiau kaip 1.2x
+pagrindo, plius arba 0.05 absoliutus atvejo subalansuotas vidutinio atgaminimo
+pagerinimas lygiaverčiu vidutiniu antraščių skambučiu, arba bent 10% mažiau vidutinių
+po dedup antraščių skambučių. FU-09 reikalauja bent 0.85 kokybės, 95% išlaikymo, 20% p95 delsos
+sumažinimo ir 10% žetono sumažinimo. Kritinių faktų praradimas, injekcijos atitiktis arba
+trūkstamas naudojimas neleidžia skatinimui. Vienas vykdymas negali skatinti nieko:
+`--previous-report` patvirtina du skirtingus, nesikertančius, nuosekliai
+tinkamus vykdymus to paties politikos/modelio versijos/kandidato/korpuso. Mėginių ėmimo eksperimentas negali patvirtinti kontaktinio lapo eksperimento.
 
-**Transkripto išsaugojimas (#12150 P1).** Tai taikoma automatiškai, kai „Video Bridge“ (pati pasirenkama) atvaizduoja transkripto užuominą – atskiro išsaugojimo žymeklio nėra. Kai užklausa atvaizduoja bet kokią transkripto užuominą (iškvietėjo deklaruotą `transcript` arba sulietą `audioTranscript`), apsauga pažymi ją `videoBridgeObserved` ir sukuria redaguotą vaizdo aprašymo šešėlį – identišką atvaizdavimą, kuriame kiekvienos užuominos laisvo teksto turinys pakeičiamas `[redacted-video-transcript]`, sukuriamą pakeičiant struktūrizuotą užuominos lauką prieš surenkant eilutę (niekada neanalizuojant išlyginto teksto, todėl joks užuominos turinys – priešiškas ar įprastas, įskaitant turinius, kuriuose yra `]` pvz., `[inaudible]`/`[music]` – negali išlikti). Išsaugotas skambučių žurnalo užklausos turinys pakeičia kiekvieną iš vaizdo įrašo gautą teksto dalį tuo redaguotu šešėliu, suderintu pagal turinio lygybę; `fullText` inkaro reikšmė iš naujo nuskaitoma iš baigto priešskambučio apsaugos naudingosios apkrovos, todėl atitikimas vis dar sėkmingas po to, kai vėlesnės grandinės apsaugos (PII ir kredencialų maskuotojai, prioritetai 10/95) perrašo aprašymo tekstą vietoje ir po to, kai sistemos raginimas/perdavimas/atminties įterpimas pakeičia pranešimų masyvą. Į modelį siunčiamas turinys lieka nepakitęs. Stebima užklausa taip pat neužpildo jokios patvarios atminties (praleidžiamas tiek užklausos, tiek atsakymo pagrindu gautas ištraukimas), todėl paties modelio atsakymas negali atkartoti transkripto teksto į atmintį.
+Kolektoriai turėtų įvertinti atsakymus atmintyje ir išsaugoti `responseDigest` plius
+metrikas ir stebėjimo ryšius, niekada neatsakymo teksto. Vartotojas taip pat skaito
+senus žalius stebėjimus, bet niekada nekopijuoja to teksto į savo ataskaitas. Tiksliai
+vienas iš `responseDigest` arba `rawResponseText` yra priimtinas kiekvienam stebėjimui.
+Versijuotas leidimų sąrašas lieka tuščias su nekintamu `hold` numatymu. Tinkamas įrašas
+reikalauja savo įrodymo nuorodos, politikos, modelio revizijos, tikslaus kandidato SHA,
+manifesto įrašo ir dviejų skirtingų vykdymo ID; konfliktuojantys kontekstai
+atmetami. Šie metaduomenys yra audito sutartis, o ne įrodymas, kad nurodytas
+failas turi tikrus matavimus. Peržiūrėkite faktinius kvitus prieš pridėdami
+bet kurį įrašą. Valdymo statistikos galinis taškas ir vaizdo valdymo skydelis
+atveria konservatyvų paruoštumą. Tik sukonfigūruotas modelio aliasas nesukuria
+jo revizijos ar vykdomo kandidato SHA, todėl dabartinis valdymo skydelis praneša
+`HOLD`, o ne perima tinkamumą iš kito vykdymo konteksto. Aiškus eksperimentinis
+pasirinkimas lieka atskirtas nuo skatinimo; jokie numatyti nustatymai automatiškai
+nepasikeičia.
 
-**Neapdoroti vaizdo įrašo laukai (#12430).** Kai tiltas įjungtas, o savasis vaizdo palaikymas nežinomas arba jo nėra, apibrėžti `transcript`/`audioTranscript` laukai taip pat įjungia `videoBridgeObserved`, net nepavykus aprašyti vaizdo arba pasiekus `maxVideos` ribą. `null` ir tuščios eilutės įskaitomos; nesantys laukai ir su vaizdu nesusiję metaduomenys — ne. Išsaugotose kopijose šie laukai paslepiami arba užklausa praleidžiama, o podėliai/Memory nenaudojami. Teikėjui siunčiami duomenys nesikeičia.
+Kreipėjai gali pridėti neprivalomą `transcript.cues` masyvą prie palaikomo vaizdo
+dalis, kai jie jau turi suderintą tekstą. Kiekvienas cue turi turėti `text`,
+baigtinį `start`/`end` intervalą viduje tiriamos trukmės ir baltąjį sąrašą
+`source` (`client`, `embedded` arba `audio-bridge`); `confidence` numatoma
+`1` ir turi likti tarp `0` ir `1`. Tikslūs dubliavimo cue yra sujungiami.
+OmniRoute niekada nepradeda transkripcijos iš šių metaduomenų: patvirtinti cue
+yra kopijuojami į aprašytą rezultatą su šaltiniu, pasitikėjimu ir intervalu, ir
+yra pateikiami kaip nepatikimi stebėjimai kartu su kadro antraštėmis. Negaliojantys,
+už ribų esantys arba kilmės neturintys tekstai yra atmetami, o ne sumaišomi į
+antraštės srautą. Abu užklausos kūno transkripcijos kanalai normalizuoja
+pateiktą kilmę į `client`, įskaitant savarankiškai teigtus `embedded` arba
+`audio-bridge` žymes. Tik serverio valdomas adapteris gali priskirti tuos
+patikimus žymenis per tik kodu `trustedSource` argumentą; užklausos JSON laukas
+negali pasiekti to argumento. Transkripcijos tekstas lieka nepatikimas medijos
+gautas turinys, nepriklausomai nuo jo kilmės, ir niekada neturi nustatyti
+autorizacijos.
 
-Papildomos išsaugotos kopijos naudoja tą patį stebimos užklausos signalą. Neapdorotas kliento užklausos momentinis vaizdas prieš apsaugą, atmintyje esanti laukianti užklausa ir ankstyvas atmestų užklausų žurnalas struktūriškai pakeičia transkripto laukus vaizdo dalyse; eilutės raginimai, sugeneruoti konvejerio etapų ir konteksto perdavimo, yra redaguojami išsaugotos užklausos turinio sraute. Išsaugotas `video_content_removed` žymeklis priverčia `previous_response_id` tęsinį užsidaryti, užuot atkūrus tekstą, kuris buvo tyčia atmestas. Jei stebima užklausa praranda savo dalinį redagavimo šešėlį prieš registravimą, arba net vienas iš kelių vaizdo šešėlių nesutampa po vėlesnių užklausos mutacijų, išsaugotas užklausos turinys visiškai praleidžiamas, užuot išsaugojus iš dalies redaguotą transkriptą.
+Išplėstinis kreipėjas gali pateikti `audioTranscript` takelį tam pačiam vaizdui;
+jis laikomas kliento pateiktu tekstu, o ne serverio transkripcijos įrodymu.
+Sujungimo siūlas vykdo vizualinius ir garso stebėjimus pagal
+vieną terminą ir abortų signalą, užsako juos bendroje laiko juostoje, sujungia
+tiksliai dubliuojančius ir praneša dalinį rezultatą, kai tik viena pusė pavyksta.
+Negaliojantis `audioTranscript` degradavo iki to dalinio rezultato — vizualinė
+aprašymas išlaikoma, o garso šaka registruoja sanizuotą klaidos kodą —
+vietoj to, kad nepavyktų visam vaizdui. Pagal šaką prieinamumas, dalinis
+žymuo ir sanizuoti klaidos kodai yra išsaugomi aprašytame rezultate, saugumo
+metaduomenyse (`audioFusionRuns`/`audioFusionPartials`/
+`audioFusionFailureCodes`), rezultato talpyklos metaduomenyse ir tilto
+sujungimo skaitikliuose. Numatyta Vaizdo Tiltas kelias nesukelia kalbos į tekstą
+arba neatsisiunčia antros medijos kopijos; be to aiškaus takelio, jis lieka
+tik vaizdo.
 
-Stebimos užklausos atveju modelio atsakymas gali cituoti bet kurią transkripto dalį be struktūrizuotos užuominos ribos. Todėl jo išsaugotas skambučių žurnalo `responseBody` pakeičiamas praleidimo žymekliu; išsamus konvejerio artefaktas (kuris gali apimti aukštesnio lygio/kliento turinius ir srauto fragmentus) nėra išsaugomas. Semantinės, idempotentiškumo ir samprotavimo pakartojimo talpyklos apeina skaitymo ir rašymo operacijas šiai užklausai. Teikėjo užklausa ir klientui matomas atsakymas lieka nepakitę. Ankstyvieji „keepalive“ baitai ištuštinami iš laikinojo buferio, kai išsamus artefaktas praleidžiamas. Kiro neteisingai suformuoto „EventStream“ įspėjimas praneša tik naudingosios apkrovos baitų skaičių, niekada jos turinio ar JSON analizatoriaus neapdorotos klaidos. Tai nereiškia, kad kiekviena nesusijusi teikėjo/įskiepio diagnostika buvo audituota; platesnis išsaugotų srautų valymas stebimas #11658.
+**Transkripcijos išlaikymas (#12150 P1).** Tai taikoma automatiškai, kai
+Vaizdo Tiltas (kuris pats yra pasirinktinai) pateikia transkripcijos cue — nėra
+atskira išlaikymo žyma. Kai užklausa pateikia bet kokį transkripcijos cue (kreipėjo
+paskelbtas `transcript` arba sujungtas `audioTranscript`), saugumo
+žymuo pažymi jį kaip `videoBridgeObserved` ir sukuria redaguotą vaizdo
+aprašymo šešėlį — identišką atvaizdavimą, kuriame kiekvieno cue laisvo teksto
+kūnas yra pakeistas į `[redacted-video-transcript]`, sukurtą pakeitus
+struktūrizuotą cue lauką prieš suformuojant eilutę (niekada neanalizuojant
+suklijuoto teksto, todėl jokie cue turiniai — priešiški ar įprasti, įskaitant
+kūnus, turinčius `]`, tokius kaip `[inaudible]`/`[music]` — negali išlikti).
+Išsaugotas užklausos žurnalo kūno užklausos kūnas keičia kiekvieną vaizdo
+gautą teksto dalį į tą redaguotą šešėlį, atitinkantį turinio lygybę; `fullText`
+ankurys yra perskaitytas iš užbaigto priešklausos saugumo
+paketo, todėl atitikimas vis tiek pavyksta po vėlesnių grandinės saugumo
+žymų (PII ir kredencialų maskuotojai, prioritetai 10/95) perrašant
+aprašymo tekstą vietoje ir po sistemos-paskatinimo/perdavimų/atminties
+įpurškimo formuojant žinutės masyvą. Kūnas, siunčiamas aukštyn modeliui,
+lieka nepakeistas. Stebima užklausa taip pat nepildo jokios patvarios Atminties
+(abiejų užklausos ir atsakymo gautų ištraukų praleidimas), todėl modelio
+atsakymas negali atspindėti transkripcijos teksto į Atmintį.
 
-Vidinis `/api/modality-bridge/video/drilldown` gyvavimo ciklas yra atskiras, grįžtamojo ryšio/žetonu autentifikuotas talpyklos pagrindas. Kiekvienai operacijai taip pat reikalingas kanoninis nepermatomas pagrindinio subjekto ID. Prieš įjungiant gamybos iškvietėją, jis turi gauti tą ID iš autentifikuoto nuomininko ir niekada neturi persiųsti kliento pasirinktos reikšmės. Talpyklos raktai susieja tą pagrindinį subjektą su kanoniniais sesijos ir vaizdo įrašų nuorodų ID, saugo tik jų SHA-256 gautus raktus ir apriboja tiek skaitymo, tiek ištrynimo operacijas tam pačiam pagrindiniam subjektui. Talpykla saugo daugiausiai 16 išvestinių JPEG kadrų vienam įrašui, juos pasibaigus dešimčiai minučių ištrina ir palaiko ribotus `start`/`end` skaitymus arba aiškų sesijos ištrynimą.
+**Žalių vaizdo laukų (#12430).** Kai tiltas yra įjungtas ir natūralus vaizdo
+palaikymas yra nežinomas arba nėra, apibrėžti `transcript`/`audioTranscript`
+laukeliai taip pat aktyvuoja `videoBridgeObserved`, net po aprašymo nesėkmės
+ar `maxVideos` ribos. `null` ir tušti eilutės skaičiuojami; nebuvę laukeliai
+ir nevaizdo metaduomenys nesiskaito. Išlaikytos kopijos redaguoja šiuos laukus
+arba praleidžia užklausą, o talpyklos/Atmintis yra apeinamos. Teikėjo paketas
+lieka nepakeistas.
 
-Kiekvienas pagrindinis subjektas yra apribotas iki 16 įrašų ir 64 MiB kanoninių JPEG duomenų. Šie apribojimai nepriklauso nuo bendros 64 įrašų/256 MiB ribos: pagrindinio subjekto kvotos spaudimas pašalina tik to pagrindinio subjekto rečiausiai naudotus įrašus, prieš pradedant svarstyti visuotinį LRU pašalinimą. Pasibaigę įrašai pašalinami tiek iš pagrindinio subjekto, tiek iš visuotinės apskaitos, kai vykdoma talpyklos veikla, o atšaukimas ir patvirtinimo klaida neįpareigoja dalinio pakeitimo.
+Papildomos išlaikytos kopijos naudoja tą patį stebimos užklausos signalą. Žali
+prieš saugumo klientų užklausos nuotrauka, atmintyje laukiančios užklausos
+ir ankstyvos atmestos užklausos žurnalas struktūriškai pakeičia transkripcijos
+laukus vaizdo dalyse; eilutės raginimai, sukurti per pipeline etapus ir konteksto
+perdavimą, yra redaguojami saugomo užklausos kūno nuotekyje. Išsaugotas `video_content_removed`
+žymuo daro `previous_response_id` tęstinumą nesėkmingą, o ne atkuria
+tekstą, kuris buvo tyčia atmestas. Jei stebima užklausa praranda savo
+kiekvieno dalies redagavimo šešėlį prieš žurnalą, arba net jei viena iš kelių
+vaizdo šešėlių nesugeba atitikti po vėlesnių užklausos mutacijų, išsaugotas
+užklausos kūnas visiškai praleidžiamas, o ne išlaikomas dalinai redaguotas
+transkripcijos tekstas.
 
-Talpykla atmeta nekanoninį Base64, perteklinį užpildymą, ne JPEG mediją, neteisingai suformuotus ar sutrumpintus JPEG failus ir JPEG failus, kurie sukelia įspėjimą riboto viso vaizdo `sharp` dekodavimo metu. Ji iš naujo užkoduoja kiekvieną priimtą vaizdą kaip kanoninį JPEG, išveda plotį ir aukštį iš dekoduotų baitų, užuot pasitikėjusi iškvietėjo laukais, ir atmeta visus uodegos poligloto baitus, užuot juos išsaugojusi. Tik ribotas kanoninis suglaudintas buferis yra įskaitomas į abi kvotas. JSON perdavimo limitas apima Base64 papildomas išlaidas 32 MiB dekoduoto įvesties ribai. Kiekvienas saugomas išvedimas įrašo savo patvirtintą JPEG formatą/raišką, mėginių ėmimo politiką, išvedimo versiją, sukūrimo laiką, serverio apskaičiuotą turinio maišą ir maišytą tėvinę nuorodą, taip pat patikimo iškvietėjo tėvinio turinio maišą. Atšaukimas tikrinamas tarp asinchroninių dekodavimo/maišos fazių prieš atominį talpyklos įrašymą.
+Stebint prašymą, modelio atsakymas gali cituoti bet kurią transkripto dalį be struktūrizuoto ženklų ribos. Todėl jo išsaugotas skambučio žurnalo `responseBody` yra pakeistas praleidimo žymekliu; išsami pipeline artefaktas (kuris gali apimti aukščiau esančius/kliento kūnus ir srauto dalis) nėra išlaikomas. Semantinės, idempotencijos ir mąstymo pakartojimo talpyklos apeina skaitymus ir rašymus tam prašymui. Paslaugų teikėjo prašymas ir klientui matomas atsakymas lieka nepakitę. Ankstyvi keepalive baitai yra išleidžiami iš laikino buferio, kai išsami artefaktas yra praleidžiamas. Kiro netinkamas EventStream įspėjimas praneša tik apie naštos baitų skaičių, niekada apie jos turinį ar JSON analizatoriaus žalią klaidą.
+Tai nesako, kad kiekvienas nesusijęs paslaugų teikėjo/plugin diagnostika buvo patikrinta; platesnis išsaugotų nuotekų valymas yra stebimas #11658.
 
-Ši atkarpa dar neprijungia gamybos gamintojo prie maršruto ir nepateikia
-kelių raiškų variantų pasirinkimo. Skaidrus „Video Bridge“ užklausos
-kelias todėl nesukelia papildomo darbo, o nuomininkui priskirtas pagrindinis išvedimas ir
-visas FU-08 kelių raiškų gyvavimo ciklas lieka aiškus tolesnis darbas, o ne
-dokumentuojamas kaip baigtas elgesys.
+Vidinė `/api/modality-bridge/video/drilldown` gyvavimo ciklo sistema yra atskira, loopback/token-authenticated talpyklos substratas. Kiekviena operacija taip pat reikalauja kanoninio nepermatomo pagrindinio ID. Prieš leidžiant gamybos skambintojui, jis turi gauti tą ID iš autentifikuoto nuomininko ir niekada neturi perduoti kliento pasirinkto vertės. Talpyklos raktai sieja tą pagrindinį su kanoniniais sesijos ir vaizdo nuorodų ID, saugo tik jų SHA-256 gautus raktus ir riboja tiek skaitymus, tiek naikinimą tam pačiam pagrindiniam. Talpykla saugo ne daugiau kaip 16 gautų JPEG kadrų per įrašą, pasibaigia po dešimties minučių ir palaiko ribotus `start`/`end` skaitymus arba aiškų sesijos naikinimą.
 
-Kvadrai nuosekliai antraštinami su sukonfigūruotu vaizdo modeliu. Tuščias
-vaizdo perrašymas paveldi „Vision“ nustatymą; jei abu yra tušti, „Vision“
-automatinis maršrutizatorius pasirenka efektyvų vaizdo palaikymo modelį. Sėkmingos antraštės
-pakeičia originalią dalį stabiliu `[Video description:` priešdėliu, kuris taip pat
-pažymi tekstą kaip nepatikimą, iš medijos gautą stebėjimą ir nurodo tolesniems
-modeliams nevykdyti medijoje rastų instrukcijų. Kvadro antraštės talpyklos raktai
-apima JPEG baitus, užklausą, laiko žymę ir efektyvų modelį; talpykloje saugomos tik
-sėkmingos antraštės. Talpyklos įrašai išsaugo faktinį sėkmingą gamintojo modelį,
-įskaitant atsarginį modelį; tiltas praneša `mixed`, kai skirtingi kadrai
-buvo sukurti skirtingų modelių. Talpyklos atitikimas pakartotinai naudoja tą gamintojo tapatybę
-vietoj to, kad ją pervadintų kaip prašomą maršrutizavimo planą. Viso vaizdo rezultato
-talpykla yra raktuojama pagal kiekvieną įvestį, kuri keičia išvestį – užklausą, efektyvų
-modelį, mėginių ėmimo politiką, kadrų skaičių, semantinės analizės režimą, SHA-256
-normalizuoto fokusavimo užuominos piršto atspaudą, fokusavimo langą, `transcript`,
-`audioTranscript` ir kontaktinio lapo vėliavėlę – todėl pakeitus bet kurią iš šių
-dimensijų, talpykla nepasiekiama, niekada nepasikartojama pasenusi. Vaizdinės dedup politikos
-versija, slenkstis ir apribotas kandidatinių kadrų skaičius taip pat yra aiškiai nurodyti
-rezultatų talpyklos rakte ir metaduomenyse; todėl politikos pakeitimas negali pakartotinai naudoti pasenusio
-viso vaizdo aprašymo. Rezultatų talpyklos v4 metaduomenys išsaugo režimą ir
-piršto atspaudą, niekada neapdorotą vartotojo užduotį. Apsaugos metaduomenys praneša tiek
-prašomus, tiek efektyvius analizės režimus; prašomas `focused` režimas be
-naudojamo vartotojo teksto pranešamas kaip efektyviai `full`.
+Kiekvienas pagrindinis yra ribotas iki 16 įrašų ir 64 MiB kanoninių JPEG duomenų. Šios ribos yra nepriklausomos nuo globalios 64 įrašų/256 MiB lubų: pagrindinio kvotos spaudimas išstumia tik to pagrindinio mažiausiai neseniai naudotus įrašus prieš svarstant globalų LRU išstūmimą. Pasibaigę įrašai yra pašalinami tiek iš pagrindinio, tiek iš globalios apskaitos talpyklos veikloje, tuo tarpu atšaukimas ir patvirtinimo nesėkmė neįvykdo dalinio pakeitimo.
 
-Apsauga išskiria kiekvieną palaikomą vaizdo dalį, bet aprašo ne daugiau kaip
-`modalityBridgeVideoMaxVideos`. Tikslui, kuris, kaip įrodyta, turi
-`supportsVideo === false`, nepavykę ir viršijantys limitą vaizdo įrašai tampa aiškiais saugaus
-teksto žymekliais, todėl neapdorotas vaizdo įrašas neišlieka. Kai galimybė nežinoma, tos dalys
-lieka nepaliestos. Tikslai su `supportsVideo === true` apeina tiltą.
-Kliento užklausos nutraukimo signalas sklinda per atsisiuntimą, tarpininko eilę,
-paprocesius ir antraštės iškvietimus; nutraukimai sustoja tarp vaizdo įrašų ir niekada
-nepavyksta atidaryti neapdorotos medijos.
+Talpykla atmeta nekanoninius Base64, perteklinius užpildymus, ne-JPEG medijas, netinkamus ar sutrumpintus JPEG, ir JPEG, kurie sukelia įspėjimą riboto pilno vaizdo `sharp` dekodavimo metu. Ji iš naujo koduoja kiekvieną priimtą vaizdą kaip kanoninį JPEG, išgauna plotį ir aukštį iš dekoduotų baitų, o ne pasikliauja skambintojo laukais, ir atmeta bet kokius seklius poliglotinius baitus, o ne juos išlaiko. Tik ribotas kanoninis suspaustas buferis yra įkainojamas abiem kvotoms. JSON laidų limitas apima Base64 papildomus baitus 32 MiB dekoduoto įvesties luboms. Kiekviena
+saugoma derivacija registruoja savo patvirtintą JPEG formatą/rezoliuciją, mėginių politiką,
+derivacijos versiją, sukūrimo laiką, serverio apskaičiuotą turinio hash, ir hash'ą tėvų
+nuorodai plius patikimo skambintojo tėvų turinio hash. Atšaukimas tikrinamas
+tarp asinchroninių dekodavimo/hash fazių prieš atominius talpyklos įsipareigojimus.
 
-Vykdymo laiko nustatymai yra pagrįsti DB ir patvirtinti Zod:
+Gamybos gamintojas pakartoja jau gautus brokerio kadrus tik po sėkmingos
+vizualinės analizės, be antro vaizdo atsisiuntimo/ekstrakcijos. Reikalaujama operatoriaus
+`modalityBridgeVideoDrilldownEnabled=true`, griežto per dalį `drilldown: true`, ir
+autentifikuoto API rakto įrašų ID. Kliento deklaruoti pagrindiniai/sesijos vertės niekada
+nesukuria nuosavybės. Be visų trijų sąlygų jis nehashina, nesumažina ar neišlaiko
+papildomų kadrų. Išlaikymo nesėkmė išsaugo naudojamą vizualinį atsakymą. Sutikti
+prašymai apeina viso vaizdo rezultatų talpyklą, todėl talpykloje saugomi rezultatai niekada
+nepakartoja rankenų.
 
-| Raktas                              | Numatytasis | Diapazonas / elgesys                                                                                      |
-| :---------------------------------- | :---------- | :-------------------------------------------------------------------------------------------------------- |
-| `modalityBridgeVideoEnabled`        | `false`     | Pasirenkamas vykdymo laikas, pasirinkimas                                                                 |
-| `modalityBridgeVideoAnalysisMode`   | `"full"`    | `full` išsaugo bendrąsias antraštes; `focused` naudoja apribotą, nepatikimą naujausią vartotojo kontekstą |
-| `modalityBridgeVideoModel`          | `""`        | Paveldi „Vision Bridge“ modelį                                                                            |
-| `modalityBridgeVideoFrameCount`     | `8`         | 1–16                                                                                                      |
-| `modalityBridgeVideoSamplingPolicy` | `"uniform"` | `uniform`, `scene_aware` arba proporcingas `segment_aware`; detektoriaus gedimas grįžta prie `uniform`    |
-| `modalityBridgeVideoMaxVideos`      | `1`         | 1–4                                                                                                       |
-| `modalityBridgeVideoTimeout`        | `120000`    | 1000–120000 ms                                                                                            |
+Sėkmingi JSON ir SSE atsakymai atskleidžia ne daugiau kaip keturis nepermatomus
+rankenų ribotame `x-omniroute-video-drilldown` antraštėje. Įgalioti naršyklės šaltiniai gali
+skaityti tą antraštę neplėsdami CORS šaltinio politikos. Naujos rankenos naudoja
+`v1.<32-byte random base64url token>`, o registras išlaiko tik
+jų SHA-256 hash'us. Skaitytojas/antraštės analizatorius taip pat priima senus 64-hex
+rankenų. Autentifikuotas viešas vartotojas yra
+`GET /api/v1/video-bridge/drilldown?handle=...`, nepriklausomai uždarytas
+`modalityBridgeVideoDrilldownRemoteEnabled=true`. Aiškus išsaugotas neteisingas atšaukia
+prieigą net kai senas `OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_REMOTE_ENABLED` aplinkos
+atsarginis planas yra įjungtas. Gamybos išlaikymas turi analogišką seną
+`OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_ENABLED` atsarginį planą. Abu atsarginiai planai pagal numatytuosius nustatymus yra išjungti.
 
-Senosios išsaugotos vaizdo įrašo laiko viršijimo vertės, viršijančios 120 sekundžių, apribojamos
-iki tarpininko termino; nauji nustatymų įrašai, viršijantys tą limitą, atmetami.
-`GET /api/modality-bridge/video/runtime` reikalauja patikimos antspauduotos grįžtamojo ryšio
-vietos prieš autentifikavimą ar vykdymo laiko tikrinimą, tada reikalauja valdymo
-autentifikavimo. Jis grąžina tik `available`, išvalytas FFmpeg/ffprobe versijas ir fiksuotą
-priežastį, kai vykdymo laikas nepasiekiamas. Vidinis ištraukimo galinis taškas nėra
-viešas įkėlimo API: eilės persipildymas grąžina `503` plius `Retry-After`, skambinančiojo
-atsijungimas grąžina `499`, o fiksuotas tarpininko terminas grąžina `504`. Konvertuoti atsakymai prideda
-`video->text;model=<visionModel>;parts=<videos>` prie centrinės
-`x-omniroute-modality-bridge` antraštės, nepašalinant „Vision“ ar „Audio“ segmentų.
+Vartotojas gauna nuosavybę iš autentifikuoto rakto, taiko rakto politiką ir
+grąžina tą patį 404 nežinomiems, pasibaigusiems ir kito rakto rankenoms. Jis priima
+`variant=preview|standard|detail` (maksimalus JPEG matmuo 320/640/1280, niekada nepadidintas),
+`limit=1..8` (arba seną `frames` alias, niekada abu), nulinis `page`, ir neprivalomus
+`start`/`end` fokusavimo sekundes. Dublikuoti
+užklausų raktai ir apversti fokusavimo langai yra atmetami. Kiekvienas grąžintas variantas turi hash
+savo tikro turinio ir tikros rezoliucijos metaduomenų, susietų su išsaugotu šaltiniu.
+Variantai yra gauti skaitymo metu, o ne saugomi kaip papildomi išsaugoti kopijos. JSON
+atsakymas, įskaitant Base64/envelope, yra apribotas iki 32 MiB; per didelis puslapis grąžina
+413, o klientas turi prašyti mažiau kadrų. Skaitymai tikrina atšaukimą aplink kiekvieną
+permatymą ir vėl tikrina rankenų galiojimą prieš grąžinant. `DELETE` savininko yra idempotentinis;
+naikinimas arba TTL pasibaigimas išleidžia išsaugotą šaltinį ir naudojimo apskaitą.
 
-### PII maskuoklis (`piiMasker.ts`)
+Bendras saugykla yra proceso vietinis: rankenos pasibaigia perkrovus ir nėra perkeliamas
+tarp nepriklausomų OmniRoute procesų. Valdymo statistika atskleidžia efektyvų išlaikymą/
+nuotolinę politiką ir agreguotus išsaugotus įrašus/baitus tik, niekada medijas, nuorodas,
+pagrindinius ID ar rankenas. Vaizdo nustatymų skydelis rodo tuos vertes ir gali išlaikyti
+abu sutikimo jungiklius. Ši įgyvendinimo dokumentacija nėra tiesioginio diegimo ar
+skatinimo įrodymas; realaus modelio priėmimas yra stebimas atskirai.
 
-Veikia **abiejuose** etapuose.
+Rėmeliai yra pažymėti nuosekliai su sukonfigūruotu Video modeliu. Tuščias Video perrašymas paveldi Vision nustatymą; jei abu yra tušti, Vision automatinis maršrutizatorius pasirenka efektyvų viziją palaikantį modelį. Sėkmingi antraštės pakeičia originalią dalį su stabilia `[Video description:` prefiksu, kuris taip pat žymi tekstą kaip nepatikimą medijos gautą stebėjimą ir sako žemyn srauto modeliams nesekti instrukcijų, rastų medijoje. Rėmelio antraštės talpyklos raktai apima JPEG baitus, užklausą, laiko žymę ir efektyvų modelį; tik sėkmingos antraštės yra talpinamos. Talpyklos įrašai išlaiko faktinį sėkmingą gamintojo modelį, įskaitant atsarginį modelį; tiltas praneša `mixed`, kai skirtingi rėmeliai buvo pagaminti skirtingų modelių. Talpyklos pataikymas pakartoja tą gamintojo tapatybę, o ne pervadina ją kaip prašomą maršrutizavimo planą. Visas vaizdo rezultato talpyklos raktas yra pagrįstas kiekvienu įvestimi, kuri keičia išvestį — užklausa, efektyvus modelis, mėginių ėmimo politika, rėmelių skaičius, semantinės analizės režimas, normalizuoto fokusavimo užuominos SHA-256 pirštų atspaudas, fokusavimo langas, `transcript`, `audioTranscript` ir kontaktinės lentelės vėliava — taigi bet koks šių dimensijų pakeitimas yra talpyklos praleidimas, niekada nepasenęs pakartojimas. Vizualaus dedup politikos versija, slenkstis ir ribotas kandidatų rėmelių skaičius taip pat yra aiškūs rezultato talpyklos rakte ir metaduomenyse; politikos pakeitimas todėl negali pakartoti pasenusios viso vaizdo aprašymo. Rezultato talpyklos v4 metaduomenys išlaiko režimą ir pirštų atspaudą, niekada neapima žaliųjų vartotojo užduočių. Guardrail metaduomenys praneša tiek apie prašomus, tiek apie efektyvius analizės režimus; prašomas `focused` režimas be naudojamo vartotojo teksto pranešamas kaip efektyviai `full`.
 
-- **`preCall`** klonuoja duomenų paketą, eina per `system`, `messages`, `input` ir
-  `prompt` (įskaitant paprastus eilutės elementus) ir taiko `processPII()` (iš
-  `@/shared/utils/inputSanitizer`) eilutės `content`/`text` laukams. Kai
-  `PII_REDACTION_ENABLED=true`, aptikta PII redaguojama siunčiamame
-  duomenų pakete. Tai nepriklauso nuo `INPUT_SANITIZER_MODE` (kuri kontroliuoja tik
-  užklausos įterpimo politiką). Kai redagavimas išjungtas, iškvietimas registruoja aptikimo
-  skaičių, neperrašant turinio.
-- **`postCall`** giliai klonuoja atsakymą, paleidžia `sanitizePIIResponse()` plius
-  „Responses-API-shape“ maskuoklį (`maskResponsesOutput` – apima
-  `output_text` ir `output[].content[].text`). Jei atliekamas koks nors redagavimas,
-  pakeistas atsakymas pakeičia originalų.
+Guardrail ištraukia kiekvieną palaikomą vaizdo dalį, bet aprašo ne daugiau kaip `modalityBridgeVideoMaxVideos`. Tikslui, kuris įrodytas turint `supportsVideo === false`, nesėkmingi ir viršijantys limitą vaizdo įrašai tampa aiškiais saugiais teksto žymekliais, todėl jokie žali vaizdo įrašai neišlieka. Kai galimybė nežinoma, tos dalys lieka nepaliestos. Tikslai su `supportsVideo === true` apeina tiltą. Kliento užklausos nutraukimo signalas plinta per atsisiuntimą, brokerio eilę, subprocessus ir antraščių skambučius; nutraukimai sustoja tarp vaizdo įrašų ir niekada nesibaigia atviru žaliu medija.
 
-Apsauga niekada neužblokuoja; ji tik anotuojasi (`meta.detections`,
-`meta.redacted`) arba perrašo.
+Vykdymo nustatymai yra DB palaikomi ir Zod patvirtinti:
 
-### Užklausos įterpimas (`promptInjection.ts`)
+| Raktas                              | Numatytoji  | Diapazonas / elgesys                                                                                    |
+| ----------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------- |
+| `modalityBridgeVideoEnabled`        | `false`     | Pasirinktinė vykdymo, opt-in                                                                            |
+| `modalityBridgeVideoAnalysisMode`   | `"full"`    | `full` išlaiko bendrąsias antraštes; `focused` naudoja ribotą, nepatikimą naujausio vartotojo kontekstą |
+| `modalityBridgeVideoModel`          | `""`        | Paveldi Vision Bridge modelį                                                                            |
+| `modalityBridgeVideoFrameCount`     | `8`         | 1–16                                                                                                    |
+| `modalityBridgeVideoSamplingPolicy` | `"uniform"` | `uniform`, `scene_aware`, arba proporcingas `segment_aware`; detektoriaus nesėkmė grįžta prie `uniform` |
+| `modalityBridgeVideoMaxVideos`      | `1`         | 1–4                                                                                                     |
+| `modalityBridgeVideoTimeout`        | `120000`    | 1000–120000 ms                                                                                          |
 
-Aptinka priešiškas struktūras vartotojo pateiktame turinyje ir įgyvendina
-sukonfigūruotą politiką. Elgesį lemia aplinkos kintamieji ir konstruktoriaus
-parinktys:
+Paveldėti išsaugoti Video laiko limitai virš 120 sekundžių yra apriboti brokerio terminui; nauji nustatymai, viršijantys tą ribą, yra atmetami. `GET /api/modality-bridge/video/runtime` reikalauja patikimo antspauduoto loopback vietos prieš autentifikaciją ar vykdymo tyrimą, tada reikalauja valdymo autentifikacijos. Jis grąžina tik `available`, sanizuotas FFmpeg/ffprobe versijas ir fiksuotą priežastį, kai vykdymas nėra prieinamas. Vidinis ištraukimo galas nėra vieša įkėlimo API: eilės prisotinimas grąžina `503` plius `Retry-After`, skambinančiojo atsijungimas grąžina `499`, o fiksuotas brokerio terminas grąžina `504`. Paversti atsakymai prideda `video->text;model=<visionModel>;parts=<videos>` prie centrinio `x-omniroute-modality-bridge` antraštės, neišimant Vision ar Audio segmentų.
 
-| Nustatymas          | Aplinkos kintamasis                                                                                            | Numatytoji reikšmė | Poveikis                                                                                                                                                                             |
-| ------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Įjungta             | `INPUT_SANITIZER_ENABLED`                                                                                      | `true`             | Kai `false`, apsaugos mechanizmas išsijungia.                                                                                                                                        |
-| Režimas             | `INJECTION_GUARD_MODE` / `INPUT_SANITIZER_MODE`                                                                | `warn`             | Įterpimo politika: `block`, `warn` arba `log`. (`redact` priimamas dėl atgalinio suderinamumo, bet **ne**pašalina įterpimo teksto; PII perrašymas valdomas `PII_REDACTION_ENABLED`.) |
-| Blokavimo slenkstis | `blockThreshold` parinktis / `INPUT_SANITIZER_BLOCK_THRESHOLD` (pseudonimas `INJECTION_GUARD_BLOCK_THRESHOLD`) | `high`             | Minimalus reikalingas rimtumas blokavimui. Numatytuoju atveju „Medium“ yra tik stebėjimo režimas.                                                                                    |
+### PII Masker (`piiMasker.ts`)
 
-**Režimo pirmumas** (`getMode`): iškvietėjo `options.mode` →
-`INJECTION_GUARD_MODE` **DB funkcijų žymės perrašymas** (Prietaisų skydelis →
-Nustatymai → Funkcijų žymės) → `INJECTION_GUARD_MODE` aplinkos kintamasis →
-`INPUT_SANITIZER_MODE` aplinkos kintamasis → `warn`. Todėl prietaisų skydelio
-perrašymas yra viršesnis už aplinkos kintamuosius, taigi funkcijų žymių
-vartotojo sąsaja valdo veikiantį apsaugos mechanizmą realiuoju laiku (nereikia
-perkrauti). Duomenų bazės skaitymas yra atsparus gedimams: jei įvyksta klaida,
-apsaugos mechanizmas grįžta prie aplinkos kintamaisiais pagrįsto elgesio, o kai
-perrašymas nenustatytas, elgesys yra identiškas tik aplinkos kintamųjų
-sprendimui.
+Veikia **abu** etapus.
+
+- **`preCall`** kopijuoja užklausos turinį, pereina per `system`, `messages`, `input` ir `prompt` (įskaitant paprastus eilutės elementus), ir taiko `processPII()` (iš `@/shared/utils/inputSanitizer`) string `content`/`text` laukams. Kai `PII_REDACTION_ENABLED=true`, aptiktas PII yra redaguojamas iš išorinio užklausos turinio. Tai nepriklauso nuo `INPUT_SANITIZER_MODE` (kuris tik kontroliuoja užklausos injekcijos politiką). Kai redagavimas yra išjungtas, skambutis registruoja aptikimo skaičius, neperrašydamas turinio.
+- **`postCall`** giliai kopijuoja atsakymą, vykdo `sanitizePIIResponse()` plius Atsakymų-API-formos maskuotoją (`maskResponsesOutput` — apima `output_text` ir `output[].content[].text`). Jei įvyksta bet koks redagavimas, modifikuotas atsakymas pakeičia originalą.
+
+Guardrail niekada neužblokuoja; jis tik anotuoja (`meta.detections`, `meta.redacted`) arba perrašo.
+
+### Prompt Injection (`promptInjection.ts`)
+
+Aptinka priešingas struktūras vartotojo pateiktame turinyje ir įgyvendina sukonfigūruotą politiką. Elgesys yra valdomas aplinkos kintamųjų ir konstruktoriaus parinkčių:
+
+| Nustatymas          | Env var                                                                                                  | Numatyta | Efektas                                                                                                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Įjungta             | `INPUT_SANITIZER_ENABLED`                                                                                | `true`   | Kai `false`, apsauginė juosta trumpina.                                                                                                                                                           |
+| Režimas             | `INJECTION_GUARD_MODE` / `INPUT_SANITIZER_MODE`                                                          | `warn`   | Įterpimo politika: `block`, `warn`, arba `log`. (`redact` priimamas atgalinei suderinamumui, bet **ne** pašalina įterpimo teksto; PII perrašymo užklausa kontroliuojama `PII_REDACTION_ENABLED`.) |
+| Blokavimo slenkstis | `blockThreshold` parinktis / `INPUT_SANITIZER_BLOCK_THRESHOLD` (alias `INJECTION_GUARD_BLOCK_THRESHOLD`) | `high`   | Minimalus rimtumas, reikalingas blokavimui. Vidutinis yra tik stebėjimui pagal numatytuosius nustatymus.                                                                                          |
+
+**Režimo prioritetas** (`getMode`): skambinančiojo `options.mode` →
+`INJECTION_GUARD_MODE` **DB funkcijos vėliavos perrašymas** (Dashboard → Nustatymai →
+Funkcijų vėliavos) → `INJECTION_GUARD_MODE` env → `INPUT_SANITIZER_MODE` env →
+`warn`. Taigi, valdymas per valdymo skydelį laimi prieš aplinkos kintamuosius, todėl Funkcijų vėliavos UI kontroliuoja veikiančią apsaugą tiesiogiai (be perkrovimo). DB skaitymas yra saugus: jei įvyksta klaida, apsauga grįžta prie aplinkos pagrindu veikiančio elgesio, o kai nėra nustatyto perrašymo, elgesys yra identiškas aplinkos tik sprendimui.
 
 Aptikimo šaltiniai:
 
-1.  `sanitizeRequest()` iš `@/shared/utils/inputSanitizer` (bendras detektorių
-    rinkinys, naudojamas kitur konvejerio grandinėje).
-2.  Integruoti `DEFAULT_GUARD_PATTERNS` (šiuo metu `system_override_inline` ir
-    `markdown_system_block`, abu `high` rimtumo).
-3.  Pasirenkami `customPatterns`, perduodami per konstruktoriaus parinktis
-    (eilutės, reguliarieji reiškiniai arba `{ name, pattern, severity }`
-    įrašai).
+1. `sanitizeRequest()` iš `@/shared/utils/inputSanitizer` (bendras detektorius
+   rinkinys, naudojamas kitur pipeline).
+2. Įmontuoti `DEFAULT_GUARD_PATTERNS` (šiuo metu `system_override_inline` ir
+   `markdown_system_block`, abu `high` rimtumo).
+3. Pasirinktiniai `customPatterns`, perduodami per konstruktoriaus parinktis (eilutės, regex,
+   arba `{ name, pattern, severity }` įrašai).
 
-Kai `mode === "block"` **ir** bent vienas aptikimas atitinka rimtumo slenkstį,
-`preCall` grąžina `{ block: true, message: "Request rejected: suspicious
-content detected" }`. `warn`/`log` režimais apsaugos mechanizmas registruoja
-įvykį, bet leidžia iškvietimą. Bendras pagalbinis metodas
-`evaluatePromptInjection()` taip pat eksportuojamas iškvietėjams, kuriems
-reikia įvertinti užklausas, neperėjus per registrą.
+Kai `mode === "block"` **ir** bent vienas aptikimas atitinka rimtumo
+slenkstį, `preCall` grąžina `{ block: true, message: "Užklausa atmesta:
+aptikta įtartina medžiaga" }`. `warn`/`log` režimuose apsauginė juosta registruoja, bet
+leidžia skambutį. Bendras pagalbinis `evaluatePromptInjection()` taip pat eksportuojamas
+skambinantiems, kuriems reikia įvertinti užklausas, neperėjus per registrą.
 
-**Skenavimo riba (v3.8.20):** detektorius tikrina tik **pirmuosius 16 KB**
-sujungto užklausos teksto — `MAX_INJECTION_SCAN_BYTES = 16 * 1024` (16 384
-baitai) faile `src/shared/utils/inputSanitizer.ts`. Tiek `detectInjection()`,
-tiek `evaluatePromptInjection()` naudoja `slice(0, MAX_INJECTION_SCAN_BYTES)`
-prieš paleidžiant šablonų ciklą. Įterpimo direktyvos yra įvesties pradžioje,
-todėl tai apriboja reguliariųjų reiškinių procesoriaus/GC naudojimą šimtų KB
-dydžio duomenų siuntose, nesusilpninant aptikimo (žr. #3932, #4041).
+**Skenavimo riba (v3.8.20):** detektorius tikrina **pirmus 16 KB**
+sujungto užklausos teksto — `MAX_INJECTION_SCAN_BYTES = 16 * 1024` (16 384 baitai) `src/shared/utils/inputSanitizer.ts`. T tanto `detectInjection()` ir
+`evaluatePromptInjection()` `slice(0, MAX_INJECTION_SCAN_BYTES)` prieš vykdant
+šablono ciklą. Įterpimo direktyvos yra arti įvesties viršaus, todėl tai
+apriboja regex CPU/GC dideliuose šimtų KB apkrovose, nesumažinant aptikimo (cf.
+#3932, #4041).
 
-### Kredencialų maskuoklis (`credentialMasker.ts`)
+### Kredencialų Maskuotojas (`credentialMasker.ts`)
 
-Veikia **abiejuose** etapuose, paskutinis numatytojoje grandinėje (prioritetas
-`95`). Redaguoja gerai žinomus API rakto / slaptų žetonų šablonus iš siunčiamo
-duomenų paketo (pranešimo turinio, įrankio iškvietimo argumentų, įrankio
-rezultatų) **ir** teikėjo atsakymo, kad į užklausą įklijuotas kredencialas
-(arba įrankio rezultato atkartotas) nebūtų nutekintas aukštesnio lygio
-teikėjui ar atgal klientui.
+Veikia **abu** etapus, paskutinis numatytoje grandinėje (prioritetas `95`). Pašalina
+gerai žinomus API rakto / slaptažodžio šablonus iš išėjimo apkrovos (žinutės
+turinys, įrankių skambučio argumentai, įrankių rezultatai) **ir** teikėjo atsakymo, todėl
+kredencialas, įklijuotas į užklausą (arba atspindėtas įrankio rezultate), nėra nutekintas
+į aukščiau esantį teikėją ar atgal į klientą.
 
-- **Tik pasirinktinai**, ta pati konvencija kaip PII redagavimas (Griežta
-  taisyklė #20-greta): išjungta, nebent
-  `settings.credentialRedactionEnabled === true` **arba**
-  `CREDENTIAL_REDACTION_ENABLED=true`. Išjungus, apsaugos mechanizmas nieko
-  nedaro – jis niekada neblokuoja ir niekada neperrašo.
-- `redactCredentials()` pereina per visą duomenų paketo/atsakymo medį
-  (`walkValue()`, saugus nuo prototipo užteršimo, saugus nuo ciklų per
-  `WeakSet`) ir pakeičia atitikmenis `[REDACTED:<type>]` vietos žymekliu,
-  klonuodamas tik tas šakas, kurios iš tikrųjų pasikeitė.
+- **Pasirinktinai**, ta pati konvencija kaip PII redagavimui (Griežta taisyklė #20):
+  išjungta, nebent `settings.credentialRedactionEnabled === true` **arba**
+  `CREDENTIAL_REDACTION_ENABLED=true`. Kai ji išjungta, apsauginė juosta neveikia —
+  ji niekada neblokuoja ir niekada neperrašo.
+- `redactCredentials()` pereina visą apkrovos/atsakymo medį (`walkValue()`,
+  saugus prototipo užteršimui, saugus ciklams per `WeakSet`) ir pakeičia atitikmenis su
+  `[REDACTED:<type>]` laikinuoju ženklu, klonuodama tik tas šakas, kurios iš tikrųjų
+  pasikeitė.
 - `CREDENTIAL_PATTERNS` apima LLM teikėjų raktus (OpenAI, OpenAI-proj,
-  Anthropic, Google, Hugging Face, Replicate), VCS/SaaS žetonus (GitHub,
-  Slack, Linear, Notion, npm, Postman, Discord), mokėjimo raktus (Stripe,
-  Square), debesies raktus (AWS prieigos raktas, Twilio, SendGrid, Mailgun),
-  privačius raktus / JWT, prisijungimo duomenis turinčias prisijungimo
-  eilutes (`mongodb://user:pass@...` ir kt.) ir bendrą
-  `Authorization`/`x-api-key`/`api-key`/`apikey` antraštės reikšmės šabloną.
-  Antraštės formos raktai (`authorization`, `x-api-key`, `api-key`,
-  `apikey`) redaguojami struktūriškai (tik reikšmė, išsaugomas schemos
-  priešdėlis, pvz., `Bearer `/`Basic `), o ne per bendrąjį teksto reguliarųjį
-  reiškinį.
-- Apsaugos mechanizmas niekada neblokuoja; jis tik perrašo
-  (`modifiedPayload` / `modifiedResponse`) ir anotuojasi
-  (`meta.credentialsRedacted`, `meta.count`).
+  Anthropic, Google, Hugging Face, Replicate), VCS/SaaS žetonus (GitHub, Slack,
+  Linear, Notion, npm, Postman, Discord), mokėjimo raktus (Stripe, Square), debesų
+  raktus (AWS prieigos raktas, Twilio, SendGrid, Mailgun), privačius raktus / JWT,
+  kredencialus turinčius prisijungimo eilutes (`mongodb://user:pass@...`, kt.), ir
+  bendrą `Authorization`/`x-api-key`/`api-key`/`apikey` antraštės-vertės
+  šabloną. Antraštės formos raktai (`authorization`, `x-api-key`, `api-key`,
+  `apikey`) yra redaguojami struktūriškai (tik vertė, schema, tokia kaip
+  `Bearer `/`Basic ` išsaugota) o ne per bendrą tekstinį regex.
+- Apsauginė juosta niekada neblokuoja; ji tik perrašo (`modifiedPayload` /
+  `modifiedResponse`) ir anotuoja (`meta.credentialsRedacted`, `meta.count`).
 
 Regresijos apsauga: `tests/unit/credential-masker-guardrail.test.ts`.
 
@@ -457,9 +695,15 @@ class BaseGuardrail {
 
   constructor(name: string, options?: { enabled?: boolean; priority?: number });
 
-  async preCall(payload: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
+  async preCall(
+    payload: unknown,
+    context: GuardrailContext,
+  ): Promise<GuardrailResult | void>;
 
-  async postCall(response: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
+  async postCall(
+    response: unknown,
+    context: GuardrailContext,
+  ): Promise<GuardrailResult | void>;
 }
 
 interface GuardrailResult<TValue = unknown> {

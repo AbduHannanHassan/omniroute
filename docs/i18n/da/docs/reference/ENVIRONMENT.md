@@ -1822,21 +1822,31 @@ Globale standardindstillinger for den headless browser og den udgående værktø
 
 ## OmniConductor Bridge
 
-Langvarig SSE-forbruger, der spejler opgaver fra OmniConductor-hubben til den lokale A2A TaskManager (`src/lib/conductor/`). Kræver aktiv tilmelding — broen starter kun, når `CONDUCTOR_HUB_URL` er angivet. Kun på serversiden: Hubtokenet må aldrig nå browseren.
+Langtidsholdbar SSE-forbruger, der spejler OmniConductor hub-opgaver ind i den lokale A2A TaskManager (`src/lib/conductor/`). Opt-in — broen starter kun, når `CONDUCTOR_HUB_URL` er indstillet. Server-side kun: hub-tokenet må aldrig nå browseren.
 
-| Variabel                       | Standardværdi           | Kildefil                         | Beskrivelse                                                                                                                                            |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(tom)_                 | `src/lib/conductor/boot.ts`      | Basis-URL for OmniConductor-hubben (f.eks. `http://127.0.0.1:7910`). Ikke angivet = broen er deaktiveret.                                              |
-| `CONDUCTOR_HUB_TOKEN`          | _(tom)_                 | `src/lib/conductor/boot.ts`      | Hublegitimationsoplysninger til SSE-feedet — opret en peer af typen `spokesperson` på hubben (`POST /v1/peers`, administrator).                        |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tom)_                 | `src/lib/conductor/hubProxy.ts`  | Legitimationsoplysninger til indgående A2A→hub-opgavedelegering (`POST /v1/tasks`); bruger `CONDUCTOR_HUB_TOKEN` som reserve, når den ikke er angivet. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL for spokesperson-tjenesten (Faro) bag dashboardets chatproxy (`/api/conductor/ask`).                                                         |
+| Variabel                       | Standard                | Kilde Fil                        | Beskrivelse                                                                                                                                                |
+| ------------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tom)_                 | `src/lib/conductor/boot.ts`      | Basis-URL for OmniConductor hub (f.eks. `http://127.0.0.1:7910`). Uden værdi = broen deaktiveret.                                                          |
+| `CONDUCTOR_HUB_TOKEN`          | _(tom)_                 | `src/lib/conductor/boot.ts`      | Hub-legitimationsoplysninger for SSE-feed — udsend en `spokesperson`-type peer på huben (`POST /v1/peers`, admin).                                         |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tom)_                 | `src/lib/conductor/hubProxy.ts`  | Legitimationsoplysninger for indgående A2A→hub opgave delegation (`POST /v1/tasks`); falder tilbage til `CONDUCTOR_HUB_TOKEN`, når den ikke er indstillet. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL for spokesperson (Faro) tjenesten bag dashboard chat proxy (`/api/conductor/ask`).                                                               |
 
-### Kvotebevidst planlægning
+### Video Bridge isoleret validering
 
-Bruges af `open-sse/services/combo.ts` og `src/lib/quota/quotaScheduler.ts` til kontrol af tokenbudgettet før anmodninger. Kræver aktiv tilmelding — standard-routingadfærden er uændret, når den ikke er angivet.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` kræver
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` til at navngive et absolut bibliotek, der indeholder
+`storage.sqlite`. Der er ingen standard. Værktøjet åbner den database som skrivebeskyttet og
+forbereder en privat midlertidig kopi med isolerede klientnøgler og indstillinger;
+legitimationsoplysninger forbliver på valideringsværten. Denne variabel er kun til den eksplicitte
+forberedelseskommando og forbruges ikke ved normal serverstart. Forberedelsen
+kalder ikke en model; den separate live smoke-kommando kræver `--execute-real`.
 
-| Variabel                           | Standardværdi | Kildefil                                    | Beskrivelse                                                                                                                                                                                                                                                                       |
-| ---------------------------------- | ------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | Når værdien er `1`, springes forbindelser over, hvis tokenbudget pr. vindue (`rateLimitOverrides.tpm`, tabellen `provider_quota_state`) ikke kan dække den estimerede anmodningsomkostning før afsendelse. Fortsætter ved fejl, når der ikke er konfigureret et budget.           |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(til)_       | `open-sse/services/estimatorCalibration.ts` | Feedbackkalibrering af kontekstværnets tokenestimator (#14931): Et EMA pr. (udbyder, model, tilstedeværelse af værktøjer) for `usage.prompt_tokens` / estimat, begrænset til 0,15–2,0 og kun gemt i hukommelsen. `off`, `0` eller `false` deaktiverer registrering og anvendelse. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Registrerer billedruterne `xai-oauth` (`xao`) og `grok-cli`. Dashboardfunktionsflag med samme navn; en DB-tilsidesættelse har forrang for denne værdi.                                                                                                                            |
+### Kvota-bevidst planlægning
+
+Bruges af `open-sse/services/combo.ts` og `src/lib/quota/quotaScheduler.ts` til forhånds-anmodning token-budgettjek. Opt-in — standard routingadfærd ændres ikke, når den ikke er indstillet.
+
+| Variabel                           | Standard | Kilde Fil                                   | Beskrivelse                                                                                                                                                                                                                                                  |
+| ---------------------------------- | -------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | Når `1`, spring forbindelser over, hvis deres per-vindue token-budget (`rateLimitOverrides.tpm`, tabel `provider_quota_state`) ikke kan dække de estimerede anmodningsomkostninger før afsendelse. Fail-open når der ikke er konfigureret noget budget.      |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(til)_  | `open-sse/services/estimatorCalibration.ts` | Feedback kalibrering af kontekst-vagten token estimator (#14931): per (udbyder, model, værktøjer til stede) EMA af `usage.prompt_tokens` / estimat, begrænset til 0.15–2.0, kun i hukommelsen. `off`, `0` eller `false` deaktiverer optagelse og anvendelse. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Registrerer `xai-oauth` (`xao`) og `grok-cli` billedruter. Dashboard-funktionsflag med samme navn; en DB-overstyring vinder over denne værdi.                                                                                                                |

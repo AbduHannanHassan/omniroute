@@ -1825,21 +1825,30 @@ Valuri predefiniti globali għall-browser headless u għat-tunnel tal-għodod ħ
 
 ## OmniConductor Bridge
 
-Konsumatur SSE persistenti li jirrifletti l-kompiti tal-hub OmniConductor fit-TaskManager A2A lokali (`src/lib/conductor/`). Fakultattiv — il-bridge jibda biss meta `CONDUCTOR_HUB_URL` ikun issettjat. Għan-naħa tas-server biss: it-token tal-hub qatt ma għandu jasal fil-browser.
+Konsumatur SSE li jgħix għal żmien twil li jmirroring il-kompiti tal-hub OmniConductor fil-lokal A2A TaskManager (`src/lib/conductor/`). Opt-in — il-pont jibda biss meta `CONDUCTOR_HUB_URL` ikun imqiegħed. Biss fuq is-server: it-token tal-hub qatt ma għandu jasal fil-browser.
 
-| Varjabbli                      | Default                 | Fajl tas-Sors                    | Deskrizzjoni                                                                                                            |
-| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(vojt)_                | `src/lib/conductor/boot.ts`      | Il-URL bażi tal-hub OmniConductor (eż. `http://127.0.0.1:7910`). Jekk mhux issettjat = il-bridge diżattivat.            |
-| `CONDUCTOR_HUB_TOKEN`          | _(vojt)_                | `src/lib/conductor/boot.ts`      | Kredenzjali tal-hub għall-feed SSE — oħloq peer tat-tip `spokesperson` fuq il-hub (`POST /v1/peers`, amministratur).    |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(vojt)_                | `src/lib/conductor/hubProxy.ts`  | Kredenzjali għad-delega ta' kompiti A2A→hub deħlin (`POST /v1/tasks`); jekk mhux issettjat, juża `CONDUCTOR_HUB_TOKEN`. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Il-URL bażi tas-servizz spokesperson (Faro) wara l-proxy taċ-chat tad-dashboard (`/api/conductor/ask`).                 |
+| Variable                       | Default                 | Source File                      | Deskrizzjoni                                                                                                                        |
+| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(vojt)_                | `src/lib/conductor/boot.ts`      | URL bażiku tal-hub OmniConductor (eż. `http://127.0.0.1:7910`). Jekk mhux imqiegħed = il-pont huwa diżattivat.                      |
+| `CONDUCTOR_HUB_TOKEN`          | _(vojt)_                | `src/lib/conductor/boot.ts`      | Kredenzjali tal-hub għall-feed SSE — iġġenera peer ta' tip `spokesperson` fuq il-hub (`POST /v1/peers`, amministratur).             |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(vojt)_                | `src/lib/conductor/hubProxy.ts`  | Kredenzjali għall-delegazzjoni tal-kompiti A2A→hub ( `POST /v1/tasks`); jerġa' lura għal `CONDUCTOR_HUB_TOKEN` meta mhux imqiegħed. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | URL bażiku tas-servizz spokesperson (Faro) wara l-proxy tal-chat tal-dashboard (`/api/conductor/ask`).                              |
 
-### Skedar konxju tal-kwota
+### Video Bridge isolated validation
 
-Użat minn `open-sse/services/combo.ts` u `src/lib/quota/quotaScheduler.ts` għal kontrolli tal-baġit tat-tokens qabel it-talba. Fakultattiv — l-imġiba default tar-routing tibqa' l-istess meta ma jkunx issettjat.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` jeħtieġ
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` biex jismijiet directory assoluta li fiha
+`storage.sqlite`. M'hemm l-ebda default. Il-tool tiftaħ dak id-database read-only u
+tipprepara kopja temporanja privata b'key u settings isolati tal-klijent;
+il-kredenzjali jibqgħu fuq il-host tal-validazzjoni. Din il-variable hija biss għall-kmand ta' preparazzjoni esplicita u m'għandhiex tiġi konsumata mill-avvijar normali tas-server. Il-preparazzjoni
+ma tsejjaħx mudell; il-kmand ta' smoke live separata teħtieġ `--execute-real`.
 
-| Varjabbli                          | Default     | Fajl tas-Sors                               | Deskrizzjoni                                                                                                                                                                                                                                                                                |
-| ---------------------------------- | ----------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Meta jkun `1`, jaqbeż konnessjonijiet li l-baġit tat-tokens tagħhom għal kull perjodu (`rateLimitOverrides.tpm`, tabella `provider_quota_state`) ma jiflaħx għall-ispiża stmata tat-talba qabel id-dispaċċ. Jippermetti t-talba tgħaddi jekk ma jkunx ikkonfigurat baġit.                   |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(mixgħul)_ | `open-sse/services/estimatorCalibration.ts` | Kalibrazzjoni b'feedback tal-istimatur tat-tokens tal-context guard (#14931): għal kull (fornitur, mudell, preżenza ta' għodod), EMA ta' `usage.prompt_tokens` / stima, limitata għal 0.15–2.0, fil-memorja biss. `off`, `0` jew `false` jiddiżattivaw ir-reġistrazzjoni u l-applikazzjoni. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Jirreġistra r-rotot tal-immaġnijiet `xai-oauth` (`xao`) u `grok-cli`. Feature flag tad-dashboard bl-istess isem; override mid-DB jieħu preċedenza fuq dan il-valur.                                                                                                                         |
+### Quota-aware scheduling
+
+Użat minn `open-sse/services/combo.ts` u `src/lib/quota/quotaScheduler.ts` għall-kontrolli tal-budget tat-token qabel it-talba. Opt-in — il-kondotta predefinita tat-triq ma tinbidilx meta tkun mhux imqiegħda.
+
+| Variable                           | Default | Source File                                 | Deskrizzjoni                                                                                                                                                                                                                                                         |
+| ---------------------------------- | ------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Meta `1`, skip connections li l-budget tat-token per-window (`rateLimitOverrides.tpm`, tabella `provider_quota_state`) ma jistax jiflaħ il-kost stimat tat-talba qabel id-dispatch. Fail-open meta m'hemm l-ebda budget konfigurati.                                 |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Kalibrazzjoni ta' feedback tal-estimator tat-token tal-kuntest (#14931): per (fornitur, mudell, għodod preżenti) EMA ta' `usage.prompt_tokens` / stima, imwaqqaf għal 0.15–2.0, fil-memorja biss. `off`, `0` jew `false` jiddisattiva r-rekordjar u l-applikazzjoni. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Irreġistra r-routes tal-immaġini `xai-oauth` (`xao`) u `grok-cli`. Flag tal-karatteristika tal-dashboard bl-istess isem; override tal-DB jirbaħ fuq din il-valur.                                                                                                    |

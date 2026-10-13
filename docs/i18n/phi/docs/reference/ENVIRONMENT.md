@@ -1828,21 +1828,31 @@ Mga pangkalahatang default para sa headless browser at outbound tool tunnel. Nan
 
 ## OmniConductor Bridge
 
-Pangmatagalang SSE consumer na nagsasalamin ng mga gawain ng OmniConductor hub sa lokal na A2A TaskManager (`src/lib/conductor/`). Opsyonal — magsisimula lamang ang bridge kapag nakatakda ang `CONDUCTOR_HUB_URL`. Para lamang sa panig ng server: hindi kailanman dapat makarating sa browser ang token ng hub.
+Mahabang buhay na SSE consumer na nagmi-mirror ng mga gawain ng OmniConductor hub sa lokal na A2A TaskManager (`src/lib/conductor/`). Opt-in — nagsisimula lamang ang tulay kapag ang `CONDUCTOR_HUB_URL` ay nakaset. Server-side lamang: ang hub token ay hindi dapat umabot sa browser.
 
-| Variable                       | Default                 | Source File                      | Paglalarawan                                                                                                                                                   |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(walang laman)_        | `src/lib/conductor/boot.ts`      | Base URL ng OmniConductor hub (hal. `http://127.0.0.1:7910`). Hindi nakatakda = hindi pinagana ang bridge.                                                     |
-| `CONDUCTOR_HUB_TOKEN`          | _(walang laman)_        | `src/lib/conductor/boot.ts`      | Kredensyal ng hub para sa SSE feed — maglabas ng peer na may uri na `spokesperson` sa hub (`POST /v1/peers`, admin).                                           |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(walang laman)_        | `src/lib/conductor/hubProxy.ts`  | Kredensyal para sa papasok na delegasyon ng gawaing A2A→hub (`POST /v1/tasks`); gagamitin ang `CONDUCTOR_HUB_TOKEN` bilang fallback kapag hindi ito nakatakda. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Base URL ng serbisyo ng spokesperson (Faro) sa likod ng dashboard chat proxy (`/api/conductor/ask`).                                                           |
+| Variable                       | Default                 | Source File                      | Description                                                                                                            |
+| ------------------------------ | ----------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | Base URL ng OmniConductor hub (hal. `http://127.0.0.1:7910`). Unset = hindi pinagana ang tulay.                        |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | Hub credential para sa SSE feed — mag-emit ng `spokesperson`-na uri ng peer sa hub (`POST /v1/peers`, admin).          |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | Credential para sa inbound A2A→hub task delegation (`POST /v1/tasks`); bumabalik sa `CONDUCTOR_HUB_TOKEN` kapag unset. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Base URL ng spokesperson (Faro) service sa likod ng dashboard chat proxy (`/api/conductor/ask`).                       |
 
-### Pag-iiskedyul na isinasaalang-alang ang quota
+### Video Bridge isolated validation
 
-Ginagamit ng `open-sse/services/combo.ts` at `src/lib/quota/quotaScheduler.ts` para sa mga pagsusuri ng token budget bago ang request. Opsyonal — hindi nagbabago ang default na gawi ng pagruruta kapag hindi ito nakatakda.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` ay nangangailangan ng
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` upang pangalanan ang isang absolute directory na naglalaman ng
+`storage.sqlite`. Walang default. Binubuksan ng tool na iyon ang database na read-only at
+naghahanda ng isang pribadong pansamantalang kopya na may nakahiwalay na mga key ng kliyente at mga setting;
+ang mga kredensyal ay nananatili sa validation host. Ang variable na ito ay para lamang sa tahasang
+preparation command at hindi ginagamit sa normal na pagsisimula ng server. Ang paghahanda
+ay hindi tumatawag ng modelo; ang hiwalay na live smoke command ay nangangailangan ng `--execute-real`.
 
-| Variable                           | Default     | Source File                                 | Paglalarawan                                                                                                                                                                                                                                                                           |
-| ---------------------------------- | ----------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`         | `open-sse/services/combo.ts`                | Kapag `1`, laktawan ang mga koneksiyong hindi kayang tustusan ng token budget ng bawat window (`rateLimitOverrides.tpm`, talahanayang `provider_quota_state`) ang tinatayang gastos ng request bago ito ipadala. Magpatuloy kapag walang naka-configure na budget.                     |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(naka-on)_ | `open-sse/services/estimatorCalibration.ts` | Feedback calibration ng context-guard token estimator (#14931): EMA ng `usage.prompt_tokens` / pagtataya para sa bawat (provider, model, pagkakaroon ng tools), nililimitahan sa 0.15–2.0, at nasa memory lamang. Hindi pinapagana ng `off`, `0`, o `false` ang pagtatala at paggamit. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`     | `open-sse/config/imageRegistry.ts`          | Inirerehistro ang mga image route na `xai-oauth` (`xao`) at `grok-cli`. Dashboard feature flag na may kaparehong pangalan; mananaig ang DB override sa halagang ito.                                                                                                                   |
+### Quota-aware scheduling
+
+Ginagamit ng `open-sse/services/combo.ts` at `src/lib/quota/quotaScheduler.ts` para sa pre-request token-budget checks. Opt-in — ang default na routing behavior ay hindi nagbabago kapag unset.
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                                           |
+| ---------------------------------- | ------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | Kapag `1`, laktawan ang mga koneksyon na ang per-window token budget (`rateLimitOverrides.tpm`, talahanayan `provider_quota_state`) ay hindi kayang bayaran ang tinatayang gastos ng request bago ipadala. Fail-open kapag walang nakatakdang budget. |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | Feedback calibration ng context-guard token estimator (#14931): per (provider, model, tools present) EMA ng `usage.prompt_tokens` / estimate, clamped sa 0.15–2.0, sa memory lamang. `off`, `0` o `false` ay nag-disable ng recording at application. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | Nagre-register ng `xai-oauth` (`xao`) at `grok-cli` image routes. Dashboard feature flag ng parehong pangalan; ang DB override ay mas mataas kaysa sa halagang ito.                                                                                   |

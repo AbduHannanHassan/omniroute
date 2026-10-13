@@ -1333,11 +1333,11 @@ Anthropic-compatible provider တစ်ခုကိုသာ ထည့်ပါ�
 
 ---
 
-## ဖြန့်ကျက်အသုံးပြုမှု အခြေအနေများ
+## Deployment Scenarios
 
-relay backend SRE လမ်းညွှန်ချက်များ (`ts`/`bifrost`/`auto` အပြုအမူ၊ `9router` နှင့် `CLIProxyAPI` ထားရှိမှု နှိုင်းယှဉ်ချက်၊ အမြင့်စား throughput အတွက် fallback မဟာဗျူဟာ) ကို [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md) တွင် ကြည့်ရှုပါ။
+Relay backend SRE လမ်းညွှန်ချက်များအတွက် (ts/bifrost/auto behavior, 9router vs CLIProxyAPI placement, နှင့် high-throughput fallback strategy) ကို [Relay Backend Strategy](/docs/reference/RELAY_BACKEND_STRATEGY.md) တွင်ကြည့်ပါ။
 
-### အနည်းဆုံး လိုအပ်ချက်ဖြင့် Local Development
+### Minimal Local Development
 
 ```bash
 JWT_SECRET=$(openssl rand -base64 48)
@@ -1366,7 +1366,7 @@ OMNIROUTE_MEMORY_MB=8192
 CORS_ORIGIN=https://your-frontend.example.com
 ```
 
-### ကွန်ရက်ချိတ်ဆက်မှုမရှိသော ပတ်ဝန်းကျင် / CI
+### Air-Gapped / CI
 
 ```bash
 JWT_SECRET=test-jwt-secret-for-ci
@@ -1377,7 +1377,7 @@ OMNIROUTE_DISABLE_BACKGROUND_SERVICES=true
 APP_LOG_TO_FILE=false
 ```
 
-### Reverse Proxy ပါဝင်သော VPS (nginx + Cloudflare)
+### VPS with Reverse Proxy (nginx + Cloudflare)
 
 ```bash
 JWT_SECRET=<generated>
@@ -1392,8 +1392,6 @@ CORS_ORIGIN=https://omniroute.example.com
 ENABLE_TLS_FINGERPRINT=true
 CLI_COMPAT_ALL=1
 ```
-
----
 
 ## 24. Skills Sandbox (v3.8.0+)
 
@@ -1805,21 +1803,29 @@ Headless browser နှင့် အထွက် tool tunnel အတွက် က
 
 ## OmniConductor Bridge
 
-OmniConductor hub လုပ်ဆောင်ချက်များကို local A2A TaskManager (`src/lib/conductor/`) သို့ ပုံတူကူးပေးသည့် သက်တမ်းရှည် SSE consumer ဖြစ်သည်။ အသုံးပြုရန် ရွေးချယ်ဖွင့်ရမည် — `CONDUCTOR_HUB_URL` သတ်မှတ်ထားမှသာ bridge စတင်သည်။ Server-side အတွက်သာဖြစ်သည်- hub token သည် browser သို့ လုံးဝမရောက်ရှိစေရပါ။
+ရှည်လျားသော SSE သုံးစွဲသူသည် OmniConductor hub အလုပ်များကို ဒေသခံ A2A TaskManager (`src/lib/conductor/`) သို့ မျိုးဆက်ပြုလုပ်သည်။ ရွေးချယ်မှု — bridge သည် `CONDUCTOR_HUB_URL` သတ်မှတ်ထားသောအခါတွင်သာ စတင်မည်။ ဆာဗာဘက်သာဖြစ်သည်: hub token သည် browser သို့ မရောက်ရှိသင့်ပါ။
 
-| Variable                       | Default                 | Source File                      | Description                                                                                                                                |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(ဗလာ)_                 | `src/lib/conductor/boot.ts`      | OmniConductor hub ၏ အခြေခံ URL (ဥပမာ `http://127.0.0.1:7910`)။ မသတ်မှတ်ထားလျှင် = bridge ကို ပိတ်ထားသည်။                                   |
-| `CONDUCTOR_HUB_TOKEN`          | _(ဗလာ)_                 | `src/lib/conductor/boot.ts`      | SSE feed အတွက် hub အထောက်အထား — hub ပေါ်တွင် `spokesperson` အမျိုးအစား peer တစ်ခု ထုတ်ပေးပါ (`POST /v1/peers`, admin)။                     |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(ဗလာ)_                 | `src/lib/conductor/hubProxy.ts`  | အဝင် A2A→hub လုပ်ဆောင်ချက်လွှဲအပ်ခြင်းအတွက် အထောက်အထား (`POST /v1/tasks`)၊ မသတ်မှတ်ထားလျှင် `CONDUCTOR_HUB_TOKEN` ကို အစားထိုးအသုံးပြုသည်။ |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | dashboard chat proxy (`/api/conductor/ask`) နောက်ကွယ်ရှိ spokesperson (Faro) service ၏ အခြေခံ URL။                                         |
+| Variable                       | Default                 | Source File                      | Description                                                                                                              |
+| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `CONDUCTOR_HUB_URL`            | _(empty)_               | `src/lib/conductor/boot.ts`      | OmniConductor hub ၏ အခြေခံ URL (ဥပမာ `http://127.0.0.1:7910`)။ မသတ်မှတ်ပါက = bridge မရရှိပါ။                             |
+| `CONDUCTOR_HUB_TOKEN`          | _(empty)_               | `src/lib/conductor/boot.ts`      | SSE feed အတွက် hub အထောက်အထား — hub တွင် `spokesperson` အမျိုးအစား peer တစ်ခု ထုတ်ပေးပါ (`POST /v1/peers`, admin)။       |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_               | `src/lib/conductor/hubProxy.ts`  | A2A→hub အလုပ်များကို လွှဲပြောင်းရန် အထောက်အထား (`POST /v1/tasks`); မသတ်မှတ်ပါက `CONDUCTOR_HUB_TOKEN` သို့ ပြန်လည်သုံးပါ။ |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Dashboard chat proxy (`/api/conductor/ask`) ၏ အောက်တွင်ရှိသော spokesperson (Faro) service ၏ အခြေခံ URL။                  |
 
-### Quota ကို ထည့်သွင်းစဉ်းစားသော အချိန်ဇယားချမှတ်ခြင်း
+### Video Bridge isolated validation
 
-တောင်းဆိုချက်မပို့မီ token budget စစ်ဆေးမှုများအတွက် `open-sse/services/combo.ts` နှင့် `src/lib/quota/quotaScheduler.ts` တို့က အသုံးပြုသည်။ အသုံးပြုရန် ရွေးချယ်ဖွင့်ရမည် — မသတ်မှတ်ထားပါက မူလ routing အပြုအမူသည် မပြောင်းလဲပါ။
+`scripts/ad-hoc/video-live-isolation.ts --prepare` သည်
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` ကို `storage.sqlite` ပါရှိသော အပြည့်အစုံ directory ကို အမည်ပေးရန် လိုအပ်သည်။ မည်သည့်အခြေခံမရှိပါ။ ကိရိယာသည် အဆိုပါ ဒေတာဘေ့စ်ကို ဖတ်ရန်သာ ဖွင့်ပြီး
+သီးသန့် client keys နှင့် settings များဖြင့် ပုဂ္ဂိုလ်ရေး အချိန်ပိုင်း ကူးယူမှုကို ပြင်ဆင်သည်;
+အထောက်အထားများသည် အတည်ပြုမှု host တွင်သာ ရှိနေသည်။ ဤအပြောင်းအလဲသည် အထူး
+ပြင်ဆင်မှု အမိန့်အတွက်သာ ဖြစ်ပြီး ပုံမှန် ဆာဗာ စတင်မှုမှ မစားသုံးပါ။ ပြင်ဆင်မှုသည် မော်ဒယ်ကို ခေါ်မည်မဟုတ်ပါ; သီးခြား live smoke အမိန့်သည် `--execute-real` ကို လိုအပ်သည်။
 
-| Variable                           | Default         | Source File                                 | Description                                                                                                                                                                                                                                                                                                      |
-| ---------------------------------- | --------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`             | `open-sse/services/combo.ts`                | `1` ဖြစ်သောအခါ ဖြန့်ဝေမပို့မီ window တစ်ခုချင်းစီအလိုက် token budget (`rateLimitOverrides.tpm`, table `provider_quota_state`) ဖြင့် ခန့်မှန်းထားသော တောင်းဆိုချက်ကုန်ကျစရိတ်ကို မဖြည့်ဆည်းနိုင်သည့် connection များကို ကျော်သွားသည်။ budget သတ်မှတ်မထားပါက fail-open ပြုလုပ်သည်။                                 |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(ဖွင့်ထားသည်)_ | `open-sse/services/estimatorCalibration.ts` | context-guard token estimator (#14931) ၏ feedback calibration- (provider, model, tools ပါဝင်မှု) တစ်ခုချင်းစီအလိုက် `usage.prompt_tokens` / ခန့်မှန်းချက်၏ EMA ကို 0.15–2.0 အတွင်း ကန့်သတ်ထားပြီး memory အတွင်း၌သာ သိမ်းဆည်းသည်။ `off`, `0` သို့မဟုတ် `false` သည် မှတ်တမ်းတင်ခြင်းနှင့် အသုံးချခြင်းကို ပိတ်သည်။ |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`         | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) နှင့် `grok-cli` image route များကို မှတ်ပုံတင်သည်။ အမည်တူ dashboard feature flag ဖြစ်ပြီး DB override ရှိပါက ဤတန်ဖိုးထက် ဦးစားပေးသည်။                                                                                                                                                       |
+### Quota-aware scheduling
+
+`open-sse/services/combo.ts` နှင့် `src/lib/quota/quotaScheduler.ts` မှာ မေးခွန်းတင်ရန် token-budget စစ်ဆေးမှုများအတွက် အသုံးပြုသည်။ ရွေးချယ်မှု — မသတ်မှတ်ပါက အခြေခံ routing အပြုအမူသည် မပြောင်းလဲပါ။
+
+| Variable                           | Default | Source File                                 | Description                                                                                                                                                                                                                                                                         |
+| ---------------------------------- | ------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`     | `open-sse/services/combo.ts`                | `1` ဖြစ်ပါက, dispatch မပြုမီ ခန့်မှန်းထားသော မေးခွန်းကုန်ကျစရိတ်ကို မရရှိနိုင်သော per-window token budget (`rateLimitOverrides.tpm`, table `provider_quota_state`) များကို ချက်ချင်းချန်ထားပါ။ ဘဏ္ဍာရေးမရှိပါက fail-open ဖြစ်သည်။                                                   |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(on)_  | `open-sse/services/estimatorCalibration.ts` | context-guard token estimator (#14931) ၏ အကြံပြုချက် calibration: (provider, model, tools present) အတွက် EMA of `usage.prompt_tokens` / estimate, 0.15–2.0 အတွင်းတွင် ကန့်သတ်ထားသည်၊ မှတ်ဉာဏ်တွင်သာ။ `off`, `0` သို့မဟုတ် `false` သည် မှတ်တမ်းတင်ခြင်းနှင့် လျှောက်လွှာကို ပိတ်သည်။ |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false` | `open-sse/config/imageRegistry.ts`          | `xai-oauth` (`xao`) နှင့် `grok-cli` image routes များကို မှတ်ပုံတင်သည်။ အထက်ပါအမည်ရှိ Dashboard feature flag; DB override သည် ဤတန်ဖိုးကို အနိုင်ရသည်။                                                                                                                              |

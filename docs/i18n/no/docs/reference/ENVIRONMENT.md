@@ -1815,23 +1815,33 @@ Globale standardverdier for den headless nettleseren og den utgående verktøytu
 
 ---
 
-## OmniConductor-bro
+## OmniConductor Bridge
 
-Langvarig SSE-forbruker som speiler oppgaver fra OmniConductor-huben til den lokale A2A TaskManager (`src/lib/conductor/`). Må aktiveres eksplisitt — broen starter bare når `CONDUCTOR_HUB_URL` er angitt. Kun på serversiden: hub-tokenet må aldri nå nettleseren.
+Langvarig SSE-forbruker som speiler OmniConductor hub-oppgaver inn i den lokale A2A TaskManager (`src/lib/conductor/`). Opt-in — broen starter kun når `CONDUCTOR_HUB_URL` er satt. Kun server-side: hub-tokenet må aldri nå nettleseren.
 
-| Variabel                       | Standardverdi           | Kildefil                         | Beskrivelse                                                                                                                                      |
-| ------------------------------ | ----------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CONDUCTOR_HUB_URL`            | _(tom)_                 | `src/lib/conductor/boot.ts`      | Basis-URL til OmniConductor-huben (f.eks. `http://127.0.0.1:7910`). Ikke angitt = broen er deaktivert.                                           |
-| `CONDUCTOR_HUB_TOKEN`          | _(tom)_                 | `src/lib/conductor/boot.ts`      | Hub-legitimasjon for SSE-strømmen — opprett en motpart av typen `spokesperson` på huben (`POST /v1/peers`, administrator).                       |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tom)_                 | `src/lib/conductor/hubProxy.ts`  | Legitimasjon for innkommende A2A→hub-delegering av oppgaver (`POST /v1/tasks`); bruker `CONDUCTOR_HUB_TOKEN` som reserve når den ikke er angitt. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Basis-URL til spokesperson-tjenesten (Faro) bak kontrollpanelets chat-proxy (`/api/conductor/ask`).                                              |
+| Variabel                       | Standard                | Kildefil                         | Beskrivelse                                                                                                                               |
+| ------------------------------ | ----------------------- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tom)_                 | `src/lib/conductor/boot.ts`      | Grunnleggende URL for OmniConductor hub (f.eks. `http://127.0.0.1:7910`). Utsatt = bro deaktivert.                                        |
+| `CONDUCTOR_HUB_TOKEN`          | _(tom)_                 | `src/lib/conductor/boot.ts`      | Hub-legitimasjon for SSE-feeden — send ut en `spokesperson`-type peer på huben (`POST /v1/peers`, admin).                                 |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tom)_                 | `src/lib/conductor/hubProxy.ts`  | Legitimasjon for innkommende A2A→hub oppgavedelegasjon (`POST /v1/tasks`); faller tilbake til `CONDUCTOR_HUB_TOKEN` når den ikke er satt. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Grunnleggende URL for talspersonen (Faro) tjenesten bak dashbord-chat-proxyen (`/api/conductor/ask`).                                     |
 
-### Kvotebevisst planlegging
+### Video Bridge isolert validering
 
-Brukes av `open-sse/services/combo.ts` og `src/lib/quota/quotaScheduler.ts` til å kontrollere tokenbudsjettet før forespørsler. Må aktiveres eksplisitt — standard virkemåte for ruting forblir uendret når dette ikke er angitt.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` krever
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` for å navngi en absolutt katalog som inneholder
+`storage.sqlite`. Det er ingen standard. Verktøyet åpner den databasen som skrivebeskyttet og
+forbereder en privat midlertidig kopi med isolerte klientnøkler og innstillinger;
+legitimasjoner forblir på valideringsverten. Denne variabelen er kun for den eksplisitte
+forberedelseskommandoen og brukes ikke av normal serveroppstart. Forberedelse
+kaller ikke en modell; den separate live røykkommandoen krever `--execute-real`.
 
-| Variabel                           | Standardverdi | Kildefil                                    | Beskrivelse                                                                                                                                                                                                                                                                       |
-| ---------------------------------- | ------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`           | `open-sse/services/combo.ts`                | Når verdien er `1`, hoppes tilkoblinger over dersom tokenbudsjettet per tidsvindu (`rateLimitOverrides.tpm`, tabellen `provider_quota_state`) ikke dekker den estimerte kostnaden for forespørselen før den sendes. Fortsetter ved feil når det ikke er konfigurert noe budsjett. |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(på)_        | `open-sse/services/estimatorCalibration.ts` | Tilbakemeldingskalibrering av kontekstvernets tokenestimator (#14931): EMA per (leverandør, modell, verktøy til stede) for `usage.prompt_tokens` / estimat, begrenset til 0,15–2,0, kun i minnet. `off`, `0` eller `false` deaktiverer registrering og bruk.                      |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`       | `open-sse/config/imageRegistry.ts`          | Registrerer bilderutene `xai-oauth` (`xao`) og `grok-cli`. Kontrollpanelfunksjonsflagg med samme navn; en databaseoverstyring har forrang over denne verdien.                                                                                                                     |
+### Kvota-bevisst planlegging
+
+Brukes av `open-sse/services/combo.ts` og `src/lib/quota/quotaScheduler.ts` for forhåndsforespørsel token-budsjettkontroller. Opt-in — standard rutingadferd er uendret når den ikke er satt.
+
+| Variabel                           | Standard | Kildefil                                    | Beskrivelse                                                                                                                                                                                                                                               |
+| ---------------------------------- | -------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`      | `open-sse/services/combo.ts`                | Når `1`, hopp over forbindelser hvis per-vindu token-budsjett (`rateLimitOverrides.tpm`, tabell `provider_quota_state`) ikke har råd til den estimerte forespørselkostnaden før utsendelse. Fail-open når ingen budsjett er konfigurert.                  |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(på)_   | `open-sse/services/estimatorCalibration.ts` | Tilbakemeldingskalibrering av kontekst-vakt token-estimator (#14931): per (leverandør, modell, verktøy til stede) EMA av `usage.prompt_tokens` / estimat, begrenset til 0.15–2.0, kun i minnet. `av`, `0` eller `false` deaktiverer opptak og anvendelse. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`  | `open-sse/config/imageRegistry.ts`          | Registrerer `xai-oauth` (`xao`) og `grok-cli` bilde-ruter. Dashbordfunksjonsflagg med samme navn; en DB-overstyring vinner over denne verdien.                                                                                                            |

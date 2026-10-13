@@ -247,7 +247,10 @@ Jina v5 Omni (`jina-ai/jina-embeddings-v5-omni-small`, `jina-ai/jina-embeddings-
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
+      "content": [
+        { "text": "caption" },
+        { "image": "data:image/png;base64,..." }
+      ]
     }
   ]
 }
@@ -908,52 +911,52 @@ X-OmniRoute-No-Cache: true
 
 ---
 
-## Ovládací panel a správa
+## Dashboard & Management
 
-Trasy správy (`/api/*` okrem verejného overenia identity/prihlásenia) **nie sú** autorizované
-bežnými API kľúčmi na inferenciu. Rodiny prihlasovacích údajov, rozsahy a príklady curl:
-[Overenie identity pre správu](../guides/MANAGEMENT-AUTH.md).
+Cesty správy (`/api/*` okrem verejného auth/login) **nie sú** autorizované
+obyčajnými API kľúčmi na inferenciu. Rodiny poverení, rozsahy a príklady curl:
+[Správa autentifikácie](../guides/MANAGEMENT-AUTH.md).
 
-### Overenie identity
+### Autentifikácia
 
-| Koncový bod                   | Metóda  | Popis                            |
-| ----------------------------- | ------- | -------------------------------- |
-| `/api/auth/login`             | POST    | Prihlásenie                      |
-| `/api/auth/logout`            | POST    | Odhlásenie                       |
-| `/api/settings/require-login` | GET/PUT | Prepnutie požiadavky prihlásenia |
+| Endpoint                      | Metóda  | Popis                             |
+| ----------------------------- | ------- | --------------------------------- |
+| `/api/auth/login`             | POST    | Prihlásenie                       |
+| `/api/auth/logout`            | POST    | Odhlásenie                        |
+| `/api/settings/require-login` | GET/PUT | Prepnúť požiadavku na prihlásenie |
 
 ### Správa poskytovateľov
 
-| Koncový bod                             | Metóda                    | Popis                                                                                                                                                                                          |
-| --------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/providers`                        | GET/POST                  | Zobrazenie zoznamu/vytvorenie poskytovateľov                                                                                                                                                   |
-| `/api/providers/[id]`                   | GET/PUT/DELETE            | Správa poskytovateľa                                                                                                                                                                           |
-| `/api/providers/[id]/test`              | POST                      | Test pripojenia k poskytovateľovi                                                                                                                                                              |
-| `/api/providers/[id]/models`            | GET                       | Zobrazenie zoznamu modelov poskytovateľa                                                                                                                                                       |
-| `/api/providers/validate`               | POST                      | Overenie konfigurácie poskytovateľa                                                                                                                                                            |
-| `/api/providers/bulk`                   | POST                      | Hromadné pridanie API kľúčov pre JEDNÉHO poskytovateľa                                                                                                                                         |
-| `/api/providers/import`                 | POST                      | Import heterogénneho ZOZNAMU poskytovateľov z analyzovaného súboru CSV/JSON (#6836); výsledky čiastočných zlyhaní pre jednotlivé riadky                                                        |
-| `/api/provider-nodes*`                  | Rôzne                     | Správa uzlov poskytovateľov                                                                                                                                                                    |
-| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | Vlastné modely a prepísania nastavení pre jednotlivé modely (pridanie, aktualizácia, skrytie/zobrazenie, odstránenie)                                                                          |
-| `/api/provider-models/validate-and-add` | POST                      | Overenie striktného pripojenia vyžadujúce overenie identity pre správu a výslovné zapnutie a atómová registrácia vlastného modelu; pozrite si [Overenie modelu](../guides/MODEL-VALIDATION.md) |
+| Endpoint                                | Metóda                    | Popis                                                                                                                                                      |
+| --------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/providers`                        | GET/POST                  | Zoznam / vytvorenie poskytovateľov                                                                                                                         |
+| `/api/providers/[id]`                   | GET/PUT/DELETE            | Správa poskytovateľa                                                                                                                                       |
+| `/api/providers/[id]/test`              | POST                      | Testovanie pripojenia poskytovateľa                                                                                                                        |
+| `/api/providers/[id]/models`            | GET                       | Zoznam modelov poskytovateľa                                                                                                                               |
+| `/api/providers/validate`               | POST                      | Validácia konfigurácie poskytovateľa                                                                                                                       |
+| `/api/providers/bulk`                   | POST                      | Hromadné pridanie API kľúčov pre JEDNÉHO poskytovateľa                                                                                                     |
+| `/api/providers/import`                 | POST                      | Import heterogénneho ZOZNAMU poskytovateľov z analyzovaného CSV/JSON súboru (#6836); výsledky čiastočného zlyhania na riadok                               |
+| `/api/provider-nodes*`                  | Rôzne                     | Správa uzlov poskytovateľa                                                                                                                                 |
+| `/api/provider-models`                  | GET/POST/PUT/PATCH/DELETE | Vlastné modely a prepisy na úrovni modelu (pridať, aktualizovať, skryť/zobraziť, odstrániť)                                                                |
+| `/api/provider-models/validate-and-add` | POST                      | Správa autentifikovaná, opt-in prísna validácia pripojenia a atómová registrácia vlastného modelu; pozri [Validácia modelu](../guides/MODEL-VALIDATION.md) |
 
-Pre synchronizované/importované modely prijíma `PUT /api/provider-models` hodnoty `provider`, `modelId` a
-`maxOutputTokenOverride`: kladné celé číslo nastaví manuálny limit výstupných tokenov a hodnota `null`
-ho zruší, čím sa obnoví predvolené nastavenie. `GET /api/provider-models?provider=<provider>` vráti tieto
-hodnoty v `modelOutputOverrides` vrátane modelov bez riadka vlastného modelu. Prepísanie používa funkciu
-`max_output_tokens` počas behu a zachová sa aj po opätovnej synchronizácii modelu. Stránka poskytovateľa
-kompatibilného s OpenAI ponúka rovnaké ovládacie prvky na úpravu/zrušenie a označuje modely s explicitnou podporou videnia.
+Pre synchronizované/importované modely, `PUT /api/provider-models` akceptuje `provider`, `modelId` a
+`maxOutputTokenOverride`: kladné celé číslo nastaví manuálny limit na výstupné tokeny a `null`
+ho vymaže, aby sa obnovil predvolený stav. `GET /api/provider-models?provider=<provider>` vráti tieto
+hodnoty v `modelOutputOverrides`, vrátane modelov bez riadku vlastného modelu. Prepis
+využíva runtime schopnosť `max_output_tokens` a prežije opätovné synchronizovanie modelu. Stránka poskytovateľa kompatibilná s OpenAI
+ponúka rovnaké ovládacie prvky na úpravu/vymazanie a označuje modely s explicitnou podporou vízie.
 
-Vlastné uzly Chat Completions prispôsobujú explicitné odmietnutia uvažovania nadradenému backendu. Úspešný
-test pripojenia automaticky vyberie ovládacie prvky šablóny chatu pre každé presné ID modelu,
-ktorého záznam `/models` preukáže rozpoznanú hodnotu `owned_by`: `vllm`, `sglang` alebo `llamacpp`.
-Transparentné obalové vrstvy kompatibilné s OpenAI môžu zachovať pôvodný záznam modelu vo vnorenom
-objekte `openai`; detekcia sleduje najviac tri takéto obálky. Modely s chýbajúcim, neznámym alebo
-konfliktným vlastníctvom si zachovajú bežné správanie OpenAI. Detekcia opätovne používa existujúcu požiadavku
-na katalóg, negeneruje žiadne tokeny dokončenia a zneplatní sa pri zmene koncového bodu pripojenia.
+Uzly vlastných Chat Completions prispôsobujú explicitné vylúčenia rozumovania pre upstream backend.
+Úspešný test pripojenia automaticky vyberá ovládacie prvky chat-template pre každý presný model ID,
+ktorého záznam `/models` preukazuje uznávanú hodnotu `owned_by`: `vllm`, `sglang` alebo `llamacpp`.
+Priehľadné obaly kompatibilné s OpenAI môžu zachovať pôvodný záznam modelu vo vnútri vnoreného
+objektu `openai`; detekcia nasleduje až po troch takýchto obaloch. Modely s chýbajúcim, neznámym alebo
+konfliktným vlastníctvom si zachovávajú obyčajné správanie OpenAI. Detekcia opätovne využíva existujúcu požiadavku na katalóg,
+negeneruje žiadne tokeny na dokončenie a je neplatná, keď sa zmení koncový bod pripojenia.
 
-Ak chcete toto správanie pevne nastaviť pre backend, ktorý tieto metadáta neposkytuje, použite existujúce API
-na čiastočnú aktualizáciu poskytovateľa:
+Aby ste zafixovali správanie pre backend, ktorý neexponuje tieto metadáta, použite existujúce čiastočné
+aktualizačné API poskytovateľa:
 
 ```json
 {
@@ -963,82 +966,77 @@ na čiastočnú aktualizáciu poskytovateľa:
 }
 ```
 
-Odošlite toto telo pomocou `PUT /api/providers/<connection-id>`. Pri tomto pripojení sa explicitná
-intenzita uvažovania `none` odošle ako `chat_template_kwargs.thinking=false` a
-`chat_template_kwargs.enable_thinking=false`. Explicitné natívne hodnoty šablóny zostávajú nadradené,
-pokiaľ pravidlo uvažovania na strane servera nevynúti určitú intenzitu. Nastavenie sa použije iba vtedy, keď vlastné
-pripojenie kompatibilné s OpenAI odošle telo Chat Completions; požiadavky Responses a bežní
-poskytovatelia si zachovajú svoj natívny tvar požiadavky. Nastavte `reasoningControl` na `openai`, ak chcete vynútiť bežné
-odovzdávanie `reasoning_effort` rozhraniu OpenAI, alebo ho vynechajte/nastavte na `null`, ak chcete použiť automatickú detekciu.
+Odošlite toto telo s `PUT /api/providers/<connection-id>`. Na tomto pripojení sa explicitné
+úsilie o rozumovanie `none` odošle ako `chat_template_kwargs.thinking=false` a
+`chat_template_kwargs.enable_thinking=false`. Explicitné natívne hodnoty šablóny zostávajú autoritatívne,
+pokým serverová pravidlo rozumovania nenúti úsilie. Nastavenie sa uplatňuje iba vtedy, keď vlastné
+pripojenie kompatibilné s OpenAI odosiela telo Chat Completions; požiadavky na odpovede a obyčajní
+poskytovatelia si zachovávajú svoj natívny tvar požiadavky. Nastavte `reasoningControl` na `openai`, aby ste nútili obyčajné OpenAI
+`reasoning_effort` prechod, alebo ho vynechajte/nastavte na `null`, aby ste použili automatickú detekciu.
 
-Požiadavky klasifikátora automatického režimu Claude Code predvolene žiadajú zakázať natívne uvažovanie, ak
-neobsahujú žiadne explicitné ovládacie prvky uvažovania. Detekcia používa systémovú značku klasifikátora v požiadavkách
-vo formáte Claude, nie názvy modelov ani limity dokončenia. Explicitné ovládacie prvky v tele, podporované hlavičky úsilia/uvažovania,
-pravidlá smerovania a vyriešená úroveň úsilia modelu si zachovávajú svoju existujúcu prioritu. Obe fázy klasifikátora
-si zachovávajú svoje prompty, limity dokončenia, sekvencie zastavenia a skutočné rozhodnutia o povolení od nadradenej služby;
-druhá fáza môže naďalej vytvárať požadované viditeľné uvažovanie ako obyčajný text.
+Claude Code auto-režim klasifikátora požaduje, aby bola predvolená natívna logika vypnutá, keď neobsahuje žiadne explicitné ovládacie prvky pre uvažovanie. Detekcia používa systémovú značku klasifikátora v požiadavkách vo formáte Claude, nie názvy modelov alebo limity dokončenia. Explicitné ovládacie prvky tela, podporované hlavičky úsilie/uvažovanie, pravidlá smerovania a vyriešené úsilie modelu si zachovávajú svoju existujúcu prioritu. Obe fázy klasifikátora si zachovávajú svoje výzvy, limity dokončenia, sekvencie zastavenia a skutočné verdikty povolenia; druhá fáza môže stále produkovať požadované viditeľné uvažovanie ako obyčajný text.
 
-### Toky OAuth
+### OAuth toky
 
 | Koncový bod                      | Metóda | Popis                              |
 | -------------------------------- | ------ | ---------------------------------- |
 | `/api/oauth/[provider]/[action]` | Rôzne  | OAuth špecifický pre poskytovateľa |
 
-### Smerovanie a konfigurácia
+### Smerovanie & Konfigurácia
 
 | Koncový bod           | Metóda   | Popis                                    |
 | --------------------- | -------- | ---------------------------------------- |
-| `/api/models/alias`   | GET/POST | Aliasy modelov                           |
-| `/api/models/catalog` | GET      | Všetky modely podľa poskytovateľa a typu |
+| `/api/models/alias`   | GET/POST | Alias modelov                            |
+| `/api/models/catalog` | GET      | Všetky modely podľa poskytovateľa + typu |
 | `/api/combos*`        | Rôzne    | Správa kombinácií                        |
-| `/api/keys*`          | Rôzne    | Správa kľúčov API                        |
+| `/api/keys*`          | Rôzne    | Správa API kľúčov                        |
 | `/api/pricing`        | GET      | Ceny modelov                             |
 
-### Používanie a analytika
+### Použitie & Analytika
 
-| Koncový bod                      | Metóda          | Popis                                                                                                                                                                                                                                                                                                                                           |
-| -------------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/usage/history`             | GET             | História používania                                                                                                                                                                                                                                                                                                                             |
-| `/api/usage/logs`                | GET             | Záznamy používania                                                                                                                                                                                                                                                                                                                              |
-| `/api/usage/request-logs`        | GET             | Záznamy na úrovni požiadaviek                                                                                                                                                                                                                                                                                                                   |
-| `/api/usage/[connectionId]`      | GET             | Používanie podľa jednotlivých pripojení                                                                                                                                                                                                                                                                                                         |
-| `/api/usage/token-limits`        | GET/POST/DELETE | Rozpočty limitov tokenov pre jednotlivé kľúče API                                                                                                                                                                                                                                                                                               |
-| `/api/usage/model-latency-stats` | GET             | Priebežný agregát latencie podľa poskytovateľa/modelu (priemer/p50/p95/p99, úspešnosť); filtre: `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                                                                                 |
-| `/api/usage/cache-health`        | GET             | Súhrn stavu vyrovnávacej pamäte promptov nad `call_logs` — pomer zápisov/čítaní, distribúcia veľkosti zápisov p50/p90/p99, koncentrácia veľkých zápisov, rozdelenie podľa modelu a verdikt `healthy`/`degraded`/`thrash`/`no-data`; parametre dotazu `range` (`1h`\|`24h`\|`7d`\|`30d`, predvolene `24h`) a voliteľný parameter `model` (#8827) |
+| Koncový bod                      | Metóda          | Popis                                                                                                                                                                                                                                                                                                                                                |
+| -------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/usage/history`             | GET             | História použitia                                                                                                                                                                                                                                                                                                                                    |
+| `/api/usage/logs`                | GET             | Záznamy použitia                                                                                                                                                                                                                                                                                                                                     |
+| `/api/usage/request-logs`        | GET             | Záznamy na úrovni požiadaviek                                                                                                                                                                                                                                                                                                                        |
+| `/api/usage/[connectionId]`      | GET             | Použitie na pripojenie                                                                                                                                                                                                                                                                                                                               |
+| `/api/usage/token-limits`        | GET/POST/DELETE | Rozpočty limitov tokenov na základe API kľúča                                                                                                                                                                                                                                                                                                        |
+| `/api/usage/model-latency-stats` | GET             | Agregát latencie na základe poskytovateľa/modelu (priemer/p50/p95/p99, miera úspešnosti); filtre: `windowHours`/`minSamples`/`maxRows`/`provider`/`model` (#6873)                                                                                                                                                                                    |
+| `/api/usage/cache-health`        | GET             | Zhrnutie zdravia vyrovnávacej pamäte výziev nad `call_logs` — pomer zápisu/čítania, distribúcia veľkosti zápisu p50/p90/p99, koncentrácia ťažkého zápisu, rozdelenie na základe modelu a verdikt `zdravý`/`degradovaný`/`preťažený`/`žiadne dáta`; parametre dotazu `range` (`1h`\|`24h`\|`7d`\|`30d`, predvolené `24h`) a voliteľný `model` (#8827) |
 
-### Povolenia kľúčov API
+### Oprávnenia API kľúčov
 
-`PATCH /api/keys/{id}` aktualizuje povolenia existujúceho kľúča. Rovnako ako každá trasa `/api/keys*` vyžaduje oprávnenie na správu (pozrite si [Autentifikáciu správy](../guides/MANAGEMENT-AUTH.md)), nie kľúč na inferenciu. Odošlite iba polia, ktoré chcete zmeniť; požiadavka bez ktoréhokoľvek z nich bude odmietnutá s hlásením `No valid fields to update`. Akceptované polia definuje `updateKeyPermissionsSchema` v `src/shared/validation/schemas/keys.ts`.
+`PATCH /api/keys/{id}` aktualizuje oprávnenia existujúceho kľúča. Rovnako ako každý `/api/keys*` koncový bod potrebuje autorizáciu na správu (pozri [Autentifikácia správy](../guides/MANAGEMENT-AUTH.md)), nie kľúč na inferenciu. Pošlite iba polia, ktoré chcete zmeniť; požiadavka bez nich bude zamietnutá s `Žiadne platné polia na aktualizáciu`. Akceptované polia sú definované v `updateKeyPermissionsSchema` v `src/shared/validation/schemas/keys.ts`.
 
-| Pole                                        | Typ                                                                            | Poznámky                                                                                                                |
-| ------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `name`                                      | reťazec, 1 – 200 znakov                                                        |                                                                                                                         |
-| `isActive`                                  | logická hodnota                                                                |                                                                                                                         |
-| `isBanned`                                  | logická hodnota                                                                |                                                                                                                         |
-| `expiresAt`                                 | dátum a čas vo formáte ISO 8601 alebo `null`                                   | `null` zruší platnosť vypršania                                                                                         |
-| `modelAccessMode`                           | `all` \| `restricted`                                                          | `allowedModels` musí byť prázdne, keď je režim nastavený na `all`                                                       |
-| `allowedModels`, `blockedModels`            | pole reťazcov, najviac 1000                                                    |                                                                                                                         |
-| `allowedCombos`                             | pole reťazcov, najviac 500                                                     | Určuje, ktoré kombinácie môže kľúč volať; priame modely sa riadia nastaveniami `modelAccessMode` / `allowedModels`      |
-| `connectionAccessMode`                      | `all` \| `restricted`                                                          | `allowedConnections` nesmie byť prázdne pri `restricted` a musí byť prázdne pri `all`                                   |
-| `allowedConnections`                        | pole UUID, najviac 100                                                         |                                                                                                                         |
-| `allowAutoCombos`                           | logická hodnota                                                                | `false` odmietne požiadavky na modely `auto/*` s týmto kľúčom; kľúče, ktoré túto hodnotu nikdy nenastavili, sú povolené |
-| `catalogScope`                              | `all` \| `combos` \| `models`                                                  | Určuje, čo `GET /v1/models` zobrazí pre tento kľúč (iba kombinácie, iba modely alebo oboje); nemení, čo môže kľúč volať |
-| `noLog`, `autoResolve`                      | logická hodnota                                                                |                                                                                                                         |
-| `throttleDelayMs`                           | celé číslo, 0 – 300000                                                         |                                                                                                                         |
-| `maxSessions`                               | celé číslo, 0 – 10000                                                          |                                                                                                                         |
-| `rateLimits`                                | pole objektov `{ limit, window }` (kladné celé čísla, najviac 50) alebo `null` | `null` zruší limity                                                                                                     |
-| `accessSchedule`                            | objekt plánu alebo `null`                                                      | `null` zruší plán                                                                                                       |
-| `scopes`                                    | pole reťazcov, najviac 32                                                      |                                                                                                                         |
-| `allowedEndpoints`                          | pole reťazcov, najviac 20                                                      |                                                                                                                         |
-| `streamDefaultMode`                         | `legacy` \| `json`                                                             |                                                                                                                         |
-| `cacheDefaultMode`                          | `legacy` \| `bypass`                                                           | Pozrite si [Obídenie vyrovnávacej pamäte podľa kľúča](#per-key-cache-bypass)                                            |
-| `compressionEnabled`                        | logická hodnota                                                                |                                                                                                                         |
-| `codexServiceMode`                          | jeden z režimov služby Codex                                                   |                                                                                                                         |
-| `disableNonPublicModels`                    | logická hodnota                                                                |                                                                                                                         |
-| `allowUsageCommand`                         | boolean                                                                        |                                                                                                                         |
-| `usageLimitEnabled`                         | boolean                                                                        |                                                                                                                         |
-| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 alebo `null`                                                       |                                                                                                                         |
-| `chaosModeEnabled`                          | boolean                                                                        |                                                                                                                         |
+| Pole                                        | Typ                                                              | Poznámky                                                                                                       |
+| ------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `name`                                      | reťazec, 1-200 znakov                                            |                                                                                                                |
+| `isActive`                                  | boolean                                                          |                                                                                                                |
+| `isBanned`                                  | boolean                                                          |                                                                                                                |
+| `expiresAt`                                 | ISO 8601 dátum a čas alebo `null`                                | `null` vymaže expiráciu                                                                                        |
+| `modelAccessMode`                           | `all` \| `restricted`                                            | `allowedModels` musí byť prázdny, keď je režim `all`                                                           |
+| `allowedModels`, `blockedModels`            | pole reťazcov, až 1000                                           |                                                                                                                |
+| `allowedCombos`                             | pole reťazcov, až 500                                            | Brány, ktoré kombá môže kľúč volať; priame modely sú riadené `modelAccessMode` / `allowedModels`               |
+| `connectionAccessMode`                      | `all` \| `restricted`                                            | `allowedConnections` musí byť neprázdny, keď je `restricted` a prázdny, keď je `all`                           |
+| `allowedConnections`                        | pole UUID, až 100                                                |                                                                                                                |
+| `allowAutoCombos`                           | boolean                                                          | `false` odmieta požiadavky na modely `auto/*` s týmto kľúčom; kľúče, ktoré ho nikdy nenastavili, sú povolené   |
+| `catalogScope`                              | `all` \| `combos` \| `models`                                    | Čo `GET /v1/models` vypisuje pre tento kľúč (iba kombá, iba modely alebo oboje); nemení to, čo môže kľúč volať |
+| `noLog`, `autoResolve`                      | boolean                                                          |                                                                                                                |
+| `throttleDelayMs`                           | celé číslo, 0-300000                                             |                                                                                                                |
+| `maxSessions`                               | celé číslo, 0-10000                                              |                                                                                                                |
+| `rateLimits`                                | pole `{ limit, window }` (kladné celé čísla, až 50) alebo `null` | `null` vymaže limity                                                                                           |
+| `accessSchedule`                            | objekt rozvrhu alebo `null`                                      | `null` vymaže rozvrh                                                                                           |
+| `scopes`                                    | pole reťazcov, až 32                                             |                                                                                                                |
+| `allowedEndpoints`                          | pole reťazcov, až 20                                             |                                                                                                                |
+| `streamDefaultMode`                         | `legacy` \| `json`                                               |                                                                                                                |
+| `cacheDefaultMode`                          | `legacy` \| `bypass`                                             | Pozri [Obídenie cache na základe kľúča](#per-key-cache-bypass)                                                 |
+| `compressionEnabled`                        | boolean                                                          |                                                                                                                |
+| `codexServiceMode`                          | jeden z režimov služby Codex                                     |                                                                                                                |
+| `disableNonPublicModels`                    | boolean                                                          |                                                                                                                |
+| `allowUsageCommand`                         | boolean                                                          |                                                                                                                |
+| `usageLimitEnabled`                         | boolean                                                          |                                                                                                                |
+| `dailyUsageLimitUsd`, `weeklyUsageLimitUsd` | number >= 0 or `null`                                            |                                                                                                                |
+| `chaosModeEnabled`                          | boolean                                                          |                                                                                                                |
 
 ```bash
 curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
@@ -1049,149 +1047,175 @@ curl -X PATCH "$OMNIROUTE_URL/api/keys/$KEY_ID" \
 
 ### Nastavenia
 
-| Koncový bod                           | Metóda        | Popis                                                                                                                                                                                                                  |
-| ------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/settings`                       | GET/PUT/PATCH | Všeobecné nastavenia                                                                                                                                                                                                   |
-| `/api/settings/proxy`                 | GET/PUT       | Konfigurácia sieťového proxy                                                                                                                                                                                           |
-| `/api/settings/proxy/test`            | POST          | Test pripojenia cez proxy                                                                                                                                                                                              |
-| `/api/settings/ip-filter`             | GET/PUT       | Zoznam povolených/blokovaných IP adries                                                                                                                                                                                |
-| `/api/settings/thinking-budget`       | GET/PUT       | Režim prepisovania **požiadavky** na premýšľanie/uvažovanie (prechod bez zmeny / automatické odstránenie / vlastný / adaptívny). Nezávisí od kompresie. Pozrite si [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md). |
-| `/api/settings/system-prompt`         | GET/PUT       | Globálna systémová výzva                                                                                                                                                                                               |
-| `/api/settings/compression`           | GET/PUT       | Globálna konfigurácia kompresie                                                                                                                                                                                        |
-| `/api/settings/purge-request-history` | POST          | Vymazanie riadkov denníka požiadaviek a lokálnych artefaktov denníka volaní                                                                                                                                            |
+| Endpoint                              | Metóda        | Popis                                                                                                                                                                                      |
+| ------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `/api/settings`                       | GET/PUT/PATCH | Všeobecné nastavenia                                                                                                                                                                       |
+| `/api/settings/proxy`                 | GET/PUT       | Konfigurácia sieťového proxy                                                                                                                                                               |
+| `/api/settings/proxy/test`            | POST          | Testovanie pripojenia proxy                                                                                                                                                                |
+| `/api/settings/ip-filter`             | GET/PUT       | IP povolený/zakázaný zoznam                                                                                                                                                                |
+| `/api/settings/thinking-budget`       | GET/PUT       | Režim prepísania **žiadosti** o myslenie/rozum (prenos / automatické odstránenie / vlastné / adaptívne). Nezávislé od kompresie. Pozri [THINKING_BUDGET.md](../guides/THINKING_BUDGET.md). |
+| `/api/settings/system-prompt`         | GET/PUT       | Globálny systémový prompt                                                                                                                                                                  |
+| `/api/settings/compression`           | GET/PUT       | Globálna konfigurácia kompresie                                                                                                                                                            |
+| `/api/settings/purge-request-history` | POST          | Vymazať riadky žiadostí a miestne artefakty protokolu volaní                                                                                                                               |
 
-### Kontext a kompresia
+### Kontext & Kompresia
 
-| Koncový bod                            | Metóda         | Popis                                                                                        |
-| -------------------------------------- | -------------- | -------------------------------------------------------------------------------------------- |
-| `/api/compression/preview`             | POST           | Náhľad kompresie off/lite/standard/aggressive/ultra/RTK/stacked                              |
-| `/api/compression/language-packs`      | GET            | Zoznam dostupných jazykových balíkov Caveman                                                 |
-| `/api/compression/rules`               | GET            | Zoznam metadát pravidiel Caveman                                                             |
-| `/api/context/caveman/config`          | GET/PUT        | Alias nastavení špecifických pre Caveman                                                     |
-| `/api/context/rtk/config`              | GET/PUT        | Nastavenia špecifické pre RTK vrátane vlastných filtrov a uchovávania nespracovaného výstupu |
-| `/api/context/rtk/filters`             | GET            | Katalóg filtrov RTK a diagnostika vlastných filtrov                                          |
-| `/api/context/rtk/test`                | POST           | Spustenie náhľadu/testu RTK nad textovým obsahom                                             |
-| `/api/context/rtk/raw-output/[id]`     | GET            | Načítanie uchovaného redigovaného nespracovaného výstupu podľa ID ukazovateľa                |
-| `/api/context/combos`                  | GET/POST       | Zoznam/vytvorenie kombinácií kompresie                                                       |
-| `/api/context/combos/[id]`             | GET/PUT/DELETE | Detail/aktualizácia/odstránenie kombinácie kompresie                                         |
-| `/api/context/combos/[id]/assignments` | GET/PUT        | Priradenie kombinácií kompresie ku kombináciám smerovania                                    |
-| `/api/context/analytics`               | GET            | Alias analytiky kompresie                                                                    |
+| Endpoint                               | Metóda         | Popis                                                                                   |
+| -------------------------------------- | -------------- | --------------------------------------------------------------------------------------- |
+| `/api/compression/preview`             | POST           | Náhľad off/lite/standard/aggressive/ultra/RTK/stacked kompresie                         |
+| `/api/compression/language-packs`      | GET            | Zoznam dostupných jazykových balíkov Caveman                                            |
+| `/api/compression/rules`               | GET            | Zoznam metadát pravidiel Caveman                                                        |
+| `/api/context/caveman/config`          | GET/PUT        | Alias pre nastavenia špecifické pre Caveman                                             |
+| `/api/context/rtk/config`              | GET/PUT        | Nastavenia špecifické pre RTK, vrátane vlastných filtrov a uchovávania surového výstupu |
+| `/api/context/rtk/filters`             | GET            | Katalóg filtrov RTK a diagnostika vlastných filtrov                                     |
+| `/api/context/rtk/test`                | POST           | Spustiť náhľad/test RTK proti textovému zaťaženiu                                       |
+| `/api/context/rtk/raw-output/[id]`     | GET            | Prečítať uchovaný redigovaný surový výstup podľa ID ukazovateľa                         |
+| `/api/context/combos`                  | GET/POST       | Zoznam/vytvorenie kompresných kombinácií                                                |
+| `/api/context/combos/[id]`             | GET/PUT/DELETE | Podrobnosti/aktualizácia/vymazanie kompresnej kombinácie                                |
+| `/api/context/combos/[id]/assignments` | GET/PUT        | Priradiť kompresné kombinácie k smerovacím kombináciám                                  |
+| `/api/context/analytics`               | GET            | Alias pre analytiku kompresie                                                           |
 
 ### Monitorovanie
 
-| Endpoint                             | Metóda     | Popis                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/sessions`                      | GET        | Sledovanie aktívnych relácií                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `/api/rate-limits`                   | GET        | Limity požiadaviek pre jednotlivé účty                                                                                                                                                                                                                                                                                                                                                                                              |
-| `/api/monitoring/health`             | GET        | Kontrola stavu + súhrn poskytovateľov (`catalogCount`, `configuredCount`, `activeCount`, `monitoredCount`). Zobrazenie správy zahŕňa `credentialHealth`: skalárne hodnoty vyrovnávacej pamäte sond, `failedConnections`, keď `failed>0`, a `staleDbNonOkCount` (perzistentný `test_status` v SQLite, nie meradlo). Pozrite si [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status). |
-| `/api/cache/stats`                   | GET/DELETE | Štatistiky vyrovnávacej pamäte / vymazanie                                                                                                                                                                                                                                                                                                                                                                                          |
-| `/api/modality-bridge/stats`         | GET        | Hodnoty v pamäti: `attempts`, úspechy/`bridged`, zlyhania, zásahy do vyrovnávacej pamäte, `totalLatencyMs`, `latencySamples`, `averageLatencyMs` vypočítaná zo vzoriek a čas posledného použitia (vynuluje sa pri reštarte; autentifikácia správy)                                                                                                                                                                                  |
-| `/api/modality-bridge/video/runtime` | GET        | Striktná kontrola dôveryhodného rozhrania spätnej slučky pred autentifikáciou správy/sondou; bezpečne upravené informácie o dostupnosti a verziách FFmpeg/ffprobe (bez ukladania)                                                                                                                                                                                                                                                   |
-| `/api/modality-bridge/video/extract` | POST       | Interný autentifikovaný sprostredkovateľ bajtov cez dôveryhodné rozhranie spätnej slučky; vstup s limitom 50 MiB, obmedzený rad/výstup 32 MiB, kapacita `503`, odpojenie `499`, konečný termín `504`; nejde o verejné API na nahrávanie                                                                                                                                                                                             |
+| Endpoint                             | Method     | Popis                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/sessions`                      | GET        | Sledovanie aktívnych relácií                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/api/rate-limits`                   | GET        | Limity rýchlosti na účet                                                                                                                                                                                                                                                                                                                                                                                         |
+| `/api/monitoring/health`             | GET        | Kontrola zdravia + súhrn poskytovateľa (`catalogCount`, `configuredCount`, `activeCount`, `monitoredCount`). Správcovský pohľad obsahuje `credentialHealth`: skalarové hodnoty probe-cache, `failedConnections` pri `failed>0`, a `staleDbNonOkCount` (SQLite sticky `test_status`, nie merač). Pozrite si [MONITORING_GUIDE.md](../ops/MONITORING_GUIDE.md#credentialhealth-probe-cache-vs-sqlite-test_status). |
+| `/api/cache/stats`                   | GET/DELETE | Štatistiky cache / vyčistiť                                                                                                                                                                                                                                                                                                                                                                                      |
+| `/api/modality-bridge/stats`         | GET        | V pamäti `attempts`, úspechy/`bridged`, zlyhania, zásahy cache, `totalLatencyMs`, `latencySamples`, priemerná latencia `averageLatencyMs` na základe vzoriek a čas posledného použitia (reset na reštart; správcovská autorizácia)                                                                                                                                                                               |
+| `/api/modality-bridge/video/runtime` | GET        | Prísna kontrola dôveryhodného slučkového pripojenia pred správcovskou autorizáciou/probe; sanitizovaná dostupnosť a verzie FFmpeg/ffprobe (no-store)                                                                                                                                                                                                                                                             |
+| `/api/modality-bridge/video/extract` | POST       | Interný autentifikovaný dôveryhodný broker bajtov; 50 MiB vstup, obmedzená fronta/32 MiB výstup, kapacita `503`, odpojenie `499`, termín `504`; nie je to verejné API na nahrávanie                                                                                                                                                                                                                              |
 
-### Zálohovanie a export/import
+### Hĺbkové rozobratie video snímok
 
-| Endpoint                    | Metóda | Popis                                           |
-| --------------------------- | ------ | ----------------------------------------------- |
-| `/api/db-backups`           | GET    | Zoznam dostupných záloh                         |
-| `/api/db-backups`           | PUT    | Vytvorenie manuálnej zálohy                     |
-| `/api/db-backups`           | POST   | Obnovenie z konkrétnej zálohy                   |
-| `/api/db-backups/export`    | GET    | Stiahnutie databázy ako súbor .sqlite           |
-| `/api/db-backups/import`    | POST   | Nahratie súboru .sqlite, ktorý nahradí databázu |
-| `/api/db-backups/exportAll` | GET    | Stiahnutie úplnej zálohy ako archív .tar.gz     |
+`GET /api/v1/video-bridge/drilldown` číta tenantom viazanú nepriehľadnú hodnotu vrátenú v
+`x-omniroute-video-drilldown` po výslovne súhlasenej žiadosti o Video Bridge.
+Oba čítania a `DELETE` vždy vyžadujú platný API kľúč a nezávislé
+povolenie operátora `modalityBridgeVideoDrilldownRemoteEnabled`. Produkčné uchovávanie navyše
+vyžaduje `modalityBridgeVideoDrilldownEnabled` a prísne per-part `drilldown: true`.
 
-### Cloudová synchronizácia
+GET dotaz: povinné `handle`; voliteľné `variant` (`preview`, `standard`, `detail`),
+`limit` (1–8; dedičný `frames` je akceptovaný, ale nemôže byť kombinovaný s `limit`),
+nula-založená `page`, a `start`/`end` sekundy. Keď sú dodané oba rozsahy
+fokusu, `end` musí byť väčšie ako `start`. Duplicitné/neznáme kľúče dotazu sú
+odmietnuté. Úspešné odpovede obsahujú `derivation`, `durationSeconds`, `frames`,
+`hasMore`, `page`, `variant`, a voliteľné `focusWindow`; no-store JSON je obmedzený na
+32 MiB vrátane Base64. Príliš veľký výstup vracia 413; požiadajte o menej snímok.
 
-| Endpoint               | Metóda | Popis                             |
-| ---------------------- | ------ | --------------------------------- |
-| `/api/sync/cloud`      | Rôzne  | Operácie cloudovej synchronizácie |
-| `/api/sync/initialize` | POST   | Inicializácia synchronizácie      |
-| `/api/cloud/*`         | Rôzne  | Správa cloudu                     |
+`DELETE /api/v1/video-bridge/drilldown?handle=...` vracia `{ "removed": 0|1 }`.
+Neznáme, expirované a krížové kľúče GET sú nerozlíšiteľné 404 odpovede; krížové kľúče
+DELETE nemôžu odstrániť záznam vlastníka. Zakázaný prístup vracia 403, chýbajúca/neplatná
+autentifikácia 401, neplatné dotazy 400, zrušenie 499 a dočasné chyby 503.
+Hodnoty sú procesne lokálne, expirované po desiatich minútach a neprežijú reštart.
+Nové hodnoty používajú `v1.` plus 32-bajtový náhodný Base64URL token; iba hash tokenu sú
+uchovávané. Dedičné 64-hex tokeny zostávajú syntakticky čitateľné pre kompatibilitu.
+Pozrite si [Video Bridge guardrails](../security/GUARDRAILS.md#video-bridge-videobridgets-videobridgepipelinets)
+pre podrobnosti o súhlase, kvótach a derivácii variantov.
 
-### Tunely
+### Záloha a Export/Import
 
-| Endpoint                   | Metóda | Popis                                                                        |
-| -------------------------- | ------ | ---------------------------------------------------------------------------- |
-| `/api/tunnels/cloudflared` | GET    | Načítanie stavu inštalácie a behu Cloudflare Quick Tunnel pre ovládací panel |
-| `/api/tunnels/cloudflared` | POST   | Povolenie alebo zakázanie Cloudflare Quick Tunnel (`action=enable/disable`)  |
-| `/api/tunnels/ngrok`       | GET    | Načítanie stavu behu ngrok Tunnel pre ovládací panel                         |
-| `/api/tunnels/ngrok`       | POST   | Povolenie alebo zakázanie ngrok Tunnel (`action=enable/disable`)             |
+| Endpoint                    | Method | Popis                                       |
+| --------------------------- | ------ | ------------------------------------------- |
+| `/api/db-backups`           | GET    | Zoznam dostupných záloh                     |
+| `/api/db-backups`           | PUT    | Vytvoriť manuálnu zálohu                    |
+| `/api/db-backups`           | POST   | Obnoviť zo špecifickej zálohy               |
+| `/api/db-backups/export`    | GET    | Stiahnuť databázu ako .sqlite súbor         |
+| `/api/db-backups/import`    | POST   | Nahrať .sqlite súbor na nahradenie databázy |
+| `/api/db-backups/exportAll` | GET    | Stiahnuť plnú zálohu ako .tar.gz archív     |
 
-### Nástroje CLI
+### Cloud Sync
 
-| Koncový bod                        | Metóda | Popis                 |
+| Endpoint               | Method | Popis                        |
+| ---------------------- | ------ | ---------------------------- |
+| `/api/sync/cloud`      | Rôzne  | Operácie synchronizácie      |
+| `/api/sync/initialize` | POST   | Inicializovať synchronizáciu |
+| `/api/cloud/*`         | Rôzne  | Správa cloudu                |
+
+### Tunnels
+
+| Endpoint                   | Method | Popis                                                                    |
+| -------------------------- | ------ | ------------------------------------------------------------------------ |
+| `/api/tunnels/cloudflared` | GET    | Prečítať stav inštalácie/spustenia Cloudflare Quick Tunnel pre dashboard |
+| `/api/tunnels/cloudflared` | POST   | Povoliť alebo zakázať Cloudflare Quick Tunnel (`action=enable/disable`)  |
+| `/api/tunnels/ngrok`       | GET    | Prečítať stav spustenia ngrok Tunnel pre dashboard                       |
+| `/api/tunnels/ngrok`       | POST   | Povoliť alebo zakázať ngrok Tunnel (`action=enable/disable`)             |
+
+### CLI Tools
+
+| Endpoint                           | Method | Popis                 |
 | ---------------------------------- | ------ | --------------------- |
 | `/api/cli-tools/claude-settings`   | GET    | Stav Claude CLI       |
 | `/api/cli-tools/codex-settings`    | GET    | Stav Codex CLI        |
 | `/api/cli-tools/droid-settings`    | GET    | Stav Droid CLI        |
 | `/api/cli-tools/openclaw-settings` | GET    | Stav OpenClaw CLI     |
-| `/api/cli-tools/runtime/[toolId]`  | GET    | Všeobecný runtime CLI |
+| `/api/cli-tools/runtime/[toolId]`  | GET    | Generický runtime CLI |
 
 Odpovede CLI obsahujú: `installed`, `runnable`, `command`, `commandPath`, `runtimeMode`, `reason`.
 
-### Agenti ACP
+### ACP Agents
 
-| Koncový bod       | Metóda | Popis                                                                    |
-| ----------------- | ------ | ------------------------------------------------------------------------ |
-| `/api/acp/agents` | GET    | Zoznam všetkých zistených agentov (vstavaných aj vlastných) so stavom    |
-| `/api/acp/agents` | POST   | Pridanie vlastného agenta alebo obnovenie vyrovnávacej pamäte zisťovania |
-| `/api/acp/agents` | DELETE | Odstránenie vlastného agenta podľa parametra dopytu `id`                 |
+| Endpoint          | Method | Popis                                                                   |
+| ----------------- | ------ | ----------------------------------------------------------------------- |
+| `/api/acp/agents` | GET    | Zoznam všetkých detekovaných agentov (vstavaných + vlastných) so stavom |
+| `/api/acp/agents` | POST   | Pridať vlastného agenta alebo obnoviť cache detekcie                    |
+| `/api/acp/agents` | DELETE | Odstrániť vlastného agenta podľa parametra dotazu `id`                  |
 
 Odpoveď GET obsahuje `agents[]` (id, name, binary, version, installed, protocol, isCustom) a `summary` (total, installed, notFound, builtIn, custom).
 
-### Odolnosť a limity požiadaviek
+### Resilience & Rate Limits
 
-| Koncový bod                       | Metóda    | Popis                                                                                                           |
-| --------------------------------- | --------- | --------------------------------------------------------------------------------------------------------------- |
-| `/api/resilience`                 | GET/PATCH | Získanie/aktualizácia frontu požiadaviek, časového odstupu pripojenia, ističa poskytovateľa a nastavení čakania |
-| `/api/resilience/reset`           | POST      | Resetovanie ističov poskytovateľov                                                                              |
-| `/api/resilience/model-cooldowns` | GET       | Zoznam aktívnych blokovaní pre kombinácie (poskytovateľ, pripojenie, model), zoradený podľa zostávajúceho času  |
-| `/api/resilience/model-cooldowns` | DELETE    | Zrušenie blokovania modelu — telo `{provider, model}` alebo `{all: true}` na vymazanie všetkého                 |
-| `/api/rate-limits`                | GET       | Stav limitu požiadaviek pre jednotlivé účty                                                                     |
-| `/api/rate-limit`                 | GET       | Globálna konfigurácia limitu požiadaviek                                                                        |
+| Endpoint                          | Method    | Popis                                                                                                   |
+| --------------------------------- | --------- | ------------------------------------------------------------------------------------------------------- |
+| `/api/resilience`                 | GET/PATCH | Získať/aktualizovať frontu požiadaviek, cooldown pripojenia, breaker poskytovateľa a nastavenia čakania |
+| `/api/resilience/reset`           | POST      | Resetovať obvody breaker poskytovateľa                                                                  |
+| `/api/resilience/model-cooldowns` | GET       | Zoznam aktívnych per-(provider, connection, model) lockoutov, zoradených podľa zostávajúceho času       |
+| `/api/resilience/model-cooldowns` | DELETE    | Vymazať model lockout — telo `{provider, model}` alebo `{all: true}` na vymazanie všetkého              |
+| `/api/rate-limits`                | GET       | Stav limitu rýchlosti na účet                                                                           |
+| `/api/rate-limit`                 | GET       | Globálna konfigurácia limitu rýchlosti                                                                  |
 
-> Všetky štyri trasy `/api/resilience/*` vyžadujú **overenie správy** (`requireManagementAuth`). Úplné vysvetlenie rozdielov medzi ističom poskytovateľa, časovým odstupom pripojenia a blokovaním modelu nájdete v časti [Odolnosť (rozšírené)](#resilience-extended).
+> Všetky štyri `/api/resilience/*` trasy vyžadujú **správcovskú autentifikáciu** (`requireManagementAuth`). Pozrite si [Resilience (rozšírené)](#resilience-extended) pre podrobný prehľad breaker poskytovateľa vs cooldown pripojenia vs model lockout.
 
-### Vyhodnotenia
+### Evals
 
-| Koncový bod  | Metóda   | Popis                                             |
-| ------------ | -------- | ------------------------------------------------- |
-| `/api/evals` | GET/POST | Zoznam súborov vyhodnotení/spustenie vyhodnotenia |
+| Endpoint     | Method   | Popis                                  |
+| ------------ | -------- | -------------------------------------- |
+| `/api/evals` | GET/POST | Zoznam eval suite / spustiť hodnotenie |
 
-### Zásady
+### Policies
 
-| Koncový bod     | Metóda          | Popis                   |
-| --------------- | --------------- | ----------------------- |
-| `/api/policies` | GET/POST/DELETE | Správa zásad smerovania |
+| Endpoint        | Method          | Popis                      |
+| --------------- | --------------- | -------------------------- |
+| `/api/policies` | GET/POST/DELETE | Správa smerovacích politík |
 
-### Súlad
+### Compliance
 
-| Koncový bod                 | Metóda | Popis                               |
-| --------------------------- | ------ | ----------------------------------- |
-| `/api/compliance/audit-log` | GET    | Denník auditu súladu (posledných N) |
+| Endpoint                    | Method | Popis                                 |
+| --------------------------- | ------ | ------------------------------------- |
+| `/api/compliance/audit-log` | GET    | Audit log dodržiavania (posledných N) |
 
-### v1beta (kompatibilné s Gemini)
+### v1beta (Gemini-Compatible)
 
-| Koncový bod                | Metóda | Popis                                |
-| -------------------------- | ------ | ------------------------------------ |
-| `/v1beta/models`           | GET    | Zoznam modelov vo formáte Gemini     |
-| `/v1beta/models/{...path}` | POST   | Koncový bod Gemini `generateContent` |
+| Endpoint                   | Method | Popis                             |
+| -------------------------- | ------ | --------------------------------- |
+| `/v1beta/models`           | GET    | Zoznam modelov vo formáte Gemini  |
+| `/v1beta/models/{...path}` | POST   | Gemini `generateContent` endpoint |
 
-Tieto koncové body kopírujú formát API služby Gemini pre klientov, ktorí očakávajú natívnu kompatibilitu so súpravou Gemini SDK.
+Tieto koncové body zrkadlia formát API Gemini pre klientov, ktorí očakávajú natívnu kompatibilitu so SDK Gemini.
 
-### Interné/systémové API
+### Interné / Systémové API
 
-| Koncový bod              | Metóda | Popis                                                                    |
-| ------------------------ | ------ | ------------------------------------------------------------------------ |
-| `/api/init`              | GET    | Kontrola inicializácie aplikácie (používa sa pri prvom spustení)         |
-| `/api/tags`              | GET    | Značky modelov kompatibilné s Ollama (pre klientov Ollama)               |
-| `/api/restart`           | POST   | Spustenie kontrolovaného reštartu servera                                |
-| `/api/shutdown`          | POST   | Spustenie kontrolovaného vypnutia servera                                |
-| `/api/system/env/repair` | POST   | Oprava premenných prostredia poskytovateľa OAuth                         |
-| `/api/system/version`    | GET    | Aktuálna/najnovšia verzia, stav aktualizácie, kanál vydania              |
-| `/api/system/version`    | POST   | Spustenie aktualizácie na najnovšiu verziu s ohľadom na spôsob nasadenia |
+| Endpoint                 | Metóda | Popis                                                            |
+| ------------------------ | ------ | ---------------------------------------------------------------- |
+| `/api/init`              | GET    | Kontrola inicializácie aplikácie (používa sa pri prvom spustení) |
+| `/api/tags`              | GET    | Tagy modelov kompatibilné s Ollama (pre klientov Ollama)         |
+| `/api/restart`           | POST   | Spustiť jemné reštartovanie servera                              |
+| `/api/shutdown`          | POST   | Spustiť jemné vypnutie servera                                   |
+| `/api/system/env/repair` | POST   | Opraviť prostredie premenných poskytovateľa OAuth                |
+| `/api/system/version`    | GET    | Aktuálna/najnovšia verzia, stav aktualizácie, kanál vydania      |
+| `/api/system/version`    | POST   | Spustiť aktualizáciu s vedomím o nasadení na najnovšiu verziu    |
 
-> **Poznámka:** Tieto koncové body používa interne systém alebo slúžia na kompatibilitu s klientmi Ollama. Koncoví používatelia ich zvyčajne nevolajú.
+> **Poznámka:** Tieto koncové body sa používajú interne systémom alebo pre kompatibilitu s klientom Ollama. Zvyčajne ich nevolajú koncoví používatelia.
 
 ### Oprava prostredia OAuth _(v3.6.1+)_
 
@@ -1204,12 +1228,15 @@ Content-Type: application/json
 }
 ```
 
-Opraví chýbajúce alebo poškodené premenné prostredia OAuth pre konkrétneho poskytovateľa. Vráti:
+Opraviť chýbajúce alebo poškodené premenné prostredia OAuth pre konkrétneho poskytovateľa. Vráti:
 
 ```json
 {
   "success": true,
-  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
+  "repaired": [
+    "CLAUDE_CODE_OAUTH_CLIENT_ID",
+    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
+  ],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
@@ -1220,10 +1247,10 @@ Opraví chýbajúce alebo poškodené premenné prostredia OAuth pre konkrétneh
 GET /api/system/version
 ```
 
-Trasa správy dostupná iba cez rozhranie spätnej slučky (overenie správcu). Vracia spustenú verziu, najnovšiu
-publikovanú verziu a stav automatických aktualizácií. `releaseChannel` a `channels` sú doplnkové
-polia (od verzie 3.8.54); `channel` si zachováva svoj význam — režim nasadenia, ktorý používa aktualizačný
-nástroj ovládacieho panela (`npm`, `source` alebo `docker-compose`).
+Správna trasa iba pre loopback (admin autentifikácia). Vráti bežiacu verziu, najnovšiu
+publikovanú verziu a stav automatickej aktualizácie. `releaseChannel` a `channels` sú prídavné
+polia (rail 3.8.54); `channel` si zachováva svoj význam — režim nasadenia, ktorý používateľ
+aktualizátora na palubnej doske (`npm`, `source` alebo `docker-compose`).
 
 ```json
 {
@@ -1239,19 +1266,17 @@ nástroj ovládacieho panela (`npm`, `source` alebo `docker-compose`).
 }
 ```
 
-- `releaseChannel` — npm kanál spusteného zostavenia: `nightly` pre verzie `-nightly.*`,
-  `next` pre ostatné predbežné vydania (`-rc.*`, `-beta.*`, `-alpha.*`), `lts` pre stabilnú verziu
-  staršej hlavnej verzie, než je `channels.latest`, inak `latest`. Rovnaké pravidlá ako v
-  `scripts/release/dist-tag.mjs`, ktorý pri publikovaní vyberá npm dist-tag.
-- `channels` — najnovšia publikovaná verzia každého dist-tag, získaná z `npm view omniroute dist-tags`
-  (s náhradným použitím HTTP registra), uložená vo vyrovnávacej pamäti s rovnakou 10-minútovou
-  dobou TTL ako `latest`. `latest` je vždy prítomné (ako náhrada sa použije pole `latest` a potom
-  `"unavailable"`); `next`, `nightly` a `lts` sa zobrazia iba vtedy, keď daný dist-tag existuje.
-  Požiadavka s `Cache-Control: no-cache` obnoví obe vyhľadávania.
+- `releaseChannel` — npm kanál bežiacej verzie: `nightly` pre `-nightly.*` verzie,
+  `next` pre iné predverzie (`-rc.*`, `-beta.*`, `-alpha.*`), `lts` pre stabilnú verziu
+  staršiu ako `channels.latest`, inak `latest`. Rovnaké pravidlá ako
+  `scripts/release/dist-tag.mjs`, ktoré vyberá npm dist-tag v čase publikovania.
+- `channels` — publikovaná hlava každého dist-tag, z `npm view omniroute dist-tags` (HTTP záložný registr),
+  vyrovnaná s rovnakým 10-minútovým TTL ako `latest`. `latest` je vždy prítomný
+  (prepadne na pole `latest`, potom `"unavailable"`); `next`, `nightly` a `lts` sa objavia
+  iba vtedy, keď existuje ten dist-tag. Žiadosť `Cache-Control: no-cache` obnoví obidve vyhľadávania.
 
-Model kanálov (`latest` = v3 až do všeobecnej dostupnosti verzie 4.0, `next` = rc, `nightly` =
-zostavenia z vetvy `develop`, `lts` = opravy v3 po všeobecnej dostupnosti verzie 4.0) je opísaný
-v `docs/ops/RELEASE_STRATEGY.md`.
+Model kanála (`latest` = v3 až do 4.0 GA, `next` = rc, `nightly` = `develop` zostavy,
+`lts` = v3 opravy po 4.0 GA) je popísaný v `docs/ops/RELEASE_STRATEGY.md`.
 
 ---
 

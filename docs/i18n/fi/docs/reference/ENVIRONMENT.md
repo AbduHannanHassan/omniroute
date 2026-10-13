@@ -1819,23 +1819,33 @@ Headless-selaimen ja lähtevän työkalutunnelin yleiset oletusasetukset. Hallin
 
 ---
 
-## OmniConductor-silta
+## OmniConductor Bridge
 
-Pitkäkestoinen SSE-kuluttaja, joka peilaa OmniConductor-keskuksen tehtävät paikalliseen A2A TaskManageriin (`src/lib/conductor/`). Valinnainen — silta käynnistyy vain, kun `CONDUCTOR_HUB_URL` on asetettu. Vain palvelinpuolelle: keskuksen tunnus ei saa koskaan päätyä selaimeen.
+Pitkäikäinen SSE-kuluttaja, joka peilaa OmniConductor-hubin tehtäviä paikalliseen A2A TaskManageriin (`src/lib/conductor/`). Valinnainen — silta käynnistyy vain, kun `CONDUCTOR_HUB_URL` on asetettu. Vain palvelinpuolella: hub-tokenin ei koskaan tule päästä selaimeen.
 
-| Muuttuja                       | Oletusarvo              | Lähdetiedosto                    | Kuvaus                                                                                                                                             |
-| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CONDUCTOR_HUB_URL`            | _(tyhjä)_               | `src/lib/conductor/boot.ts`      | OmniConductor-keskuksen perus-URL (esim. `http://127.0.0.1:7910`). Asettamatta = silta poistettu käytöstä.                                         |
-| `CONDUCTOR_HUB_TOKEN`          | _(tyhjä)_               | `src/lib/conductor/boot.ts`      | Keskuksen tunnus SSE-syötettä varten — luo keskukseen `spokesperson`-tyyppinen vertaisosapuoli (`POST /v1/peers`, ylläpitäjä).                     |
-| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tyhjä)_               | `src/lib/conductor/hubProxy.ts`  | Tunnus saapuvien A2A→keskus-tehtävien delegointiin (`POST /v1/tasks`); käyttää `CONDUCTOR_HUB_TOKEN`-arvoa varalla, kun muuttujaa ei ole asetettu. |
-| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Koontinäytön keskusteluvälityspalvelun (`/api/conductor/ask`) takana olevan spokesperson-palvelun (Faro) perus-URL.                                |
+| Muuttuja                       | Oletusarvo              | Lähdetiedosto                    | Kuvaus                                                                                                                                 |
+| ------------------------------ | ----------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `CONDUCTOR_HUB_URL`            | _(tyhjät)_              | `src/lib/conductor/boot.ts`      | OmniConductor-hubin perus-URL (esim. `http://127.0.0.1:7910`). Poistettu = silta pois käytöstä.                                        |
+| `CONDUCTOR_HUB_TOKEN`          | _(tyhjät)_              | `src/lib/conductor/boot.ts`      | Hubin tunnistetieto SSE-syötteelle — lähettää `spokesperson`-tyyppisen vertaisen hubiin (`POST /v1/peers`, ylläpitäjä).                |
+| `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(tyhjät)_              | `src/lib/conductor/hubProxy.ts`  | Tunnistetieto saapuvaan A2A→hub-tehtävien delegointiin (`POST /v1/tasks`); palautuu `CONDUCTOR_HUB_TOKEN`-arvoon, kun se on poistettu. |
+| `CONDUCTOR_SPOKESPERSON_URL`   | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Spokesperson (Faro) -palvelun perus-URL, joka on dashboard-chat-proxyn takana (`/api/conductor/ask`).                                  |
 
-### Kiintiöt huomioiva ajoitus
+### Video Bridge eristetty validointi
 
-Käytössä tiedostoissa `open-sse/services/combo.ts` ja `src/lib/quota/quotaScheduler.ts` pyyntöä edeltäviin tunnistebudjetin tarkistuksiin. Valinnainen — oletusarvoinen reititystoiminta ei muutu, kun muuttujaa ei ole asetettu.
+`scripts/ad-hoc/video-live-isolation.ts --prepare` vaatii
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` nimeämään absoluuttisen hakemiston, joka sisältää
+`storage.sqlite`. Oletusarvoa ei ole. Työkalu avaa tietokannan vain lukuoikeudella ja
+valmistelee yksityisen väliaikaisen kopion eristetyillä asiakastunnuksilla ja asetuksilla;
+tunnistetiedot pysyvät validointipalvelimella. Tämä muuttuja on vain eksplisiittiselle
+valmistelukomennolle eikä sitä käytetä normaalissa palvelimen käynnistyksessä. Valmistelu
+ei kutsu mallia; erillinen live-savukomentto vaatii `--execute-real`.
 
-| Muuttuja                           | Oletusarvo   | Lähdetiedosto                               | Kuvaus                                                                                                                                                                                                                                                                                                                                                 |
-| ---------------------------------- | ------------ | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`          | `open-sse/services/combo.ts`                | Kun arvona on `1`, ohitetaan yhteydet, joiden ikkunakohtainen tunnistebudjetti (`rateLimitOverrides.tpm`, taulu `provider_quota_state`) ei riitä pyynnön arvioituihin kustannuksiin ennen lähettämistä. Sallii pyynnön, kun budjettia ei ole määritetty.                                                                                               |
-| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(käytössä)_ | `open-sse/services/estimatorCalibration.ts` | Kontekstisuojan tunniste-estimaattorin (#14931) palautekalibrointi: `usage.prompt_tokens`-arvon ja arvion eksponentiaalinen liukuva keskiarvo (EMA) kullekin (palveluntarjoaja, malli, työkalujen läsnäolo) -yhdistelmälle, rajattuna välille 0.15–2.0 ja tallennettuna vain muistiin. `off`, `0` tai `false` poistaa tallennuksen ja käytön käytöstä. |
-| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`      | `open-sse/config/imageRegistry.ts`          | Rekisteröi `xai-oauth` (`xao`)- ja `grok-cli`-kuvareitit. Samanniminen koontinäytön ominaisuuslippu; tietokannan ohitus on ensisijainen tähän arvoon nähden.                                                                                                                                                                                           |
+### Kiintiötietoinen aikataulutus
+
+Käytetään `open-sse/services/combo.ts` ja `src/lib/quota/quotaScheduler.ts` ennakkopyynnön token-budjetin tarkistuksiin. Valinnainen — oletusreittikäyttäytyminen ei muutu, kun se on poistettu.
+
+| Muuttuja                           | Oletusarvo | Lähdetiedosto                               | Kuvaus                                                                                                                                                                                                                                                              |
+| ---------------------------------- | ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OMNIROUTE_QUOTA_AWARE_ROUTING`    | `0`        | `open-sse/services/combo.ts`                | Kun `1`, ohita yhteydet, joiden per-ikkuna token-budjetti (`rateLimitOverrides.tpm`, taulu `provider_quota_state`) ei voi kattaa arvioitua pyyntöä ennen lähettämistä. Epäonnistuu, jos budjettia ei ole määritetty.                                                |
+| `OMNIROUTE_ESTIMATOR_CALIBRATION`  | _(päällä)_ | `open-sse/services/estimatorCalibration.ts` | Palautteen kalibrointi kontekstivartijan token-estimaattorille (#14931): per (toimittaja, malli, käytettävissä olevat työkalut) EMA `usage.prompt_tokens` / arvio, rajoitettu 0.15–2.0, vain muistissa. `off`, `0` tai `false` estää tallentamisen ja soveltamisen. |
+| `GROK_SUBSCRIPTION_IMAGES_ENABLED` | `false`    | `open-sse/config/imageRegistry.ts`          | Rekisteröi `xai-oauth` (`xao`) ja `grok-cli` -kuvareitit. Dashboardin ominaisuuslippu samalla nimellä; tietokannan ylitys voittaa tämän arvon.                                                                                                                      |
