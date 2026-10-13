@@ -3012,11 +3012,6 @@
       "count": 1
     }
   },
-  "tests/unit/combo-fingerprint-expansion.test.ts": {
-    "@typescript-eslint/no-unused-vars": {
-      "count": 1
-    }
-  },
   "tests/unit/combo-health-route.test.ts": {
     "@typescript-eslint/no-explicit-any": {
       "count": 3
@@ -4003,11 +3998,6 @@
   },
   "tests/unit/opencode-executor.test.ts": {
     "@typescript-eslint/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "tests/unit/opencode-premium-keyless-gate-8681.test.ts": {
-    "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
   },
