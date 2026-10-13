@@ -11,8 +11,8 @@
  *   - a typed RetryInfo wait longer than the queue budget, on a limiter that is
  *     already scoped to the model, becomes a model lockout on that connection
  *     (the signal the combo pre-dispatch gate and account selection already skip
- *     on), for the requested name too when an alias resolved it, and leaves the
- *     queue unfrozen;
+ *     on), for the requested name too when an alias resolved it, that the failure
+ *     path's own shorter lockout does not cut short, and leaves the queue unfrozen;
  *   - every other long wait (prose hint, untyped field, connection-wide limiter,
  *     no model) keeps the limiter pause, and a pause the caller's remaining queue
  *     time cannot outlast fails at once instead of waiting that time out — but
@@ -224,6 +224,19 @@ test("the requested name is locked with the resolved model, so a combo target na
     true,
     "the combo gate and account selection check the requested name"
   );
+});
+
+test("the failure path's own short lockout after the 429 (the 3 s base in #16442) keeps the RetryInfo lock", async () => {
+  const conn = "conn-long-retry-short-relock";
+  await warm("gemini", conn, MODEL);
+
+  record429("gemini", conn, MODEL, gemini429Body("1104s"));
+  // src/sse/services/auth.ts then records its own lockout at the API-key base cooldown.
+  accountFallback.recordModelLockoutFailure("gemini", conn, MODEL, "rate_limited", 429, 3_000);
+
+  const lock = accountFallback.getModelLockoutInfo("gemini", conn, MODEL);
+  assert.ok(lock, "expected a model lockout");
+  assert.ok(lock.remainingMs > 1_100_000, `the lockout shrank to ${lock.remainingMs}ms`);
 });
 
 test("guard: a short body pause inside the queue budget still holds the call and then serves it", async () => {
