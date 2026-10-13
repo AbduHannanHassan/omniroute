@@ -7,6 +7,8 @@ import { deepMergeFallback } from "../../../src/i18n/request";
 import en from "../../../src/i18n/messages/en.json";
 import de from "../../../src/i18n/messages/de.json";
 
+vi.unmock("next-intl");
+
 const counters = {
   attempts: 1,
   uploadBytes: 6,
@@ -51,6 +53,11 @@ it(
       ["en", en],
       ["de", deepMergeFallback(structuredClone(de), en)],
     ] as const) {
+      const labels = messages.settings.proxyTraffic;
+      if (locale === "de") {
+        expect(labels.title).toBe(de.settings.proxyTraffic.title);
+        expect(labels.title).not.toBe(en.settings.proxyTraffic.title);
+      }
       let resolve!: (value: Response) => void;
       const pending = new Promise<Response>((r) => {
         resolve = r;
@@ -61,25 +68,25 @@ it(
           <ProxyTrafficPanel />
         </NextIntlClientProvider>
       );
-      expect(screen.getByRole("status").textContent).toBe(en.settings.proxyTraffic.loading);
+      expect(screen.getByRole("status").textContent).toBe(labels.loading);
       await act(async () => {
         resolve(Response.json(report));
         await pending;
       });
-      const overall = screen.getByRole("row", { name: /Overall \(all observed routes\)/ });
-      const proxied = screen.getByRole("row", { name: /Proxy subtotal/ });
+      const overall = screen.getByText(labels.overall).closest("tr")!;
+      const proxied = screen.getByText(labels.proxied).closest("tr")!;
       expect(within(overall).getByText("10 B")).toBeTruthy();
       expect(within(proxied).getByText("6 B")).toBeTruthy();
-      expect(screen.getByRole("row", { name: /Direct \(not proxied\)/ })).toBeTruthy();
-      expect(screen.getByText(en.settings.proxyTraffic.coverageNote)).toBeTruthy();
+      expect(screen.getByText(labels.direct).closest("tr")).toBeTruthy();
+      expect(screen.getByText(labels.coverageNote)).toBeTruthy();
       fetchMock.mockResolvedValueOnce(new Response(null, { status: 503 }));
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: en.settings.proxyTraffic.refresh }));
+        fireEvent.click(screen.getByRole("button", { name: labels.refresh }));
       });
-      expect(screen.getByRole("alert").textContent).toBe(en.settings.proxyTraffic.error);
+      expect(screen.getByRole("alert").textContent).toBe(labels.error);
       fetchMock.mockResolvedValueOnce(Response.json(report));
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: en.settings.proxyTraffic.refresh }));
+        fireEvent.click(screen.getByRole("button", { name: labels.refresh }));
       });
       expect(screen.queryByRole("alert")).toBeNull();
       expect(screen.getByRole("row", { name: /Fixture proxy/ })).toBeTruthy();
