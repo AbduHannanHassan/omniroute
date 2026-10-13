@@ -6,9 +6,11 @@
  *  - db/core.ts  (auto-migration at startup when db.json is found)
  *  - api/settings/import-json/route.ts  (on-demand import via dashboard)
  *
- * 🔒 Security: the caller is responsible for stripping sensitive keys
- * (password, requireLogin) from `data.settings` BEFORE passing the object
- * here, so this function never touches authentication configuration.
+ * 🔒 Security: the caller is responsible for stripping sensitive keys from
+ * `data.settings` BEFORE passing the object here (use
+ * `stripImportProtectedSettings()` from `@/shared/constants/securityImpactingSettings`:
+ * password, requireLogin, the authz-bypass keys and the other re-auth-guarded keys),
+ * so this function never touches authentication configuration.
  */
 
 import type { SqliteAdapter } from "./adapters/types";
@@ -124,8 +126,7 @@ export function runJsonMigration(
       let rateLimitOverridesJson = serializeJsonField(conn.rateLimitOverrides);
       if (!hasOverrides && typeof conn.id === "string") {
         const existing = selectExistingOverrides.get(conn.id) as
-          | { rate_limit_overrides_json: string | null }
-          | undefined;
+          { rate_limit_overrides_json: string | null } | undefined;
         if (existing) rateLimitOverridesJson = existing.rate_limit_overrides_json;
       }
       insertConn.run({
@@ -187,7 +188,7 @@ export function runJsonMigration(
       });
     }
 
-    // 3. Key-Value Settings (caller must have stripped password / requireLogin)
+    // 3. Key-Value Settings (caller must have run stripImportProtectedSettings)
     for (const [key, value] of Object.entries(data.settings ?? {})) {
       insertKv.run("settings", key, JSON.stringify(value));
     }

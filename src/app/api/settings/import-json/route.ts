@@ -8,6 +8,7 @@ import { runJsonMigration, type LegacyJsonData } from "@/lib/db/jsonMigration";
 import { getSettings } from "@/lib/db/settings";
 import { setSystemPromptConfig } from "@omniroute/open-sse/services/systemPrompt.ts";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { stripImportProtectedSettings } from "@/shared/constants/securityImpactingSettings";
 
 /**
  * POST /api/settings/import-json
@@ -16,7 +17,10 @@ import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
  * database.  Accepts either multipart/form-data (file field) or a raw JSON body.
  *
  * 🔒 Auth-guarded.
- * 🔒 Zero-Trust: password and requireLogin keys are stripped before insertion.
+ * 🔒 Zero-Trust: authentication and authz-bypass keys (password, requireLogin, the
+ *    re-auth-guarded keys of PATCH /api/settings, session revocation state) are
+ *    stripped before insertion — this route has no password re-auth, so it must not
+ *    become a side door around that gate (GHSA-hcwm-v74f-pfvh).
  * 🔒 A pre-import backup is created automatically before any data is written.
  */
 export async function POST(request: Request) {
@@ -56,10 +60,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // 🔒 Zero-Trust: strip authentication config before migration
-    if (data.settings) {
-      const { password: _pw, requireLogin: _rl, ...safeSettings } = data.settings;
-      data = { ...data, settings: safeSettings };
+    // 🔒 Zero-Trust: strip authentication + authz-bypass config before migration
+    if (data.settings && typeof data.settings === "object") {
+      data = { ...data, settings: stripImportProtectedSettings(data.settings) };
     }
 
     const db = getDbInstance();

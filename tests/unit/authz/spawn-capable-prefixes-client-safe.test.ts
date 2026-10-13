@@ -112,13 +112,26 @@ test("SPAWN_CAPABLE_PREFIXES is defined in the server-free constants leaf with t
     "/api/skills/executions",
     // The CLIProxyAPI binary lifecycle under /api/version-manager/, same work as /api/services/.
     "/api/version-manager/",
+    // GHSA-hcwm-v74f-pfvh: LOCAL_ONLY code-exec / spawn routes that were missing
+    // from the deny-list.
+    "/api/middleware/",
+    "/api/acp/agents",
+    "/api/system/version",
+    "/api/db-backups/exportAll",
+    "/api/db/health",
+    "/api/oauth/cursor/auto-import",
+    "/api/cli-tools/omp-settings",
+    "/api/cli-tools/letta-settings",
+    "/api/cli-tools/grok-build-settings",
+    "/api/cli-tools/forge-settings",
+    "/api/cli-tools/jcode-settings",
   ]) {
     assert.ok(
       SPAWN_CAPABLE_PREFIXES.includes(prefix),
       `SPAWN_CAPABLE_PREFIXES lost the spawn-capable prefix "${prefix}" during extraction`
     );
   }
-  // 20 at extraction time + 14 (GHSA-35fw-cv32-2373) + 2 (GHSA-jx89-f37j-pq89) + 1 (version-manager).
-  // qwen-settings is the one pre-existing entry not enumerated above.
-  assert.equal(SPAWN_CAPABLE_PREFIXES.length, 37);
+  // 20 at extraction time + 14 (GHSA-35fw-cv32-2373) + 2 (GHSA-jx89-f37j-pq89) + 1 (version-manager)
+  // + 11 (GHSA-hcwm-v74f-pfvh). qwen-settings is the one pre-existing entry not enumerated above.
+  assert.equal(SPAWN_CAPABLE_PREFIXES.length, 48);
 });
