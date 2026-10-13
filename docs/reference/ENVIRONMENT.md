@@ -1836,6 +1836,16 @@ Long-lived SSE consumer that mirrors OmniConductor hub tasks into the local A2A 
 | `CONDUCTOR_ORCHESTRATOR_TOKEN` | _(empty)_ | `src/lib/conductor/hubProxy.ts` | Credential for inbound A2A→hub task delegation (`POST /v1/tasks`); falls back to `CONDUCTOR_HUB_TOKEN` when unset. |
 | `CONDUCTOR_SPOKESPERSON_URL` | `http://127.0.0.1:7920` | `src/lib/conductor/faroProxy.ts` | Base URL of the spokesperson (Faro) service behind the dashboard chat proxy (`/api/conductor/ask`). |
 
+### Video Bridge isolated validation
+
+`scripts/ad-hoc/video-live-isolation.ts --prepare` requires
+`OMNIROUTE_VIDEO_LIVE_SOURCE_DIR` to name an absolute directory containing
+`storage.sqlite`. There is no default. The tool opens that database read-only and
+prepares a private temporary copy with isolated client keys and settings;
+credentials remain on the validation host. This variable is only for the explicit
+preparation command and is not consumed by normal server startup. Preparation
+does not call a model; the separate live smoke command requires `--execute-real`.
+
 ### Quota-aware scheduling
 
 Used by `open-sse/services/combo.ts` and `src/lib/quota/quotaScheduler.ts` for pre-request token-budget checks. Opt-in — default routing behavior is unchanged when unset.
