@@ -1,3 +1,8 @@
+---
+title: "Cached input token reporting"
+description: "Report cache-read input tokens and incomplete historical measurements."
+---
+
 # Cached input token reporting
 
 The usage overview shows provider-reported cache-read input tokens beneath total input tokens.
