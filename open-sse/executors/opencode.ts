@@ -992,6 +992,16 @@ export class OpencodeExecutor extends BaseExecutor {
         try {
           const status = result.response.status;
           if (status === 429) {
+            // Free-tier models on zen surface only: rotate on quota.
+            // Paid models (with API key) and opencode-go models return 429 directly.
+            const isFreeTierModel = !isPremiumOpencodeModel(input.model, this.provider);
+            const surface = this._surface();
+            if (!isFreeTierModel || surface !== "zen") {
+              if (attributionOn && skippedCooldown.size > 0) {
+                this.logSkippedCooldownAccounts(log, cid, skippedCooldown);
+              }
+              return result;
+            }
             markCooldown(account);
             const rateKey = proxyKeyOf(account.proxy);
             if (rateKey !== null) rateLimitedProxyKeys.add(rateKey);
