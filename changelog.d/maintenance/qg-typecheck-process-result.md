@@ -1,0 +1,1 @@
+- Reject interrupted, invalid, or incomplete compiler results in the dashboard, API, and open-sse typecheck gates before comparing or updating frozen baselines; invoke the candidate's installed TypeScript directly.
