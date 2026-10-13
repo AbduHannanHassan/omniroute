@@ -129,6 +129,20 @@ async function getPrefixToNode(): Promise<Map<string, string> | null> {
   }
 }
 
+/** API-key connection scope as a set; null when the key is not connection-restricted. */
+function toAllowedConnectionSet(ids: string[] | null | undefined): Set<string> | null {
+  return Array.isArray(ids) && ids.length > 0 ? new Set(ids) : null;
+}
+
+function filterAllowedConnections(rows: any[], allowed: Set<string> | null): any[] {
+  return allowed ? rows.filter((c: any) => allowed.has(String(c?.id))) : rows;
+}
+
+/** The synthetic no-auth connection counts only when the key scope names it. */
+function isSyntheticNoAuthAllowed(allowed: Set<string> | null): boolean {
+  return !allowed || allowed.has(SYNTHETIC_NOAUTH_CONNECTION_ID);
+}
+
 /**
  * Resolve whether `provider/model` has at least one usable active connection.
  * Returns `null` when the credential store is unavailable (unit tests / early boot).
@@ -166,10 +180,7 @@ export async function hasUsableCredentialsForModel(
   const rawProvider = typeof model === "string" ? model.split("/")[0]?.trim() : "";
   if (!rawProvider) return null;
   const provider = resolveProviderId(rawProvider);
-  const allowed =
-    Array.isArray(options.allowedConnectionIds) && options.allowedConnectionIds.length > 0
-      ? new Set(options.allowedConnectionIds)
-      : null;
+  const allowed = toAllowedConnectionSet(options.allowedConnectionIds);
   const isNoAuth = isNoAuthProviderKey(rawProvider, provider);
   try {
     const { getProviderConnections } = await loadProvidersModule();
@@ -179,7 +190,7 @@ export async function hasUsableCredentialsForModel(
     for (const providerId of providerIds) {
       const rows = await getProviderConnections({ provider: providerId, isActive: true });
       if (!Array.isArray(rows)) return null;
-      const connections = allowed ? rows.filter((c: any) => allowed.has(String(c?.id))) : rows;
+      const connections = filterAllowedConnections(rows, allowed);
       // This candidate has no rows — the next candidate (mapped node id) may
       // still hold the operator's connection.
       if (connections.length === 0) continue;
@@ -195,7 +206,7 @@ export async function hasUsableCredentialsForModel(
     // unusable; no-auth providers still work through the synthetic "noauth"
     // connection (and a noauth provider with stored rows can only have been
     // rejected via a terminal status in the loop above).
-    return isNoAuth && !sawStoredRow && (!allowed || allowed.has(SYNTHETIC_NOAUTH_CONNECTION_ID));
+    return isNoAuth && !sawStoredRow && isSyntheticNoAuthAllowed(allowed);
   } catch {
     return null;
   }

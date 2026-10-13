@@ -382,6 +382,31 @@ export function composeVisionPrompt(
 }
 
 /**
+ * A key-scoped call selects (and falls back) only among models the key may
+ * use, in its own selection-cache partition. Without a scope the router inputs
+ * are returned unchanged.
+ */
+function applyVisionKeyScope(
+  keyScope: import("./visionBridgeKeyScope").VisionBridgeKeyScope | undefined,
+  routerConfig: Partial<import("./visionBridgeRouter").VisionBridgeRouterConfig> | undefined,
+  deps: import("./visionBridgeRouter").VisionBridgeRouterDeps | undefined
+): {
+  routerConfig: Partial<import("./visionBridgeRouter").VisionBridgeRouterConfig> | undefined;
+  deps: import("./visionBridgeRouter").VisionBridgeRouterDeps | undefined;
+} {
+  if (!keyScope) return { routerConfig, deps };
+  return {
+    routerConfig: { ...routerConfig, cacheScope: keyScope.cacheScope },
+    deps: {
+      ...deps,
+      hasUsableCredentials: deps?.hasUsableCredentials
+        ? combineCredentialChecks(deps.hasUsableCredentials, keyScope)
+        : keyScope.hasUsableCredentials,
+    },
+  };
+}
+
+/**
  * Call the vision model to get an image description.
  * Supports both OpenAI-compatible and Anthropic API formats.
  * Uses auto-routing to select the fastest available model.
@@ -397,17 +422,7 @@ export async function callVisionModel(
     throw new Error("Vision model call aborted");
   }
 
-  // A key-scoped call selects (and falls back) only among models the key may
-  // use, in its own selection-cache partition.
-  if (config.keyScope) {
-    routerConfig = { ...routerConfig, cacheScope: config.keyScope.cacheScope };
-    deps = {
-      ...deps,
-      hasUsableCredentials: deps?.hasUsableCredentials
-        ? combineCredentialChecks(deps.hasUsableCredentials, config.keyScope)
-        : config.keyScope.hasUsableCredentials,
-    };
-  }
+  ({ routerConfig, deps } = applyVisionKeyScope(config.keyScope, routerConfig, deps));
 
   // Auto-select the best vision model. `deps` is the router's existing
   // injectable credential-check seam — without forwarding it, tests (and any

@@ -897,17 +897,49 @@ async function resolveSelfLoopScopedKey(
   };
 }
 
+/**
+ * The key the policy evaluates: the presented key, or — for a self-loop scoped
+ * to a caller's key — that caller's key. On a scope rejection the presented key
+ * is kept so the result still names what the client sent.
+ */
+async function resolveEnforcedPolicyKey(
+  request: Request
+): Promise<{ apiKey: string | null; selfLoopScope: SelfLoopScope }> {
+  const presentedKey = await resolvePolicyApiKey(request);
+  const selfLoopScope = await resolveSelfLoopScopedKey(request, presentedKey);
+  if (selfLoopScope.rejection || !selfLoopScope.key) return { apiKey: presentedKey, selfLoopScope };
+  return { apiKey: selfLoopScope.key, selfLoopScope };
+}
+
+/**
+ * A self-loop scoped to a key that no longer resolves must not fall back to the
+ * unrestricted self-loop identity.
+ */
+function unresolvedScopedKeyRejection(selfLoopScope: SelfLoopScope): Response | null {
+  if (!selfLoopScope.key) return null;
+  return errorResponse(HTTP_STATUS.FORBIDDEN, "Scoped API key is not available");
+}
+
+/**
+ * Internal sub-request of a parent request that already passed the full policy
+ * (schedule, budget, limits): re-check authorization only, so the key's
+ * allowances are not charged twice.
+ */
+async function validateSelfLoopScopedAccess(
+  context: Parameters<typeof validateQuotaAccess>[0]
+): Promise<Response | null> {
+  return (await validateQuotaAccess(context)) ?? (await validateModelAccess(context));
+}
+
 export async function enforceApiKeyPolicy(
   request: Request,
   modelStr: string | null,
   options?: EnforceApiKeyPolicyOptions
 ): Promise<ApiKeyPolicyResult> {
-  const presentedKey = await resolvePolicyApiKey(request);
-  const selfLoopScope = await resolveSelfLoopScopedKey(request, presentedKey);
+  const { apiKey, selfLoopScope } = await resolveEnforcedPolicyKey(request);
   if (selfLoopScope.rejection) {
-    return { apiKey: presentedKey, apiKeyInfo: null, rejection: selfLoopScope.rejection };
+    return { apiKey, apiKeyInfo: null, rejection: selfLoopScope.rejection };
   }
-  const apiKey = selfLoopScope.key ?? presentedKey;
 
   // No API key = local/session mode, skip policy checks
   if (!apiKey) {
@@ -930,23 +962,14 @@ export async function enforceApiKeyPolicy(
 
   // Key not found in DB — skip policy (auth layer handles validation)
   if (!apiKeyInfo) {
-    // A self-loop scoped to a key that no longer resolves must not fall back
-    // to the unrestricted self-loop identity.
-    const rejection = selfLoopScope.key
-      ? errorResponse(HTTP_STATUS.FORBIDDEN, "Scoped API key is not available")
-      : null;
-    return { apiKey, apiKeyInfo: null, rejection };
+    return { apiKey, apiKeyInfo: null, rejection: unresolvedScopedKeyRejection(selfLoopScope) };
   }
 
   const context = { request, apiKey, apiKeyInfo, modelStr };
   const statusRejection = validateKeyStatus(context);
   if (statusRejection) return { apiKey, apiKeyInfo, rejection: statusRejection };
   if (selfLoopScope.key) {
-    // Internal sub-request of a parent request that already passed the full
-    // policy (schedule, budget, limits): re-check authorization only, so the
-    // key's allowances are not charged twice.
-    const rejection = (await validateQuotaAccess(context)) ?? (await validateModelAccess(context));
-    return { apiKey, apiKeyInfo, rejection };
+    return { apiKey, apiKeyInfo, rejection: await validateSelfLoopScopedAccess(context) };
   }
   const scheduleRejection = await validateKeyScheduleAndUsage(context);
   if (scheduleRejection) return { apiKey, apiKeyInfo, rejection: scheduleRejection };
