@@ -65898,7 +65898,7 @@
       }
     },
     "docs/reference/API_REFERENCE.md": {
-      "source_hash": "05a4025e813f599b0a04e7970715f5e698ab6468fd08171aeec9e6e9466e6919",
+      "source_hash": "71246e8ab905bc107c366c75f2e6a212ed8869227ffa08b0b893c8d27ffa7d19",
       "locales": {
         "ar": {
           "source_hash": "05a4025e813f599b0a04e7970715f5e698ab6468fd08171aeec9e6e9466e6919",
@@ -67383,8 +67383,8 @@
           "updated_at": "2026-10-11T04:53:39.325Z"
         },
         "pt-BR": {
-          "source_hash": "05a4025e813f599b0a04e7970715f5e698ab6468fd08171aeec9e6e9466e6919",
-          "target_hash": "92415284c590face0d7fa9675bb4c3afafdad177b9e3d20d62e12350d6f16045",
+          "source_hash": "71246e8ab905bc107c366c75f2e6a212ed8869227ffa08b0b893c8d27ffa7d19",
+          "target_hash": "8cf8839529528ca56ee0db9eb3d10016072b0bd3921a2c5a3fcaa4b2bcf52809",
           "section_hashes": [
             "6713ceb19965",
             "347341ba6233",
@@ -67404,7 +67404,7 @@
             "c7cf690e4c7f",
             "c01a7431f350",
             "e0441852a761",
-            "85de20481965",
+            "bccce3567408",
             "aecbbfa6b82f",
             "378015fd3c6f",
             "029bcea52971",
@@ -67437,7 +67437,7 @@
             "09c726593fd5",
             "488a77759b48"
           ],
-          "updated_at": "2026-10-11T04:53:39.325Z"
+          "updated_at": "2026-10-13T14:28:44.996Z"
         },
         "ro": {
           "source_hash": "05a4025e813f599b0a04e7970715f5e698ab6468fd08171aeec9e6e9466e6919",
@@ -71523,7 +71523,7 @@
       }
     },
     "docs/reference/ENVIRONMENT.md": {
-      "source_hash": "74c86057fc36376fcd0299a79bb6d8b446be914846160d2890ae5ebb1b58d553",
+      "source_hash": "8f737320644ef858572c3d15f8b9544705e0b4066b4d41c3b53631a125c97052",
       "locales": {
         "ar": {
           "source_hash": "74c86057fc36376fcd0299a79bb6d8b446be914846160d2890ae5ebb1b58d553",
@@ -72651,8 +72651,8 @@
           "updated_at": "2026-10-11T04:53:39.325Z"
         },
         "pt-BR": {
-          "source_hash": "74c86057fc36376fcd0299a79bb6d8b446be914846160d2890ae5ebb1b58d553",
-          "target_hash": "072f5304bbbfaef2f30260eb0b9ef1ac94419bc2738019de744fda35c3df7012",
+          "source_hash": "8f737320644ef858572c3d15f8b9544705e0b4066b4d41c3b53631a125c97052",
+          "target_hash": "f2226a8e35af4034c31d679640efd285a0dda2271e93baffc3238eb0a3e6fe39",
           "section_hashes": [
             "c7914887e077",
             "93c63cd7c00b",
@@ -72691,9 +72691,9 @@
             "74babf3f302f",
             "3dba13203257",
             "bc93e8838e08",
-            "1e6c9b0122ea"
+            "8c2b56e1bdfc"
           ],
-          "updated_at": "2026-10-11T04:53:39.325Z"
+          "updated_at": "2026-10-13T14:27:49.561Z"
         },
         "ro": {
           "source_hash": "74c86057fc36376fcd0299a79bb6d8b446be914846160d2890ae5ebb1b58d553",
@@ -86549,7 +86549,7 @@
       }
     },
     "docs/security/GUARDRAILS.md": {
-      "source_hash": "76d87d4b932ff22a644dfcc999023e462258be815f96020c41b034b635e91d29",
+      "source_hash": "109e8368a1117779350fc84728955ca24bc24b7a4ac41e49158495282ae16132",
       "locales": {
         "pl": {
           "source_hash": "76d87d4b932ff22a644dfcc999023e462258be815f96020c41b034b635e91d29",
@@ -86762,9 +86762,21 @@
           "updated_at": "2026-10-11T04:53:39.325Z"
         },
         "pt-BR": {
-          "source_hash": "76d87d4b932ff22a644dfcc999023e462258be815f96020c41b034b635e91d29",
-          "target_hash": "89a504e0189fc59853088d979387159e106a3099293add733045c2dff22ed226",
-          "updated_at": "2026-10-11T04:53:39.325Z"
+          "source_hash": "109e8368a1117779350fc84728955ca24bc24b7a4ac41e49158495282ae16132",
+          "target_hash": "613e27cd99d615d9f6a3c90bb32bf80f92ff20b5e3a23aaf26ec86109cc6e672",
+          "section_hashes": [
+            "4d23ad7eb5c6",
+            "4f1e84e958cc",
+            "cf78d8416f0e",
+            "49b62c8eebdf",
+            "11cac6cc4eaa",
+            "7b98d7390efd",
+            "4422e425d260",
+            "1a5190face23",
+            "41864b605a74",
+            "8c17200a15fd"
+          ],
+          "updated_at": "2026-10-13T14:29:57.769Z"
         },
         "pt": {
           "source_hash": "76d87d4b932ff22a644dfcc999023e462258be815f96020c41b034b635e91d29",
