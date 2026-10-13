@@ -13,10 +13,11 @@
  * `maxCooldownMs` cap) and the key's limiter is already scoped to the model, it
  * becomes a model lockout on the connection instead: the same scope the pause
  * would have had, but visible, cleared by the resilience reset, and honoured by
- * the combo pre-dispatch gate and account selection. The name the caller asked
- * for is locked too when an alias resolved it to that model, as chatCore's
- * quota path does, because those routers check the requested name. Prose hints,
- * untyped fields and connection-wide limiters keep the pause.
+ * the combo pre-dispatch gate and account selection. Those routers check the
+ * name the caller asked for, so when an alias resolved it to that model the
+ * requested name is locked too, exactly: through the quota-family keys an alias
+ * that crosses a family (antigravity) or scope (codex) would lock its own.
+ * Prose hints, untyped fields and connection-wide limiters keep the pause.
  *
  * A pause the limiter does take is remembered per limiter instance, so a caller
  * whose remaining queue time ends before the pause does fails at once instead of
@@ -30,7 +31,7 @@
  * @module services/rateLimitManager/bodyRetryPause
  */
 
-import { lockModel } from "../accountFallback.ts";
+import { lockExactModel, lockModel } from "../accountFallback.ts";
 import { retryInfoDetailsMs } from "../retryAfterJson.ts";
 import { LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE, markLocalRateLimitError } from "./errors";
 import { logRateLimit } from "./log";
@@ -67,11 +68,12 @@ export function retryInfoDelayMs(responseBody: unknown): number | null {
 }
 
 /**
- * Lock the model on the connection (and the requested name, when it differs)
- * for the `RetryInfo` wait when a 429 states one longer than the queue budget,
- * and return true. Returns false when the wait stays a limiter pause: it fits
- * the budget, it did not come from a typed `RetryInfo`, the limiter is
- * connection-wide, or the queue has no wait deadline (`maxWaitMs` 0, #12902).
+ * Lock the model on the connection (and, exactly, the requested name when it
+ * differs) for the `RetryInfo` wait when a 429 states one longer than the
+ * queue budget, and return true. Returns false when the wait stays a limiter
+ * pause: it fits the budget, it did not come from a typed `RetryInfo`, the
+ * limiter is connection-wide, or the queue has no wait deadline (`maxWaitMs` 0,
+ * #12902).
  */
 export function lockModelForLongBodyRetry(
   retry: BodyRetry,
@@ -84,7 +86,7 @@ export function lockModelForLongBodyRetry(
   if (lockMs === null || lockMs <= queueBudgetMs) return false;
   lockModel(provider, connectionId, scopedModel, reason, lockMs);
   const alias = requestedModel && requestedModel !== scopedModel ? requestedModel : null;
-  if (alias) lockModel(provider, connectionId, alias, reason, lockMs);
+  if (alias) lockExactModel(provider, connectionId, alias, reason, lockMs);
   logRateLimit(
     `🔒 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — RetryInfo retry ${Math.ceil(lockMs / 1000)}s (${reason}) exceeds the ${queueBudgetMs}ms queue budget; locking ${scopedModel}${alias ? ` (requested as ${alias})` : ""} on this connection instead of pausing its queue`
   );

@@ -135,6 +135,47 @@ test("lockModelForLongBodyRetry also locks the requested name an alias resolved 
   assert.equal(accountFallback.isModelLocked("gemini", "conn-alias", "gemini-2.5-pro"), false);
 });
 
+test("the requested name is locked exactly, so an alias across quota families or scopes keeps its own serving", () => {
+  const lockAlias = (provider: string, scopedModel: string, requestedModel: string) =>
+    bodyRetryPause.lockModelForLongBodyRetry(
+      {
+        provider,
+        connectionId: `conn-${provider}`,
+        scopedModel,
+        requestedModel,
+        status: 429,
+        reason: "rate_limit_exceeded",
+      },
+      30_000,
+      retryInfoBody("86399s")
+    );
+
+  // Antigravity limits and locks per quota family: a Gemini-named alias for a Claude model.
+  assert.equal(lockAlias("antigravity", "claude-sonnet-4-5", "gemini-2.5-pro"), true);
+  assert.equal(
+    accountFallback.isModelLocked("antigravity", "conn-antigravity", "claude-sonnet-4-5"),
+    true
+  );
+  assert.equal(
+    accountFallback.isModelLocked("antigravity", "conn-antigravity", "gemini-2.5-pro"),
+    true
+  );
+  assert.equal(
+    accountFallback.isModelLocked("antigravity", "conn-antigravity", "gemini-2.5-flash"),
+    false,
+    "the alias's Gemini family keeps serving"
+  );
+
+  // Codex limits and locks per quota scope: a codex-scope alias for the spark model.
+  assert.equal(lockAlias("codex", "gpt-5.3-codex-spark", "gpt-5.5"), true);
+  assert.equal(accountFallback.isModelLocked("codex", "conn-codex", "gpt-5.5"), true);
+  assert.equal(
+    accountFallback.isModelLocked("codex", "conn-codex", "gpt-5.4"),
+    false,
+    "the alias's codex scope keeps serving"
+  );
+});
+
 test("retryInfoDelayMs reads only a typed RetryInfo detail, like the google_rpc_retry_info provenance", () => {
   assert.equal(bodyRetryPause.retryInfoDelayMs(retryInfoBody("5s")), 5_000);
   assert.equal(bodyRetryPause.retryInfoDelayMs(JSON.parse(retryInfoBody("5s"))), 5_000);

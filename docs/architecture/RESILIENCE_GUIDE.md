@@ -490,7 +490,9 @@ lockout on that connection instead (`lockModelForLongBodyRetry` in
 signal the combo pre-dispatch gate and account selection already skip on via
 `isModelLocked()`, and the limiter is left unpaused. The name the client asked
 for is locked too when an alias resolved it to that model, because those
-routers check the requested name. A prose hint, an untyped `retryDelay`, or a
+routers check the requested name; it is locked exactly (`lockExactModel`), so an
+alias that crosses an antigravity quota family or a codex scope never locks its
+own. A prose hint, an untyped `retryDelay`, or a
 limiter shared by the whole connection keeps the pause. When the limiter the
 429 path just rebuilt does pause, a caller whose remaining queue time ends
 before the pause does is turned away at once with the queue-timeout code

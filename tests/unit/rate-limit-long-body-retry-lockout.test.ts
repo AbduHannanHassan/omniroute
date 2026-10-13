@@ -315,7 +315,9 @@ test("guard: a recorded pause never outlasts the refresh clock of the limiter it
   // stalls (slow logging, a busy event loop) must not stretch the recorded pause
   // past that clock, or the fail-fast would turn away a call the refill serves.
   const STALL_MS = 2_500;
+  let builtAt = 0;
   rateLimitManager.__setLimiterFactoryForTests((options) => {
+    builtAt = Date.now();
     const limiter = new Bottleneck(options);
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, STALL_MS);
     return limiter;
@@ -323,7 +325,6 @@ test("guard: a recorded pause never outlasts the refresh clock of the limiter it
   record429("gemini", conn, MODEL, gemini429Body("4s"));
 
   // About 1.5 s of the 4 s pause are left, well inside a 3 s budget.
-  const started = Date.now();
   const result = await rateLimitManager.withRateLimit(
     "gemini",
     conn,
@@ -333,5 +334,6 @@ test("guard: a recorded pause never outlasts the refresh clock of the limiter it
     3_000
   );
   assert.equal(result, "refilled");
-  assert.ok(Date.now() - started >= 1_000, "the call waited for the refill");
+  // The refill comes 4 s after the build, however long the stall took.
+  assert.ok(Date.now() - builtAt >= 4_000, "the call waited for the refill");
 });
