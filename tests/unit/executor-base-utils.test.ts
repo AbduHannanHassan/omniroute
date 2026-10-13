@@ -20,6 +20,23 @@ test("mergeUpstreamExtraHeaders merges string key-value pairs", () => {
   assert.equal(h["X-Other"], "val2");
 });
 
+test("mergeUpstreamExtraHeaders replaces same-name entries under any case (no comma-join)", () => {
+  // A client-forwarded lowercase attribution key plus an operator-configured
+  // variant must end as ONE entry — undici comma-joins case-duplicates.
+  const h: Record<string, string> = {
+    "http-referer": "https://client.example",
+    "x-title": "Client",
+  };
+  base.mergeUpstreamExtraHeaders(h, {
+    "HTTP-Referer": "https://configured.example",
+    "X-Title": "Operator",
+  });
+  assert.equal(Object.keys(h).filter((k) => k.toLowerCase() === "http-referer").length, 1);
+  assert.equal(h["HTTP-Referer"], "https://configured.example");
+  assert.equal(Object.keys(h).filter((k) => k.toLowerCase() === "x-title").length, 1);
+  assert.equal(h["X-Title"], "Operator");
+});
+
 test("mergeUpstreamExtraHeaders overrides user-agent via setUserAgentHeader", () => {
   const h: Record<string, string> = { "User-Agent": "old", "user-agent": "old" };
   base.mergeUpstreamExtraHeaders(h, { "user-agent": "new-agent" });

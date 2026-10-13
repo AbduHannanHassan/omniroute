@@ -115,6 +115,29 @@ function canonicalId(prefix: "ses_" | "msg_", seed?: string): string {
 }
 
 /**
+ * Case-insensitively replace any existing entry before setting: a registry static
+ * or operator header under a different case plus the forwarded key would both
+ * reach the wire and be comma-joined into one garbage value by undici.
+ */
+function setForwardedHeader(headers: Record<string, string>, name: string, value: string): void {
+  for (const existing of Object.keys(headers)) {
+    if (existing.toLowerCase() === name) delete headers[existing];
+  }
+  headers[name] = value;
+}
+
+/**
+ * Attribution kill-switch: OMNIROUTE_FORWARD_ATTRIBUTION=0 keeps the
+ * registry/operator app identity and never forwards client x-session-id /
+ * x-title / http-referer. Default on: a harness behind OmniRoute keeps its app
+ * attribution upstream (OpenRouter publisher gates key on it), matching the
+ * falsy-off motif of OPENCODE_SYNTHESIZE_CLI_HEADERS.
+ */
+function attributionForwardingEnabled(): boolean {
+  return !/^(0|false|no|off)$/i.test(process.env.OMNIROUTE_FORWARD_ATTRIBUTION?.trim() ?? "");
+}
+
+/**
  * Header keys that are forwarded from the client to the upstream provider.
  * Used by both OpencodeExecutor and DefaultExecutor.
  */
@@ -128,9 +151,11 @@ const OPENCODE_HEADER_KEYS = [
 /**
  * Common agent-metadata headers used by non-OpenCode clients (custom agents/
  * providers) for upstream request tracking and attribution. Forwarded the same
- * way as the x-opencode-* set: case-insensitive lookup, client value wins.
- * Added for 9router#2413 — these were previously dropped for every client
- * outside the OpenCode allowlist.
+ * way as the x-opencode-* set (case-insensitive lookup, client value wins,
+ * plus case-variant replacement — see setForwardedHeader). http-referer was
+ * added for app attribution that upstreams such as OpenRouter key publisher
+ * access control on; the whole set is gated by OMNIROUTE_FORWARD_ATTRIBUTION.
+ * Originally added for 9router#2413.
  */
 const AGENT_METADATA_HEADER_KEYS = ["x-session-id", "x-title", "http-referer"] as const;
 
@@ -199,22 +224,20 @@ export function forwardOpencodeClientHeaders(
   for (const headerName of OPENCODE_HEADER_KEYS) {
     const value = findHeader(clientHeaders, headerName);
     if (value) {
-      headers[headerName] = value;
+      setForwardedHeader(headers, headerName, value);
     }
   }
 
   // 2b. Forward agent-metadata headers (x-session-id, x-title, http-referer) — 9router#2413.
   // http-referer carries app attribution OpenRouter publisher gates key on (e.g. the
-  // thinkingmachines/inkling:free "agentic harnesses" 403). Delete same-name entries
-  // under any case first: a registry static like "X-Title"/"HTTP-Referer" plus the
-  // lowercase forwarded key would be comma-joined into one garbage value by undici.
-  for (const headerName of AGENT_METADATA_HEADER_KEYS) {
-    const value = findHeader(clientHeaders, headerName);
-    if (!value) continue;
-    for (const existing of Object.keys(headers)) {
-      if (existing.toLowerCase() === headerName) delete headers[existing];
+  // thinkingmachines/inkling:free "agentic harnesses" 403). Gated by
+  // OMNIROUTE_FORWARD_ATTRIBUTION for operators who want the static identity kept.
+  if (attributionForwardingEnabled()) {
+    for (const headerName of AGENT_METADATA_HEADER_KEYS) {
+      const value = findHeader(clientHeaders, headerName);
+      if (!value) continue;
+      setForwardedHeader(headers, headerName, value);
     }
-    headers[headerName] = value;
   }
 
   // 3. OpencodeExecutor-only: synthesize session/request id from fallback headers

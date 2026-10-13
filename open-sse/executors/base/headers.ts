@@ -15,6 +15,14 @@ export function mergeUpstreamExtraHeaders(
         setUserAgentHeader(headers, v);
         continue;
       }
+      // Delete same-name entries under any case first: a client-forwarded
+      // lowercase attribution key plus this configured key would otherwise
+      // both reach the wire and be comma-joined into one garbage value by
+      // undici (operator-configured headers land here, after the forward).
+      const lower = k.toLowerCase();
+      for (const existing of Object.keys(headers)) {
+        if (existing.toLowerCase() === lower) delete headers[existing];
+      }
       headers[k] = v;
     }
   }

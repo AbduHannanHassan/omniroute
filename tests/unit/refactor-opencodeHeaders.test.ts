@@ -199,6 +199,53 @@ describe("forwardOpencodeClientHeaders – HTTP-Referer attribution", () => {
     assert.equal(headers["HTTP-Referer"], "https://endpoint-proxy.local");
     assert.equal(headers["X-Title"], "Endpoint Proxy");
   });
+
+  it("replaces a differently-cased static X-Session-ID instead of comma-joining", () => {
+    const headers = h({ "X-Session-Id": "stale" });
+    forwardOpencodeClientHeaders(headers, { "x-session-id": "fresh" });
+    assert.deepEqual(
+      Object.keys(headers).filter((k) => k.toLowerCase() === "x-session-id"),
+      ["x-session-id"]
+    );
+    assert.equal(headers["x-session-id"], "fresh");
+  });
+
+  it("keeps the static X-Title when the client sends an empty string", () => {
+    const headers = h({ "X-Title": "Endpoint Proxy" });
+    forwardOpencodeClientHeaders(headers, { "x-title": "" });
+    assert.equal(headers["X-Title"], "Endpoint Proxy");
+    assert.equal(headers["x-title"], undefined);
+  });
+
+  it("replaces a differently-cased x-opencode-* static instead of comma-joining", () => {
+    const headers = h({ "X-OpenCode-Session": "ses_operator" });
+    forwardOpencodeClientHeaders(headers, { "x-opencode-session": "ses_client" });
+    assert.deepEqual(
+      Object.keys(headers).filter((k) => k.toLowerCase() === "x-opencode-session"),
+      ["x-opencode-session"]
+    );
+    assert.equal(headers["x-opencode-session"], "ses_client");
+  });
+
+  it("OMNIROUTE_FORWARD_ATTRIBUTION=0 keeps statics and drops client attribution", () => {
+    process.env.OMNIROUTE_FORWARD_ATTRIBUTION = "0";
+    try {
+      const headers = h({
+        "HTTP-Referer": "https://endpoint-proxy.local",
+        "X-Title": "Endpoint Proxy",
+      });
+      forwardOpencodeClientHeaders(headers, {
+        "http-referer": "https://claude.ai",
+        "x-title": "My Agent",
+        "x-session-id": "sess-1",
+      });
+      assert.equal(headers["HTTP-Referer"], "https://endpoint-proxy.local");
+      assert.equal(headers["X-Title"], "Endpoint Proxy");
+      assert.equal(headers["x-session-id"], undefined);
+    } finally {
+      delete process.env.OMNIROUTE_FORWARD_ATTRIBUTION;
+    }
+  });
 });
 
 // ── synthesizeRequestId ─────────────────────────────────────────────────────
