@@ -18,6 +18,7 @@ import { resolveDynamicAudioProviders } from "@/app/api/v1/_shared/audioProvider
 import { errorResponse } from "@omniroute/open-sse/utils/error.ts";
 import { HTTP_STATUS } from "@omniroute/open-sse/config/constants.ts";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
+import { intersectAllowedConnectionIds } from "@/sse/handlers/chat/connectionConstraints";
 import {
   isAllRateLimitedCredentials,
   rateLimitedProviderResponse,
@@ -90,7 +91,8 @@ async function transcribeWithModel(
   modelStr: string,
   startTime: number,
   apiKeyId?: string | null,
-  apiKeyName?: string | null
+  apiKeyName?: string | null,
+  allowedConnections: string[] | null = null
 ): Promise<Response> {
   // Provider nodes eligible for transcription: this route's own audio type plus
   // general chat/responses gateways. Remote hosts are opt-in (default OFF).
@@ -121,7 +123,12 @@ async function transcribeWithModel(
     const credentialKey = providerConfig.credentialProviderId || provider;
     // NOTE: the 2nd arg of this helper is `excludeConnectionId`, not "use this
     // connection" — a combo target's connectionId must never be passed here.
-    credentials = await getProviderCredentialsWithQuotaPreflight(credentialKey);
+    // GHSA-3w2r: the pool is bounded by the caller key's allowed connections.
+    credentials = await getProviderCredentialsWithQuotaPreflight(
+      credentialKey,
+      null,
+      allowedConnections
+    );
     // Prefix match wins (`deepgram/nova-3` → native Deepgram). If that
     // provider has no credentials, retry gateways that list the same nested
     // model id (e.g. OpenRouter's `deepgram/nova-3`).
@@ -134,7 +141,9 @@ async function transcribeWithModel(
       );
       if (alternate) {
         const alternateCredentials = await getProviderCredentialsWithQuotaPreflight(
-          alternate.provider
+          alternate.provider,
+          null,
+          allowedConnections
         );
         if (alternateCredentials && !isAllRateLimitedCredentials(alternateCredentials)) {
           provider = alternate.provider;
@@ -244,6 +253,13 @@ export async function POST(request) {
   // request, matching the pattern every other proxied route follows (#13544).
   const apiKeyId = policy.apiKeyInfo?.id || null;
   const apiKeyName = policy.apiKeyInfo?.name || null;
+  // GHSA-3w2r: credential selection stays on the key's allowed connections
+  // (for the internal self-loop bearer, the Audio Bridge's narrowed scope —
+  // see applySelfLoopConnectionScope). null = the key is not connection-scoped.
+  const allowedConnections = intersectAllowedConnectionIds(
+    policy.apiKeyInfo?.allowedConnections ?? null,
+    null
+  );
 
   // A bare name (no "/") may be a combo. /v1/models advertises combos, and chat and
   // embeddings both resolve them — resolving here too keeps the catalog honest and
@@ -270,7 +286,8 @@ export async function POST(request) {
               targetModelStr,
               startTime,
               apiKeyId,
-              apiKeyName
+              apiKeyName,
+              allowedConnections
             ),
           isModelAvailable: undefined,
           log,
@@ -285,5 +302,12 @@ export async function POST(request) {
     }
   }
 
-  return transcribeWithModel(formData, modelStr, startTime, apiKeyId, apiKeyName);
+  return transcribeWithModel(
+    formData,
+    modelStr,
+    startTime,
+    apiKeyId,
+    apiKeyName,
+    allowedConnections
+  );
 }

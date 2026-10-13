@@ -6,6 +6,7 @@ import { detectMediaParts } from "@omniroute/open-sse/utils/mediaParts";
 import { getRuntimePorts } from "@/lib/runtime/ports";
 import { fetchRemoteImage } from "@/shared/network/remoteImageFetch";
 import { resolveSelfLoopBearer } from "@/shared/middleware/chatBodyAdmission";
+import { SELF_LOOP_ALLOWED_CONNECTIONS_HEADER } from "@/shared/middleware/selfLoopConnectionScope";
 
 import { hasUsableCredentialsForModel } from "./visionBridgeCredentials";
 
@@ -23,6 +24,11 @@ export interface AudioTranscriptionConfig {
   model: string;
   signal?: AbortSignal;
   timeoutMs: number;
+  /**
+   * GHSA-3w2r: the caller API key's allowed connections, forwarded on the
+   * self-loop so the transcription route stays on them (narrowing only).
+   */
+  allowedConnectionIds?: string[] | null;
 }
 
 export interface AudioTranscriptionSegment {
@@ -287,18 +293,17 @@ async function sendAudioTranscriptionRequest(
 
     const port = (deps.getPort ?? (() => getRuntimePorts().port))();
     const bearer = (deps.getBearer ?? resolveSelfLoopBearer)();
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      Authorization: `Bearer ${bearer}`,
+      "Content-Type": `multipart/form-data; boundary=${boundary}`,
+    };
+    if (config.allowedConnectionIds?.length) {
+      headers[SELF_LOOP_ALLOWED_CONNECTIONS_HEADER] = config.allowedConnectionIds.join(",");
+    }
     const response = await (deps.fetchImpl ?? fetch)(
       `http://localhost:${port}/v1/audio/transcriptions`,
-      {
-        method: "POST",
-        signal,
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${bearer}`,
-          "Content-Type": `multipart/form-data; boundary=${boundary}`,
-        },
-        body: multipartBody,
-      }
+      { method: "POST", signal, headers, body: multipartBody }
     );
     if (!response.ok) {
       throw new Error(`Audio transcription failed (${response.status})`);

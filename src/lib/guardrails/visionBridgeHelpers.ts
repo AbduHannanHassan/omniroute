@@ -6,6 +6,7 @@ import { normalizeDataUri } from "@omniroute/open-sse/utils/imageNormalize";
 import { fetchRemoteImage } from "@/shared/network/remoteImageFetch";
 import { getRuntimePorts } from "@/lib/runtime/ports";
 import { resolveSelfLoopBearer } from "@/shared/middleware/chatBodyAdmission";
+import { SELF_LOOP_ALLOWED_CONNECTIONS_HEADER } from "@/shared/middleware/selfLoopConnectionScope";
 import { getBestVisionModel, getFallbackModels, recordLatency } from "./visionBridgeRouter";
 import { REGISTRY } from "@omniroute/open-sse/config/providers";
 import { fetch as undiciFetch } from "undici";
@@ -356,6 +357,16 @@ export interface VisionModelConfig {
   fetchImpl?: typeof fetch;
   /** Receives the actual successful model while the public return value remains a string. */
   onModelUsed?: (model: string) => void;
+  /**
+   * GHSA-3w2r: caller API-key policy. `credentialCheck` narrows the router's
+   * candidate pool (primary + fallbacks) to models the key may use,
+   * `cacheScope` partitions the router caches per key, and
+   * `allowedConnectionIds` is forwarded on the self-loop so the describe hop
+   * stays on the key's connections.
+   */
+  credentialCheck?: (model: string) => Promise<boolean | null>;
+  cacheScope?: string;
+  allowedConnectionIds?: string[] | null;
 }
 
 /** Task-aware focus hint (codex-vision-proxy pattern): steer the description
@@ -390,12 +401,18 @@ export async function callVisionModel(
   // Auto-select the best vision model. `deps` is the router's existing
   // injectable credential-check seam — without forwarding it, tests (and any
   // embedder) cannot keep model selection away from the live connections DB.
+  const scopedRouterConfig = config.cacheScope
+    ? { ...routerConfig, cacheScope: config.cacheScope }
+    : routerConfig;
+  const scopedDeps = config.credentialCheck
+    ? { ...deps, hasUsableCredentials: config.credentialCheck }
+    : deps;
   const modelToUse = await getBestVisionModel(
     {
       fixedModel: config.model,
-      ...routerConfig,
+      ...scopedRouterConfig,
     },
-    deps
+    scopedDeps
   );
   // (#8430) When no vision-capable provider has usable credentials on this
   // instance, surface a clear error instead of attempting a describe call that
@@ -406,7 +423,10 @@ export async function callVisionModel(
   let lastError: Error | null = null;
 
   // Try primary model + fallbacks
-  const modelsToTry = [modelToUse, ...(await getFallbackModels(modelToUse, routerConfig, deps))];
+  const modelsToTry = [
+    modelToUse,
+    ...(await getFallbackModels(modelToUse, scopedRouterConfig, scopedDeps)),
+  ];
   const maxAttempts = Math.min(modelsToTry.length, routerConfig?.maxFallbackAttempts ?? 3);
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -797,6 +817,9 @@ async function callVisionModelSingle(
         // this header when the bearer is the self-loop bearer (set above), so
         // external clients cannot use it to bypass admission.
         headers["x-omniroute-admission-bypass"] = "internal";
+        if (config.allowedConnectionIds?.length) {
+          headers[SELF_LOOP_ALLOWED_CONNECTIONS_HEADER] = config.allowedConnectionIds.join(",");
+        }
       }
 
       response = await fetchImpl(`${baseUrl}/chat/completions`, {

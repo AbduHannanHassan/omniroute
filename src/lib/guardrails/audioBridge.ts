@@ -14,13 +14,24 @@ import {
 } from "./audioBridgeHelpers";
 import { bridgeCacheKey, getSharedBridgeCacheFor } from "./modalityBridge/bridgeCache";
 import { recordBridgeUse } from "./modalityBridge/bridgeStats";
+import { hasUsableCredentialsForModel } from "./visionBridgeCredentials";
+import {
+  resolveVisionBridgeKeyScope,
+  type VisionBridgeKeyInfo,
+  type VisionBridgeKeyScopeDeps,
+} from "./visionBridgeKeyScope";
 
 export interface AudioBridgeDependencies {
   getSettings?: () => Promise<Record<string, unknown>>;
   getCapabilities?: (model: string) => { supportsAudio: boolean | null };
   hasUsableCredentials?: AudioCredentialCheck;
-  selectModel?: (configuredModel: string) => Promise<string | null>;
+  selectModel?: (
+    configuredModel: string,
+    hasUsableCredentials?: AudioCredentialCheck
+  ) => Promise<string | null>;
   callTranscription?: (part: AudioPart, config: AudioTranscriptionConfig) => Promise<string>;
+  /** Seams for the caller API-key policy filter (GHSA-3w2r). */
+  keyScope?: VisionBridgeKeyScopeDeps;
 }
 
 type AudioBridgeBody = {
@@ -70,9 +81,29 @@ export class AudioBridgeGuardrail extends BaseGuardrail {
     const limitedParts = audioParts.slice(0, runtime.maxClips);
     const startedAt = Date.now();
     const configuredModel = runtime.model || "auto";
+    // GHSA-3w2r: the STT model (and connection) is used on behalf of the
+    // caller's API key, so it must be one that key could use itself.
+    const keyScope = resolveVisionBridgeKeyScope(
+      (context.apiKeyInfo ?? null) as VisionBridgeKeyInfo | null,
+      this.deps.hasUsableCredentials ?? hasUsableCredentialsForModel,
+      this.deps.keyScope
+    );
+    const credentialCheck = keyScope?.check ?? this.deps.hasUsableCredentials;
     const sttModel = this.deps.selectModel
-      ? await this.deps.selectModel(configuredModel)
-      : await selectAudioBridgeModel(configuredModel, this.deps.hasUsableCredentials);
+      ? await this.deps.selectModel(configuredModel, credentialCheck)
+      : await selectAudioBridgeModel(configuredModel, credentialCheck);
+    if (!sttModel && keyScope) {
+      // No STT model is allowed for this key: the bridge steps aside and the
+      // request passes through unchanged, so the key's reach is never widened.
+      context.log?.warn?.(
+        "AUDIO_BRIDGE",
+        "No STT model allowed for this API key; passing the request through unchanged"
+      );
+      return {
+        block: false,
+        meta: { clipsDetected: audioParts.length, skippedByKeyPolicy: true },
+      };
+    }
     if (!sttModel) {
       if (capabilities.supportsAudio !== false) return { block: false };
       const stubs = limitedParts.map(
@@ -98,7 +129,13 @@ export class AudioBridgeGuardrail extends BaseGuardrail {
         const cached = key && cache ? cache.get(key) : undefined;
         const transcript =
           cached ??
-          (await callTranscription(part, { model: sttModel, timeoutMs: runtime.timeoutMs }));
+          (await callTranscription(part, {
+            model: sttModel,
+            timeoutMs: runtime.timeoutMs,
+            ...(keyScope?.allowedConnectionIds
+              ? { allowedConnectionIds: keyScope.allowedConnectionIds }
+              : {}),
+          }));
         if (cached === undefined && key && cache) cache.set(key, transcript);
         recordBridgeUse("audio", { cacheHit: cached !== undefined });
         return `[Audio ${index + 1}]: ${transcript}`;
