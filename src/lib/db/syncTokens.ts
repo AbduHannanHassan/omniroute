@@ -11,6 +11,12 @@ export interface SyncTokenRecord {
   syncApiKeyId: string | null;
   revokedAt: string | null;
   lastUsedAt: string | null;
+  /** ISO timestamp after which the token is rejected (GHSA-2452). Null only on legacy rows. */
+  expiresAt: string | null;
+  /** Who minted the token (dashboard_session | local_cli | open_instance). Null on legacy rows. */
+  issuerKind: string | null;
+  /** Digest of the admin password hash at mint time; a password change invalidates the token. */
+  passwordFingerprint: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +49,10 @@ function toSyncTokenRecord(value: unknown): SyncTokenRecord | null {
     syncApiKeyId: typeof record.syncApiKeyId === "string" ? record.syncApiKeyId : null,
     revokedAt: typeof record.revokedAt === "string" ? record.revokedAt : null,
     lastUsedAt: typeof record.lastUsedAt === "string" ? record.lastUsedAt : null,
+    expiresAt: typeof record.expiresAt === "string" ? record.expiresAt : null,
+    issuerKind: typeof record.issuerKind === "string" ? record.issuerKind : null,
+    passwordFingerprint:
+      typeof record.passwordFingerprint === "string" ? record.passwordFingerprint : null,
     createdAt: typeof record.createdAt === "string" ? record.createdAt : new Date().toISOString(),
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date().toISOString(),
   };
@@ -57,6 +67,9 @@ function ensureSyncTokensTable(db: DbLike) {
       sync_api_key_id TEXT,
       revoked_at TEXT,
       last_used_at TEXT,
+      expires_at TEXT,
+      issuer_kind TEXT,
+      password_fingerprint TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -100,6 +113,9 @@ export async function createSyncTokenRecord(data: {
   name: string;
   tokenHash: string;
   syncApiKeyId?: string | null;
+  expiresAt?: string | null;
+  issuerKind?: string | null;
+  passwordFingerprint?: string | null;
 }) {
   const db = getDbInstance() as unknown as DbLike;
   ensureSyncTokensTable(db);
@@ -112,14 +128,18 @@ export async function createSyncTokenRecord(data: {
     syncApiKeyId: data.syncApiKeyId || null,
     revokedAt: null,
     lastUsedAt: null,
+    expiresAt: data.expiresAt ?? null,
+    issuerKind: data.issuerKind ?? null,
+    passwordFingerprint: data.passwordFingerprint ?? null,
     createdAt: now,
     updatedAt: now,
   };
 
   db.prepare(
     `INSERT INTO sync_tokens (
-      id, name, token_hash, sync_api_key_id, revoked_at, last_used_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      id, name, token_hash, sync_api_key_id, revoked_at, last_used_at,
+      expires_at, issuer_kind, password_fingerprint, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
     record.id,
     record.name,
@@ -127,6 +147,9 @@ export async function createSyncTokenRecord(data: {
     record.syncApiKeyId,
     record.revokedAt,
     record.lastUsedAt,
+    record.expiresAt,
+    record.issuerKind,
+    record.passwordFingerprint,
     record.createdAt,
     record.updatedAt
   );

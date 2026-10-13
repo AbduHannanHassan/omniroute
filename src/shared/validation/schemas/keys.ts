@@ -73,6 +73,14 @@ export const createKeySchema = z
 
 export const createSyncTokenSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(200),
+  // GHSA-2452: sync tokens always expire. `ttl` is what `omniroute sync tokens create --ttl`
+  // sends (`<n>m|h|d`); `expiresInDays` mirrors /api/cli/tokens. Default 30 days, max 365.
+  ttl: z
+    .string()
+    .trim()
+    .regex(/^\d{1,6}[mhdMHD]$/, "ttl must look like 30d, 12h or 90m")
+    .optional(),
+  expiresInDays: z.number().int().positive().max(365).optional(),
 });
 
 export const setKeyQuotaSchema = z.object({

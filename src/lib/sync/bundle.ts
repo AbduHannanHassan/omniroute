@@ -237,6 +237,25 @@ export async function buildConfigSyncEnvelope() {
   };
 }
 
+/**
+ * GHSA-2452: GET /api/sync/bundle must not hand out OmniRoute API keys in plaintext while
+ * key reveal is disabled — GET /api/keys masks them and /api/keys/{id}/reveal returns 403,
+ * so the sync export follows the same switch. The key's configuration is still synced; only
+ * the secret is masked the same way the API-keys listing masks it. Cloud sync builds its
+ * payload from `buildConfigSyncEnvelope()` directly and is unaffected.
+ */
+export function redactApiKeySecretsForExport(
+  bundle: ConfigSyncBundle,
+  mask: (key: unknown) => string | null
+): ConfigSyncBundle {
+  return {
+    ...bundle,
+    apiKeys: bundle.apiKeys.map((apiKey) =>
+      typeof apiKey.key === "string" ? { ...apiKey, key: mask(apiKey.key) } : { ...apiKey }
+    ),
+  };
+}
+
 export function toLegacyCloudSyncPayload(bundle: ConfigSyncBundle) {
   return {
     providers: bundle.providerConnections,
