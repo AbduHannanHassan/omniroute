@@ -1,0 +1,1 @@
+- **dashboard:** declare the optional automatic rate-limit protection flag on provider connection rows, fixing the TypeScript error introduced by the protection badge without changing its runtime behavior (#15306, #15790).
