@@ -1,3 +1,8 @@
+---
+title: "Named bulk proxy import"
+description: "Import direct proxies with explicit names while preserving existing formats."
+---
+
 # Named bulk proxy import
 
 In the dashboard proxy registry, open the existing bulk-import dialog, paste one proxy per line,
