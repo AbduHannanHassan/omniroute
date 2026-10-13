@@ -37,10 +37,12 @@ export function getCustomUserAgent(providerSpecificData?: JsonRecord | null): st
 }
 
 export function setUserAgentHeader(headers: Record<string, string>, userAgent: string): void {
-  headers["User-Agent"] = userAgent;
-  if ("user-agent" in headers) {
-    headers["user-agent"] = userAgent;
+  // One entry under one case only: a leftover lowercase mirror plus the canonical
+  // key would both reach the wire and be comma-joined into one value by undici.
+  for (const existing of Object.keys(headers)) {
+    if (existing.toLowerCase() === "user-agent") delete headers[existing];
   }
+  headers["User-Agent"] = userAgent;
 }
 
 export function applyConfiguredUserAgent(

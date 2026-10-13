@@ -676,11 +676,12 @@ export class DefaultExecutor extends BaseExecutor {
     headers["Accept"] = stream ? "text/event-stream" : "application/json";
 
     // Forward client request metadata headers (from OpenCode or similar clients).
-    // Allowlist-based: x-opencode-* plus agent-metadata headers (x-session-id,
-    // x-title, http-referer — see AGENT_METADATA_HEADER_KEYS in
-    // utils/opencodeHeaders.ts, gated by OMNIROUTE_FORWARD_ATTRIBUTION); the
-    // caller's User-Agent is NOT forwarded (#15632). Runs BEFORE the operator's
-    // custom headers below, so an operator-pinned header wins on conflict.
+    // Allowlist-based: x-opencode-* (always) plus agent-metadata headers
+    // (x-session-id, x-title, http-referer — AGENT_METADATA_HEADER_KEYS in
+    // utils/opencodeHeaders.ts; this second set is what
+    // OMNIROUTE_FORWARD_ATTRIBUTION=0 turns off). The caller's User-Agent is
+    // NOT forwarded (#15632). Runs BEFORE the operator's custom headers below,
+    // so an operator-pinned header wins on conflict.
     if (clientHeaders) {
       forwardOpencodeClientHeaders(headers, clientHeaders, { forwardUserAgent: false });
     }

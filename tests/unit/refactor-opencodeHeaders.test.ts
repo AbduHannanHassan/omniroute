@@ -26,11 +26,16 @@ describe("forwardOpencodeClientHeaders – User-Agent", () => {
     assert.equal(headers["user-agent"], undefined);
   });
 
-  it("sets lowercase user-agent when it already exists in headers", () => {
+  it("replaces an existing lowercase user-agent mirror with one canonical entry", () => {
     const headers = { "user-agent": "old" } as Record<string, string>;
     const clientHeaders = { "User-Agent": "MyTool/1.0" };
     forwardOpencodeClientHeaders(headers, clientHeaders);
-    assert.equal(headers["user-agent"], "MyTool/1.0");
+    // Regression: keeping the lowercase mirror alongside the canonical key made
+    // undici comma-join both on the wire ("MyTool/1.0, MyTool/1.0").
+    assert.deepEqual(
+      Object.keys(headers).filter((k) => k.toLowerCase() === "user-agent"),
+      ["User-Agent"]
+    );
     assert.equal(headers["User-Agent"], "MyTool/1.0");
   });
 
