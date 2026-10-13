@@ -61,9 +61,26 @@ test("the installed TypeScript compiler still reports real source regressions", 
   writeFileSync(
     project.config,
     JSON.stringify({
-      compilerOptions: { types: [], skipLibCheck: true, noEmit: true },
-      files: ["src/example.ts"],
+      compilerOptions: { types: [], noLib: true, noEmit: true },
+      files: ["minimal-types.d.ts", "src/example.ts"],
     })
+  );
+  // This compiler-process contract only needs object property diagnostics. Keep
+  // unrelated DOM/standard-library parsing outside the subprocess timeout budget.
+  writeFileSync(
+    path.join(project.root, "minimal-types.d.ts"),
+    [
+      "interface Array<T> { length: number; [index: number]: T }",
+      "interface Boolean {}",
+      "interface CallableFunction {}",
+      "interface Function {}",
+      "interface IArguments {}",
+      "interface NewableFunction {}",
+      "interface Number {}",
+      "interface Object {}",
+      "interface RegExp {}",
+      "interface String {}",
+    ].join("\n")
   );
   writeFileSync(
     project.compiler,
