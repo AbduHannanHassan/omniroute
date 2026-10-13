@@ -802,7 +802,8 @@ async function patchedFetchUnrecorded(
   // Explicit direct contexts must win even when a caller supplied a stale
   // dispatcher. Native fetch preserves direct streaming semantics.
   if (proxyContext.getStore() === DIRECT_PROXY_CONTEXT) {
-    return originalFetch(input, options);
+    const { dispatcher: _dispatcher, ...directOptions } = options;
+    return originalFetch(input, directOptions);
   }
 
   if (options?.dispatcher) {
