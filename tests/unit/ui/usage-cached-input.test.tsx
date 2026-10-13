@@ -1,7 +1,19 @@
 // @vitest-environment jsdom
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
+import UsageAnalytics from "@/shared/components/UsageAnalytics";
+
+vi.mock("@/shared/components/analytics", async (original) => {
+  const actual = await original<Record<string, unknown>>();
+  return Object.fromEntries(
+    Object.entries(actual).map(([name, component]) => [
+      name,
+      name === "StatCard" ? component : () => null,
+    ])
+  );
+});
 import { NextIntlClientProvider } from "next-intl";
 import messages from "@/i18n/messages/en.json";
 import namespaces from "@/i18n/routeNamespaces.generated.json";
@@ -25,6 +37,58 @@ function renderUsage(children: React.ReactNode) {
 }
 
 describe("provider cached input reporting", () => {
+  it("active analytics page displays cached input from its actual API payload", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              summary: {
+                totalRequests: 1,
+                totalTokens: 110,
+                promptTokens: 100,
+                completionTokens: 10,
+                totalCost: 0,
+                cachedInputTokens: 60,
+                cachedInputTokensComplete: false,
+              },
+              byModel: [],
+              byAccount: [],
+              byApiKey: [],
+              byProvider: [],
+              dailyTrend: [],
+              activityMap: {},
+              byServiceTier: [],
+              weeklyTokens: [],
+              weeklyCounts: [],
+              weeklyPattern: [],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+      )
+    );
+    try {
+      render(
+        <NextIntlClientProvider
+          locale="en"
+          timeZone="UTC"
+          messages={pickMessages(messages, namespaces.sections.analytics)}
+          onError={(error) => {
+            throw error;
+          }}
+        >
+          <UsageAnalytics />
+        </NextIntlClientProvider>
+      );
+      const cache = await screen.findByTestId("cached-input-tokens", {}, { timeout: 700 });
+      expect(cache.textContent).toContain("Cache Read Tokens: 60+ (Partial)");
+      expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/usage/analytics?"));
+    } finally {
+      cleanup();
+      vi.unstubAllGlobals();
+    }
+  }, 1_000);
   it("renders recorded cache reads separately from original input and output", () => {
     const html = renderUsage(
       <UsageOverview

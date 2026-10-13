@@ -7,10 +7,20 @@ const root = path.resolve(".ci-work/cache-input-fixture");
 fs.mkdirSync(root, { recursive: true });
 const data = fs.mkdtempSync(path.join(root, "data-"));
 process.env.DATA_DIR = data;
+process.env.SQLITE_FILE = path.join(data, "storage.sqlite");
+process.env.OMNIROUTE_SQLITE_FILE = process.env.SQLITE_FILE;
 process.env.APP_LOG_TO_FILE = "false";
 const core = await import("../../src/lib/db/core.ts");
 const { saveRequestUsage } = await import("../../src/lib/usage/usageHistory.ts");
 const { getUsageStats } = await import("../../src/lib/usage/usageStats.ts");
+const { getCachedInputAnalytics } = await import("../../src/lib/db/cachedInputAnalytics.ts");
+const analyticsOptions = {
+  sinceIso: null,
+  untilIso: null,
+  rawCutoffDate: "2020-02-01",
+  apiKeyWhere: "",
+  apiKeyParams: {},
+};
 
 test.after(async () => {
   await (await import("../../src/lib/usage/callLogs.ts")).closeCallLogSaves(5_000);
@@ -24,7 +34,7 @@ test(
   async () => {
     await saveRequestUsage({
       provider: "fixture-provider",
-      model: "fixture-model",
+      model: "vendor/Fixture-Model",
       connectionId: "fixture-account",
       apiKeyId: "fixture-key",
       apiKeyName: "Fixture key",
@@ -47,6 +57,13 @@ test(
     assert.equal(result.totalCompletionTokens, 10);
     assert.equal(result.totalCachedInputTokens, 60);
     assert.equal(result.totalCachedInputTokensComplete, true);
+    const analytics = getCachedInputAnalytics(analyticsOptions, (model) =>
+      model.split("/").at(-1)!
+    );
+    assert.equal(analytics.byModel[0].model, "fixture-model");
+    assert.equal(analytics.summary.cachedInputTokens, 60);
+    assert.equal(analytics.byModel[0].cachedInputTokens, 60);
+    assert.equal(analytics.summary.cachedInputTokensComplete, true);
     for (const breakdown of [
       result.byProvider,
       result.byModel,
@@ -94,6 +111,16 @@ test(
     stats = await getUsageStats();
     assert.equal(stats.byProvider["legacy-fixture"].cachedInputTokens, null);
     assert.equal(stats.byProvider["legacy-fixture"].cachedInputTokensComplete, false);
+    const analytics = getCachedInputAnalytics(analyticsOptions);
+    assert.equal(analytics.summary.cachedInputTokens, 140);
+    assert.equal(analytics.summary.cachedInputTokensComplete, false);
+    const filtered = getCachedInputAnalytics({
+      ...analyticsOptions,
+      apiKeyWhere: "api_key_id = @key",
+      apiKeyParams: { key: "fixture-key" },
+    });
+    assert.equal(filtered.summary.cachedInputTokens, 60);
+    assert.equal(filtered.summary.cachedInputTokensComplete, false);
     assert.equal(stats.totalCachedInputTokens, 140);
     assert.equal(stats.totalCachedInputTokensComplete, false);
   }
@@ -124,5 +151,10 @@ test(
     assert.equal(after.byProvider["archive-fixture"].promptTokens, 30);
     assert.equal(after.byProvider["archive-fixture"].cachedInputTokens, null);
     assert.equal(after.byProvider["archive-fixture"].cachedInputTokensComplete, false);
+    const analytics = getCachedInputAnalytics(analyticsOptions);
+    assert.equal(
+      analytics.byModel.find((row) => row.model === "archive-model")?.cachedInputTokens,
+      null
+    );
   }
 );
