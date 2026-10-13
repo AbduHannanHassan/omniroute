@@ -33,7 +33,7 @@ async function guard(request: Request): Promise<Response | null> {
     return createErrorResponse({
       status: 403,
       message: "Managed proxy cores require local access",
-      type: "forbidden",
+      type: "invalid_request",
     });
   return requireManagementAuth(request, { alwaysRequireAuth: true });
 }
