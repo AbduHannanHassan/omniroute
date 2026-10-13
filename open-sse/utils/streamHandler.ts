@@ -671,9 +671,12 @@ export function createDisconnectAwareStream(
   let bytesWereForwarded = false;
   let disconnectDrainStarted = false;
 
-  const drainAfterDisconnect = (timeoutReason: string) => {
+  const drainAfterDisconnect = () => {
     if (disconnectDrainStarted) return;
     disconnectDrainStarted = true;
+    const timeoutReason = clientTerminalSeen
+      ? "terminal_stream_grace_expired"
+      : "completed_tool_handoff_grace_expired";
     const gracePeriodMs = Math.max(0, Number(streamController.clientDisconnectGracePeriodMs) || 0);
     const timeout = setTimeout(() => {
       streamController.abort();
@@ -694,12 +697,7 @@ export function createDisconnectAwareStream(
       }
     })();
   };
-  const drainCompletedToolHandoff = () =>
-    drainAfterDisconnect("completed_tool_handoff_grace_expired");
-  const drainTerminal = () => drainAfterDisconnect("terminal_stream_grace_expired");
-  streamController.registerCompletedToolHandoffDrain?.(() =>
-    clientTerminalSeen ? drainTerminal() : drainCompletedToolHandoff()
-  );
+  streamController.registerCompletedToolHandoffDrain?.(drainAfterDisconnect);
 
   const noteClientChunk = (chunk: unknown) => {
     if (!(chunk instanceof Uint8Array)) return;
@@ -736,12 +734,9 @@ export function createDisconnectAwareStream(
     {
       async pull(controller) {
         if (!streamController.isConnected()) {
-          // Closing our side alone leaves the upstream body being pulled by the
-          // transform pipe. Cancel it so the provider stops generating for a
-          // client that is gone, but keep a completed terminal stream draining
-          // briefly so its parser can flush late usage before bounded cleanup.
+          // Cancel a gone client's upstream; a completed terminal stream drains for late usage.
           if (clientTerminalSeen) {
-            drainTerminal();
+            drainAfterDisconnect();
           } else if (streamController.shouldDeferCompletedToolHandoff?.() !== true) {
             const reason = "client_disconnected";
             void Promise.allSettled([reader.cancel(reason), writer.abort(reason)]);
@@ -806,8 +801,7 @@ export function createDisconnectAwareStream(
           noteClientChunk(value);
         } catch (error) {
           if (!streamController.isConnected()) {
-            // A bounded disconnect drain may already own the inner reader; cancelling
-            // it here would drop the late usage that drain is waiting for.
+            // A started drain owns the reader; cancelling here would drop its late usage.
             if (!disconnectDrainStarted) {
               reader.cancel(new Error("Downstream disconnected")).catch(() => {});
             }
@@ -860,7 +854,7 @@ export function createDisconnectAwareStream(
       async cancel(reason) {
         if (clientTerminalSeen) {
           streamController.handleComplete();
-          drainTerminal();
+          drainAfterDisconnect();
           return;
         }
         const deferCompletedToolHandoff =
