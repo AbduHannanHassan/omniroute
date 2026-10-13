@@ -11,8 +11,8 @@
 // igual ao próprio teto ficava presa no baseline para sempre — ver #8584.
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { getBaseFileSizes } from "./git-base-file-sizes.mjs";
 
 const ROOT = process.cwd();
 function getArg(name, fallback) {
@@ -129,30 +129,6 @@ function collectTestLoc() {
   return out;
 }
 
-/**
- * Computa LOC por arquivo a partir de um ref git (branch, SHA, tag).
- * Usado pelo modo --base-ref para obter a contagem na base do PR (#8522).
- * @param {string} ref — git ref (e.g. SHA da branch base)
- * @param {string[]} files — lista de paths relativos ao ROOT
- * @returns {Object} mapa file → line count
- */
-function getBaseLoc(ref, files) {
-  const out = {};
-  for (const file of files) {
-    try {
-      const buf = execFileSync("git", ["show", `${ref}:${file}`], {
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-        timeout: 5000,
-      });
-      out[file] = buf.split("\n").length;
-    } catch {
-      // Arquivo nao existe na base (novo no PR) — tratado como 0
-    }
-  }
-  return out;
-}
-
 function main() {
   if (!fs.existsSync(BASELINE_PATH)) {
     console.error(`[file-size] FAIL — ${path.basename(BASELINE_PATH)} ausente.`);
@@ -162,9 +138,30 @@ function main() {
   const cap = baseline.cap;
   const frozen = baseline.frozen || {};
   const current = collectLoc();
+  const currentTests = collectTestLoc();
+  const testCap = baseline.testCap;
 
   // Modo PR: computa LOC na branch base para comparacao relativa (#8522)
-  const baseLoc = BASE_REF ? getBaseLoc(BASE_REF, Object.keys(current)) : undefined;
+  let baseLoc;
+  if (process.argv.includes("--base-ref")) {
+    try {
+      if (!BASE_REF) throw new Error("Missing --base-ref value");
+      baseLoc = getBaseFileSizes(
+        BASE_REF,
+        [
+          ...Object.keys(current),
+          ...(typeof testCap === "number" ? Object.keys(currentTests) : []),
+        ],
+        ROOT
+      );
+    } catch (error) {
+      const reason = error instanceof Error ? error.message.split("\n")[0] : "Git read failed";
+      console.error(
+        `[file-size] FAIL — base evidence unavailable; baseline was not changed. ${reason}`
+      );
+      process.exit(2);
+    }
+  }
   if (BASE_REF) {
     const baseKeys = Object.keys(baseLoc).length;
     console.log(
@@ -176,15 +173,10 @@ function main() {
 
   // Test-file gate (Layer 1 anti-reinflation): same shrink-only + new-≤cap semantics,
   // reusing evaluateFileSizes against the testFrozen baseline + testCap.
-  const testCap = baseline.testCap;
   const testFrozen = baseline.testFrozen || {};
-  const currentTests = collectTestLoc();
   // PR mode (#8522): base LOC comes from the test collector's files, so a test file that
   // already drifted on the base is judged against its base size, like a source file.
-  const testBaseLoc =
-    BASE_REF && typeof testCap === "number"
-      ? getBaseLoc(BASE_REF, Object.keys(currentTests))
-      : undefined;
+  const testBaseLoc = typeof testCap === "number" ? baseLoc : undefined;
   const {
     violations: testViolations,
     improvements: testImprovements,
