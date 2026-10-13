@@ -302,9 +302,11 @@ Key behaviours:
 
 Multi-device and external operator access is now possible via **scoped sync tokens**:
 
-- **`POST /api/sync/tokens`** — Issue a new sync token (scoped, with optional expiry)
+- **`POST /api/sync/tokens`** — Issue a new sync token. Requires an authenticated dashboard session or the local CLI credential (`omniroute sync tokens create`); a `manage`-scoped API key alone is refused. Tokens expire after 30 days by default (`ttl` such as `12h`/`90d`, or `expiresInDays`; max 365 days)
 - **`DELETE /api/sync/tokens/:id`** — Revoke a token
-- **`GET /api/sync/bundle`** — Download a versioned, ETag-keyed JSON snapshot of all non-sensitive settings (passwords redacted)
+- **`GET /api/sync/bundle`** — Download a versioned, ETag-keyed JSON snapshot of the instance configuration (settings with the admin password removed, provider connections **including their credentials**, combos, API keys, reasoning rules)
+
+A sync token stops working when it expires, when it is revoked, when the admin password changes, or when the API key recorded as its issuer is revoked or deleted. While API key reveal is disabled (`ALLOW_API_KEY_REVEAL`), the bundle masks OmniRoute API keys the same way the API-keys listing does.
 
 The config bundle is built by `src/lib/sync/bundle.ts`. Consumers compare the `ETag` response header to detect changes without re-downloading the full payload.
 

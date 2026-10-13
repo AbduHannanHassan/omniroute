@@ -1,4 +1,5 @@
-import { buildConfigSyncEnvelope } from "@/lib/sync/bundle";
+import { buildConfigSyncEnvelope, redactApiKeySecretsForExport } from "@/lib/sync/bundle";
+import { isApiKeyRevealEnabled, maskStoredApiKey } from "@/lib/apiKeyExposure";
 import { getSyncTokenFromRequest, markSyncTokenUsed, validateSyncToken } from "@/lib/sync/tokens";
 import { createErrorResponse, createErrorResponseFromUnknown } from "@/lib/api/errorResponse";
 
@@ -31,7 +32,12 @@ export async function GET(request: Request) {
       });
     }
 
-    const { version, bundle } = await buildConfigSyncEnvelope();
+    const envelope = await buildConfigSyncEnvelope();
+    const { version } = envelope;
+    // Same switch as /api/keys/{id}/reveal: no plaintext OmniRoute API keys while reveal is off.
+    const bundle = isApiKeyRevealEnabled()
+      ? envelope.bundle
+      : redactApiKeySecretsForExport(envelope.bundle, maskStoredApiKey);
     await markSyncTokenUsed(syncToken);
 
     if (matchesEtag(request, version)) {
