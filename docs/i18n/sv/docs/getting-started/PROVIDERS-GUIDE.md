@@ -14,12 +14,12 @@ Tänk på en leverantör som en **mobiloperatör**. Precis som du behöver en mo
 
 ### Typer av leverantörer
 
-| Typ            | Vad det är                    | Exempel                         | Kostnad                  |
-| -------------- | ----------------------------- | ------------------------------- | ------------------------ |
-| **Gratis**     | Ingen betalning krävs         | Kiro, Pollinations              | $0                       |
-| **API-nyckel** | Du behöver en API-nyckel      | OpenAI, Anthropic, Google       | Betala efter användning  |
-| **OAuth**      | Logga in med ditt konto       | Claude Code, GitHub Copilot     | Prenumeration            |
-| **Webbkaka**   | Använder din webbläsarsession | ChatGPT Web (Codex), Gemini Web | $0 (använder ditt konto) |
+| Typ            | Vad det är                    | Exempel                           | Kostnad                  |
+| -------------- | ----------------------------- | --------------------------------- | ------------------------ |
+| **Gratis**     | Ingen betalning krävs         | Kiro, OpenCode Free, Pollinations | $0                       |
+| **API-nyckel** | Du behöver en API-nyckel      | OpenAI, Anthropic, Google         | Betala efter användning  |
+| **OAuth**      | Logga in med ditt konto       | Claude Code, GitHub Copilot       | Prenumeration            |
+| **Webbkaka**   | Använder din webbläsarsession | ChatGPT Web (Codex), Gemini Web   | $0 (använder ditt konto) |
 
 ### Leverantörer med webbkakor
 
@@ -46,6 +46,7 @@ utan risk försöka igen enbart för de misslyckade leverantörerna.
 2. Gå till **Leverantörer** → **Lägg till leverantör**
 3. Välj någon av dessa gratisleverantörer:
    - **Kiro AI** — Kostnadsfria Claude-modeller (ingen autentisering krävs)
+   - **OpenCode Free** — Kostnadsfria GPT-modeller (ingen autentisering krävs)
    - **Pollinations** — Kostnadsfria GPT-5, Claude och Gemini (ingen nyckel krävs)
    - **LongCat** — 10 miljoner tokens utan kostnad (engångstilldelning, kräver konto + KYC)
    - **Cloudflare AI** — Fler än 50 modeller, 10 000 neuroner/dag
@@ -168,21 +169,21 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 ---
 
-## Bästa kostnadsfria leverantörer
+## Bästa kostnadsfria leverantörerna
 
 Dessa leverantörer erbjuder **kostnadsfri åtkomst** utan kreditkort:
 
 | Leverantör        | Kostnadsfri kvot         | Modeller                                 | Så ansluter du            |
 | ----------------- | ------------------------ | ---------------------------------------- | ------------------------- |
 | **Kiro AI**       | 50 krediter/månad        | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Ingen autentisering krävs |
+| **OpenCode Free** | Obegränsat               | GPT-4o, Claude, Gemini                   | Ingen autentisering krävs |
 | **Pollinations**  | Ingen nyckel krävs       | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Ingen autentisering krävs |
-| **LongCat**       | 10M som engångskvot      | LongCat-2.0                              | API-nyckel + KYC          |
-| **Cloudflare AI** | 10K neuroner/dag         | 50+ modeller                             | Ingen autentisering krävs |
+| **LongCat**       | 10M vid ett tillfälle    | LongCat-2.0                              | API-nyckel + KYC          |
+| **Cloudflare AI** | 10K neuroner/dag         | Över 50 modeller                         | Ingen autentisering krävs |
 | **NVIDIA NIM**    | ~40 RPM                  | 129 modeller                             | API-nyckel krävs          |
 | **Cerebras**      | $5 i registreringskredit | GLM 4.7, GPT-OSS 120B                    | API-nyckel + kort         |
-| **Qoder**         | Obegränsad               | Kimi-K2, DeepSeek-R1, Qwen3-coder        | Ingen autentisering krävs |
 
-**Tips**: Anslut flera kostnadsfria leverantörer för **obegränsad kostnadsfri AI** med automatisk reservväxling!
+**Tips**: Anslut flera kostnadsfria leverantörer för **obegränsad kostnadsfri AI** med automatisk reservlösning!
 
 ---
 
@@ -248,7 +249,7 @@ OmniRoute fungerar bäst med **flera leverantörer**. Det ger dig:
 
 Anslut minst **3 leverantörer** för bästa möjliga upplevelse:
 
-1. **En kostnadsfri leverantör** (Kiro eller Pollinations) — Alltid tillgänglig
+1. **En kostnadsfri leverantör** (Kiro, OpenCode Free eller Pollinations) — Alltid tillgänglig
 2. **En snabb leverantör** (Groq, Cerebras) — För snabba svar
 3. **En kvalitetsleverantör** (OpenAI, Anthropic, Google) — För komplexa uppgifter
 
@@ -282,6 +283,46 @@ Använd sedan `model: "auto"` så väljer OmniRoute automatiskt den bästa för 
 2. I OmniRoute: Leverantörer → Lägg till leverantör → DeepSeek
 3. Klistra in API-nyckeln → Anslut
 
+### Qoder: välj transportmetod för autentiseringsuppgifter
+
+Qoder kräver autentiseringsuppgifter. Dess två transportmetoder har olika funktioner; enbart
+ett modellnamn anger inte vad en viss anslutning kan göra.
+
+| Autentiseringsuppgift                  | OmniRoute-transport                            | Verktygsanrop från anroparen                         | Strömning                                                           |
+| -------------------------------------- | ---------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------- |
+| PAT som börjar med `pt-`               | Lokal `qodercli`-process på OmniRoute-värden   | Stöds inte                                           | Buffrad: SSE skickas först efter att CLI har returnerat hela svaret |
+| Åtkomsttoken eller API-nyckel utan PAT | DashScope-slutpunkt för OpenAI-kompatibel HTTP | Vidarebefordras, beroende på uppströmsmodell/-nyckel | HTTP/SSE-sökväg uppströms                                           |
+
+För en PAT ska Qoder CLI installeras på samma värd eller i samma container som OmniRoute. Den körbara filen
+måste kunna hittas som `qodercli`, annars anger du dess sökväg i `CLI_QODER_BIN`. Ett CLI som
+endast är installerat på Docker-värden finns inte automatiskt i containern. Saknade
+binärfiler ger ett uttryckligt fel som hänvisar till installationen eller sökvägsinställningen.
+
+PAT-chattens sökväg har en processtimeout på 45 sekunder. Den plattar ut konversationen till en
+prompt och anropar CLI i ett icke-strömmande utskriftsläge. Om `stream: true` begärs
+ändras svarskuvertet till SSE; detta ger inte stegvis leverans av token från uppströmskällan.
+CLI-validering/modellistning använder en separat timeout på 20 sekunder. Detta är nuvarande
+standardvärden i koden, inte konfigurerbara inställningar i kontrollpanelen.
+
+Använd PAT-anslutningar för vanlig chatt. Agentförfrågningar som innehåller `tools` eller äldre `functions`
+utesluter PAT-konton vid val av autentiseringsuppgifter, inklusive fästa kombinationsmål. En blandad
+Qoder-pool kan fortfarande välja sitt HTTP-konto. Direkta anrop till PAT-exekveraren misslyckas också
+uttryckligen innan CLI startas i stället för att verktygsdefinitionerna ignoreras utan meddelande. Denna
+begränsning gäller verktyg som tillhandahålls av API-anroparen, inte eventuella interna verktyg som Qoder
+CLI självt kan använda. En HTTP-nyckel garanterar inte att alla modeller stöder verktyg; normala
+kontroller av modellfunktioner gäller fortfarande.
+
+OAuth via webbläsaren är endast tillgängligt när administratören konfigurerar samtliga fem inställningar:
+`QODER_OAUTH_AUTHORIZE_URL`, `QODER_OAUTH_TOKEN_URL`, `QODER_OAUTH_USERINFO_URL`,
+`QODER_OAUTH_CLIENT_ID` och `QODER_OAUTH_CLIENT_SECRET`. De är tomma som standard; en
+okonfigurerad installation bör använda en importmetod för autentiseringsuppgifter som stöds, i stället för att förutsätta
+att inloggningsflödet i webbläsaren är klart att använda.
+
+Implementationsreferenser: [Qoder-exekverare](../../open-sse/executors/qoder.ts),
+[CLI-körmiljö](../../open-sse/services/qoderCli.ts) och
+[OAuth-konfiguration](../../src/lib/oauth/constants/oauth.ts). Stegvis PAT-strömning
+och en konfigurerbar timeout är separata förbättringar; detta beteende utlovar dem inte.
+
 ### Groq
 
 1. Hämta API-nyckel: https://console.groq.com/
@@ -294,7 +335,7 @@ Använd sedan `model: "auto"` så väljer OmniRoute automatiskt den bästa för 
 
 ### "Måste jag betala för att använda OmniRoute?"
 
-**Nej!** OmniRoute är kostnadsfritt och har öppen källkod. Du kan använda kostnadsfria leverantörer (Kiro, Pollinations) utan att betala någonting. Du betalar endast om du väljer att använda betalleverantörer.
+**Nej!** OmniRoute är kostnadsfritt och har öppen källkod. Du kan använda kostnadsfria leverantörer (Kiro, OpenCode Free, Pollinations) utan att betala någonting. Du betalar endast om du väljer att använda betalleverantörer.
 
 ### "Vilken leverantör bör jag börja med?"
 

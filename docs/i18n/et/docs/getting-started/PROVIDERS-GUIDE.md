@@ -14,12 +14,12 @@ Mõelge teenusepakkujast kui **mobiilioperaatorist**. Nii nagu helistamiseks on 
 
 ### Teenusepakkujate tüübid
 
-| Tüüp            | Mis see on                   | Näited                          | Maksumus                 |
-| --------------- | ---------------------------- | ------------------------------- | ------------------------ |
-| **Tasuta**      | Makse pole vajalik           | Kiro, Pollinations              | $0                       |
-| **API-võti**    | Vajate API-võtit             | OpenAI, Anthropic, Google       | Maksate kasutuse järgi   |
-| **OAuth**       | Logite sisse oma kontoga     | Claude Code, GitHub Copilot     | Tellimus                 |
-| **Veebiküpsis** | Kasutab teie brauseriseanssi | ChatGPT Web (Codex), Gemini Web | $0 (kasutab teie kontot) |
+| Tüüp            | Mis see on                   | Näited                            | Maksumus                 |
+| --------------- | ---------------------------- | --------------------------------- | ------------------------ |
+| **Tasuta**      | Makse pole vajalik           | Kiro, OpenCode Free, Pollinations | $0                       |
+| **API-võti**    | Vajate API-võtit             | OpenAI, Anthropic, Google         | Maksate kasutuse järgi   |
+| **OAuth**       | Logite sisse oma kontoga     | Claude Code, GitHub Copilot       | Tellimus                 |
+| **Veebiküpsis** | Kasutab teie brauseriseanssi | ChatGPT Web (Codex), Gemini Web   | $0 (kasutab teie kontot) |
 
 ### Veebiküpsiseid kasutavad teenusepakkujad
 
@@ -46,6 +46,7 @@ ohutult uuesti proovida ainult ebaõnnestunud teenusepakkujate ühendamist.
 2. Valige **Teenusepakkujad** → **Lisa teenusepakkuja**
 3. Valige üks järgmistest tasuta teenusepakkujatest:
    - **Kiro AI** — tasuta Claude'i mudelid (autentimist pole vaja)
+   - **OpenCode Free** — tasuta GPT mudelid (autentimist pole vaja)
    - **Pollinations** — tasuta GPT-5, Claude, Gemini (võtit pole vaja)
    - **LongCat** — 10M tasuta tokenit (ühekordne toetus, nõuab kontot ja KYC-d)
    - **Cloudflare AI** — üle 50 mudeli, 10K neuronit päevas
@@ -172,17 +173,17 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 Need teenusepakkujad pakuvad **tasuta juurdepääsu** ilma krediitkaardita:
 
-| Teenusepakkuja    | Tasuta kvoot        | Mudelid                                  | Ühendamisviis         |
-| ----------------- | ------------------- | ---------------------------------------- | --------------------- |
-| **Kiro AI**       | 50 krediiti kuus    | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Autentimist pole vaja |
-| **Pollinations**  | Võtit pole vaja     | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Autentimist pole vaja |
-| **LongCat**       | Ühekordselt 10M     | LongCat-2.0                              | API-võti + KYC        |
-| **Cloudflare AI** | 10K neuronit päevas | 50+ mudelit                              | Autentimist pole vaja |
-| **NVIDIA NIM**    | ~40 RPM             | 129 mudelit                              | API-võti on vajalik   |
-| **Cerebras**      | $5 liitumiskrediiti | GLM 4.7, GPT-OSS 120B                    | API-võti + kaart      |
-| **Qoder**         | Piiramatu           | Kimi-K2, DeepSeek-R1, Qwen3-coder        | Autentimist pole vaja |
+| Teenusepakkuja    | Tasuta kvoot        | Mudelid                                  | Ühendamine               |
+| ----------------- | ------------------- | ---------------------------------------- | ------------------------ |
+| **Kiro AI**       | 50 krediiti kuus    | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Autentimine pole vajalik |
+| **OpenCode Free** | Piiramatu           | GPT-4o, Claude, Gemini                   | Autentimine pole vajalik |
+| **Pollinations**  | Võtit pole vaja     | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Autentimine pole vajalik |
+| **LongCat**       | Ühekordselt 10M     | LongCat-2.0                              | API-võti + KYC           |
+| **Cloudflare AI** | 10K neuronit päevas | Üle 50 mudeli                            | Autentimine pole vajalik |
+| **NVIDIA NIM**    | ~40 RPM             | 129 mudelit                              | API-võti on vajalik      |
+| **Cerebras**      | $5 liitumiskrediiti | GLM 4.7, GPT-OSS 120B                    | API-võti + kaart         |
 
-**Nõuanne**: Ühendage mitu tasuta teenusepakkujat, et saada **piiramatult tasuta tehisintellekti** koos automaatse varuvariandiga!
+**Nõuanne**: Ühendage mitu tasuta teenusepakkujat, et saada automaatse varuvalikuga **piiramatult tasuta tehisintellekti**!
 
 ---
 
@@ -248,7 +249,7 @@ OmniRoute töötab kõige paremini **mitme teenusepakkujaga**. See annab teile j
 
 Parima kasutuskogemuse saamiseks ühendage vähemalt **3 teenusepakkujat**:
 
-1. **Üks tasuta teenusepakkuja** (Kiro või Pollinations) — alati saadaval
+1. **Üks tasuta teenusepakkuja** (Kiro, OpenCode Free või Pollinations) — alati saadaval
 2. **Üks kiire teenusepakkuja** (Groq, Cerebras) — kiirete vastuste jaoks
 3. **Üks kvaliteetne teenusepakkuja** (OpenAI, Anthropic, Google) — keerukate ülesannete jaoks
 
@@ -256,7 +257,7 @@ Seejärel kasutage väärtust `model: "auto"` ja OmniRoute valib iga päringu ja
 
 ---
 
-## Teenusepakkuja-spetsiifiline seadistamine
+## Teenusepakkujapõhine seadistamine
 
 ### OpenAI
 
@@ -282,6 +283,46 @@ Seejärel kasutage väärtust `model: "auto"` ja OmniRoute valib iga päringu ja
 2. OmniRoute'is: Teenusepakkujad → Lisa teenusepakkuja → DeepSeek
 3. Kleepige API-võti → Ühenda
 
+### Qoder: valige identimisteabe edastusviis
+
+Qoder nõuab identimisteavet. Selle kahel edastusviisil on erinevad võimalused; ainult mudeli nimi
+ei näita, mida konkreetne ühendus teha saab.
+
+| Identimisteave                    | OmniRoute'i edastusviis                        | Kutsuja tööriistakutsed                                          | Voogedastus                                                                |
+| --------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `pt-`-ga algav PAT                | Kohalik `qodercli` protsess OmniRoute'i hostis | Pole toetatud                                                    | Puhverdatud: SSE väljastatakse alles pärast CLI täieliku vastuse saabumist |
+| Mitte-PAT-pääsutõend või API-võti | DashScope'i OpenAI-ga ühilduv HTTP-lõpp-punkt  | Edastatakse muutmata kujul, olenevalt ülesvoolu mudelist/võtmest | Ülesvoolu HTTP/SSE tee                                                     |
+
+PAT-i puhul installige Qoder CLI OmniRoute'iga samasse hosti või konteinerisse. Täitmisfail
+peab olema leitav nimega `qodercli`; vastasel juhul määrake `CLI_QODER_BIN` selle täitmisfaili teeks. Ainult
+Dockeri hosti installitud CLI ei ole konteineris automaatselt saadaval. Puuduvate
+binaarfailide korral kuvatakse selgesõnaline tõrge, mis suunab teid installimise või tee seadistamise juurde.
+
+PAT-i vestlustee protsessi ajalõpp on 45 sekundit. See teisendab vestluse üheks
+viibaks ja käivitab CLI mittevoogedastuslikus printimisrežiimis. `stream: true` taotlemine muudab
+vastuse ümbrise SSE-ks; see ei paku ülesvoolust žetoonide järkjärgulist edastamist.
+CLI valideerimisel/mudelite loendi hankimisel kasutatakse eraldi 20-sekundilist ajalõppu. Need on praegused koodi
+vaikeväärtused, mitte juhtpaneelil seadistatavad sätted.
+
+Kasutage PAT-ühendusi tavalise vestluse jaoks. Agendipäringud, mis sisaldavad `tools` või pärandfunktsioone `functions`,
+välistavad identimisteabe valimisel PAT-kontod, sealhulgas kinnitatud kombineeritud sihtmärgid. Kombineeritud
+Qoderi kogum saab endiselt valida oma HTTP-konto. Otsekutsed PAT-i täiturile nurjuvad samuti
+enne CLI käivitamist selgesõnaliselt, selle asemel et tööriistade definitsioonid vaikselt kõrvale jätta. See
+piirang puudutab API kutsuja antud tööriistu, mitte sisemisi tööriistu, mida Qoder
+CLI võib ise kasutada. HTTP-võti ei taga, et iga mudel toetab tööriistu; tavapärased
+mudeli võimekuse kontrollid kehtivad endiselt.
+
+Brauseri OAuth on saadaval ainult siis, kui administraator seadistab kõik viis sätet:
+`QODER_OAUTH_AUTHORIZE_URL`, `QODER_OAUTH_TOKEN_URL`, `QODER_OAUTH_USERINFO_URL`,
+`QODER_OAUTH_CLIENT_ID` ja `QODER_OAUTH_CLIENT_SECRET`. Nende vaikeväärtused on tühjad; seadistamata
+installatsioon peaks kasutama toetatud identimisteabe importimist, mitte eeldama,
+et brauseri kaudu sisselogimise voog on kasutusvalmis.
+
+Teostuse viited: [Qoderi täitur](../../open-sse/executors/qoder.ts),
+[CLI käituskeskkond](../../open-sse/services/qoderCli.ts) ja
+[OAuthi konfiguratsioon](../../src/lib/oauth/constants/oauth.ts). Järkjärguline PAT-voogedastus
+ja seadistatav ajalõpp on eraldi täiustused; kirjeldatud käitumine ei luba nende olemasolu.
+
 ### Groq
 
 1. Hankige API-võti: https://console.groq.com/
@@ -294,7 +335,7 @@ Seejärel kasutage väärtust `model: "auto"` ja OmniRoute valib iga päringu ja
 
 ### "Kas OmniRoute'i kasutamise eest tuleb maksta?"
 
-**Ei!** OmniRoute on tasuta ja avatud lähtekoodiga. Tasuta teenusepakkujaid (Kiro, Pollinations) saab kasutada ilma midagi maksmata. Maksate ainult siis, kui otsustate kasutada tasulisi teenusepakkujaid.
+**Ei!** OmniRoute on tasuta ja avatud lähtekoodiga. Tasuta teenusepakkujaid (Kiro, OpenCode Free, Pollinations) saab kasutada ilma midagi maksmata. Maksate ainult siis, kui otsustate kasutada tasulisi teenusepakkujaid.
 
 ### "Millisest teenusepakkujast peaksin alustama?"
 

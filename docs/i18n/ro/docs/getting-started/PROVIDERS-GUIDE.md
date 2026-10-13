@@ -14,12 +14,12 @@ Gândiți-vă la un furnizor ca la un **operator de telefonie**. Așa cum aveți
 
 ### Tipuri de furnizori
 
-| Tip            | Ce reprezintă                        | Exemple                         | Cost                          |
-| -------------- | ------------------------------------ | ------------------------------- | ----------------------------- |
-| **Gratuit**    | Nu este necesară nicio plată         | Kiro, Pollinations              | $0                            |
-| **Cheie API**  | Aveți nevoie de o cheie API          | OpenAI, Anthropic, Google       | Plată în funcție de utilizare |
-| **OAuth**      | Autentificare folosind contul dvs.   | Claude Code, GitHub Copilot     | Abonament                     |
-| **Cookie web** | Utilizează sesiunea dvs. din browser | ChatGPT Web (Codex), Gemini Web | $0 (utilizează contul dvs.)   |
+| Tip            | Ce reprezintă                        | Exemple                           | Cost                          |
+| -------------- | ------------------------------------ | --------------------------------- | ----------------------------- |
+| **Gratuit**    | Nu este necesară nicio plată         | Kiro, OpenCode Free, Pollinations | $0                            |
+| **Cheie API**  | Aveți nevoie de o cheie API          | OpenAI, Anthropic, Google         | Plată în funcție de utilizare |
+| **OAuth**      | Autentificare folosind contul dvs.   | Claude Code, GitHub Copilot       | Abonament                     |
+| **Cookie web** | Utilizează sesiunea dvs. din browser | ChatGPT Web (Codex), Gemini Web   | $0 (utilizează contul dvs.)   |
 
 ### Furnizori bazați pe cookie-uri web
 
@@ -46,6 +46,7 @@ reîncerca în siguranță doar conexiunile eșuate după un rezultat parțial.
 2. Accesați **Furnizori** → **Adăugați un furnizor**
 3. Selectați unul dintre acești furnizori gratuiți:
    - **Kiro AI** — Modele Claude gratuite (nu este necesară autentificarea)
+   - **OpenCode Free** — Modele GPT gratuite (nu este necesară autentificarea)
    - **Pollinations** — GPT-5, Claude și Gemini gratuite (nu este necesară nicio cheie)
    - **LongCat** — 10 milioane de tokenuri gratuite (acordare unică, necesită cont + KYC)
    - **Cloudflare AI** — Peste 50 de modele, 10.000 de neuroni/zi
@@ -172,17 +173,17 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 Acești furnizori oferă **acces gratuit**, fără card de credit:
 
-| Furnizor          | Cotă gratuită             | Modele                                   | Cum vă conectați          |
-| ----------------- | ------------------------- | ---------------------------------------- | ------------------------- |
-| **Kiro AI**       | 50 de credite/lună        | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Nu necesită autentificare |
-| **Pollinations**  | Nu necesită cheie         | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Nu necesită autentificare |
-| **LongCat**       | 10M, o singură dată       | LongCat-2.0                              | Cheie API + KYC           |
-| **Cloudflare AI** | 10K neuroni/zi            | Peste 50 de modele                       | Nu necesită autentificare |
-| **NVIDIA NIM**    | ~40 RPM                   | 129 de modele                            | Necesită cheie API        |
-| **Cerebras**      | Credit de $5 la înscriere | GLM 4.7, GPT-OSS 120B                    | Cheie API + card          |
-| **Qoder**         | Nelimitat                 | Kimi-K2, DeepSeek-R1, Qwen3-coder        | Nu necesită autentificare |
+| Furnizor          | Cotă gratuită                | Modele                                   | Cum vă conectați          |
+| ----------------- | ---------------------------- | ---------------------------------------- | ------------------------- |
+| **Kiro AI**       | 50 de credite/lună           | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Nu necesită autentificare |
+| **OpenCode Free** | Nelimitat                    | GPT-4o, Claude, Gemini                   | Nu necesită autentificare |
+| **Pollinations**  | Nu necesită cheie            | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Nu necesită autentificare |
+| **LongCat**       | 10M, o singură dată          | LongCat-2.0                              | Cheie API + KYC           |
+| **Cloudflare AI** | 10K neuroni/zi               | Peste 50 de modele                       | Nu necesită autentificare |
+| **NVIDIA NIM**    | ~40 RPM                      | 129 de modele                            | Necesită cheie API        |
+| **Cerebras**      | Credit de $5 la înregistrare | GLM 4.7, GPT-OSS 120B                    | Cheie API + card          |
 
-**Sfat**: Conectați mai mulți furnizori gratuiți pentru **AI gratuit nelimitat**, cu trecere automată la o alternativă!
+**Sfat**: Conectați mai mulți furnizori gratuiți pentru acces **gratuit și nelimitat la AI**, cu comutare automată la un furnizor alternativ!
 
 ---
 
@@ -248,7 +249,7 @@ OmniRoute funcționează cel mai bine cu **mai mulți furnizori**. Acest lucru v
 
 Conectați cel puțin **3 furnizori** pentru cea mai bună experiență:
 
-1. **Un furnizor gratuit** (Kiro sau Pollinations) — Disponibil permanent
+1. **Un furnizor gratuit** (Kiro, OpenCode Free sau Pollinations) — Disponibil permanent
 2. **Un furnizor rapid** (Groq, Cerebras) — Pentru răspunsuri rapide
 3. **Un furnizor de calitate** (OpenAI, Anthropic, Google) — Pentru sarcini complexe
 
@@ -282,6 +283,46 @@ Apoi utilizați `model: "auto"`, iar OmniRoute îl va alege automat pe cel mai b
 2. În OmniRoute: Furnizori → Adăugați un furnizor → DeepSeek
 3. Lipiți cheia API → Conectare
 
+### Qoder: alegeți metoda de transport a acreditărilor
+
+Qoder necesită acreditări. Cele două metode de transport au capacități diferite; doar numele unui model
+nu identifică ce poate face o anumită conexiune.
+
+| Acreditare                           | Transport OmniRoute                          | Apelarea instrumentelor de către client                       | Streaming                                                                          |
+| ------------------------------------ | -------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| PAT care începe cu `pt-`             | Proces local `qodercli` pe gazda OmniRoute   | Neacceptată                                                   | Cu memorare în tampon: SSE este emis doar după ce CLI returnează răspunsul complet |
+| Token de acces non-PAT sau cheie API | Endpoint HTTP DashScope compatibil cu OpenAI | Transmisă mai departe, în funcție de modelul/cheia din amonte | Cale HTTP/SSE din amonte                                                           |
+
+Pentru un PAT, instalați Qoder CLI pe aceeași gazdă sau în același container ca OmniRoute. Executabilul
+trebuie să poată fi găsit ca `qodercli`; alternativ, setați `CLI_QODER_BIN` la calea executabilului. Un CLI
+instalat doar pe gazda Docker nu este prezent automat în container. Executabilele lipsă
+generează o eroare explicită care vă îndrumă către instalare sau configurarea căii.
+
+Calea de chat PAT are un timeout al procesului de 45 de secunde. Aceasta aplatizează conversația într-un
+prompt și invocă CLI în modul de afișare fără streaming. Solicitarea `stream: true` schimbă
+formatul răspunsului în SSE; nu oferă livrarea incrementală a tokenurilor din amonte.
+Validarea CLI/listarea modelelor utilizează un timeout separat de 20 de secunde. Acestea sunt valorile implicite
+actuale din cod, nu setări configurabile din panoul de control.
+
+Utilizați conexiunile PAT pentru chat simplu. Solicitările de agent care conțin `tools` sau `functions`
+în formatul vechi exclud conturile PAT în timpul selectării acreditărilor, inclusiv țintele combo fixate. Un pool
+Qoder mixt poate selecta în continuare contul său HTTP. Apelurile directe către executorul PAT eșuează, de asemenea,
+în mod explicit înainte de lansarea CLI, în loc să elimine în tăcere definițiile instrumentelor. Această
+restricție se referă la instrumentele furnizate de clientul API, nu la instrumentele interne pe care Qoder
+CLI le-ar putea utiliza. O cheie HTTP nu garantează că fiecare model acceptă instrumente; verificările normale
+privind capacitățile modelului se aplică în continuare.
+
+OAuth prin browser este disponibil numai atunci când administratorul configurează toate cele cinci setări:
+`QODER_OAUTH_AUTHORIZE_URL`, `QODER_OAUTH_TOKEN_URL`, `QODER_OAUTH_USERINFO_URL`,
+`QODER_OAUTH_CLIENT_ID` și `QODER_OAUTH_CLIENT_SECRET`. În mod implicit, acestea sunt goale; o
+instalare neconfigurată ar trebui să utilizeze un import de acreditări acceptat, în loc să presupună
+că fluxul de autentificare prin browser este pregătit.
+
+Referințe de implementare: [executorul Qoder](../../open-sse/executors/qoder.ts),
+[runtime-ul CLI](../../open-sse/services/qoderCli.ts) și
+[configurația OAuth](../../src/lib/oauth/constants/oauth.ts). Streamingul PAT incremental
+și un timeout configurabil sunt îmbunătățiri separate; acest comportament nu le garantează.
+
 ### Groq
 
 1. Obțineți cheia API: https://console.groq.com/
@@ -294,7 +335,7 @@ Apoi utilizați `model: "auto"`, iar OmniRoute îl va alege automat pe cel mai b
 
 ### „Trebuie să plătesc pentru a utiliza OmniRoute?”
 
-**Nu!** OmniRoute este gratuit și open-source. Puteți utiliza furnizori gratuiți (Kiro, Pollinations) fără să plătiți nimic. Plătiți doar dacă alegeți să utilizați furnizori cu plată.
+**Nu!** OmniRoute este gratuit și open-source. Puteți utiliza furnizori gratuiți (Kiro, OpenCode Free, Pollinations) fără să plătiți nimic. Plătiți doar dacă alegeți să utilizați furnizori cu plată.
 
 ### „Cu ce furnizor ar trebui să încep?”
 

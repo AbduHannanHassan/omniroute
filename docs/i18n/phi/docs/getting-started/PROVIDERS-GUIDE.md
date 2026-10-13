@@ -14,12 +14,12 @@ Isipin ang provider na parang isang **kumpanya ng telekomunikasyon**. Kung paano
 
 ### Mga Uri ng Provider
 
-| Uri            | Ano Ito                          | Mga Halimbawa                   | Gastos                        |
-| -------------- | -------------------------------- | ------------------------------- | ----------------------------- |
-| **Libre**      | Walang kinakailangang bayad      | Kiro, Pollinations              | $0                            |
-| **API Key**    | Kailangan mo ng API key          | OpenAI, Anthropic, Google       | Magbayad batay sa paggamit    |
-| **OAuth**      | Mag-login gamit ang account      | Claude Code, GitHub Copilot     | Subscription                  |
-| **Web Cookie** | Ginagamit ang browser session mo | ChatGPT Web (Codex), Gemini Web | $0 (ginagamit ang account mo) |
+| Uri            | Ano Ito                          | Mga Halimbawa                     | Gastos                        |
+| -------------- | -------------------------------- | --------------------------------- | ----------------------------- |
+| **Libre**      | Walang kinakailangang bayad      | Kiro, OpenCode Free, Pollinations | $0                            |
+| **API Key**    | Kailangan mo ng API key          | OpenAI, Anthropic, Google         | Magbayad batay sa paggamit    |
+| **OAuth**      | Mag-login gamit ang account      | Claude Code, GitHub Copilot       | Subscription                  |
+| **Web Cookie** | Ginagamit ang browser session mo | ChatGPT Web (Codex), Gemini Web   | $0 (ginagamit ang account mo) |
 
 ### Mga Web Cookie Provider
 
@@ -46,6 +46,7 @@ ligtas na subukang muli ang mga nabigo lamang pagkatapos ng bahagyang resulta.
 2. Pumunta sa **Mga Provider** → **Magdagdag ng Provider**
 3. Pumili ng isa sa mga libreng provider na ito:
    - **Kiro AI** — Mga libreng Claude model (walang kinakailangang authentication)
+   - **OpenCode Free** — Mga libreng GPT model (walang kinakailangang authentication)
    - **Pollinations** — Libreng GPT-5, Claude, Gemini (walang kinakailangang key)
    - **LongCat** — 10M libreng token (isang beses na grant, nangangailangan ng account + KYC)
    - **Cloudflare AI** — 50+ model, 10K neuron/araw
@@ -168,21 +169,21 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 ---
 
-## Pinakamahusay na Libreng Provider
+## Pinakamahuhusay na Libreng Provider
 
 Nag-aalok ang mga provider na ito ng **libreng access** nang hindi nangangailangan ng credit card:
 
-| Provider          | Libreng Quota            | Mga Model                                | Paano Kumonekta        |
-| ----------------- | ------------------------ | ---------------------------------------- | ---------------------- |
-| **Kiro AI**       | 50 credit/buwan          | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Walang kailangang auth |
-| **Pollinations**  | Walang kailangang key    | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Walang kailangang auth |
-| **LongCat**       | 10M nang isang beses     | LongCat-2.0                              | API key + KYC          |
-| **Cloudflare AI** | 10K neuron/araw          | 50+ model                                | Walang kailangang auth |
-| **NVIDIA NIM**    | ~40 RPM                  | 129 model                                | Kailangan ng API key   |
-| **Cerebras**      | $5 credit sa pag-sign up | GLM 4.7, GPT-OSS 120B                    | API key + card         |
-| **Qoder**         | Walang limitasyon        | Kimi-K2, DeepSeek-R1, Qwen3-coder        | Walang kailangang auth |
+| Provider          | Libreng Quota                | Mga Model                                | Paano Kumonekta                   |
+| ----------------- | ---------------------------- | ---------------------------------------- | --------------------------------- |
+| **Kiro AI**       | 50 credit/buwan              | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Hindi kailangan ng authentication |
+| **OpenCode Free** | Walang limitasyon            | GPT-4o, Claude, Gemini                   | Hindi kailangan ng authentication |
+| **Pollinations**  | Hindi kailangan ng key       | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Hindi kailangan ng authentication |
+| **LongCat**       | 10M nang isang beses         | LongCat-2.0                              | API key + KYC                     |
+| **Cloudflare AI** | 10K neuron/araw              | 50+ model                                | Hindi kailangan ng authentication |
+| **NVIDIA NIM**    | ~40 RPM                      | 129 model                                | Kailangan ng API key              |
+| **Cerebras**      | $5 credit sa pagpaparehistro | GLM 4.7, GPT-OSS 120B                    | API key + card                    |
 
-**Tip**: Ikonekta ang maraming libreng provider para sa **walang-limitasyong libreng AI** na may awtomatikong fallback!
+**Tip**: Ikonekta ang maraming libreng provider para sa **walang limitasyong libreng AI** na may awtomatikong fallback!
 
 ---
 
@@ -248,7 +249,7 @@ Pinakamahusay na gumagana ang OmniRoute kapag may **maraming provider**. Binibig
 
 Kumonekta sa hindi bababa sa **3 provider** para sa pinakamahusay na karanasan:
 
-1. **Isang libreng provider** (Kiro, o Pollinations) — Palaging available
+1. **Isang libreng provider** (Kiro, OpenCode Free, o Pollinations) — Palaging available
 2. **Isang mabilis na provider** (Groq, Cerebras) — Para sa mabilis na mga tugon
 3. **Isang de-kalidad na provider** (OpenAI, Anthropic, Google) — Para sa mga komplikadong gawain
 
@@ -260,33 +261,73 @@ Pagkatapos, gamitin ang `model: "auto"` at awtomatikong pipiliin ng OmniRoute an
 
 ### OpenAI
 
-1. Kumuha ng API key: https://platform.openai.com/api-keys
-2. Sa OmniRoute: Mga Provider → Magdagdag ng Provider → OpenAI
-3. I-paste ang API key → Kumonekta
+1. Kunin ang API key: https://platform.openai.com/api-keys
+2. Sa OmniRoute: Providers → Add Provider → OpenAI
+3. I-paste ang API key → Connect
 
 ### Anthropic
 
-1. Kumuha ng API key: https://console.anthropic.com/
-2. Sa OmniRoute: Mga Provider → Magdagdag ng Provider → Anthropic
-3. I-paste ang API key → Kumonekta
+1. Kunin ang API key: https://console.anthropic.com/
+2. Sa OmniRoute: Providers → Add Provider → Anthropic
+3. I-paste ang API key → Connect
 
 ### Google (Gemini)
 
-1. Kumuha ng API key: https://aistudio.google.com/apikey
-2. Sa OmniRoute: Mga Provider → Magdagdag ng Provider → Gemini
-3. I-paste ang API key → Kumonekta
+1. Kunin ang API key: https://aistudio.google.com/apikey
+2. Sa OmniRoute: Providers → Add Provider → Gemini
+3. I-paste ang API key → Connect
 
 ### DeepSeek
 
-1. Kumuha ng API key: https://platform.deepseek.com/
-2. Sa OmniRoute: Mga Provider → Magdagdag ng Provider → DeepSeek
-3. I-paste ang API key → Kumonekta
+1. Kunin ang API key: https://platform.deepseek.com/
+2. Sa OmniRoute: Providers → Add Provider → DeepSeek
+3. I-paste ang API key → Connect
+
+### Qoder: piliin ang paraan ng pagpapadala ng credential
+
+Nangangailangan ang Qoder ng mga credential. Magkaiba ang mga kakayahan ng dalawang paraan ng pagpapadala nito; hindi sapat ang pangalan ng model
+upang matukoy kung ano ang magagawa ng isang partikular na koneksyon.
+
+| Credential                     | Paraan ng pagpapadala ng OmniRoute                 | Pagtawag ng tool ng caller               | Streaming                                                                    |
+| ------------------------------ | -------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------- |
+| PAT na nagsisimula sa `pt-`    | Lokal na prosesong `qodercli` sa host ng OmniRoute | Hindi sinusuportahan                     | Buffered: inilalabas lamang ang SSE pagkatapos ibalik ng CLI ang buong tugon |
+| Non-PAT access token o API key | OpenAI-compatible HTTP endpoint ng DashScope       | Ipinapasa, depende sa upstream model/key | Upstream na HTTP/SSE path                                                    |
+
+Para sa isang PAT, i-install ang Qoder CLI sa parehong host o container kung nasaan ang OmniRoute. Dapat
+matukoy ang executable bilang `qodercli`, o itakda ang `CLI_QODER_BIN` sa executable path nito. Ang isang CLI
+na naka-install lamang sa Docker host ay hindi awtomatikong makikita sa container. Kapag nawawala ang
+mga binary, lilitaw ang isang tahasang error na nagtuturo sa iyo sa pag-install o pagtatakda ng path.
+
+May 45 segundong process timeout ang PAT chat path. Pinagsasama nito ang pag-uusap sa isang
+prompt at tinatawag ang CLI sa non-streaming print mode. Ang paghiling ng `stream: true` ay nagpapalit
+sa response envelope patungong SSE; hindi ito nagbibigay ng unti-unting upstream token delivery.
+Gumagamit ang CLI validation/model listing ng hiwalay na 20 segundong timeout. Ang mga ito ang kasalukuyang
+default sa code, at hindi mga setting na mako-configure sa dashboard.
+
+Gamitin ang mga PAT connection para sa simpleng chat. Hindi isinasama ng mga agent request na may dalang `tools` o legacy na `functions`
+ang mga PAT account sa pagpili ng credential, kabilang ang mga naka-pin na combo target. Maaari pa ring
+piliin ng pinaghalong Qoder pool ang HTTP account nito. Tahasang nabibigo rin ang mga direktang tawag
+sa PAT executor bago ilunsad ang CLI sa halip na tahimik na balewalain ang mga kahulugan ng tool. Ang
+restriksiyong ito ay tungkol sa mga tool na ibinigay ng API caller, hindi sa anumang internal tool na maaaring
+gamitin mismo ng Qoder CLI. Hindi ginagarantiya ng isang HTTP key na sinusuportahan ng bawat model ang mga tool; naaangkop pa rin
+ang mga karaniwang pagsusuri sa kakayahan ng model.
+
+Available lamang ang Browser OAuth kapag na-configure ng administrator ang lahat ng limang setting:
+`QODER_OAUTH_AUTHORIZE_URL`, `QODER_OAUTH_TOKEN_URL`, `QODER_OAUTH_USERINFO_URL`,
+`QODER_OAUTH_CLIENT_ID`, at `QODER_OAUTH_CLIENT_SECRET`. Bilang default, walang laman ang mga ito; ang isang
+hindi naka-configure na installation ay dapat gumamit ng sinusuportahang pag-import ng credential sa halip na ipagpalagay
+na handa na ang browser sign-in flow.
+
+Mga sanggunian sa implementation: [Qoder executor](../../open-sse/executors/qoder.ts),
+[CLI runtime](../../open-sse/services/qoderCli.ts), at
+[OAuth configuration](../../src/lib/oauth/constants/oauth.ts). Magkahiwalay na enhancement ang incremental PAT streaming
+at nako-configure na timeout; hindi ipinapangako ng gawi na ito ang mga iyon.
 
 ### Groq
 
-1. Kumuha ng API key: https://console.groq.com/
-2. Sa OmniRoute: Mga Provider → Magdagdag ng Provider → Groq
-3. I-paste ang API key → Kumonekta
+1. Kunin ang API key: https://console.groq.com/
+2. Sa OmniRoute: Providers → Add Provider → Groq
+3. I-paste ang API key → Connect
 
 ---
 
@@ -294,7 +335,7 @@ Pagkatapos, gamitin ang `model: "auto"` at awtomatikong pipiliin ng OmniRoute an
 
 ### "Kailangan ko bang magbayad para magamit ang OmniRoute?"
 
-**Hindi!** Libre at open-source ang OmniRoute. Maaari kang gumamit ng mga libreng provider (Kiro, Pollinations) nang walang anumang bayad. Magbabayad ka lang kung pipiliin mong gumamit ng mga may bayad na provider.
+**Hindi!** Libre at open-source ang OmniRoute. Maaari kang gumamit ng mga libreng provider (Kiro, OpenCode Free, Pollinations) nang walang anumang bayad. Magbabayad ka lang kung pipiliin mong gumamit ng mga may bayad na provider.
 
 ### "Aling provider ang dapat kong unang gamitin?"
 

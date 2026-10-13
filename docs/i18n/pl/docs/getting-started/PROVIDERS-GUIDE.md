@@ -14,12 +14,12 @@ Pomyśl o dostawcy jak o **operatorze telefonicznym**. Tak jak potrzebujesz oper
 
 ### Typy dostawców
 
-| Typ            | Czym jest                  | Przykłady                       | Koszt                         |
-| -------------- | -------------------------- | ------------------------------- | ----------------------------- |
-| **Bezpłatny**  | Nie wymaga płatności       | Kiro, Pollinations              | $0                            |
-| **Klucz API**  | Potrzebujesz klucza API    | OpenAI, Anthropic, Google       | Płatność według użycia        |
-| **OAuth**      | Logowanie za pomocą konta  | Claude Code, GitHub Copilot     | Subskrypcja                   |
-| **Web Cookie** | Używa sesji z przeglądarki | ChatGPT Web (Codex), Gemini Web | $0 (korzysta z Twojego konta) |
+| Typ            | Czym jest                  | Przykłady                         | Koszt                         |
+| -------------- | -------------------------- | --------------------------------- | ----------------------------- |
+| **Bezpłatny**  | Nie wymaga płatności       | Kiro, OpenCode Free, Pollinations | $0                            |
+| **Klucz API**  | Potrzebujesz klucza API    | OpenAI, Anthropic, Google         | Płatność według użycia        |
+| **OAuth**      | Logowanie za pomocą konta  | Claude Code, GitHub Copilot       | Subskrypcja                   |
+| **Web Cookie** | Używa sesji z przeglądarki | ChatGPT Web (Codex), Gemini Web   | $0 (korzysta z Twojego konta) |
 
 ### Dostawcy korzystający z plików cookie
 
@@ -46,6 +46,7 @@ możesz bezpiecznie ponowić próbę tylko dla nieudanych konfiguracji.
 2. Przejdź do **Dostawcy** → **Dodaj dostawcę**
 3. Wybierz jednego z następujących bezpłatnych dostawców:
    - **Kiro AI** — Bezpłatne modele Claude (uwierzytelnianie nie jest wymagane)
+   - **OpenCode Free** — Bezpłatne modele GPT (uwierzytelnianie nie jest wymagane)
    - **Pollinations** — Bezpłatne modele GPT-5, Claude i Gemini (klucz nie jest wymagany)
    - **LongCat** — 10 mln tokenów bezpłatnie (jednorazowy przydział, wymaga konta i weryfikacji KYC)
    - **Cloudflare AI** — Ponad 50 modeli, 10 tys. neuronów dziennie
@@ -170,19 +171,19 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 ## Najlepsi darmowi dostawcy
 
-Ci dostawcy oferują **bezpłatny dostęp** bez karty kredytowej:
+Ci dostawcy oferują **bezpłatny dostęp** bez konieczności podawania danych karty kredytowej:
 
-| Dostawca          | Bezpłatny limit              | Modele                                   | Sposób połączenia    |
-| ----------------- | ---------------------------- | ---------------------------------------- | -------------------- |
-| **Kiro AI**       | 50 kredytów/miesiąc          | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Bez uwierzytelniania |
-| **Pollinations**  | Klucz nie jest wymagany      | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Bez uwierzytelniania |
-| **LongCat**       | Jednorazowo 10 mln           | LongCat-2.0                              | Klucz API + KYC      |
-| **Cloudflare AI** | 10 tys. neuronów/dzień       | Ponad 50 modeli                          | Bez uwierzytelniania |
-| **NVIDIA NIM**    | ~40 RPM                      | 129 modeli                               | Wymagany klucz API   |
-| **Cerebras**      | 5 USD środków za rejestrację | GLM 4.7, GPT-OSS 120B                    | Klucz API + karta    |
-| **Qoder**         | Bez limitu                   | Kimi-K2, DeepSeek-R1, Qwen3-coder        | Bez uwierzytelniania |
+| Dostawca          | Bezpłatny limit              | Modele                                   | Jak się połączyć                   |
+| ----------------- | ---------------------------- | ---------------------------------------- | ---------------------------------- |
+| **Kiro AI**       | 50 kredytów/miesiąc          | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Uwierzytelnianie nie jest wymagane |
+| **OpenCode Free** | Bez ograniczeń               | GPT-4o, Claude, Gemini                   | Uwierzytelnianie nie jest wymagane |
+| **Pollinations**  | Klucz nie jest wymagany      | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Uwierzytelnianie nie jest wymagane |
+| **LongCat**       | Jednorazowo 10 mln           | LongCat-2.0                              | Klucz API + KYC                    |
+| **Cloudflare AI** | 10 tys. neuronów/dzień       | Ponad 50 modeli                          | Uwierzytelnianie nie jest wymagane |
+| **NVIDIA NIM**    | ~40 RPM                      | 129 modeli                               | Wymagany klucz API                 |
+| **Cerebras**      | 5 USD środków za rejestrację | GLM 4.7, GPT-OSS 120B                    | Klucz API + karta                  |
 
-**Wskazówka**: Połącz wielu darmowych dostawców, aby korzystać z **bezpłatnej AI bez limitu** z automatycznym przełączaniem awaryjnym!
+**Wskazówka**: Połącz wielu darmowych dostawców, aby uzyskać **nieograniczony bezpłatny dostęp do AI** z automatycznym przełączaniem awaryjnym!
 
 ---
 
@@ -248,7 +249,7 @@ OmniRoute działa najlepiej z **wieloma dostawcami**. Zapewnia to:
 
 Połącz co najmniej **3 dostawców**, aby uzyskać najlepsze rezultaty:
 
-1. **Jeden darmowy dostawca** (Kiro lub Pollinations) — zawsze dostępny
+1. **Jeden darmowy dostawca** (Kiro, OpenCode Free lub Pollinations) — zawsze dostępny
 2. **Jeden szybki dostawca** (Groq, Cerebras) — do szybkich odpowiedzi
 3. **Jeden dostawca wysokiej jakości** (OpenAI, Anthropic, Google) — do złożonych zadań
 
@@ -256,7 +257,7 @@ Następnie użyj `model: "auto"`, a OmniRoute automatycznie wybierze najlepszego
 
 ---
 
-## Konfiguracja poszczególnych dostawców
+## Konfiguracja specyficzna dla dostawcy
 
 ### OpenAI
 
@@ -282,6 +283,46 @@ Następnie użyj `model: "auto"`, a OmniRoute automatycznie wybierze najlepszego
 2. W OmniRoute: Dostawcy → Dodaj dostawcę → DeepSeek
 3. Wklej klucz API → Połącz
 
+### Qoder: wybór sposobu przekazywania poświadczeń
+
+Qoder wymaga poświadczeń. Dwa dostępne sposoby ich przekazywania oferują różne możliwości; sama nazwa modelu
+nie określa, jakie operacje może wykonywać dane połączenie.
+
+| Poświadczenie                            | Sposób przekazywania w OmniRoute              | Wywoływanie narzędzi przez klienta                        | Strumieniowanie                                                                 |
+| ---------------------------------------- | --------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| PAT zaczynający się od `pt-`             | Lokalny proces `qodercli` na hoście OmniRoute | Nieobsługiwane                                            | Buforowane: SSE jest emitowane dopiero po zwróceniu pełnej odpowiedzi przez CLI |
+| Token dostępu inny niż PAT lub klucz API | Punkt końcowy HTTP DashScope zgodny z OpenAI  | Przekazywane dalej, zależnie od nadrzędnego modelu/klucza | Nadrzędna ścieżka HTTP/SSE                                                      |
+
+W przypadku PAT zainstaluj Qoder CLI na tym samym hoście lub w tym samym kontenerze co OmniRoute. Plik wykonywalny
+musi być dostępny jako `qodercli`; możesz też ustawić `CLI_QODER_BIN` na ścieżkę do tego pliku. CLI
+zainstalowane wyłącznie na hoście Dockera nie jest automatycznie dostępne w kontenerze. Brak
+pliku wykonywalnego powoduje wyświetlenie jednoznacznego błędu wskazującego konieczność instalacji lub ustawienia ścieżki.
+
+Ścieżka czatu PAT ma limit czasu procesu wynoszący 45 sekund. Spłaszcza konwersację do postaci
+promptu i wywołuje CLI w niestrumieniowym trybie wyjścia. Żądanie `stream: true` zmienia
+format odpowiedzi na SSE; nie zapewnia przyrostowego dostarczania tokenów z usługi nadrzędnej.
+Walidacja CLI i pobieranie listy modeli korzystają z osobnego limitu czasu wynoszącego 20 sekund. Są to obecne wartości
+domyślne w kodzie, a nie konfigurowalne ustawienia panelu.
+
+Połączeń PAT należy używać do zwykłego czatu. Żądania agentowe zawierające `tools` lub starsze `functions`
+wykluczają konta PAT podczas wyboru poświadczeń, również w przypadku przypiętych celów łączonych. Mieszana
+pula Qoder nadal może wybrać konto HTTP. Bezpośrednie wywołania wykonawcy PAT również kończą się
+jednoznacznym błędem przed uruchomieniem CLI, zamiast po cichu pomijać definicje narzędzi. To
+ograniczenie dotyczy narzędzi dostarczonych przez klienta API, a nie narzędzi wewnętrznych, których Qoder
+CLI może używać samodzielnie. Klucz HTTP nie gwarantuje, że każdy model obsługuje narzędzia; nadal
+obowiązują standardowe mechanizmy sprawdzania możliwości modelu.
+
+OAuth w przeglądarce jest dostępne tylko wtedy, gdy administrator skonfiguruje wszystkie pięć ustawień:
+`QODER_OAUTH_AUTHORIZE_URL`, `QODER_OAUTH_TOKEN_URL`, `QODER_OAUTH_USERINFO_URL`,
+`QODER_OAUTH_CLIENT_ID` oraz `QODER_OAUTH_CLIENT_SECRET`. Domyślnie są one puste; w
+nieskonfigurowanej instalacji należy użyć obsługiwanego importu poświadczeń, zamiast zakładać,
+że przepływ logowania w przeglądarce jest gotowy.
+
+Odwołania do implementacji: [wykonawca Qoder](../../open-sse/executors/qoder.ts),
+[środowisko uruchomieniowe CLI](../../open-sse/services/qoderCli.ts) oraz
+[konfiguracja OAuth](../../src/lib/oauth/constants/oauth.ts). Przyrostowe strumieniowanie PAT
+i konfigurowalny limit czasu są osobnymi usprawnieniami; opisane zachowanie ich nie gwarantuje.
+
 ### Groq
 
 1. Uzyskaj klucz API: https://console.groq.com/
@@ -294,7 +335,7 @@ Następnie użyj `model: "auto"`, a OmniRoute automatycznie wybierze najlepszego
 
 ### „Czy muszę płacić za korzystanie z OmniRoute?”
 
-**Nie!** OmniRoute jest bezpłatnym oprogramowaniem typu open source. Możesz korzystać z bezpłatnych dostawców (Kiro, Pollinations), nic za to nie płacąc. Płacisz tylko wtedy, gdy zdecydujesz się korzystać z płatnych dostawców.
+**Nie!** OmniRoute jest bezpłatnym oprogramowaniem typu open source. Możesz korzystać z bezpłatnych dostawców (Kiro, OpenCode Free, Pollinations), nic za to nie płacąc. Płacisz tylko wtedy, gdy zdecydujesz się korzystać z płatnych dostawców.
 
 ### „Od którego dostawcy najlepiej zacząć?”
 

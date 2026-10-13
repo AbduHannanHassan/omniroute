@@ -14,12 +14,12 @@ Samhlaigh soláthraí mar **oibreoir teileafóin**. Díreach mar a theastaíonn 
 
 ### Cineálacha Soláthraithe
 
-| Cineál              | Cad atá ann                         | Samplaí                         | Costas                       |
-| ------------------- | ----------------------------------- | ------------------------------- | ---------------------------- |
-| **Saor in aisce**   | Ní theastaíonn íocaíocht            | Kiro, Pollinations              | $0                           |
-| **Eochair API**     | Teastaíonn eochair API uait         | OpenAI, Anthropic, Google       | Íoc de réir úsáide           |
-| **OAuth**           | Logáil isteach le do chuntas        | Claude Code, GitHub Copilot     | Síntiús                      |
-| **Fianán Gréasáin** | Úsáideann sé do sheisiún brabhsálaí | ChatGPT Web (Codex), Gemini Web | $0 (úsáideann sé do chuntas) |
+| Cineál              | Cad atá ann                         | Samplaí                           | Costas                       |
+| ------------------- | ----------------------------------- | --------------------------------- | ---------------------------- |
+| **Saor in aisce**   | Ní theastaíonn íocaíocht            | Kiro, OpenCode Free, Pollinations | $0                           |
+| **Eochair API**     | Teastaíonn eochair API uait         | OpenAI, Anthropic, Google         | Íoc de réir úsáide           |
+| **OAuth**           | Logáil isteach le do chuntas        | Claude Code, GitHub Copilot       | Síntiús                      |
+| **Fianán Gréasáin** | Úsáideann sé do sheisiún brabhsálaí | ChatGPT Web (Codex), Gemini Web   | $0 (úsáideann sé do chuntas) |
 
 ### Soláthraithe Fianán Gréasáin
 
@@ -46,6 +46,7 @@ triail eile a bhaint go sábháilte as na cinn ar theip orthu amháin.
 2. Téigh chuig **Soláthraithe** → **Cuir Soláthraí Leis**
 3. Roghnaigh ceann de na soláthraithe saor in aisce seo:
    - **Kiro AI** — Samhlacha Claude saor in aisce (ní theastaíonn fíordheimhniú)
+   - **OpenCode Free** — Samhlacha GPT saor in aisce (ní theastaíonn fíordheimhniú)
    - **Pollinations** — GPT-5, Claude, Gemini saor in aisce (ní theastaíonn eochair)
    - **LongCat** — 10M comhartha saor in aisce (deontas aonuaire, teastaíonn cuntas + KYC)
    - **Cloudflare AI** — 50+ samhail, 10K néarón/lá
@@ -172,15 +173,15 @@ curl -X POST http://localhost:20128/v1/chat/completions \
 
 Cuireann na soláthraithe seo **rochtain saor in aisce** ar fáil gan cárta creidmheasa:
 
-| Soláthraí         | Cuóta Saor in Aisce      | Samhlacha                                | Conas Ceangal              |
-| ----------------- | ------------------------ | ---------------------------------------- | -------------------------- |
-| **Kiro AI**       | 50 creidmheas/mí         | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Níl fíordheimhniú de dhíth |
-| **Pollinations**  | Níl eochair de dhíth     | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Níl fíordheimhniú de dhíth |
-| **LongCat**       | 10M aonuaire             | LongCat-2.0                              | Eochair API + KYC          |
-| **Cloudflare AI** | 10K néarón/lá            | 50+ samhail                              | Níl fíordheimhniú de dhíth |
-| **NVIDIA NIM**    | ~40 RPM                  | 129 samhail                              | Eochair API de dhíth       |
-| **Cerebras**      | Creidmheas clárúcháin $5 | GLM 4.7, GPT-OSS 120B                    | Eochair API + cárta        |
-| **Qoder**         | Gan teorainn             | Kimi-K2, DeepSeek-R1, Qwen3-coder        | Níl fíordheimhniú de dhíth |
+| Soláthraí         | Cuóta Saor in Aisce     | Samhlacha                                | Conas Ceangal        |
+| ----------------- | ----------------------- | ---------------------------------------- | -------------------- |
+| **Kiro AI**       | 50 creidmheas/mí        | Claude Sonnet 4.5, Haiku 4.5, Opus 4.6   | Ní gá fíordheimhniú  |
+| **OpenCode Free** | Gan teorainn            | GPT-4o, Claude, Gemini                   | Ní gá fíordheimhniú  |
+| **Pollinations**  | Ní gá eochair           | GPT-5, Claude, Gemini, DeepSeek, Llama 4 | Ní gá fíordheimhniú  |
+| **LongCat**       | 10M aonuaire            | LongCat-2.0                              | Eochair API + KYC    |
+| **Cloudflare AI** | 10K néarón/lá           | 50+ samhail                              | Ní gá fíordheimhniú  |
+| **NVIDIA NIM**    | ~40 RPM                 | 129 samhail                              | Eochair API de dhíth |
+| **Cerebras**      | Creidmheas cláraithe $5 | GLM 4.7, GPT-OSS 120B                    | Eochair API + cárta  |
 
 **Leid**: Ceangail roinnt soláthraithe saor in aisce chun **AI saor in aisce gan teorainn** a fháil le cúltaca uathoibríoch!
 
@@ -248,7 +249,7 @@ Is fearr a oibríonn OmniRoute le **hil-soláthraithe**. Tugann sé seo duit:
 
 Ceangail **3 sholáthraí** ar a laghad chun an t-eispéireas is fearr a fháil:
 
-1. **Soláthraí amháin saor in aisce** (Kiro, nó Pollinations) — Ar fáil i gcónaí
+1. **Soláthraí amháin saor in aisce** (Kiro, OpenCode Free, nó Pollinations) — Ar fáil i gcónaí
 2. **Soláthraí tapa amháin** (Groq, Cerebras) — Le haghaidh freagraí gasta
 3. **Soláthraí ardchaighdeáin amháin** (OpenAI, Anthropic, Google) — Le haghaidh tascanna casta
 
@@ -256,7 +257,7 @@ Ansin úsáid `model: "auto"` agus roghnóidh OmniRoute an ceann is fearr do gac
 
 ---
 
-## Socrú a Bhaineann go Sonrach le Soláthraithe
+## Socrú Sonrach do Sholáthraithe
 
 ### OpenAI
 
@@ -282,6 +283,46 @@ Ansin úsáid `model: "auto"` agus roghnóidh OmniRoute an ceann is fearr do gac
 2. In OmniRoute: Soláthraithe → Cuir Soláthraí Leis → DeepSeek
 3. Greamaigh an eochair API → Ceangail
 
+### Qoder: roghnaigh iompar na ndintiúr
+
+Éilíonn Qoder dintiúir. Tá cumais éagsúla ag an dá iompar atá aige; ní leor ainm samhla
+leis féin chun a aithint cad is féidir le ceangal ar leith a dhéanamh.
+
+| Dintiúr                                      | Iompar OmniRoute                                         | Glaoch uirlisí ag an nglaoiteoir                                       | Sruthú                                                                          |
+| -------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| PAT a thosaíonn le `pt-`                     | Próiseas áitiúil `qodercli` ar óstach OmniRoute          | Ní thacaítear leis                                                     | Maolánaithe: ní astaítear SSE go dtí go dtugann an CLI an freagra iomlán ar ais |
+| Comhartha rochtana nach PAT é nó eochair API | Críochphointe HTTP DashScope atá comhoiriúnach le OpenAI | Cuirtear ar aghaidh é, faoi réir na samhla/na heochrach réamhtheachtaí | Conair réamhtheachtach HTTP/SSE                                                 |
+
+I gcás PAT, suiteáil Qoder CLI ar an óstach nó sa choimeádán céanna le OmniRoute. Ní mór an comhad inrite
+a bheith in-aimsithe mar `qodercli`, nó socraigh `CLI_QODER_BIN` chuig conair an chomhaid inrite. Ní bhíonn CLI
+atá suiteáilte ar óstach Docker amháin i láthair go huathoibríoch sa choimeádán. Cruthaíonn
+comhaid dhénártha atá ar iarraidh earráid shainráite a threoraíonn tú chuig an tsuiteáil nó chuig socrú na conaire.
+
+Tá teorainn ama próisis 45 soicind ag conair chomhrá PAT. Leathnaíonn sí an comhrá ina
+leid agus agraíonn sí an CLI i mód priontála neamhshruthaithe. Má iarrtar `stream: true`, athraítear
+clúdach an fhreagra go SSE; ní sholáthraíonn sé seachadadh incriminteach comharthaí ón réamhtheachtaí.
+Úsáideann bailíochtú CLI/liostú samhlacha teorainn ama ar leith de 20 soicind. Is réamhshocruithe reatha
+cóid iad seo, ní socruithe inchumraithe deais.
+
+Úsáid ceangail PAT le haghaidh gnáthchomhrá. Eisiann iarratais gníomhaire a iompraíonn `tools` nó `functions`
+oidhreachta cuntais PAT le linn roghnú dintiúr, lena n-áirítear spriocanna teaglama pionnáilte. Is féidir le comhthiomsú
+measctha Qoder a chuntas HTTP a roghnú fós. Teipeann glaonna díreacha chuig seiceadóir PAT
+go sainráite freisin sula seoltar an CLI, seachas sainmhínithe uirlisí a ligean ar lár go ciúin. Baineann an
+srian seo le huirlisí a sholáthraíonn glaoiteoir an API, ní le haon uirlisí inmheánacha a d'fhéadfadh Qoder
+CLI féin a úsáid. Ní ráthaíonn eochair HTTP go dtacaíonn gach samhail le huirlisí; tá gnáthsheiceálacha
+cumais samhla fós i bhfeidhm.
+
+Níl OAuth brabhsálaí ar fáil ach amháin nuair a chumraíonn an riarthóir na cúig shocrú ar fad:
+`QODER_OAUTH_AUTHORIZE_URL`, `QODER_OAUTH_TOKEN_URL`, `QODER_OAUTH_USERINFO_URL`,
+`QODER_OAUTH_CLIENT_ID`, agus `QODER_OAUTH_CLIENT_SECRET`. Bíonn siad folamh de réir réamhshocraithe; ba cheart do
+shuiteáil neamhchumraithe iompórtáil dintiúr a dtacaítear léi a úsáid seachas glacadh leis
+go bhfuil sreabhadh sínithe isteach an bhrabhsálaí réidh.
+
+Tagairtí cur chun feidhme: [Seiceadóir Qoder](../../open-sse/executors/qoder.ts),
+[am rite CLI](../../open-sse/services/qoderCli.ts), agus
+[cumraíocht OAuth](../../src/lib/oauth/constants/oauth.ts). Is feabhsuithe ar leith iad sruthú incriminteach PAT
+agus teorainn ama inchumraithe; ní ghealltar iad leis an iompar seo.
+
 ### Groq
 
 1. Faigh eochair API: https://console.groq.com/
@@ -294,7 +335,7 @@ Ansin úsáid `model: "auto"` agus roghnóidh OmniRoute an ceann is fearr do gac
 
 ### "An gá dom íoc chun OmniRoute a úsáid?"
 
-**Ní gá!** Tá OmniRoute saor in aisce agus foinse oscailte. Is féidir leat soláthraithe saor in aisce (Kiro, Pollinations) a úsáid gan aon íocaíocht a dhéanamh. Ní íocann tú ach amháin má roghnaíonn tú soláthraithe íoctha a úsáid.
+**Ní gá!** Tá OmniRoute saor in aisce agus foinse oscailte. Is féidir leat soláthraithe saor in aisce (Kiro, OpenCode Free, Pollinations) a úsáid gan aon íocaíocht a dhéanamh. Ní íocann tú ach amháin má roghnaíonn tú soláthraithe íoctha a úsáid.
 
 ### "Cén soláthraí ar cheart dom tosú leis?"
 
