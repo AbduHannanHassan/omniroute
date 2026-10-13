@@ -1,10 +1,10 @@
 import { translateResponse, initState } from "../translator/index.ts";
 import { FORMATS } from "../translator/formats.ts";
-import { scopeGeminiThoughtSignatureNamespace } from "../services/geminiThoughtSignatureStore.ts";
 import { appendRequestLog } from "@/lib/usageDb";
 import { clearPendingRequestOnce } from "./pendingRequestCleanup.ts";
 import { resolveTrailingUsageSummary } from "./passthroughTrailingUsage.ts";
 import { createByteLengthQueueStrategies } from "./byteQueueStrategy.ts";
+import { initTranslateStreamState } from "./streamTranslateState.ts";
 import {
   extractUsage,
   hasValidUsage,
@@ -862,10 +862,9 @@ export function createSSEStream(options: StreamOptions = {}) {
   const state: TranslateState | null =
     mode === STREAM_MODE.TRANSLATE
       ? {
-          ...(initState(sourceFormat) as TranslateState),
+          ...(initTranslateStreamState(sourceFormat, connectionId, model) as TranslateState),
           provider,
           toolNameMap,
-          signatureNamespace: scopeGeminiThoughtSignatureNamespace(connectionId, model), // #4136
           copilotCompatibleReasoning,
           suppressThinkClose,
           requestedThinking,

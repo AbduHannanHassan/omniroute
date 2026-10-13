@@ -26,6 +26,7 @@ const { FORMATS } = await import("../../open-sse/translator/formats.ts");
 const { clearGeminiThoughtSignatures } =
   await import("../../open-sse/services/geminiThoughtSignatureStore.ts");
 const { resetDbInstance } = await import("../../src/lib/db/core.ts");
+const { initTranslateStreamState } = await import("../../open-sse/utils/streamTranslateState.ts");
 
 const CONNECTION_ID = "conn-antigravity-4136";
 const TOOL_CALL_ID = "toolu_vrtx_4136";
@@ -145,4 +146,21 @@ test("#4136: the same model family still gets its cached thought signature", asy
     claudeFollowUp.includes(CLAUDE_SIGNATURE),
     "a Claude follow-up on the same connection must keep re-attaching the Claude signature"
   );
+});
+
+test("#4136: the translate-mode stream state scopes the namespace by model family", () => {
+  const sourceFormat = FORMATS.OPENAI;
+  assert.equal(
+    initTranslateStreamState(sourceFormat, CONNECTION_ID, CLAUDE_MODEL).signatureNamespace,
+    `${CONNECTION_ID}:claude`
+  );
+  assert.equal(
+    initTranslateStreamState(sourceFormat, CONNECTION_ID, GEMINI_MODEL).signatureNamespace,
+    `${CONNECTION_ID}:gemini`
+  );
+  assert.equal(
+    initTranslateStreamState(sourceFormat, CONNECTION_ID, "gpt-5").signatureNamespace,
+    CONNECTION_ID
+  );
+  assert.equal(initTranslateStreamState(sourceFormat, null, CLAUDE_MODEL).signatureNamespace, null);
 });
