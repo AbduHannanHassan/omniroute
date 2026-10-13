@@ -51,6 +51,12 @@ export interface VisionBridgeRouterConfig {
   minLatencySamples: number;
   /** Models to exclude from auto-routing */
   excludedModels: string[];
+  /**
+   * GHSA-3w2r: partition of the selection caches for a caller whose
+   * `hasUsableCredentials` is narrowed by an API-key policy, so a pick (or a
+   * "no candidate" verdict) made under one key never serves another.
+   */
+  cacheScope?: string;
 }
 
 /**
@@ -409,15 +415,19 @@ function resolveVirtualCombo(fixedModel: string | undefined): string | undefined
 async function resolveCachedSelection(
   cacheKey: string,
   virtualCombo: string | undefined,
-  deps: VisionBridgeRouterDeps
+  deps: VisionBridgeRouterDeps,
+  revalidateCredentials = false
 ): Promise<string | null> {
   const cached = selectionCache.get(cacheKey);
   if (!cached || cached.expiresAt <= Date.now()) return null;
 
   if (await cachedModelRemainsAvailable(cached.modelId, deps)) {
-    if (!virtualCombo) return cached.modelId;
     const checkCreds = deps.hasUsableCredentials ?? hasUsableCredentialsForModel;
-    if ((await checkCreds(cached.modelId)) !== false) return virtualCombo;
+    // A policy-scoped pick is re-checked: the key's policy may have changed
+    // since it was cached, and the scope must never be widened by the cache.
+    const usable =
+      virtualCombo || revalidateCredentials ? (await checkCreds(cached.modelId)) !== false : true;
+    if (usable) return virtualCombo ?? cached.modelId;
   }
   selectionCache.delete(cacheKey);
   return null;
@@ -455,11 +465,19 @@ export async function getBestVisionModel(
 
   // Check selection cache — key includes excluded models to prevent cache pollution
   // across different configurations
-  const cacheKey =
+  const baseCacheKey =
     fullConfig.excludedModels.length > 0
       ? `excl:${[...fullConfig.excludedModels].sort().join(",")}`
       : "default";
-  const cachedPick = await resolveCachedSelection(cacheKey, virtualCombo, deps);
+  const cacheKey = fullConfig.cacheScope
+    ? `${baseCacheKey}|scope:${fullConfig.cacheScope}`
+    : baseCacheKey;
+  const cachedPick = await resolveCachedSelection(
+    cacheKey,
+    virtualCombo,
+    deps,
+    Boolean(fullConfig.cacheScope)
+  );
   if (cachedPick) return cachedPick;
 
   // A recent scan already proved nothing here is usable. Re-running it costs a
