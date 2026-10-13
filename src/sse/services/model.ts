@@ -15,6 +15,7 @@ import {
 } from "@omniroute/open-sse/services/model.ts";
 import { getLearnedReasoningEffortForModel } from "@omniroute/open-sse/services/learnedReasoningEffortCaps.ts";
 import { REGISTRY } from "@omniroute/open-sse/config/providerRegistry.ts";
+import { ANTIGRAVITY_MODEL_ALIASES } from "@omniroute/open-sse/config/antigravityModelAliases.ts";
 import { getRegisteredProviderEffortBaseModelId } from "@omniroute/open-sse/utils/registeredEffortVariants.ts";
 import { getReservedProviderPrefixes } from "@/shared/constants/reservedProviderPrefixes";
 import {
@@ -165,6 +166,27 @@ function resolveRegistryModelIdAndEffort(
   return { modelId, effort: null };
 }
 
+function registryFoldDespiteLiveCatalog(
+  providerId: string,
+  modelId: string
+): { modelId: string; effort: string } | null {
+  const registryModels = REGISTRY[providerId]?.models;
+  if (!Array.isArray(registryModels)) return null;
+  for (const candidate of registryModels) {
+    const folds = candidate?.effortSuffixesThatFoldDespiteLiveCatalog;
+    if (!Array.isArray(folds) || typeof candidate?.id !== "string") continue;
+    for (const effort of folds) {
+      if (typeof effort !== "string" || !effort) continue;
+      const suffix = `-${effort}`;
+      if (modelId.length > suffix.length && modelId.endsWith(suffix)) {
+        const baseModelId = modelId.slice(0, -suffix.length);
+        if (baseModelId === candidate.id) return { modelId: baseModelId, effort };
+      }
+    }
+  }
+  return null;
+}
+
 function findRegistryModel(providerId: string, modelId: string): any {
   const registryModels = REGISTRY[providerId]?.models;
   return Array.isArray(registryModels)
@@ -236,7 +258,21 @@ function findLiveCatalogModelMeta(
   const directMatch = findSyncedModelMeta(syncedModels, resolvedModelId);
   if (directMatch || !Array.isArray(syncedModels)) return directMatch;
 
-  const registryModel = findRegistryModel(providerId, requestedModelId);
+  // #15659: Antigravity display ids ("gemini-3.7-flash", "gemini-3.8-flash") are aliases of an
+  // upstream id. An account whose live catalog lists only the alias target (the shared
+  // `-tiered` id) must still be able to call the display id.
+  const aliasTarget =
+    providerId === "antigravity" || providerId === "agy"
+      ? (ANTIGRAVITY_MODEL_ALIASES as Record<string, string>)[requestedModelId]
+      : undefined;
+  if (aliasTarget) {
+    const aliasMatch = findSyncedModelMeta(syncedModels, aliasTarget);
+    if (aliasMatch) return aliasMatch;
+  }
+
+  const registryModel =
+    findRegistryModel(providerId, requestedModelId) ??
+    (aliasTarget ? findRegistryModel(providerId, aliasTarget) : undefined);
   const liveCatalogIds = registryModel?.liveCatalogIds;
   if (!Array.isArray(liveCatalogIds) || liveCatalogIds.length === 0) return undefined;
 
@@ -382,17 +418,15 @@ async function lookupModelMeta(
     ]);
     const syncedModels = liveCatalog.models;
 
-    // #7694: no direct match on the raw modelId? try a synced-declared `-{effort}`
-    // suffix before falling back to the literal id, so `<prefix>/<model>-<tier>`
-    // resolves to the real base model + a resolved effort.
-    // #7694: no direct match on the raw modelId? try a synced-declared `-{effort}`
-    // suffix before falling back to the literal id, so `<prefix>/<model>-<tier>`
-    // resolves to the real base model + a resolved effort.
-    let { modelId: resolvedModelId, effort } = resolveSyncedModelIdAndEffort(
-      providerId,
-      modelId,
-      syncedModels
-    );
+    // A declared effort suffix folds even when the live catalog lists that
+    // full id as its own SKU. An operator custom model of the same id still
+    // wins: it is an explicit override, not a catalog accident.
+    const foldedDespiteLiveCatalog = findCustomModelMeta(customModels, modelId)
+      ? null
+      : registryFoldDespiteLiveCatalog(providerId, modelId);
+    let { modelId: resolvedModelId, effort } = foldedDespiteLiveCatalog
+      ? foldedDespiteLiveCatalog
+      : resolveSyncedModelIdAndEffort(providerId, modelId, syncedModels);
     // Short-circuit registry suffix resolution when the raw id is already a direct
     // custom or synced model — otherwise a model literally named
     // `deepseek-v4-flash-low` gets rewritten to `deepseek-v4-flash` + effort `low`
