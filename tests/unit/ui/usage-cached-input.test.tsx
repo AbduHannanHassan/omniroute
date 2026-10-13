@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import UsageAnalytics from "@/shared/components/UsageAnalytics";
 
+vi.unmock("next-intl");
+
 vi.mock("@/shared/components/analytics", async (original) => {
   const actual = await original<Record<string, unknown>>();
   return Object.fromEntries(
