@@ -251,10 +251,7 @@ EmbeddingsV5Request-dokumenter og **videresender dem intakt** til `https://api.j
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [
-        { "text": "caption" },
-        { "image": "data:image/png;base64,..." }
-      ]
+      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
     }
   ]
 }
@@ -1206,10 +1203,7 @@ Reparerer manglende eller korrupte OAuth-miljøvariabler for en spesifikk levera
 ```json
 {
   "success": true,
-  "repaired": [
-    "CLAUDE_CODE_OAUTH_CLIENT_ID",
-    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
-  ],
+  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```

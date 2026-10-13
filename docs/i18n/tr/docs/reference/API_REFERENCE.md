@@ -227,10 +227,7 @@ EmbeddingsV5Request belgelerini de kabul eder ve bunları **değiştirmeden** `h
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [
-        { "text": "caption" },
-        { "image": "data:image/png;base64,..." }
-      ]
+      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
     }
   ]
 }
@@ -1197,10 +1194,7 @@ Belirli bir sağlayıcı için eksik veya bozulmuş OAuth ortam değişkenlerini
 ```json
 {
   "success": true,
-  "repaired": [
-    "CLAUDE_CODE_OAUTH_CLIENT_ID",
-    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
-  ],
+  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
@@ -1809,9 +1803,7 @@ analitik uç noktaları. Bunlar `/dashboard/analytics/*` sayfalarını destekler
     "google": 0.2,
     "kiro": 0.15
   },
-  "warnings": [
-    "OpenAI trafiğin %40'ını oluşturuyor — çeşitlendirmeyi değerlendirin"
-  ]
+  "warnings": ["OpenAI trafiğin %40'ını oluşturuyor — çeşitlendirmeyi değerlendirin"]
 }
 ```
 

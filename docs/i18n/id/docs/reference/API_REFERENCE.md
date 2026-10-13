@@ -223,10 +223,7 @@ dan alias famili `jina-ai/jina-embeddings-v5-omni` → omni-small) juga menerima
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [
-        { "text": "caption" },
-        { "image": "data:image/png;base64,..." }
-      ]
+      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
     }
   ]
 }
@@ -1201,10 +1198,7 @@ Memperbaiki variabel lingkungan OAuth yang hilang atau rusak untuk penyedia tert
 ```json
 {
   "success": true,
-  "repaired": [
-    "CLAUDE_CODE_OAUTH_CLIENT_ID",
-    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
-  ],
+  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```

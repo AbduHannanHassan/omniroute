@@ -227,10 +227,7 @@ EmbeddingsV5Request nativi di Jina e **li inoltra intatti** a `https://api.jina.
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [
-        { "text": "caption" },
-        { "image": "data:image/png;base64,..." }
-      ]
+      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
     }
   ]
 }
@@ -1194,10 +1191,7 @@ Ripara le variabili d'ambiente OAuth mancanti o corrotte per un provider specifi
 ```json
 {
   "success": true,
-  "repaired": [
-    "CLAUDE_CODE_OAUTH_CLIENT_ID",
-    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
-  ],
+  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
@@ -1804,9 +1798,7 @@ dei provider. Questi endpoint alimentano le pagine `/dashboard/analytics/*`.
     "google": 0.2,
     "kiro": 0.15
   },
-  "warnings": [
-    "OpenAI rappresenta il 40% del traffico — valuta la possibilità di diversificare"
-  ]
+  "warnings": ["OpenAI rappresenta il 40% del traffico — valuta la possibilità di diversificare"]
 }
 ```
 

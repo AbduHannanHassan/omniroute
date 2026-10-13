@@ -227,10 +227,7 @@ Jina v5 Omni (`jina-ai/jina-embeddings-v5-omni-small`, `jina-ai/jina-embeddings-
     { "text": "កង់ពណ៌ក្រហមមួយគ្រឿង" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [
-        { "text": "ចំណងជើង" },
-        { "image": "data:image/png;base64,..." }
-      ]
+      "content": [{ "text": "ចំណងជើង" }, { "image": "data:image/png;base64,..." }]
     }
   ]
 }
@@ -1219,10 +1216,7 @@ Content-Type: application/json
 ```json
 {
   "success": true,
-  "repaired": [
-    "CLAUDE_CODE_OAUTH_CLIENT_ID",
-    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
-  ],
+  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```

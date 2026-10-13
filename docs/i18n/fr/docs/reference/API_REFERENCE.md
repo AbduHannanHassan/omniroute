@@ -255,10 +255,7 @@ Jina v5 Omni (`jina-ai/jina-embeddings-v5-omni-small`, `jina-ai/jina-embeddings-
     { "text": "a red bicycle" },
     { "image": "https://example.com/bike.png" },
     {
-      "content": [
-        { "text": "caption" },
-        { "image": "data:image/png;base64,..." }
-      ]
+      "content": [{ "text": "caption" }, { "image": "data:image/png;base64,..." }]
     }
   ]
 }
@@ -1221,10 +1218,7 @@ Répare les variables d'environnement OAuth manquantes ou corrompues pour un fou
 ```json
 {
   "success": true,
-  "repaired": [
-    "CLAUDE_CODE_OAUTH_CLIENT_ID",
-    "CLAUDE_CODE_OAUTH_CLIENT_SECRET"
-  ],
+  "repaired": ["CLAUDE_CODE_OAUTH_CLIENT_ID", "CLAUDE_CODE_OAUTH_CLIENT_SECRET"],
   "backupPath": "/home/user/.omniroute/backups/env-repair-2026-04-11.bak"
 }
 ```
@@ -1830,9 +1824,7 @@ des fournisseurs. Ils alimentent les pages `/dashboard/analytics/*`.
     "google": 0.2,
     "kiro": 0.15
   },
-  "warnings": [
-    "OpenAI représente 40 % du trafic — envisagez de diversifier les fournisseurs"
-  ]
+  "warnings": ["OpenAI représente 40 % du trafic — envisagez de diversifier les fournisseurs"]
 }
 ```
 

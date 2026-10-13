@@ -621,15 +621,9 @@ class BaseGuardrail {
 
   constructor(name: string, options?: { enabled?: boolean; priority?: number });
 
-  async preCall(
-    payload: unknown,
-    context: GuardrailContext,
-  ): Promise<GuardrailResult | void>;
+  async preCall(payload: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
 
-  async postCall(
-    response: unknown,
-    context: GuardrailContext,
-  ): Promise<GuardrailResult | void>;
+  async postCall(response: unknown, context: GuardrailContext): Promise<GuardrailResult | void>;
 }
 
 interface GuardrailResult<TValue = unknown> {
