@@ -299,6 +299,15 @@ export async function getUsageStats() {
   const cutoffDate = aggregationEnabled ? await getRawDataCutoffDate() : null;
   const sourceSql = buildUsageSourceSql(aggregationEnabled);
   const sourceParams = aggregationEnabled && cutoffDate ? [cutoffDate, cutoffDate] : [];
+  // Daily archives do not retain account/key identity; their absence limits those breakdowns.
+  const archivedIdentityMissing =
+    aggregationEnabled && cutoffDate
+      ? !!db
+          .prepare(
+            "SELECT 1 FROM daily_usage_summary WHERE date < ? AND total_requests > 0 LIMIT 1"
+          )
+          .get(cutoffDate)
+      : false;
 
   const { getProviderConnections } = await import("@/lib/db/providers");
   let allConnections: unknown[] = [];
@@ -507,7 +516,8 @@ export async function getUsageStats() {
     const completionTokens = toNumber(row.tokens_output);
     const cachedInputTokens =
       row.tokens_cache_read == null ? null : toNumber(row.tokens_cache_read);
-    const cachedInputTokensComplete = toNumber(row.cached_input_unknown_requests) === 0;
+    const cachedInputTokensComplete =
+      !archivedIdentityMissing && toNumber(row.cached_input_unknown_requests) === 0;
     const entryCost = await calculateAggregateCost(row);
 
     if (connectionId) {
@@ -567,7 +577,8 @@ export async function getUsageStats() {
     const completionTokens = toNumber(row.tokens_output);
     const cachedInputTokens =
       row.tokens_cache_read == null ? null : toNumber(row.tokens_cache_read);
-    const cachedInputTokensComplete = toNumber(row.cached_input_unknown_requests) === 0;
+    const cachedInputTokensComplete =
+      !archivedIdentityMissing && toNumber(row.cached_input_unknown_requests) === 0;
     const entryCost = await calculateAggregateCost(row);
 
     if (apiKeyId || apiKeyName) {

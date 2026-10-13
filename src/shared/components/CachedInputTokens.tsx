@@ -12,10 +12,11 @@ export default function CachedInputTokens({
 }) {
   const t = useTranslations("cache");
   const common = useTranslations("common");
+  const skills = useTranslations("agentSkills");
   return (
     <span className="text-xs text-text-muted block" data-testid="cached-input-tokens">
-      {t("cachedTokens")}:{" "}
-      {value == null ? common("noData") : `${fmtFull(value)}${complete ? "" : "+"}`}
+      {t("cachedTokens")}: {value == null ? common("noData") : fmtFull(value)}
+      {value != null && !complete && `+ (${skills("coverageBar.partial")})`}
     </span>
   );
 }

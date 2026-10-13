@@ -86,6 +86,8 @@ test(
     let stats = await getUsageStats();
     assert.equal(stats.byProvider["archive-fixture"].cachedInputTokens, 80);
     assert.equal(stats.byProvider["archive-fixture"].cachedInputTokensComplete, true);
+    assert.equal(Object.values(stats.byAccount)[0].cachedInputTokensComplete, false);
+    assert.equal(Object.values(stats.byApiKey)[0].cachedInputTokensComplete, false);
     db.prepare(
       "INSERT INTO daily_usage_summary (provider,model,date,total_requests,total_input_tokens,total_output_tokens,total_cost) VALUES ('legacy-fixture','legacy-model','2020-01-01',1,100,10,0)"
     ).run();
@@ -94,5 +96,33 @@ test(
     assert.equal(stats.byProvider["legacy-fixture"].cachedInputTokensComplete, false);
     assert.equal(stats.totalCachedInputTokens, 140);
     assert.equal(stats.totalCachedInputTokensComplete, false);
+  }
+);
+
+test(
+  "quota backfill invalidates cache reads belonging to replaced daily totals",
+  { timeout: 5_000 },
+  async () => {
+    const { rollupDailyUsage } = await import("../../src/lib/usage/aggregateHistory.ts");
+    const db = core.getDbInstance();
+    const before = await getUsageStats();
+    assert.equal(before.byProvider["archive-fixture"].promptTokens, 200);
+    assert.equal(before.byProvider["archive-fixture"].cachedInputTokens, 80);
+    db.prepare(
+      "INSERT INTO quota_snapshots (provider, connection_id, window_key, raw_data, created_at) VALUES (?, ?, ?, ?, ?)"
+    ).run(
+      "archive-fixture",
+      "fixture-account",
+      "fixture-window",
+      JSON.stringify({ model: "archive-model", input_tokens: 30, output_tokens: 5, cost: 0 }),
+      "2020-01-02T12:00:00.000Z"
+    );
+    const rolled = await rollupDailyUsage("2020-01-02", "2020-01-02");
+    assert.equal(rolled.errors, 0);
+    assert.equal(rolled.inserted, 1);
+    const after = await getUsageStats();
+    assert.equal(after.byProvider["archive-fixture"].promptTokens, 30);
+    assert.equal(after.byProvider["archive-fixture"].cachedInputTokens, null);
+    assert.equal(after.byProvider["archive-fixture"].cachedInputTokensComplete, false);
   }
 );

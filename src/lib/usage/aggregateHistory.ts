@@ -54,6 +54,7 @@ export async function rollupDailyUsage(
         total_requests = excluded.total_requests,
         total_input_tokens = excluded.total_input_tokens,
         total_output_tokens = excluded.total_output_tokens,
+        total_cache_read_tokens = NULL,
         total_cost = excluded.total_cost
     `;
 
