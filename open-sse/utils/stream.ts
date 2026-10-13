@@ -865,9 +865,7 @@ export function createSSEStream(options: StreamOptions = {}) {
           ...(initState(sourceFormat) as TranslateState),
           provider,
           toolNameMap,
-          // Scope by model family so a Claude signature is never replayed to Gemini
-          // (or the reverse) on a shared Antigravity connection (#4136).
-          signatureNamespace: scopeGeminiThoughtSignatureNamespace(connectionId, model),
+          signatureNamespace: scopeGeminiThoughtSignatureNamespace(connectionId, model), // #4136
           copilotCompatibleReasoning,
           suppressThinkClose,
           requestedThinking,
