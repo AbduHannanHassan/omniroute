@@ -25,6 +25,8 @@ import { getAuthzBypassSnapshot } from "@/lib/config/runtimeSettings";
 import {
   SPAWN_CAPABLE_PREFIXES,
   SPAWN_CAPABLE_PATTERNS,
+  isSpawnCapableBypassPrefix,
+  isSpawnCapablePath,
 } from "@/shared/constants/spawnCapablePrefixes";
 import { VNC_ROUTE_PREFIX } from "@/lib/vncSession/manifest";
 
@@ -373,28 +375,23 @@ export function isLocalOnlyPath(path: string, method?: string): boolean {
  * O(1) (no I/O, no async). Hot-reload SLA: <50 ms — satisfied structurally.
  */
 export function isLocalOnlyBypassableByManageScope(path: string): boolean {
-  // Precise, unconditional early-deny for regex-matched spawn-capable routes
-  // (e.g. /api/providers/{id}/login, /api/providers/{id}/refresh-cursor).
-  // Unlike the flat-prefix defence-in-depth check below, this has the
-  // concrete resolved `path` already, so it's an exact match — no
-  // reachability heuristics needed.
-  if (SPAWN_CAPABLE_PATTERNS.some((re) => re.test(path))) return false;
+  // Precise, unconditional early-deny on the CONCRETE resolved path: a
+  // spawn-capable flat prefix (incl. the bare form of a trailing-slash prefix,
+  // e.g. `/api/plugins`) or a regex-matched route (e.g.
+  // /api/providers/{id}/login, /api/providers/{id}/refresh-cursor). Exact
+  // match — no reachability heuristics needed.
+  if (isSpawnCapablePath(path)) return false;
 
   const snapshot = getAuthzBypassSnapshot();
   if (!snapshot.enabled) return false;
   return snapshot.prefixes.some((p) => {
     // Defence-in-depth: reject a bypass prefix that is the same as, child of,
-    // OR PARENT of any spawn-capable prefix. The parent case catches e.g.
-    // `/api/cli-tools/` (parent of `/api/cli-tools/runtime/`) — a request to
-    // `/api/cli-tools/runtime/foo` would otherwise satisfy `path.startsWith(p)`
-    // and reach the spawn-capable surface without a loopback check.
-    if (
-      SPAWN_CAPABLE_PREFIXES.some(
-        (spawn) => p === spawn || p.startsWith(spawn) || spawn.startsWith(p)
-      )
-    ) {
-      return false;
-    }
+    // OR PARENT of any spawn-capable prefix (shared predicate, GHSA-hcwm-v74f-pfvh).
+    // The parent case catches e.g. `/api/cli-tools/` (parent of
+    // `/api/cli-tools/runtime/`) — a request to `/api/cli-tools/runtime/foo`
+    // would otherwise satisfy `path.startsWith(p)` and reach the spawn-capable
+    // surface without a loopback check.
+    if (isSpawnCapableBypassPrefix(p)) return false;
     return path === p || path.startsWith(p);
   });
 }

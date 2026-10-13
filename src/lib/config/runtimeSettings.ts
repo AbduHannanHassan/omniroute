@@ -5,6 +5,7 @@ import {
   type OperatorProviderErrorRule,
 } from "@omniroute/open-sse/config/providerErrorRules.ts";
 import { isAutomatedTestProcess } from "@/shared/utils/testProcess";
+import { isSpawnCapableBypassPrefix } from "@/shared/constants/spawnCapablePrefixes";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -253,6 +254,10 @@ function normalizeAuthzBypass(settings: Record<string, unknown>): AuthzBypassSna
           rawPrefixes
             .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
             .filter((entry) => entry.length > 0 && entry.startsWith("/"))
+            // GHSA-hcwm-v74f-pfvh: a DB row can reach here without the PATCH-time zod
+            // refine (legacy JSON import, manual edit, older build) — never let it
+            // publish a spawn-capable / code-exec prefix into the live snapshot.
+            .filter((entry) => !isSpawnCapableBypassPrefix(entry))
         )
       )
     : [...DEFAULT_AUTHZ_BYPASS_SNAPSHOT.prefixes];
