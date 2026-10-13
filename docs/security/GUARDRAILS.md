@@ -309,9 +309,9 @@ metrics/abort/cleanup — is hidden behind `processVideoPart` in
 That module also defines the explicit port boundaries `VideoMediaBrokerPort`
 (acquiring bytes and extracting sampled frames), `VideoAudioTranscriptionPort`
 (fusing a caller-declared audio transcript with the sampled captions), and
-`VideoDrilldownPort` (the frame drill-down persistence boundary; not yet wired
-into `processVideoPart` — only the separate `/api/modality-bridge/video/drilldown`
-route writes drill-down entries today).
+`VideoDrilldownPort` (the legacy raw-store shape). Production STT and frame retention
+are composed around the describing port through `createVideoSttAdapter` and
+`createVideoDrilldownAdapter`; the latter uses the shared opaque-handle lifecycle.
 
 The public `/v1` request path never imports or invokes a subprocess. Remote
 videos are downloaded under a 50 MiB bound; inline base64 videos have a
@@ -455,15 +455,16 @@ OmniRoute never starts transcription from this metadata: validated cues are
 copied into the described result with source, confidence, and interval, and
 are rendered as untrusted observations alongside the frame captions. Invalid,
 out-of-range, or provenance-free text is rejected rather than mixed into the
-caption stream. The `source` field is presently caller-declared, not
-server-verified: OmniRoute enforces that the value is one of the three
-allowed strings, but does not yet cryptographically confirm that an
-`embedded` or `audio-bridge` label actually came from a server-owned
-extraction. Treat `source` as an untrusted hint until that verification
-lands; do not build authorization decisions on it.
+caption stream. Both request-body transcript channels normalize supplied
+provenance to `client`, including self-asserted `embedded` or `audio-bridge`
+labels. Only a server-owned adapter can assign those trusted labels through
+the code-only `trustedSource` argument; a request JSON field cannot reach
+that argument. Transcript text remains untrusted media-derived content,
+regardless of its provenance, and must never determine authorization.
 
-An advanced caller may provide an already-authorized `audioTranscript` track
-for the same video. The fusion seam runs visual and audio observations under
+An advanced caller may provide an `audioTranscript` track for the same video;
+it is treated as client-provided text, not proof of server transcription.
+The fusion seam runs visual and audio observations under
 one deadline and abort signal, orders them on a common timeline, collapses
 exact duplicates, and reports a partial result when only one side succeeds.
 An invalid `audioTranscript` degrades to that partial result — the visual
@@ -550,11 +551,45 @@ derivation version, creation time, server-computed content hash, and hashed pare
 reference plus the trusted caller's parent-content hash. Cancellation is checked
 between asynchronous decode/hash phases before the atomic cache commit.
 
-This tranche does not yet connect a production producer to the route and does not
-provide multi-resolution variant selection. The transparent Video Bridge request
-path therefore incurs no added work, while tenant-bound principal derivation and
-the full FU-08 multi-resolution lifecycle remain explicit follow-up work rather
-than documented as complete behavior.
+The production producer reuses already-derived broker frames only after successful
+visual analysis, with no second video download/extraction. It requires operator
+`modalityBridgeVideoDrilldownEnabled=true`, strict per-part `drilldown: true`, and
+an authenticated API-key record ID. Client-declared principal/session values never
+establish ownership. Without all three conditions it does not hash, resize or retain
+additional frames. Retention failure preserves the usable visual response. Consented
+requests bypass the whole-video result cache so cached results never replay handles.
+
+Successful JSON and SSE responses expose at most four opaque handles in the bounded
+`x-omniroute-video-drilldown` header. Authorized browser origins can read that header
+without broadening the CORS origin policy. New handles use `v1.<32-byte random base64url
+token>`, and the registry retains only
+their SHA-256 hashes. The reader/header parser also accepts legacy 64-hex tokens.
+The authenticated public consumer is
+`GET /api/v1/video-bridge/drilldown?handle=...`, independently gated by
+`modalityBridgeVideoDrilldownRemoteEnabled=true`. Explicit persisted false revokes
+access even when the legacy `OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_REMOTE_ENABLED` env
+fallback is enabled. Production retention has the analogous legacy
+`OMNIROUTE_VIDEO_BRIDGE_DRILLDOWN_ENABLED` fallback. Both fallbacks default off.
+
+The consumer derives ownership from the authenticated key, applies key policy, and
+returns the same 404 for unknown, expired and another key's handles. It accepts
+`variant=preview|standard|detail` (maximum JPEG dimension 320/640/1280, never upscaled),
+`limit=1..8` (or the legacy `frames` alias, never both), zero-based `page`, and optional
+`start`/`end` focus seconds. Duplicate
+query keys and reversed focus windows are rejected. Each returned variant has a hash
+of its actual content and actual resolution metadata, linked to the retained source.
+Variants are derived on read rather than stored as extra retained copies. The JSON
+response, including Base64/envelope, is capped at 32 MiB; an oversized page returns
+413 and the client must request fewer frames. Reads check cancellation around each
+resize and recheck handle validity before returning. `DELETE` by owner is idempotent;
+deletion or TTL expiry releases the retained source and usage accounting.
+
+The shared store is process-local: handles expire on restart and are not transferable
+between independent OmniRoute processes. Management stats expose effective retention/
+remote policy and aggregate retained entries/bytes only, never media, references,
+principal IDs or handles. The Video settings panel shows those values and can persist
+both consent switches. This implementation documentation is not live deployment or
+promotion evidence; real-model acceptance is tracked separately.
 
 Frames are captioned sequentially with the configured Video model. An empty
 Video override inherits the Vision setting; if both are empty, the Vision
