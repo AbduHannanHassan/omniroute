@@ -10,6 +10,15 @@ import { setSystemPromptConfig } from "@omniroute/open-sse/services/systemPrompt
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { SECURITY_IMPACTING_SETTINGS_KEYS } from "@/shared/constants/securityImpactingSettings";
 
+/** Drops the password and every key PATCH only accepts after password re-auth. */
+function stripSecurityImpactingSettings(settings: object): Record<string, unknown> {
+  const safeSettings: Record<string, unknown> = { ...settings };
+  for (const key of ["password", ...SECURITY_IMPACTING_SETTINGS_KEYS]) {
+    delete safeSettings[key];
+  }
+  return safeSettings;
+}
+
 /**
  * POST /api/settings/import-json
  *
@@ -62,11 +71,7 @@ export async function POST(request: Request) {
 
     // 🔒 Zero-Trust: strip authentication + security-impacting config before migration
     if (data.settings && typeof data.settings === "object") {
-      const safeSettings: Record<string, unknown> = { ...data.settings };
-      for (const key of ["password", ...SECURITY_IMPACTING_SETTINGS_KEYS]) {
-        delete safeSettings[key];
-      }
-      data = { ...data, settings: safeSettings };
+      data = { ...data, settings: stripSecurityImpactingSettings(data.settings) };
     }
 
     const db = getDbInstance();
