@@ -150,7 +150,7 @@ test("the requested name is locked exactly, so an alias across quota families or
       retryInfoBody("86399s")
     );
 
-  // Antigravity limits and locks per quota family: a Gemini-named alias for a Claude model.
+  // Antigravity limits per quota family: a Gemini-named alias for a Claude model.
   assert.equal(lockAlias("antigravity", "claude-sonnet-4-5", "gemini-2.5-pro"), true);
   assert.equal(
     accountFallback.isModelLocked("antigravity", "conn-antigravity", "claude-sonnet-4-5"),
@@ -174,6 +174,29 @@ test("the requested name is locked exactly, so an alias across quota families or
     false,
     "the alias's codex scope keeps serving"
   );
+});
+
+test("antigravity locks the exact model, never its quota family, like its other quota locks", () => {
+  for (const provider of ["antigravity", "agy"]) {
+    const connectionId = `conn-${provider}-exact`;
+    const retry: BodyRetry = {
+      provider,
+      connectionId,
+      scopedModel: "claude-sonnet-4-5",
+      status: 429,
+      reason: "rate_limit_exceeded",
+    };
+    assert.equal(
+      bodyRetryPause.lockModelForLongBodyRetry(retry, 30_000, retryInfoBody("86399s")),
+      true
+    );
+    assert.equal(accountFallback.isModelLocked(provider, connectionId, "claude-sonnet-4-5"), true);
+    assert.equal(
+      accountFallback.isModelLocked(provider, connectionId, "claude-opus-4-5"),
+      false,
+      `${provider}: the rest of the Claude family keeps serving`
+    );
+  }
 });
 
 test("retryInfoDelayMs reads only a typed RetryInfo detail, like the google_rpc_retry_info provenance", () => {

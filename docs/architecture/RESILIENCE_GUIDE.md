@@ -486,13 +486,15 @@ queue can sit out — Gemini answers an exhausted daily quota with
 detail (the `google_rpc_retry_info` provenance) and the key's limiter is
 already scoped to the model (see `getLimiterKey`), the 429 becomes a model
 lockout on that connection instead (`lockModelForLongBodyRetry` in
-`open-sse/services/rateLimitManager/bodyRetryPause.ts`, capped at 24h), the
-signal the combo pre-dispatch gate and account selection already skip on via
-`isModelLocked()`, and the limiter is left unpaused. The name the client asked
-for is locked too when an alias resolved it to that model, because those
-routers check the requested name; it is locked exactly (`lockExactModel`), so an
-alias that crosses an antigravity quota family or a codex scope never locks its
-own. A prose hint, an untyped `retryDelay`, or a
+`open-sse/services/rateLimitManager/bodyRetryPause.ts`, capped at 24h), and the
+limiter is left unpaused. Account selection skips on that lock via
+`isModelLocked()`, and so does the combo pre-dispatch gate for targets pinned to
+the connection. On antigravity, whose limiter is per quota family, the lock is
+on the exact model, like its other quota locks. The name the client asked for
+is locked too when an alias resolved it to that model, because those checks use
+the requested name; it is locked exactly (`lockExactModel`), so an alias that
+crosses an antigravity quota family or a codex scope never locks its own. A
+prose hint, an untyped `retryDelay`, or a
 limiter shared by the whole connection keeps the pause. When the limiter the
 429 path just rebuilt does pause, a caller whose remaining queue time ends
 before the pause does is turned away at once with the queue-timeout code

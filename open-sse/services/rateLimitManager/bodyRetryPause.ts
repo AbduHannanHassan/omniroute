@@ -11,12 +11,14 @@
  * When the wait comes from Google's structured `RetryInfo` (an authoritative
  * hint, the `google_rpc_retry_info` provenance that may bypass the lockout
  * `maxCooldownMs` cap) and the key's limiter is already scoped to the model, it
- * becomes a model lockout on the connection instead: the same scope the pause
- * would have had, but visible, cleared by the resilience reset, and honoured by
- * the combo pre-dispatch gate and account selection. Those routers check the
- * name the caller asked for, so when an alias resolved it to that model the
- * requested name is locked too, exactly: through the quota-family keys an alias
- * that crosses a family (antigravity) or scope (codex) would lock its own.
+ * becomes a model lockout on the connection instead: the scope the pause would
+ * have had (narrower on Antigravity, which limits per quota family but, like its
+ * other quota locks, locks the exact model), but visible, cleared by the
+ * resilience reset, and honoured by account selection (and by the combo
+ * pre-dispatch gate for targets pinned to the connection). Those check the name
+ * the caller asked for, so when an alias resolved it to that model the requested
+ * name is locked too, exactly: through the quota-family keys an alias that
+ * crosses a family (antigravity) or scope (codex) would lock its own.
  * Prose hints, untyped fields and connection-wide limiters keep the pause.
  *
  * A pause the limiter does take is remembered per limiter instance, so a caller
@@ -32,6 +34,7 @@
  */
 
 import { lockExactModel, lockModel } from "../accountFallback.ts";
+import { isAntigravityQuotaProvider } from "../antigravityQuotaFamily.ts";
 import { retryInfoDetailsMs } from "../retryAfterJson.ts";
 import { LEGACY_RATE_LIMIT_QUEUE_TIMEOUT_CODE, markLocalRateLimitError } from "./errors";
 import { logRateLimit } from "./log";
@@ -84,7 +87,9 @@ export function lockModelForLongBodyRetry(
   if (status !== 429 || !scopedModel || queueBudgetMs <= 0) return false;
   const lockMs = retryInfoDelayMs(responseBody);
   if (lockMs === null || lockMs <= queueBudgetMs) return false;
-  lockModel(provider, connectionId, scopedModel, reason, lockMs);
+  // Antigravity's limiter is per quota family, but its quota locks are exact (accountFallback.ts).
+  const lockScoped = isAntigravityQuotaProvider(provider) ? lockExactModel : lockModel;
+  lockScoped(provider, connectionId, scopedModel, reason, lockMs);
   const alias = requestedModel && requestedModel !== scopedModel ? requestedModel : null;
   if (alias) lockExactModel(provider, connectionId, alias, reason, lockMs);
   logRateLimit(

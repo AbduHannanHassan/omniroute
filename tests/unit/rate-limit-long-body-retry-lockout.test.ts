@@ -10,9 +10,10 @@
  * Expected now:
  *   - a typed RetryInfo wait longer than the queue budget, on a limiter that is
  *     already scoped to the model, becomes a model lockout on that connection
- *     (the signal the combo pre-dispatch gate and account selection already skip
- *     on), for the requested name too when an alias resolved it, that the failure
- *     path's own shorter lockout does not cut short, and leaves the queue unfrozen;
+ *     (the signal account selection, and the combo pre-dispatch gate for targets
+ *     pinned to the connection, already skip on), for the requested name too when
+ *     an alias resolved it, that the failure path's own shorter lockout does not
+ *     cut short, and leaves the queue unfrozen;
  *   - every other long wait (prose hint, untyped field, connection-wide limiter,
  *     no model) keeps the limiter pause, and a pause the caller's remaining queue
  *     time cannot outlast fails at once instead of waiting that time out — but
@@ -20,6 +21,9 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+
+// The cases below assume the default 30 s queue budget (maxWaitMs).
+delete process.env.RATE_LIMIT_MAX_WAIT_MS;
 
 const rateLimitManager = await import("../../open-sse/services/rateLimitManager.ts");
 const accountFallback = await import("../../open-sse/services/accountFallback.ts");
@@ -101,7 +105,7 @@ test("429 with a daily-quota RetryInfo locks the model on that connection instea
   assert.equal(
     accountFallback.isModelLocked("gemini", conn, MODEL),
     true,
-    "the combo pre-dispatch gate and account selection skip on isModelLocked()"
+    "account selection (and the combo gate for pinned targets) skips on isModelLocked()"
   );
   const lock = accountFallback.getModelLockoutInfo("gemini", conn, MODEL);
   assert.ok(lock, "expected a model lockout for the body-stated wait");
@@ -222,7 +226,7 @@ test("the requested name is locked with the resolved model, so a combo target na
   assert.equal(
     accountFallback.isModelLocked("gemini", conn, "my-flash-alias"),
     true,
-    "the combo gate and account selection check the requested name"
+    "account selection (and the combo gate for pinned targets) checks the requested name"
   );
 });
 
