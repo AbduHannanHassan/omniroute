@@ -8,7 +8,16 @@ import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { runWithProxyContext } from "@omniroute/open-sse/utils/proxyFetch.ts";
 import { isCommonChatGptWebRetirementError } from "@/shared/constants/chatgptWebRetirement";
 import { getModelInfo } from "@/sse/services/model";
-import { extractApiKey, getProviderCredentials, isValidApiKey } from "@/sse/services/auth";
+import { getProviderCredentials } from "@/sse/services/auth";
+import { getApiKeyMetadata } from "@/lib/db/apiKeys";
+import { constrainConnectionsToQuota, resolveQuotaKeyScope } from "@/lib/quota/quotaKey";
+import {
+  resolvePolicyApiKey,
+  validateApiKeyRoutingTarget,
+  type ApiKeyMetadata,
+} from "@/shared/utils/apiKeyPolicy";
+import { intersectAllowedConnectionIds } from "@/sse/handlers/chat/connectionConstraints";
+import { createVisibleResolvedModelGate } from "@/sse/handlers/chat/resolvedModelPolicy";
 import { isCredentialDiagnosticSentinel } from "@/sse/services/credentialSentinel";
 import { safeResolveProxy } from "@/sse/handlers/chatHelpers";
 import * as log from "@/sse/utils/logger";
@@ -55,15 +64,39 @@ export async function POST(request) {
   }
 
   try {
+    // GHSA-3w2r: the provider-side count is an upstream call on behalf of the
+    // caller key, so it must stay inside that key's routing policy exactly like
+    // chat dispatch: a model the key may not use gets chat's 403, and the
+    // credential pool is bounded by the key's allowed connections.
+    const keyScope = await resolveCountTokensKeyScope(request, requestedModel);
+    if (keyScope.rejection) return keyScope.rejection;
+    if (keyScope.localOnly) return estimated;
+
     const modelInfo = await getModelInfo(requestedModel);
     if (!modelInfo?.provider || !modelInfo?.model) {
+      return estimated;
+    }
+
+    const resolvedModelRejection = await createVisibleResolvedModelGate({
+      apiKeyInfo: keyScope.apiKeyInfo,
+      apiKey: keyScope.apiKey,
+      contextModel: null,
+      comboGrantsTargets: false,
+      provider: modelInfo.provider,
+      model: modelInfo.model,
+      modelStr: requestedModel,
+    })([`${modelInfo.provider}/${modelInfo.model}`]);
+    if (resolvedModelRejection) return resolvedModelRejection;
+
+    const allowedConnections = await resolveCountTokensAllowedConnections(keyScope.apiKeyInfo);
+    if (Array.isArray(allowedConnections) && allowedConnections.length === 0) {
       return estimated;
     }
 
     const credentials = await getProviderCredentials(
       modelInfo.provider,
       null,
-      null,
+      allowedConnections,
       modelInfo.model
     );
     if (!credentials || isCredentialDiagnosticSentinel(credentials)) {
@@ -129,6 +162,53 @@ export async function POST(request) {
     );
     return estimated;
   }
+}
+
+type CountTokensKeyScope = {
+  apiKey: string | null;
+  apiKeyInfo: ApiKeyMetadata | null;
+  /** Set when the key's routing policy rejects the requested model (same as chat). */
+  rejection: Response | null;
+  /** The key policy could not be read: answer locally, never call upstream. */
+  localOnly: boolean;
+};
+
+/**
+ * Resolve the caller key and its model/combo/quota authorization for the
+ * requested model, the way chat does at entry — without charging the key's
+ * request/budget counters, since a token count is not a billable request.
+ */
+async function resolveCountTokensKeyScope(
+  request: Request,
+  requestedModel: string
+): Promise<CountTokensKeyScope> {
+  const apiKey = await resolvePolicyApiKey(request);
+  if (!apiKey) return { apiKey: null, apiKeyInfo: null, rejection: null, localOnly: false };
+
+  let apiKeyInfo: ApiKeyMetadata | null;
+  try {
+    apiKeyInfo = (await getApiKeyMetadata(apiKey)) as ApiKeyMetadata | null;
+  } catch (error) {
+    log.warn(
+      "COUNT_TOKENS",
+      `API key policy unavailable, counting locally: ${error instanceof Error ? error.name : "error"}`
+    );
+    return { apiKey, apiKeyInfo: null, rejection: null, localOnly: true };
+  }
+  if (!apiKeyInfo) return { apiKey, apiKeyInfo: null, rejection: null, localOnly: false };
+
+  const rejection = await validateApiKeyRoutingTarget(request, apiKey, apiKeyInfo, requestedModel);
+  return { apiKey, apiKeyInfo, rejection, localOnly: false };
+}
+
+/** The key's connection scope (plus its quota pools), as chat dispatch applies it. */
+async function resolveCountTokensAllowedConnections(
+  apiKeyInfo: ApiKeyMetadata | null
+): Promise<string[] | null> {
+  const allowed = intersectAllowedConnectionIds(apiKeyInfo?.allowedConnections ?? null, null);
+  if (!apiKeyInfo?.allowedQuotas?.length) return allowed;
+  const quotaScope = await resolveQuotaKeyScope(apiKeyInfo.allowedQuotas);
+  return constrainConnectionsToQuota(allowed ?? [], quotaScope.connectionIds);
 }
 
 function safeStringify(value) {

@@ -33,6 +33,7 @@ import { isQuotaModelName, parseQuotaModelName } from "@/lib/quota/quotaModelNam
 import { buildApiKeyUsageLimitPolicyRejection } from "@/lib/usage/apiKeyUsageLimits";
 import { ALL_COMBOS_ACCESS_RULE } from "@/shared/constants/comboAccess";
 import { hasApiKeyModelRestrictions } from "./resolvedModelAccess";
+import { applySelfLoopConnectionScope } from "@/shared/middleware/selfLoopConnectionScope";
 
 // Default to no per-key request cap. API keys can still opt into explicit
 // limits via Settings/API Keys, while provider/account quota controls remain
@@ -818,19 +819,27 @@ function extractUngatedClientApiKey(request: Request): string | null {
   return null;
 }
 
+/**
+ * The API key whose policy governs this request — the same resolution
+ * {@link enforceApiKeyPolicy} applies. A real bearer key wins; then a bare
+ * x-api-key/x-goog-api-key that auth accepted but extractApiKey() gates out;
+ * otherwise an authenticated dashboard playground may test a specific key's
+ * policy by id (resolved server-side, secret never sent).
+ */
+export async function resolvePolicyApiKey(request: Request): Promise<string | null> {
+  return (
+    extractApiKey(request) ||
+    extractUngatedClientApiKey(request) ||
+    (await resolvePlaygroundTestKey(request))
+  );
+}
+
 export async function enforceApiKeyPolicy(
   request: Request,
   modelStr: string | null,
   options?: EnforceApiKeyPolicyOptions
 ): Promise<ApiKeyPolicyResult> {
-  // A real bearer key wins; then a bare x-api-key/x-goog-api-key that auth
-  // accepted but extractApiKey() gates out; otherwise an authenticated dashboard
-  // playground may test a specific key's policy by id (resolved server-side,
-  // secret never sent).
-  const apiKey =
-    extractApiKey(request) ||
-    extractUngatedClientApiKey(request) ||
-    (await resolvePlaygroundTestKey(request));
+  const apiKey = await resolvePolicyApiKey(request);
 
   // No API key = local/session mode, skip policy checks
   if (!apiKey) {
@@ -855,6 +864,9 @@ export async function enforceApiKeyPolicy(
   if (!apiKeyInfo) {
     return { apiKey, apiKeyInfo: null, rejection: null };
   }
+  // GHSA-3w2r: a Vision Bridge describe self-loop carries the caller key's
+  // connection scope; narrow the internal identity to it (narrowing only).
+  apiKeyInfo = applySelfLoopConnectionScope(request, apiKeyInfo);
 
   const context = { request, apiKey, apiKeyInfo, modelStr };
   const statusRejection = validateKeyStatus(context);
