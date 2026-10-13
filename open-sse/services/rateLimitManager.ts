@@ -30,6 +30,7 @@ import {
 import {
   STANDARD_HEADERS,
   ANTHROPIC_HEADERS,
+  describeRetryAfter,
   parseResetTime,
   toPlainHeaders,
 } from "./rateLimitManager/headers";
@@ -921,14 +922,10 @@ export function updateFromHeaders(provider, connectionId, headers, status, model
 
   // Handle 429 — rate limited
   if (status === 429) {
-    const retryAfterMs = parseResetTime(retryAfterStr);
-    const retryAfterNote = !retryAfterStr
-      ? "no retry-after header"
-      : `retry-after ${retryAfterMs ? `${Math.ceil(retryAfterMs / 1000)}s` : retryAfterStr}`;
     const counts = limiter.counts();
     const limiterKey = getLimiterKey(provider, connectionId, model);
     logRateLimit(
-      `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — 429 received (${retryAfterNote}), resetting the limiter (headers set no local pause), dropping ${counts.QUEUED} queued request(s)`
+      `🚫 [RATE-LIMIT] ${provider}:${connectionId.slice(0, 8)} — 429 received (${describeRetryAfter(retryAfterStr)}), resetting the limiter (headers set no local pause), dropping ${counts.QUEUED} queued request(s)`
     );
 
     // Evict from the cache so follow-up learning from the same error body
