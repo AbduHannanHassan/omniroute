@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, scryptSync } from "crypto";
 import {
   createSyncTokenRecord,
   getSyncTokenByHash,
@@ -44,12 +44,20 @@ export function parseSyncTokenTtl(ttl: string): number | null {
  * require-login route or `omniroute reset-password`, changes it. Only a digest of the
  * already-hashed value is stored, never the password itself.
  */
+// A legacy install can still hold a plaintext password until its first login migrates it,
+// so the stored value goes through a slow KDF (never a fast hash) before being persisted
+// next to the token. Memoized: the value only changes on password rotation.
+let fingerprintMemo: { stored: string; fingerprint: string } | null = null;
+
 export async function getCurrentSyncPasswordFingerprint(): Promise<string> {
   const settings = (await getSettings()) as Record<string, unknown>;
   const stored = getStoredManagementPassword(settings);
-  return createHash("sha256")
-    .update(`omniroute:sync-token-password-binding:v1:${stored}`)
-    .digest("hex");
+  if (fingerprintMemo && fingerprintMemo.stored === stored) return fingerprintMemo.fingerprint;
+  const fingerprint = scryptSync(stored, "omniroute:sync-token-password-binding:v2", 32).toString(
+    "hex"
+  );
+  fingerprintMemo = { stored, fingerprint };
+  return fingerprint;
 }
 
 async function isIssuingApiKeyLive(apiKeyId: string): Promise<boolean> {

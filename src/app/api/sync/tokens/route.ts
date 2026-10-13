@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   // minting one needs an operator credential (dashboard session / local CLI) — a
   // manage-scoped API key alone is not enough.
   const issuer = await resolveSyncTokenIssuer(request);
-  if (!issuer.ok) return issuer.response;
+  if ("response" in issuer) return issuer.response;
 
   const auditContext = getAuditRequestContext(request);
 
