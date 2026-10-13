@@ -103,6 +103,7 @@ test("JSON-mode request strips the markdown code fence from a Claude response", 
   });
   const result = translateNonStreamingClientResponse(input);
   const content = result.response.choices?.[0]?.message?.content;
+  assert.ok(typeof content === "string");
   assert.equal(content, '{"key": "value"}');
 });
 
