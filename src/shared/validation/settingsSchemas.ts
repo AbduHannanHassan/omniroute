@@ -28,6 +28,11 @@ import { isHttpUrl } from "@/shared/validation/schemas/misc";
 
 const signatureCacheModeValues = ["enabled", "bypass", "bypass-strict"] as const;
 
+// Legacy account "weighted" always ran fill-first; accept old settings without offering it.
+const accountFallbackStrategySchema = z
+  .enum([...ACCOUNT_FALLBACK_STRATEGY_VALUES, "weighted"])
+  .transform((value) => (value === "weighted" ? "fill-first" : value));
+
 const transformDropParagraphIfContainsSchema = z.object({
   kind: z.literal("drop_paragraph_if_contains"),
   needles: z.array(z.string().max(500)).max(50),
@@ -293,7 +298,7 @@ export const updateSettingsSchema = z.object({
     .optional(),
   responsesPreviousResponseIdMode: z.enum(RESPONSES_PREVIOUS_RESPONSE_ID_MODES).optional(),
   // Routing settings (#134)
-  fallbackStrategy: z.enum(ACCOUNT_FALLBACK_STRATEGY_VALUES).optional(),
+  fallbackStrategy: accountFallbackStrategySchema.optional(),
   wildcardAliases: z.array(z.object({ pattern: z.string(), target: z.string() })).optional(),
   stickyRoundRobinLimit: z.number().int().min(0).max(1000).optional(),
   /** 9router parity: global combo expansion strategy (fallback vs round-robin). */
@@ -303,7 +308,7 @@ export const updateSettingsSchema = z.object({
     .record(
       z.string().trim().min(1),
       z.object({
-        fallbackStrategy: z.enum(ACCOUNT_FALLBACK_STRATEGY_VALUES).optional(),
+        fallbackStrategy: accountFallbackStrategySchema.optional(),
         stickyRoundRobinLimit: z.number().int().min(1).max(1000).optional(),
       })
     )
@@ -504,7 +509,9 @@ export const updateSettingsSchema = z.object({
   // holding a worker for hours.
   searchTimeoutMs: z.number().int().min(1_000).max(120_000).optional(),
   // Per-provider timeout overrides in ms, keyed by search provider id.
-  searchProviderTimeoutsMs: z.record(z.string().max(60), z.number().int().min(1).max(120_000)).optional(),
+  searchProviderTimeoutsMs: z
+    .record(z.string().max(60), z.number().int().min(1).max(120_000))
+    .optional(),
   backgroundDegradation: z.unknown().optional(),
   bruteForceProtection: z.boolean().optional(),
   // Auto-routing settings
@@ -610,11 +617,16 @@ export const databaseSettingsSchema = z
       quotaSnapshots: z.number().int().min(1).max(3650), // Max 10 years
       compressionAnalytics: z.number().int().min(1).max(365),
       mcpAudit: z.number().int().min(1).max(365),
+      configAudit: z.number().int().min(1).max(365).optional(),
       a2aEvents: z.number().int().min(1).max(365),
       callLogs: z.number().int().min(1).max(3650),
+      conversationTurnNodes: z.number().int().min(1).max(3650).optional(),
       usageHistory: z.number().int().min(1).max(3650),
       memoryEntries: z.number().int().min(1).max(3650),
+      domainCostHistory: z.number().int().min(1).max(365).optional(),
+      compressionCacheStats: z.number().int().min(1).max(365).optional(),
       xpAuditLog: z.number().int().min(1).max(365),
+      compressionRunTelemetry: z.number().int().min(1).max(365).optional(),
       autoCleanupEnabled: z.boolean(),
     }),
 
