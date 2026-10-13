@@ -12622,6 +12622,7 @@
     "copied": "Kopeeritud!",
     "copy": "Kopeeri",
     "httpProxyTitle": "HTTP-puhverserveri koodilõik — port {port}",
+    "httpProxyTlsNote": "HTTPS-päringud tunnelitakse (CONNECT) ilma dekrüptimiseta: jäädvustatakse ainult host ja ajastus ning teie klient jätkab tegeliku serverisertifikaadi kontrollimist. Ärge kunagi keelake TLS-i kontrollimist — see lülitab sertifikaadikontrolli välja protsessi kõigi ühenduste jaoks. HTTPS-i kehade jäädvustamiseks kasutage selle asemel režiimi Custom Hosts või TPROXY Decrypt ja usaldage selle CA-sertifikaati: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE või SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Ei salvestata",
     "anyStatus": "Mis tahes olek",
     "liveOnly": "Reaalajas",

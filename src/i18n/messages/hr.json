@@ -12622,6 +12622,7 @@
     "copied": "Kopirano!",
     "copy": "Kopiraj",
     "httpProxyTitle": "Isječak HTTP proxyja — port {port}",
+    "httpProxyTlsNote": "HTTPS zahtjevi tuneliraju se (CONNECT) bez dešifriranja: bilježe se samo glavno računalo i vremenski podaci, a vaš klijent nastavlja provjeravati stvarni certifikat poslužitelja. Nikada nemojte onemogućiti provjeru TLS-a — time se isključuje provjera certifikata za svaku vezu procesa. Za bilježenje tijela HTTPS zahtjeva i odgovora upotrijebite Custom Hosts ili način rada TPROXY Decrypt te umjesto toga postavite njegov CA certifikat kao pouzdan: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE ili SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Snimanje nije aktivno",
     "anyStatus": "Bilo koji status",
     "liveOnly": "Uživo",

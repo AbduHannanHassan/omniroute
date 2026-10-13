@@ -12622,6 +12622,7 @@
     "copied": "Kopyalandı!",
     "copy": "Kopyala",
     "httpProxyTitle": "HTTP Proksi Fraqmenti — port {port}",
+    "httpProxyTlsNote": "HTTPS sorğuları şifrəsi açılmadan tunellənir (CONNECT): yalnız host və vaxt göstəriciləri qeydə alınır, müştəriniz isə real server sertifikatını yoxlamağa davam edir. TLS yoxlamasını heç vaxt söndürməyin — bu, prosesin bütün bağlantıları üçün sertifikat yoxlamalarını deaktiv edir. HTTPS məzmunlarını qeydə almaq üçün Custom Hosts və ya TPROXY Decrypt rejimindən istifadə edin və əvəzində onun CA sertifikatına etibar edin: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE və ya SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Qeydə alınmır",
     "anyStatus": "İstənilən status",
     "liveOnly": "Canlı",

@@ -12622,6 +12622,7 @@
     "copied": "E detuola ya!",
     "copy": "Detuo",
     "httpProxyTitle": "Iberibe Proxy HTTP — ọdụ ụgbọ {port}",
+    "httpProxyTlsNote": "A na-ebufe arịrịọ HTTPS site na tunnel (CONNECT) n’enweghị mwepụ nzuzo: naanị host na oge ka a na-edekọ, client gị na-aga n’ihu na-enyocha asambodo nke ezigbo server ahụ. Akwụsịla nyocha TLS ma ọlị — ime otú ahụ na-agbanyụ nyocha asambodo maka njikọ niile nke process ahụ. Iji dekọọ bodies HTTPS, jiri Custom Hosts ma ọ bụ TPROXY Decrypt mode, ma tụkwasị asambodo CA ya obi kama: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE ma ọ bụ SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Anaghị edekọ",
     "anyStatus": "Ọnọdụ ọ bụla",
     "liveOnly": "Ugbu a",

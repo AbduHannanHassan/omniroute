@@ -12622,6 +12622,7 @@
     "copied": "Zkopírováno!",
     "copy": "Kopírovat",
     "httpProxyTitle": "Ukázka HTTP proxy — port {port}",
+    "httpProxyTlsNote": "Požadavky HTTPS jsou tunelovány (CONNECT) bez dešifrování: zaznamenává se pouze hostitel a časování, přičemž váš klient nadále ověřuje skutečný certifikát serveru. Nikdy nevypínejte ověřování TLS — vypnuli byste tím kontrolu certifikátů pro všechna připojení daného procesu. Chcete-li zachytávat těla požadavků a odpovědí HTTPS, použijte režim Custom Hosts nebo TPROXY Decrypt a místo toho nastavte důvěru jeho certifikátu CA: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE nebo SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Nenahrává se",
     "anyStatus": "Jakýkoli stav",
     "liveOnly": "Živě",

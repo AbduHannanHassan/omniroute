@@ -12622,6 +12622,7 @@
     "copied": "Copiato!",
     "copy": "Copia",
     "httpProxyTitle": "Snippet proxy HTTP — porta {port}",
+    "httpProxyTlsNote": "Le richieste HTTPS vengono inoltrate tramite tunnel (CONNECT) senza decrittazione: vengono acquisiti solo l'host e le informazioni temporali, mentre il client continua a verificare il certificato del server reale. Non disabilitare mai la verifica TLS: ciò disattiva i controlli dei certificati per ogni connessione del processo. Per acquisire i corpi HTTPS, usa Custom Hosts o la modalità TPROXY Decrypt e considera attendibile il relativo certificato CA: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE o SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Non in registrazione",
     "anyStatus": "Qualsiasi stato",
     "liveOnly": "In tempo reale",

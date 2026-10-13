@@ -12622,6 +12622,7 @@
     "copied": "Gekopieerd!",
     "copy": "Kopiëren",
     "httpProxyTitle": "HTTP-proxy-snippet — poort {port}",
+    "httpProxyTlsNote": "HTTPS-verzoeken worden zonder ontsleuteling getunneld (CONNECT): alleen de host en timing worden vastgelegd, en je client blijft het certificaat van de echte server verifiëren. Schakel TLS-verificatie nooit uit — hierdoor worden certificaatcontroles voor elke verbinding van het proces uitgeschakeld. Om HTTPS-bodies vast te leggen, gebruik je Custom Hosts of de modus TPROXY Decrypt en vertrouw je in plaats daarvan het bijbehorende CA-certificaat: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE of SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Niet aan het opnemen",
     "anyStatus": "Elke status",
     "liveOnly": "Live",

@@ -12622,6 +12622,7 @@
     "copied": "Tersalin!",
     "copy": "Salin",
     "httpProxyTitle": "Cuplikan Proksi HTTP — port {port}",
+    "httpProxyTlsNote": "Permintaan HTTPS diteruskan melalui tunnel (CONNECT) tanpa dekripsi: hanya host dan waktu yang direkam, dan klien Anda tetap memverifikasi sertifikat server yang sebenarnya. Jangan pernah menonaktifkan verifikasi TLS — tindakan ini mematikan pemeriksaan sertifikat untuk setiap koneksi dalam proses tersebut. Untuk menangkap isi HTTPS, gunakan mode Custom Hosts atau TPROXY Decrypt dan percayai sertifikat CA-nya sebagai gantinya: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE atau SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Tidak merekam",
     "anyStatus": "Status apa pun",
     "liveOnly": "Langsung",

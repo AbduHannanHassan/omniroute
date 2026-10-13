@@ -12622,6 +12622,7 @@
     "copied": "已複製！",
     "copy": "複製",
     "httpProxyTitle": "HTTP 代理程式碼片段 — 埠 {port}",
+    "httpProxyTlsNote": "HTTPS 請求會透過隧道傳輸（CONNECT），且不進行解密：僅擷取主機與時間資訊，而您的用戶端仍會驗證真實伺服器的憑證。切勿停用 TLS 驗證，這會關閉該程序所有連線的憑證檢查。若要擷取 HTTPS 內容，請改用 Custom Hosts 或 TPROXY Decrypt 模式，並信任其 CA 憑證：NODE_EXTRA_CA_CERTS（Node）、REQUESTS_CA_BUNDLE 或 SSL_CERT_FILE（Python）、curl --cacert。",
     "notRecording": "未錄製",
     "anyStatus": "任何狀態",
     "liveOnly": "即時",

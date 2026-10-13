@@ -12622,6 +12622,7 @@
     "copied": "Disalin!",
     "copy": "Salin",
     "httpProxyTitle": "Coretan Proksi HTTP — port {port}",
+    "httpProxyTlsNote": "Permintaan HTTPS diterowongkan (CONNECT) tanpa penyahsulitan: hanya hos dan pemasaan direkodkan, dan klien anda terus mengesahkan sijil pelayan sebenar. Jangan sekali-kali lumpuhkan pengesahan TLS — tindakan ini mematikan semakan sijil bagi setiap sambungan proses tersebut. Untuk merekodkan isi HTTPS, gunakan mod Custom Hosts atau TPROXY Decrypt dan sebaliknya percayai sijil CAnya: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE atau SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Tidak merakam",
     "anyStatus": "Sebarang status",
     "liveOnly": "Langsung",

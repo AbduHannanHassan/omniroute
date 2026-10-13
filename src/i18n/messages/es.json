@@ -12622,6 +12622,7 @@
     "copied": "¡Copiado!",
     "copy": "Copiar",
     "httpProxyTitle": "Fragmento de proxy HTTP — puerto {port}",
+    "httpProxyTlsNote": "Las solicitudes HTTPS se tunelizan (CONNECT) sin descifrarlas: solo se capturan el host y los tiempos, y tu cliente sigue verificando el certificado del servidor real. Nunca desactives la verificación TLS: esto deshabilita las comprobaciones de certificados para todas las conexiones del proceso. Para capturar los cuerpos HTTPS, usa Custom Hosts o el modo TPROXY Decrypt y confía en su certificado de CA: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE o SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "No se está grabando",
     "anyStatus": "Cualquier estado",
     "liveOnly": "En directo",

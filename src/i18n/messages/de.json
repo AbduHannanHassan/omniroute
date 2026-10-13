@@ -12622,6 +12622,7 @@
     "copied": "Kopiert!",
     "copy": "Kopieren",
     "httpProxyTitle": "HTTP-Proxy-Snippet — Port {port}",
+    "httpProxyTlsNote": "HTTPS-Anfragen werden ohne Entschlüsselung getunnelt (CONNECT): Nur Host und Zeitinformationen werden erfasst, und Ihr Client überprüft weiterhin das echte Serverzertifikat. Deaktivieren Sie niemals die TLS-Überprüfung – dadurch werden die Zertifikatsprüfungen für jede Verbindung des Prozesses ausgeschaltet. Um HTTPS-Inhalte zu erfassen, verwenden Sie stattdessen Custom Hosts oder den TPROXY Decrypt-Modus und vertrauen Sie dessen CA-Zertifikat: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE oder SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Keine Aufnahme",
     "anyStatus": "Beliebiger Status",
     "liveOnly": "Live",

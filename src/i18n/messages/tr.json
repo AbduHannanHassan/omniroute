@@ -12622,6 +12622,7 @@
     "copied": "Kopyalandı!",
     "copy": "Kopyala",
     "httpProxyTitle": "HTTP Proxy Kod Parçacığı — port {port}",
+    "httpProxyTlsNote": "HTTPS istekleri, şifreleri çözülmeden tünellenir (CONNECT): yalnızca ana makine ve zamanlama bilgileri yakalanır; istemciniz gerçek sunucu sertifikasını doğrulamaya devam eder. TLS doğrulamasını asla devre dışı bırakmayın; bu, işlemdeki tüm bağlantılar için sertifika denetimlerini kapatır. HTTPS gövdelerini yakalamak için bunun yerine Custom Hosts veya TPROXY Decrypt modunu kullanın ve CA sertifikasına güvenin: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE veya SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Kaydedilmiyor",
     "anyStatus": "Herhangi bir durum",
     "liveOnly": "Canlı",

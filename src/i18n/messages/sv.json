@@ -12622,6 +12622,7 @@
     "copied": "Kopierat!",
     "copy": "Kopiera",
     "httpProxyTitle": "HTTP-proxy-kodsnutt — port {port}",
+    "httpProxyTlsNote": "HTTPS-förfrågningar tunnlas (CONNECT) utan dekryptering: endast värd och tidsinformation registreras, och din klient fortsätter att verifiera den verkliga serverns certifikat. Inaktivera aldrig TLS-verifiering – det stänger av certifikatkontroller för varje anslutning i processen. Om du vill registrera HTTPS-innehåll använder du Custom Hosts eller TPROXY Decrypt-läget och litar på dess CA-certifikat i stället: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE eller SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Spelar inte in",
     "anyStatus": "Valfri status",
     "liveOnly": "Direkt",

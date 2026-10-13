@@ -12622,6 +12622,7 @@
     "copied": "Nakopya na!",
     "copy": "Kopyahin",
     "httpProxyTitle": "Snippet ng HTTP Proxy — port {port}",
+    "httpProxyTlsNote": "Ang mga kahilingang HTTPS ay ipinapadaan sa tunnel (CONNECT) nang walang pag-decrypt: host at timing lamang ang kinukuha, at patuloy na bine-verify ng iyong client ang tunay na certificate ng server. Huwag kailanman i-disable ang pag-verify ng TLS — pinapatay nito ang pagsusuri sa certificate para sa bawat koneksyon ng proseso. Upang makuha ang mga body ng HTTPS, gamitin ang Custom Hosts o TPROXY Decrypt mode at pagkatiwalaan sa halip ang CA certificate nito: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE o SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Hindi nagre-record",
     "anyStatus": "Kahit anong status",
     "liveOnly": "Aktibo",

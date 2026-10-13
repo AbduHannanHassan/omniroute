@@ -12622,6 +12622,7 @@
     "copied": "Đã sao chép!",
     "copy": "Sao chép",
     "httpProxyTitle": "Đoạn mã HTTP Proxy — cổng {port}",
+    "httpProxyTlsNote": "Các yêu cầu HTTPS được truyền qua đường hầm (CONNECT) mà không giải mã: chỉ máy chủ và thông tin thời gian được ghi lại, đồng thời ứng dụng khách của bạn vẫn tiếp tục xác minh chứng chỉ máy chủ thực. Tuyệt đối không tắt tính năng xác minh TLS — thao tác này sẽ vô hiệu hóa việc kiểm tra chứng chỉ cho mọi kết nối của tiến trình. Để ghi lại nội dung HTTPS, hãy sử dụng chế độ Custom Hosts hoặc TPROXY Decrypt và thay vào đó tin cậy chứng chỉ CA của chế độ đó: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE hoặc SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Không ghi lại",
     "anyStatus": "Mọi trạng thái",
     "liveOnly": "Trực tiếp",

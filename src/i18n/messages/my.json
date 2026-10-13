@@ -12622,6 +12622,7 @@
     "copied": "ကူးယူပြီးပါပြီ!",
     "copy": "ကူးယူရန်",
     "httpProxyTitle": "HTTP ပရောက်စီ ကုဒ်အပိုင်းအစ — ပေါ့တ် {port}",
+    "httpProxyTlsNote": "HTTPS တောင်းဆိုမှုများကို ကုဒ်ဖြည်ခြင်းမရှိဘဲ tunnel (CONNECT) ပြုလုပ်သည်။ host နှင့် အချိန်ဆိုင်ရာအချက်အလက်များကိုသာ ဖမ်းယူပြီး သင့် client က အမှန်တကယ် server certificate ကို ဆက်လက်စစ်ဆေးအတည်ပြုသည်။ TLS စစ်ဆေးအတည်ပြုမှုကို ဘယ်တော့မှ မပိတ်ပါနှင့် — ထိုသို့ပိတ်ခြင်းသည် process ၏ connection အားလုံးအတွက် certificate စစ်ဆေးမှုများကို ပိတ်လိုက်မည်ဖြစ်သည်။ HTTPS body များကို ဖမ်းယူရန် Custom Hosts သို့မဟုတ် TPROXY Decrypt mode ကို အသုံးပြုပြီး ၎င်း၏ CA certificate ကို ယုံကြည်မှုသတ်မှတ်ပါ။ NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE သို့မဟုတ် SSL_CERT_FILE (Python), curl --cacert။",
     "notRecording": "မှတ်တမ်းတင်မနေပါ",
     "anyStatus": "မည်သည့် status မဆို",
     "liveOnly": "တိုက်ရိုက်",

@@ -12622,6 +12622,7 @@
     "copied": "Nokopēts!",
     "copy": "Kopēt",
     "httpProxyTitle": "HTTP starpniekservera fragments — ports {port}",
+    "httpProxyTlsNote": "HTTPS pieprasījumi tiek tunelēti (CONNECT) bez atšifrēšanas: tiek tverts tikai resursdators un laika informācija, un jūsu klients turpina pārbaudīt īstā servera sertifikātu. Nekad neatspējojiet TLS pārbaudi — tā tiek izslēgtas sertifikātu pārbaudes visiem procesa savienojumiem. Lai tvertu HTTPS pieprasījumu un atbilžu saturu, izmantojiet Custom Hosts vai TPROXY Decrypt režīmu un tā vietā uzticieties tā CA sertifikātam: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE vai SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Netiek ierakstīts",
     "anyStatus": "Jebkurš statuss",
     "liveOnly": "Tiešraide",

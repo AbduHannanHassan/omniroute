@@ -12622,6 +12622,7 @@
     "copied": "Imenakiliwa!",
     "copy": "Nakili",
     "httpProxyTitle": "Kisehemu cha HTTP Proxy — port {port}",
+    "httpProxyTlsNote": "Maombi ya HTTPS hupitishwa kupitia handaki (CONNECT) bila usimbuaji fiche kuondolewa: ni seva mwenyeji na muda pekee vinavyorekodiwa, na kiteja chako huendelea kuthibitisha cheti halisi cha seva. Kamwe usizime uthibitishaji wa TLS — kufanya hivyo huzima ukaguzi wa vyeti kwa kila muunganisho wa mchakato. Ili kunasa miili ya HTTPS, tumia hali ya Custom Hosts au TPROXY Decrypt na uamini cheti chake cha CA badala yake: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE au SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Hairekodi",
     "anyStatus": "Hali yoyote",
     "liveOnly": "Mubashara",

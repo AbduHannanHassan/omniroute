@@ -12622,6 +12622,7 @@
     "copied": "Copiado!",
     "copy": "Copiar",
     "httpProxyTitle": "Snippet de Proxy HTTP — porta {port}",
+    "httpProxyTlsNote": "Os pedidos HTTPS são encaminhados por túnel (CONNECT) sem desencriptação: apenas são registados o anfitrião e os tempos, e o cliente continua a verificar o certificado real do servidor. Nunca desative a verificação TLS — isso desativa as verificações de certificados para todas as ligações do processo. Para capturar os corpos das mensagens HTTPS, utilize o modo Custom Hosts ou TPROXY Decrypt e confie no respetivo certificado de AC: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE ou SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Não está a gravar",
     "anyStatus": "Qualquer estado",
     "liveOnly": "Em direto",
