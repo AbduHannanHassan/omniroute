@@ -18,10 +18,21 @@ test(
     );
     const link = new AdmZip();
     link.addFile("xray.exe", Buffer.from("synthetic-target"));
-    link.getEntry("xray.exe")!.attr = 0xa000 << 16;
+    link.getEntry("xray.exe")!.attr = (0xa000 << 16) >>> 0;
+    const linkBytes = link.toBuffer();
+    assert.equal((new AdmZip(linkBytes).getEntry("xray.exe")!.attr >>> 16) & 0xf000, 0xa000);
     await assert.rejects(
-      archiveExecutable(link.toBuffer(), "core.zip", "xray.exe"),
+      archiveExecutable(linkBytes, "core.zip", "xray.exe"),
       /link or special file/
+    );
+    const traversal = new AdmZip();
+    traversal.addFile("xray.exe", Buffer.from("synthetic-binary"));
+    traversal.getEntry("xray.exe")!.entryName = "../xray.exe";
+    const traversalBytes = traversal.toBuffer();
+    assert.equal(new AdmZip(traversalBytes).getEntries()[0].entryName, "../xray.exe");
+    await assert.rejects(
+      archiveExecutable(traversalBytes, "core.zip", "xray.exe"),
+      /Unsafe core archive path/
     );
     const duplicate = new AdmZip();
     duplicate.addFile("first/xray.exe", Buffer.from("one"));
