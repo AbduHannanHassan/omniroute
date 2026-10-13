@@ -12622,6 +12622,7 @@
     "copied": "Kopirano!",
     "copy": "Kopiraj",
     "httpProxyTitle": "Izsek za posredniški strežnik HTTP — vrata {port}",
+    "httpProxyTlsNote": "Zahteve HTTPS se tunelirajo (CONNECT) brez dešifriranja: zajamejo se le gostitelj in časovni podatki, vaš odjemalec pa še naprej preverja pravo potrdilo strežnika. Nikoli ne onemogočite preverjanja TLS — s tem izklopite preverjanje potrdil za vse povezave procesa. Če želite zajeti telesa zahtev HTTPS, uporabite Custom Hosts ali način TPROXY Decrypt in namesto tega zaupajte njegovemu potrdilu overitelja CA: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE ali SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Snemanje ni aktivno",
     "anyStatus": "Poljubno stanje",
     "liveOnly": "V živo",

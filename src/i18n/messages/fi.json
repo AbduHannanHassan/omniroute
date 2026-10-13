@@ -12622,6 +12622,7 @@
     "copied": "Kopioitu!",
     "copy": "Kopioi",
     "httpProxyTitle": "HTTP-proxy-koodinpätkä — portti {port}",
+    "httpProxyTlsNote": "HTTPS-pyynnöt tunneloidaan (CONNECT) ilman salauksen purkamista: vain isäntä ja ajoitustiedot tallennetaan, ja asiakasohjelmasi jatkaa todellisen palvelinvarmenteen tarkistamista. Älä koskaan poista TLS-varmennusta käytöstä — tällöin varmenteiden tarkistus poistetaan käytöstä prosessin kaikissa yhteyksissä. Jos haluat tallentaa HTTPS-pyyntöjen ja -vastausten sisällöt, käytä Custom Hosts- tai TPROXY Decrypt -tilaa ja luota sen sijaan sen CA-varmenteeseen: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE tai SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Ei tallenneta",
     "anyStatus": "Mikä tahansa tila",
     "liveOnly": "Reaaliaikainen",

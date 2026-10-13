@@ -12622,6 +12622,7 @@
     "copied": "Copiado!",
     "copy": "Copiar",
     "httpProxyTitle": "Snippet de Proxy HTTP — porta {port}",
+    "httpProxyTlsNote": "Requisições HTTPS passam por um túnel (CONNECT) sem descriptografia: só o host e os tempos são capturados, e o seu cliente continua verificando o certificado real do servidor. Nunca desative a verificação TLS — isso desliga a checagem de certificados em todas as conexões do processo. Para capturar corpos HTTPS, use o modo Hosts Personalizados ou TPROXY Descriptografar e confie no certificado da CA dele: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE ou SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Sem gravação",
     "anyStatus": "Qualquer status",
     "liveOnly": "Ao Vivo",

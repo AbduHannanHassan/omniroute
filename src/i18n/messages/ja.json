@@ -12622,6 +12622,7 @@
     "copied": "コピーしました！",
     "copy": "コピー",
     "httpProxyTitle": "HTTPプロキシスニペット — ポート {port}",
+    "httpProxyTlsNote": "HTTPS リクエストは復号せずにトンネリング（CONNECT）されます。取得されるのはホストとタイミングのみで、クライアントは実際のサーバー証明書を引き続き検証します。TLS 検証は絶対に無効にしないでください。無効にすると、そのプロセスのすべての接続で証明書チェックが停止します。HTTPS の本文を取得するには、代わりに Custom Hosts または TPROXY Decrypt モードを使用し、その CA 証明書を信頼するように設定してください：NODE_EXTRA_CA_CERTS（Node）、REQUESTS_CA_BUNDLE または SSL_CERT_FILE（Python）、curl --cacert。",
     "notRecording": "記録していません",
     "anyStatus": "すべてのステータス",
     "liveOnly": "ライブ",

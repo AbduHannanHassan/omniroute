@@ -12622,6 +12622,7 @@
     "copied": "A ti ṣe ẹ̀dà!",
     "copy": "Ṣe ẹ̀dà",
     "httpProxyTitle": "Àjákù HTTP Proxy — port {port}",
+    "httpProxyTlsNote": "Àwọn ìbéèrè HTTPS ni a ń rán gba inú túnẹ́ẹ̀lì (CONNECT) láì tú ìfipamọ́: olùgbàlejò àti àkókò nìkan ni a ń gbà sílẹ̀, oníbàárà rẹ sì ń bá a lọ láti ṣàyẹ̀wò ìwé-ẹ̀rí olupèsè gidi. Má ṣe pa ìṣàyẹ̀wò TLS láé — ó máa pa gbogbo àyẹ̀wò ìwé-ẹ̀rí fún gbogbo ìsopọ̀ ti ìlànà náà. Láti gba àwọn àkóónú HTTPS sílẹ̀, lo Custom Hosts tàbí ipo TPROXY Decrypt, kí o sì fọkàn tán ìwé-ẹ̀rí CA rẹ dípò bẹ́ẹ̀: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE tàbí SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "A kò ń ṣe àkọsílẹ̀",
     "anyStatus": "Ipò èyíkéyìí",
     "liveOnly": "Lọ́wọ́lọ́wọ́",

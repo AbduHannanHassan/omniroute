@@ -12622,6 +12622,7 @@
     "copied": "ተቀድቷል!",
     "copy": "ቅዳ",
     "httpProxyTitle": "HTTP ፕሮክሲ ኮድ ቅንጣቢ — ወደብ {port}",
+    "httpProxyTlsNote": "HTTPS ጥያቄዎች ዲክሪፕት ሳይደረጉ በቱነል (CONNECT) ይተላለፋሉ፦ የሚመዘገቡት አስተናጋጁና የጊዜ መረጃው ብቻ ሲሆኑ፣ ደንበኛዎ የእውነተኛውን አገልጋይ ሰርተፊኬት ማረጋገጡን ይቀጥላል። የTLS ማረጋገጫን ፈጽሞ አያሰናክሉ — ይህ ለሂደቱ እያንዳንዱ ግንኙነት የሰርተፊኬት ማረጋገጫን ያጠፋል። የHTTPS ይዘቶችን ለመመዝገብ፣ Custom Hosts ወይም TPROXY Decrypt ሁነታን ይጠቀሙ እና በምትኩ የCA ሰርተፊኬቱን ይመኑ፦ NODE_EXTRA_CA_CERTS (Node)፣ REQUESTS_CA_BUNDLE ወይም SSL_CERT_FILE (Python)፣ curl --cacert።",
     "notRecording": "እየተቀዳ አይደለም",
     "anyStatus": "ማንኛውም ሁኔታ",
     "liveOnly": "ቀጥታ",

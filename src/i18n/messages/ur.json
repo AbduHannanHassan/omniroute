@@ -12622,6 +12622,7 @@
     "copied": "کاپی ہو گیا!",
     "copy": "کاپی کریں",
     "httpProxyTitle": "HTTP پراکسی اسنیپٹ — پورٹ {port}",
+    "httpProxyTlsNote": "HTTPS درخواستیں بغیر ڈکرپشن کے سرنگ کے ذریعے منتقل کی جاتی ہیں (CONNECT): صرف ہوسٹ اور ٹائمنگ ریکارڈ کیے جاتے ہیں، جبکہ آپ کا کلائنٹ اصل سرور سرٹیفکیٹ کی توثیق جاری رکھتا ہے۔ TLS کی توثیق کبھی غیر فعال نہ کریں — اس سے پراسیس کے ہر کنکشن کے لیے سرٹیفکیٹ کی جانچ بند ہو جاتی ہے۔ HTTPS باڈیز ریکارڈ کرنے کے لیے، اس کے بجائے Custom Hosts یا TPROXY Decrypt موڈ استعمال کریں اور اس کے CA سرٹیفکیٹ پر اعتماد کریں: NODE_EXTRA_CA_CERTS (Node)، REQUESTS_CA_BUNDLE یا SSL_CERT_FILE (Python)، curl --cacert۔",
     "notRecording": "ریکارڈنگ نہیں ہو رہی",
     "anyStatus": "کوئی بھی اسٹیٹس",
     "liveOnly": "لائیو",

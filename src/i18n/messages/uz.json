@@ -12622,6 +12622,7 @@
     "copied": "Nusxalandi!",
     "copy": "Nusxalash",
     "httpProxyTitle": "HTTP proksi parchasi — port {port}",
+    "httpProxyTlsNote": "HTTPS so‘rovlari shifri ochilmasdan tunnel orqali (CONNECT) uzatiladi: faqat host va vaqt ma’lumotlari qayd etiladi, mijozingiz esa haqiqiy server sertifikatini tekshirishda davom etadi. TLS tekshiruvini hech qachon o‘chirmang — bu jarayonning barcha ulanishlari uchun sertifikat tekshiruvlarini o‘chiradi. HTTPS tanalarini qayd etish uchun Custom Hosts yoki TPROXY Decrypt rejimidan foydalaning va uning o‘rniga tegishli CA sertifikatiga ishoning: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE yoki SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Yozib olinmayapti",
     "anyStatus": "Istalgan holat",
     "liveOnly": "Jonli",

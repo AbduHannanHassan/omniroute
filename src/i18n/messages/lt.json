@@ -12622,6 +12622,7 @@
     "copied": "Nukopijuota!",
     "copy": "Kopijuoti",
     "httpProxyTitle": "HTTP tarpinio serverio fragmentas — prievadas {port}",
+    "httpProxyTlsNote": "HTTPS užklausos perduodamos tuneliu (CONNECT) jų neiššifruojant: fiksuojamas tik pagrindinis kompiuteris ir laiko duomenys, o jūsų klientas toliau tikrina tikrojo serverio sertifikatą. Niekada neišjunkite TLS tikrinimo — taip išjungiama sertifikatų patikra visiems proceso ryšiams. Norėdami fiksuoti HTTPS turinį, naudokite „Custom Hosts“ arba „TPROXY Decrypt“ režimą ir pasitikėkite jo CA sertifikatu: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE arba SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Neįrašoma",
     "anyStatus": "Bet kokia būsena",
     "liveOnly": "Tiesiogiai",

@@ -12622,6 +12622,7 @@
     "copied": "Cóipeáilte!",
     "copy": "Cóipeáil",
     "httpProxyTitle": "Sliocht seachfhreastalaí HTTP — port {port}",
+    "httpProxyTlsNote": "Déantar iarratais HTTPS a thollánú (CONNECT) gan díchriptiú: ní ghabhtar ach an t-óstach agus an t-amú, agus leanann do chliant de theastas an fhíorfhreastalaí a fhíorú. Ná díchumasaigh fíorú TLS riamh — múchann sé seiceálacha teastais do gach ceangal sa phróiseas. Chun coirp HTTPS a ghabháil, úsáid Custom Hosts nó mód TPROXY Decrypt agus cuir muinín ina theastas CA ina ionad sin: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE nó SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Níl taifeadadh ar siúl",
     "anyStatus": "Stádas ar bith",
     "liveOnly": "Beo",

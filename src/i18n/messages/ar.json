@@ -12622,6 +12622,7 @@
     "copied": "تم النسخ!",
     "copy": "نسخ",
     "httpProxyTitle": "مقتطف وكيل HTTP — المنفذ {port}",
+    "httpProxyTlsNote": "تُمرَّر طلبات HTTPS عبر نفق (CONNECT) من دون فك تشفير: لا يُلتقط سوى المضيف والتوقيت، ويستمر عميلك في التحقق من شهادة الخادم الحقيقية. لا تعطّل التحقق من TLS مطلقًا، إذ يؤدي ذلك إلى إيقاف عمليات التحقق من الشهادات لكل اتصال تجريه العملية. لالتقاط محتويات طلبات واستجابات HTTPS، استخدم وضع Custom Hosts أو TPROXY Decrypt، وثِق بشهادة CA الخاصة به بدلًا من ذلك: NODE_EXTRA_CA_CERTS ‏(Node)، أو REQUESTS_CA_BUNDLE أو SSL_CERT_FILE ‏(Python)، أو curl --cacert.",
     "notRecording": "لا يتم التسجيل",
     "anyStatus": "أي حالة",
     "liveOnly": "مباشر",

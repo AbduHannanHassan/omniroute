@@ -12622,6 +12622,7 @@
     "copied": "An kwafa!",
     "copy": "Kwafi",
     "httpProxyTitle": "Guntun Lambar Wakilin HTTP — tashar {port}",
+    "httpProxyTlsNote": "Ana bi da buƙatun HTTPS ta hanyar rami (CONNECT) ba tare da warware ɓoyewar ba: ana ɗaukar bayanan uwar garke da lokaci kawai, kuma manhajar abokin hulɗarka tana ci gaba da tabbatar da ainihin takardar shaidar uwar garken. Kada ka taɓa kashe tabbatarwar TLS — hakan yana dakatar da binciken takardar shaida ga kowace haɗin da tsarin yake yi. Don ɗaukar abubuwan da ke cikin HTTPS, yi amfani da Custom Hosts ko yanayin TPROXY Decrypt sannan ka amince da takardar shaidar CA ɗinsa maimakon haka: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE ko SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Ba a yin rikodi",
     "anyStatus": "Kowane matsayi",
     "liveOnly": "Kai tsaye",

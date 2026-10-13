@@ -12622,6 +12622,7 @@
     "copied": "کپی شد!",
     "copy": "کپی",
     "httpProxyTitle": "قطعه‌کد پروکسی HTTP — پورت {port}",
+    "httpProxyTlsNote": "درخواستهای HTTPS بدون رمزگشایی تونلسازی میشوند (CONNECT): فقط میزبان و زمانبندی ثبت میشوند و کلاینت شما همچنان گواهی واقعی سرور را اعتبارسنجی میکند. هرگز اعتبارسنجی TLS را غیرفعال نکنید—این کار بررسی گواهی را برای همهٔ اتصالهای فرایند خاموش میکند. برای ثبت بدنهٔ درخواستها و پاسخهای HTTPS، از حالت Custom Hosts یا TPROXY Decrypt استفاده کنید و بهجای آن به گواهی CA مربوطه اعتماد کنید: NODE_EXTRA_CA_CERTS (Node)، REQUESTS_CA_BUNDLE یا SSL_CERT_FILE (Python)، curl --cacert.",
     "notRecording": "در حال ضبط نیست",
     "anyStatus": "هر وضعیتی",
     "liveOnly": "زنده",

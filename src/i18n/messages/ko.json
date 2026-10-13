@@ -12622,6 +12622,7 @@
     "copied": "복사됨!",
     "copy": "복사",
     "httpProxyTitle": "HTTP 프록시 스니펫 — 포트 {port}",
+    "httpProxyTlsNote": "HTTPS 요청은 복호화 없이 터널링(CONNECT)됩니다. 호스트와 타이밍 정보만 캡처되며, 클라이언트는 실제 서버 인증서를 계속 검증합니다. TLS 검증을 절대 비활성화하지 마세요. 비활성화하면 해당 프로세스의 모든 연결에서 인증서 검사가 해제됩니다. HTTPS 본문을 캡처하려면 대신 Custom Hosts 또는 TPROXY Decrypt 모드를 사용하고 해당 CA 인증서를 신뢰하도록 설정하세요: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE 또는 SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "기록 중이 아님",
     "anyStatus": "모든 상태",
     "liveOnly": "라이브",

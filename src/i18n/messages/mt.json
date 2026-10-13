@@ -12622,6 +12622,7 @@
     "copied": "Ikkupjat!",
     "copy": "Ikkopja",
     "httpProxyTitle": "Silta tal-Proxy HTTP — port {port}",
+    "httpProxyTlsNote": "It-talbiet HTTPS jgħaddu minn mina (CONNECT) mingħajr deċifrar: jinqabdu biss il-host u l-ħinijiet, u l-klijent tiegħek jibqa’ jivverifika ċ-ċertifikat tas-server reali. Qatt titfi l-verifika TLS — dan jitfi l-kontrolli taċ-ċertifikati għal kull konnessjoni tal-proċess. Biex taqbad il-kontenut tat-talbiet HTTPS, uża Custom Hosts jew il-modalità TPROXY Decrypt u minflok afda ċ-ċertifikat CA tagħha: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE jew SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Mhux qed issir reġistrazzjoni",
     "anyStatus": "Kwalunkwe status",
     "liveOnly": "Dirett",

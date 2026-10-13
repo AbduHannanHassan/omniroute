@@ -12622,6 +12622,7 @@
     "copied": "הועתק!",
     "copy": "העתק",
     "httpProxyTitle": "קטע קוד של HTTP Proxy — פורט {port}",
+    "httpProxyTlsNote": "בקשות HTTPS מועברות במנהור (CONNECT) ללא פענוח: רק המארח והתזמון נלכדים, והלקוח שלך ממשיך לאמת את אישור השרת האמיתי. לעולם אין להשבית אימות TLS — פעולה זו מבטלת את בדיקות האישורים עבור כל חיבור של התהליך. כדי ללכוד את גופי בקשות ה-HTTPS, יש להשתמש ב-Custom Hosts או במצב TPROXY Decrypt ולתת אמון באישור ה-CA שלו במקום זאת: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE או SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "לא מקליט",
     "anyStatus": "כל סטטוס",
     "liveOnly": "לייב",

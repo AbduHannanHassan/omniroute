@@ -12622,6 +12622,7 @@
     "copied": "Copiat!",
     "copy": "Copiază",
     "httpProxyTitle": "Fragment proxy HTTP — port {port}",
+    "httpProxyTlsNote": "Solicitările HTTPS sunt tunelate (CONNECT) fără decriptare: sunt capturate doar gazda și informațiile de temporizare, iar clientul dvs. continuă să verifice certificatul serverului real. Nu dezactivați niciodată verificarea TLS — aceasta dezactivează verificarea certificatelor pentru fiecare conexiune a procesului. Pentru a captura conținutul HTTPS, utilizați modul Custom Hosts sau TPROXY Decrypt și acordați încredere certificatului său CA: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE sau SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Nu se înregistrează",
     "anyStatus": "Orice stare",
     "liveOnly": "În direct",

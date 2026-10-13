@@ -12622,6 +12622,7 @@
     "copied": "Másolva!",
     "copy": "Másolás",
     "httpProxyTitle": "HTTP Proxy kódrészlet — {port} port",
+    "httpProxyTlsNote": "A HTTPS-kérések visszafejtés nélkül, alagúton (CONNECT) haladnak át: csak az állomásnév és az időzítési adatok kerülnek rögzítésre, az ügyfél pedig továbbra is ellenőrzi a valódi kiszolgáló tanúsítványát. Soha ne tiltsa le a TLS-ellenőrzést — ezzel a folyamat minden kapcsolatánál kikapcsolja a tanúsítványok ellenőrzését. A HTTPS-törzsek rögzítéséhez használja inkább a Custom Hosts vagy a TPROXY Decrypt módot, és bízzon meg annak CA-tanúsítványában: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE vagy SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Nincs rögzítés",
     "anyStatus": "Bármilyen státusz",
     "liveOnly": "Élő",

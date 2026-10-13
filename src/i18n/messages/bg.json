@@ -12622,6 +12622,7 @@
     "copied": "Копирано!",
     "copy": "Копиране",
     "httpProxyTitle": "HTTP Proxy Snippet — порт {port}",
+    "httpProxyTlsNote": "HTTPS заявките се тунелират (CONNECT) без декриптиране: записват се само хостът и времевите данни, а клиентът ви продължава да проверява истинския сертификат на сървъра. Никога не деактивирайте TLS проверката — това изключва проверките на сертификати за всяка връзка на процеса. За да прихващате телата на HTTPS заявките и отговорите, използвайте режим Custom Hosts или TPROXY Decrypt и вместо това се доверете на неговия CA сертификат: NODE_EXTRA_CA_CERTS (Node), REQUESTS_CA_BUNDLE или SSL_CERT_FILE (Python), curl --cacert.",
     "notRecording": "Не се записва",
     "anyStatus": "Всеки статус",
     "liveOnly": "На живо",
