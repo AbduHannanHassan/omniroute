@@ -2,6 +2,10 @@ import { isDashboardSessionAuthenticated } from "@/shared/utils/apiAuth.ts";
 import { isRequireApiKeyEnabled } from "@/shared/utils/featureFlags";
 import { extractApiKey } from "@/sse/services/auth.ts";
 import { extractGoogApiKeyHeader } from "@/sse/services/googApiKeyAuth.ts";
+import {
+  extractAnthropicApiKeyHeader,
+  isPlaceholderBearer,
+} from "@/sse/services/clientPlaceholderBearer.ts";
 import type { AuthOutcome, PolicyContext, RoutePolicy } from "../context";
 import { allow, reject } from "../context";
 
@@ -26,7 +30,11 @@ function extractBearer(request: Request): string | null {
     const trimmed = raw.trim();
     if (trimmed.toLowerCase().startsWith("bearer ")) {
       const token = trimmed.slice(7).trim();
-      if (token) return token;
+      // A client placeholder Bearer (JetBrains Air's `acp-proxy`) yields to the x-api-key that
+      // extractApiKey() would also pick, so this gate and the handlers see the same credential.
+      if (token && !(isPlaceholderBearer(token) && extractAnthropicApiKeyHeader(request.headers))) {
+        return token;
+      }
     }
     // A non-"Bearer <token>" Authorization header (an empty "Bearer ", or a
     // client's own non-OmniRoute token — VS Code Copilot sends one even when the
