@@ -159,6 +159,7 @@ import {
   type SyncedAvailableModelsByConnection,
 } from "@/lib/db/models";
 import { isCatalogFreeModel } from "@/shared/utils/freeModels";
+import { getSessionAffinityStore } from "@/lib/db/sessionAccountAffinity";
 import {
   applySessionAffinityPin,
   formatSessionKeyForLog,
@@ -1218,11 +1219,15 @@ export async function getProviderCredentials(
       model: string | null
     ): boolean => provider === "codex" && isCodexChildUnavailable(connection, model);
 
-    // #5903: an active session-affinity pin outranks a per-request reset-aware
-    // forcedConnectionId (see sessionAffinityPin leaf for the full rationale).
+    // One async affinity read per credential selection; planners remain synchronous.
+    const affinityRecord =
+      options.sessionKey && sessionAffinityTtlMs > 0
+        ? await getSessionAffinityStore().get(options.sessionKey, provider, sessionAffinityTtlMs)
+        : null;
     if (!options.lease) {
       forcedConnectionId =
         applySessionAffinityPin({
+          affinityRecord,
           forcedConnectionId,
           options,
           sessionAffinityTtlMs,
@@ -1889,7 +1894,8 @@ export async function getProviderCredentials(
             provider,
             options.sessionKey,
             orderedConnections,
-            sessionAffinityTtlMs
+            sessionAffinityTtlMs,
+            affinityRecord
           )
         : null;
     const affinityConnection = connection
@@ -1900,7 +1906,8 @@ export async function getProviderCredentials(
             provider,
             options.sessionKey,
             orderedConnections,
-            sessionAffinityTtlMs
+            sessionAffinityTtlMs,
+            affinityRecord
           );
     if (affinityConnection) {
       connection = affinityConnection;

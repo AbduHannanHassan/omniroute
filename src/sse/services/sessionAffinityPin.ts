@@ -29,11 +29,14 @@
 import { createHash } from "crypto";
 import {
   getSessionAccountAffinity,
-  upsertSessionAccountAffinity,
-  touchSessionAccountAffinity,
-  deleteSessionAccountAffinity,
+  getSessionAffinityStore,
+  type SessionAccountAffinityRecord,
   evictSessionAccountAffinityForConnection,
 } from "@/lib/db/sessionAccountAffinity";
+import {
+  sessionAffinityAccountIdentity,
+  resolveSessionAffinityConnection,
+} from "@/lib/db/sessionAffinity/accountIdentity";
 import { touchConnectionLastUsed } from "@/lib/db/providers";
 import { isModelExcludedByConnection } from "@/domain/connectionModelRules";
 import { isAccountQuotaExhausted } from "@/domain/quotaCache";
@@ -273,15 +276,18 @@ export async function selectSessionAffinityConnection<T extends SessionAffinityC
   provider: string,
   sessionKey: string | null | undefined,
   connections: T[],
-  ttlMs = 0
+  ttlMs = 0,
+  affinityRecord?: SessionAccountAffinityRecord | null
 ): Promise<T | null> {
   if (!sessionKey || connections.length === 0 || ttlMs <= 0) return null;
 
-  const existing = getSessionAccountAffinity(sessionKey, provider, ttlMs);
+  const store = getSessionAffinityStore();
+  const existing =
+    affinityRecord === undefined ? await store.get(sessionKey, provider, ttlMs) : affinityRecord;
   if (existing) {
-    const connection = connections.find((candidate) => candidate.id === existing.connectionId);
+    const connection = resolveSessionAffinityConnection(existing, connections, provider);
     if (connection) {
-      touchSessionAccountAffinity(sessionKey, provider, Date.now(), ttlMs);
+      await store.touch(sessionKey, provider, Date.now(), ttlMs);
       const nextCount = (connection.consecutiveUseCount || 0) + 1;
       await touchConnectionLastUsed(connection.id, nextCount);
       connection.lastUsedAt = new Date().toISOString();
@@ -296,7 +302,7 @@ export async function selectSessionAffinityConnection<T extends SessionAffinityC
       return connection;
     }
 
-    deleteSessionAccountAffinity(sessionKey, provider);
+    await store.delete(sessionKey, provider);
     log.info(
       "AUTH",
       `affinity cleared for session_key=${formatSessionKeyForLog(sessionKey)} provider=${provider}`
@@ -306,7 +312,14 @@ export async function selectSessionAffinityConnection<T extends SessionAffinityC
   const connection = [...connections].sort(compareLruConnections)[0] ?? null;
   if (!connection) return null;
 
-  upsertSessionAccountAffinity(sessionKey, provider, connection.id, Date.now(), ttlMs);
+  await store.upsert(
+    sessionKey,
+    provider,
+    connection.id,
+    Date.now(),
+    ttlMs,
+    sessionAffinityAccountIdentity(connection, provider)
+  );
   await touchConnectionLastUsed(connection.id, 1);
   connection.lastUsedAt = new Date().toISOString();
   connection.consecutiveUseCount = 1;
@@ -327,12 +340,16 @@ export function planSessionAffinityConnection<T extends SessionAffinityConnectio
   provider: string,
   sessionKey: string | null | undefined,
   connections: T[],
-  ttlMs = 0
+  ttlMs = 0,
+  affinityRecord?: SessionAccountAffinityRecord | null
 ) {
   if (!sessionKey || connections.length === 0 || ttlMs <= 0) return null;
-  const existing = getSessionAccountAffinity(sessionKey, provider, ttlMs);
-  const existingConnection =
-    existing && connections.find((candidate) => candidate.id === existing.connectionId);
+  const store = getSessionAffinityStore();
+  const existing =
+    affinityRecord === undefined
+      ? getSessionAccountAffinity(sessionKey, provider, ttlMs)
+      : affinityRecord;
+  const existingConnection = resolveSessionAffinityConnection(existing, connections, provider);
   const connection = existingConnection ?? [...connections].sort(compareLruConnections)[0] ?? null;
   if (!connection) return null;
 
@@ -340,15 +357,22 @@ export function planSessionAffinityConnection<T extends SessionAffinityConnectio
     connection,
     commit: async () => {
       if (existingConnection) {
-        touchSessionAccountAffinity(sessionKey, provider, Date.now(), ttlMs);
+        await store.touch(sessionKey, provider, Date.now(), ttlMs);
         const nextCount = (connection.consecutiveUseCount || 0) + 1;
         await touchConnectionLastUsed(connection.id, nextCount);
         connection.lastUsedAt = new Date().toISOString();
         connection.consecutiveUseCount = nextCount;
         return;
       }
-      if (existing) deleteSessionAccountAffinity(sessionKey, provider);
-      upsertSessionAccountAffinity(sessionKey, provider, connection.id, Date.now(), ttlMs);
+      if (existing) await store.delete(sessionKey, provider);
+      await store.upsert(
+        sessionKey,
+        provider,
+        connection.id,
+        Date.now(),
+        ttlMs,
+        sessionAffinityAccountIdentity(connection, provider)
+      );
       await touchConnectionLastUsed(connection.id, 1);
       connection.lastUsedAt = new Date().toISOString();
       connection.consecutiveUseCount = 1;
@@ -469,6 +493,8 @@ export interface AffinityPinPredicates {
 }
 
 export interface ApplySessionAffinityPinParams extends AffinityPinPredicates {
+  /** Prefetched once by the async request caller; null explicitly means a miss. */
+  affinityRecord?: SessionAccountAffinityRecord | null;
   forcedConnectionId: string | null;
   options: AffinityPinOptions;
   sessionAffinityTtlMs: number;
@@ -523,19 +549,24 @@ export function applySessionAffinityPin(params: ApplySessionAffinityPinParams): 
   const sessionKey = options.sessionKey;
   if (!forcedConnectionId || !sessionKey || sessionAffinityTtlMs <= 0) return null;
 
-  const pinned = getSessionAccountAffinity(sessionKey, provider, sessionAffinityTtlMs);
-  if (!pinned || pinned.connectionId === forcedConnectionId) return null;
-
-  const pinnedConnection = connections.find((conn) => conn.id === pinned.connectionId);
-  if (!pinnedConnection || !isConnectionEligibleForAffinityPin(pinnedConnection, params)) {
+  const pinned =
+    params.affinityRecord === undefined
+      ? getSessionAccountAffinity(sessionKey, provider, sessionAffinityTtlMs)
+      : params.affinityRecord;
+  const pinnedConnection = resolveSessionAffinityConnection(pinned, connections, provider);
+  if (
+    !pinnedConnection ||
+    pinnedConnection.id === forcedConnectionId ||
+    !isConnectionEligibleForAffinityPin(pinnedConnection, params)
+  ) {
     return null;
   }
 
   log.info(
     "AUTH",
-    `session affinity pin ${pinned.connectionId.slice(0, 8)}... overrides forcedConnectionId ${forcedConnectionId.slice(0, 8)}... (#5903)`
+    `session affinity pin ${pinnedConnection.id.slice(0, 8)}... overrides forcedConnectionId ${forcedConnectionId.slice(0, 8)}... (#5903)`
   );
-  return pinned.connectionId;
+  return pinnedConnection.id;
 }
 
 export interface ResolveForcedConnectionForPoolParams {
