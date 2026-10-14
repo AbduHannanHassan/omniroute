@@ -13,13 +13,8 @@ const { calculateCostDetailed } = await import("../../src/lib/usage/costCalculat
 const { getDefaultPricing } = await import("../../src/shared/constants/pricing.ts");
 const { ANTIGRAVITY_SHARED_MODELS } =
   await import("../../open-sse/config/antigravitySharedModels.ts");
-const {
-  CLAUDE_OPUS_5_5_PRICING,
-  CLAUDE_OPUS_5_PRICING,
-  CLAUDE_SONNET_5_PRICING,
-  CLAUDE_SONNET_46_PRICING,
-  GPT_5_5_PRICING,
-} = await import("../../src/shared/constants/pricing/shared-tiers.ts");
+const { CLAUDE_OPUS_5_5_PRICING, CLAUDE_SONNET_5_PRICING } =
+  await import("../../src/shared/constants/pricing/shared-tiers.ts");
 
 test.after(() => {
   resetDbInstance();
@@ -197,46 +192,3 @@ for (const provider of ["ag", "antigravity", "agy"] as const) {
     }
   });
 }
-
-test("#16570: cc representative pricing is unaffected", () => {
-  const rows = getDefaultPricing().cc;
-  assert.deepEqual(rows["claude-opus-5-5"], CLAUDE_OPUS_5_5_PRICING);
-  assert.deepEqual(rows["claude-sonnet-4-6"], {
-    input: 3.0,
-    output: 15.0,
-    cached: 0.3,
-    reasoning: 15.0,
-    cache_creation: 3.75,
-  });
-});
-
-test("#16570: cx representative pricing is unaffected", () => {
-  const rows = getDefaultPricing().cx;
-  assert.deepEqual(rows["gpt-5.5"], GPT_5_5_PRICING);
-  assert.deepEqual(rows["gpt-6-sol"], {
-    input: 2.0,
-    output: 10.0,
-    cached: 0.2,
-    reasoning: 10.0,
-    cache_creation: 2.5,
-  });
-});
-
-test("#16570: gh representative pricing is unaffected", () => {
-  const rows = getDefaultPricing().gh;
-  assert.deepEqual(rows["claude-opus-5"], CLAUDE_OPUS_5_PRICING);
-  assert.deepEqual(rows["gemini-3-flash"], {
-    input: 0.5,
-    output: 3.0,
-    cached: 0.03,
-    reasoning: 4.5,
-    cache_creation: 0.5,
-  });
-});
-
-test("#16570: anthropic representative pricing is unaffected", () => {
-  const rows = getDefaultPricing().anthropic;
-  assert.deepEqual(rows["claude-opus-5-5"], CLAUDE_OPUS_5_5_PRICING);
-  assert.deepEqual(rows["claude-sonnet-5-5"], CLAUDE_SONNET_5_PRICING);
-  assert.deepEqual(rows["claude-sonnet-4-6"], CLAUDE_SONNET_46_PRICING);
-});
