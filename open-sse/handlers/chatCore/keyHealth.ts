@@ -31,6 +31,7 @@ import {
   type KeyHealth,
 } from "../../services/apiKeyRotator.ts";
 import { isModelUnavailableError } from "../../services/modelFamilyFallback.ts";
+import { isPassiveCodex } from "../../services/tokenRefresh/passiveCodex.ts";
 import { hasPerModelQuota } from "../../services/accountFallback.ts";
 import { updateProviderConnection } from "@/lib/db/providers";
 
@@ -95,6 +96,8 @@ export function recordKeyHealthStatus(
   trackConnectionExtraKeys(connId, extraKeys);
 
   if (isCredentialFailure(status, failureDetail)) {
+    // Rejected passive tokens await synchronization; they are not locally invalid keys.
+    if (isPassiveCodex(creds.provider)) return;
     const updatedHealth = recordKeyFailure(connId, currentKeyId);
     log?.warn?.(
       "AUTH",

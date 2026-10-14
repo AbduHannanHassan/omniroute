@@ -1,4 +1,9 @@
-import { isPassiveOutcome, passiveResponse } from "../../services/tokenRefresh/passiveCodex.ts";
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  passiveOutcome,
+  passiveResponse,
+} from "../../services/tokenRefresh/passiveCodex.ts";
 import type { ChatCoreErrorResult, ProviderLegUsage } from "@/lib/skills/toolLoopTypes.ts";
 import type { getProviderCredentials } from "@/sse/services/auth.ts";
 import type { updateFromHeaders, updateFromResponseBody } from "../../services/rateLimitManager.ts";
@@ -454,12 +459,15 @@ export async function runProviderExecutionPipeline(
     }
 
     if (
-      !authRefreshed &&
+      (!authRefreshed || isPassiveCodex(target.provider)) &&
       (status === 401 || status === 403) &&
       typeof connection.refreshCredentials === "function" &&
       !(await shouldSkipCredentialRefresh(target.provider, attempt.response))
     ) {
-      const refreshed = await connection.refreshCredentials(connection.getCredentials());
+      // A rejected synchronized token exhausts the bounded passive reread/retry.
+      const refreshed: Record<string, unknown> | null = authRefreshed
+        ? passiveOutcome()
+        : await connection.refreshCredentials(connection.getCredentials());
       if (isPassiveOutcome(refreshed)) {
         attempt.response = passiveResponse();
       }
