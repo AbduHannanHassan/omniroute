@@ -469,7 +469,7 @@ async function resolveCodexCredentials(
 
     if (isPassiveOutcome(refreshed)) {
       releaseCodexWsLease(leaseId);
-      return { error: passiveResponse() };
+      return { error: passiveResponse(503) };
     }
     if (!refreshed?.accessToken) {
       releaseCodexWsLease(leaseId);

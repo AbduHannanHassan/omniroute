@@ -395,7 +395,7 @@ async function postHandler(request, context) {
     });
   }
 
-  if (isPassiveOutcome(result)) return passiveResponse();
+  if (isPassiveOutcome(result)) return passiveResponse(503);
 
   const errorPayload = toJsonErrorPayload(
     (result as any).error,

@@ -28,10 +28,14 @@ ids and the supported set. Empty values keep active refresh unchanged.
 
 With Codex passive, refresh paths re-read synchronized database credentials instead
 of exchanging tokens. Unconditional consumers can use an unchanged token until its
-actual expiry; reactive 401 recovery requires a different stored access token. An
-unusable row yields retryable HTTP 401 / `passive_refresh`, not terminal account
-expiry or a refresh-breaker failure. OAuth login/code exchange and device completion
-return HTTP 409; importing already-issued tokens is allowed without exchange.
+actual expiry; reactive 401 recovery requires a different stored access token. When
+no eligible synchronized account remains, chat, images and Responses WebSocket prepare
+return HTTP 503 / `passive_refresh` with `Retry-After: 30` so clients can retry, possibly
+on the active instance. Dashboard/management actions keep HTTP 401 on a passive miss.
+A passive miss skips credential, test-status, active-flag, failure-counter and breaker
+writes; existing routing bookkeeping (last-used time and consecutive-use count) is unchanged.
+OAuth login/code exchange and device completion return HTTP 409; importing already-issued
+tokens is allowed without exchange.
 The active instance must own refresh and a sync job must copy complete connection
 rows to the replica. No sync job or distributed lock is created by this option;
 other providers are unchanged. See [passive Codex replicas](../guides/DOCKER_GUIDE.md#passive-codex-replicas-issue-16471-codex-slice).

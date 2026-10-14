@@ -55,12 +55,16 @@ export function isPassiveOutcome(value: unknown): value is ReturnType<typeof pas
 }
 
 export function passiveResponse(status = 401): Response {
-  const body = buildErrorBody(status, PASSIVE_REFRESH_MESSAGE, undefined, {
+  const message =
+    status === 503
+      ? "This replica has no fresh synchronized Codex token yet; retry."
+      : PASSIVE_REFRESH_MESSAGE;
+  const body = buildErrorBody(status, message, undefined, {
     code: "passive_refresh",
   });
   return Response.json(
     status === 409 ? { error: body.error.message, code: body.error.code } : body,
-    { status }
+    { status, ...(status === 503 ? { headers: { "Retry-After": "30" } } : {}) }
   );
 }
 

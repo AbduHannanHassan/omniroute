@@ -94,7 +94,8 @@ import { markEmergencyFallback } from "./emergencyFallbackHeader.ts";
 import { resolveEmergencyFallbackDecision } from "./emergencyFallbackHeader.ts";
 import { evaluateComboTargetPreflight } from "./chat/comboTargetKeyPolicy.ts";
 import * as resolvedPolicy from "./chat/resolvedModelPolicy.ts";
-import { recordGateRejection, recordQuotaParkedSkip } from "./quotaParkedSkipUsage";
+import { recordGateRejection } from "./quotaParkedSkipUsage";
+import { credentialExhaustionResponse } from "./chat/credentialExhaustion.ts";
 import { getCombos } from "@/lib/db/combos";
 import { resolveModelLockoutSettings } from "@/lib/resilience/modelLockoutSettings";
 import {
@@ -108,8 +109,6 @@ import {
   checkPipelineGates,
   checkResourcePressureBeforeProviderWork,
   executeChatWithBreaker,
-  findShadowedCompatibleNode,
-  handleNoCredentials,
   safeResolveProxy,
   safeLogEvents,
   mergeAppliedProxySink,
@@ -1924,39 +1923,15 @@ async function handleSingleModelChat(
           breaker._onFailure();
         }
 
-        const candidateAliases =
-          "candidateAliases" in resolved && Array.isArray(resolved.candidateAliases)
-            ? resolved.candidateAliases.filter(
-                (candidate): candidate is string => typeof candidate === "string"
-              )
-            : undefined;
-        // #11943: only when no connection was ever tried — a built-in provider
-        // whose id/alias is also a configured compatible-node prefix means the
-        // operator's node was shadowed by the reserved-prefix guard, not broken.
-        const shadowedNode =
-          excludedConnectionIds.size === 0 ? await findShadowedCompatibleNode(provider) : null;
-        const noCredsRes = lastPassiveMiss
-          ? passiveResponse()
-          : handleNoCredentials(
-              credentials,
-              excludedConnectionIds.size > 0 ? Array.from(excludedConnectionIds)[0] : null,
-              provider,
-              model,
-              lastError,
-              lastStatus,
-              candidateAliases,
-              isCombo,
-              shadowedNode,
-              runtimeOptions?.correlationId ?? null
-            );
-        // #14360: log the synthesized quota-parking refusal (never for combo targets).
-        const skip = { credentials, lastError, lastStatus, provider, model };
-        await recordQuotaParkedSkip(skip, rejectionScope);
-        const lastFailedConnectionId =
-          excludedConnectionIds.size > 0
-            ? Array.from(excludedConnectionIds)[excludedConnectionIds.size - 1]
-            : null;
-        return withSelectedConnectionHeader(noCredsRes, lastFailedConnectionId);
+        return credentialExhaustionResponse(
+          { credentials, lastError, lastStatus, provider, model },
+          excludedConnectionIds,
+          resolved,
+          isCombo,
+          runtimeOptions?.correlationId ?? null,
+          lastPassiveMiss,
+          rejectionScope
+        );
       }
 
       const accountId = credentials.connectionId.slice(0, 8);
@@ -2062,7 +2037,7 @@ async function handleSingleModelChat(
       if (isPassiveCodex(provider) && isPassiveOutcome(refreshedCredentials)) {
         releaseOAuthSession();
         agyLease.release(leaseId);
-        if (hasForcedConnection) return passiveResponse();
+        if (hasForcedConnection) return passiveResponse(503);
         excludedConnectionIds.add(credentials.connectionId);
         lastPassiveMiss = true;
         lastError = requestRetryLastError = PASSIVE_REFRESH_MESSAGE;
@@ -2709,7 +2684,10 @@ async function handleSingleModelChat(
         breaker._onFailure();
       }
 
-      return withSelectedConnectionHeader(result.response, credentials?.connectionId);
+      return withSelectedConnectionHeader(
+        lastPassiveMiss ? passiveResponse(503) : result.response,
+        credentials?.connectionId
+      );
     }
   }
 }

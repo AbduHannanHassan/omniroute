@@ -656,11 +656,14 @@ A passive instance never performs a Codex refresh-token grant or OAuth code exch
 Before serving, testing, exporting auth or reading usage it re-reads the connection
 row and uses the whole synchronized credential set. An unchanged access token remains
 usable until its actual expiry, including the proactive refresh lead window. After a
-401 it retries only with a different stored access token. If no usable token exists,
-it returns retryable HTTP 401 with code `passive_refresh` without disabling the account,
-writing refresh results or incrementing refresh-failure counters. New login, code
-exchange and device/login completion return HTTP 409 directing login to the active
-instance. Imports of already-issued tokens remain allowed without an exchange.
+401 it retries only with a different stored access token. If no eligible synchronized
+account remains, chat, images and Responses WebSocket prepare return HTTP 503 with code
+`passive_refresh` and `Retry-After: 30`; clients can retry, possibly on the active instance.
+Dashboard/management actions keep HTTP 401 on a passive miss.
+A passive miss skips credential, test-status, active-flag, failure-counter and breaker
+writes; existing routing bookkeeping (last-used time and consecutive-use count) is unchanged.
+New login, code exchange and device/login completion return HTTP 409 directing login
+to the active instance. Imports of already-issued tokens remain allowed without an exchange.
 
 The active instance must own refresh, and an operator-managed sync job must copy its
 connection rows (including expiry, refresh token and workspace data) to each replica.
