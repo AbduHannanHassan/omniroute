@@ -1,3 +1,9 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  passiveResponse,
+  PASSIVE_REFRESH_MESSAGE,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { intersectAllowedConnectionIds } from "./chat/connectionConstraints.ts";
 import { hasQoderCallerTools } from "@omniroute/open-sse/services/qoderCapabilities";
 import { randomUUID } from "crypto";
@@ -1761,6 +1767,7 @@ async function handleSingleModelChat(
   let requestRetryAttempt = 0;
   let requestRetryLastError = null;
   let requestRetryLastStatus = null;
+  let lastPassiveMiss = false;
   let requestRetryLastCooldownMs = 0;
   // Bug #3758: per-request counter bounding the early-close (STREAM_EARLY_EOF)
   // re-attempt to exactly one for the whole request. Declared outside both retry
@@ -1928,18 +1935,20 @@ async function handleSingleModelChat(
         // operator's node was shadowed by the reserved-prefix guard, not broken.
         const shadowedNode =
           excludedConnectionIds.size === 0 ? await findShadowedCompatibleNode(provider) : null;
-        const noCredsRes = handleNoCredentials(
-          credentials,
-          excludedConnectionIds.size > 0 ? Array.from(excludedConnectionIds)[0] : null,
-          provider,
-          model,
-          lastError,
-          lastStatus,
-          candidateAliases,
-          isCombo,
-          shadowedNode,
-          runtimeOptions?.correlationId ?? null
-        );
+        const noCredsRes = lastPassiveMiss
+          ? passiveResponse()
+          : handleNoCredentials(
+              credentials,
+              excludedConnectionIds.size > 0 ? Array.from(excludedConnectionIds)[0] : null,
+              provider,
+              model,
+              lastError,
+              lastStatus,
+              candidateAliases,
+              isCombo,
+              shadowedNode,
+              runtimeOptions?.correlationId ?? null
+            );
         // #14360: log the synthesized quota-parking refusal (never for combo targets).
         const skip = { credentials, lastError, lastStatus, provider, model };
         await recordQuotaParkedSkip(skip, rejectionScope);
@@ -2049,6 +2058,16 @@ async function handleSingleModelChat(
       } catch (error) {
         releaseOAuthSession();
         throw error;
+      }
+      if (isPassiveCodex(provider) && isPassiveOutcome(refreshedCredentials)) {
+        releaseOAuthSession();
+        agyLease.release(leaseId);
+        if (hasForcedConnection) return passiveResponse();
+        excludedConnectionIds.add(credentials.connectionId);
+        lastPassiveMiss = true;
+        lastError = requestRetryLastError = PASSIVE_REFRESH_MESSAGE;
+        lastStatus = requestRetryLastStatus = refreshedCredentials.status;
+        continue;
       }
       const storeEnabled = isOpenAIResponsesStoreEnabled(
         refreshedCredentials?.providerSpecificData ?? credentials?.providerSpecificData
@@ -2163,6 +2182,7 @@ async function handleSingleModelChat(
         return execution.localResourcePressureResult.response;
       }
       const { result, tlsFingerprintUsed, wasProviderProbe } = execution;
+      lastPassiveMiss = isPassiveCodex(provider) && result.errorCode === "passive_refresh";
       if (!result.success) releaseOAuthSession();
       if (result.success && agyLease.isStreamingAntigravityResponse(result.response))
         result.response = inheritProviderProbeResponse(

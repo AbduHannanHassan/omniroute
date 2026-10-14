@@ -1,3 +1,4 @@
+import { isPassiveOutcome } from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { classify429 } from "@omniroute/open-sse/services/antigravity429Engine.ts";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
 
@@ -133,6 +134,16 @@ export async function executeImageWithCredentialFallback({
     }
 
     lastCredentials = currentCredentials;
+    if (isPassiveOutcome(currentCredentials)) {
+      lastResult = { success: false, ...currentCredentials };
+      if (!connectionId) break;
+      currentCredentials = await selectNextCredentials(
+        provider,
+        requestedModel,
+        excludedConnectionIds
+      );
+      continue;
+    }
     lastResult = await execute(currentCredentials);
     const shouldTryAnotherAccount =
       Number(lastResult.status) === 401 ||
