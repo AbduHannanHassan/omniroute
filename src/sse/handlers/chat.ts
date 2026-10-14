@@ -1,3 +1,9 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  passiveResponse,
+  PASSIVE_REFRESH_MESSAGE,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { intersectAllowedConnectionIds } from "./chat/connectionConstraints.ts";
 import { hasQoderCallerTools } from "@omniroute/open-sse/services/qoderCapabilities";
 import { randomUUID } from "crypto";
@@ -88,7 +94,8 @@ import { markEmergencyFallback } from "./emergencyFallbackHeader.ts";
 import { resolveEmergencyFallbackDecision } from "./emergencyFallbackHeader.ts";
 import { evaluateComboTargetPreflight } from "./chat/comboTargetKeyPolicy.ts";
 import * as resolvedPolicy from "./chat/resolvedModelPolicy.ts";
-import { recordGateRejection, recordQuotaParkedSkip } from "./quotaParkedSkipUsage";
+import { recordGateRejection } from "./quotaParkedSkipUsage";
+import { credentialExhaustionResponse } from "./chat/credentialExhaustion.ts";
 import { getCombos } from "@/lib/db/combos";
 import { resolveModelLockoutSettings } from "@/lib/resilience/modelLockoutSettings";
 import {
@@ -102,8 +109,6 @@ import {
   checkPipelineGates,
   checkResourcePressureBeforeProviderWork,
   executeChatWithBreaker,
-  findShadowedCompatibleNode,
-  handleNoCredentials,
   safeResolveProxy,
   safeLogEvents,
   mergeAppliedProxySink,
@@ -1761,6 +1766,7 @@ async function handleSingleModelChat(
   let requestRetryAttempt = 0;
   let requestRetryLastError = null;
   let requestRetryLastStatus = null;
+  let lastPassiveMiss = false;
   let requestRetryLastCooldownMs = 0;
   // Bug #3758: per-request counter bounding the early-close (STREAM_EARLY_EOF)
   // re-attempt to exactly one for the whole request. Declared outside both retry
@@ -1917,37 +1923,15 @@ async function handleSingleModelChat(
           breaker._onFailure();
         }
 
-        const candidateAliases =
-          "candidateAliases" in resolved && Array.isArray(resolved.candidateAliases)
-            ? resolved.candidateAliases.filter(
-                (candidate): candidate is string => typeof candidate === "string"
-              )
-            : undefined;
-        // #11943: only when no connection was ever tried — a built-in provider
-        // whose id/alias is also a configured compatible-node prefix means the
-        // operator's node was shadowed by the reserved-prefix guard, not broken.
-        const shadowedNode =
-          excludedConnectionIds.size === 0 ? await findShadowedCompatibleNode(provider) : null;
-        const noCredsRes = handleNoCredentials(
-          credentials,
-          excludedConnectionIds.size > 0 ? Array.from(excludedConnectionIds)[0] : null,
-          provider,
-          model,
-          lastError,
-          lastStatus,
-          candidateAliases,
+        return credentialExhaustionResponse(
+          { credentials, lastError, lastStatus, provider, model },
+          excludedConnectionIds,
+          resolved,
           isCombo,
-          shadowedNode,
-          runtimeOptions?.correlationId ?? null
+          runtimeOptions?.correlationId ?? null,
+          lastPassiveMiss,
+          rejectionScope
         );
-        // #14360: log the synthesized quota-parking refusal (never for combo targets).
-        const skip = { credentials, lastError, lastStatus, provider, model };
-        await recordQuotaParkedSkip(skip, rejectionScope);
-        const lastFailedConnectionId =
-          excludedConnectionIds.size > 0
-            ? Array.from(excludedConnectionIds)[excludedConnectionIds.size - 1]
-            : null;
-        return withSelectedConnectionHeader(noCredsRes, lastFailedConnectionId);
       }
 
       const accountId = credentials.connectionId.slice(0, 8);
@@ -2049,6 +2033,16 @@ async function handleSingleModelChat(
       } catch (error) {
         releaseOAuthSession();
         throw error;
+      }
+      if (isPassiveCodex(provider) && isPassiveOutcome(refreshedCredentials)) {
+        releaseOAuthSession();
+        agyLease.release(leaseId);
+        if (hasForcedConnection) return passiveResponse(503);
+        excludedConnectionIds.add(credentials.connectionId);
+        lastPassiveMiss = true;
+        lastError = requestRetryLastError = PASSIVE_REFRESH_MESSAGE;
+        lastStatus = requestRetryLastStatus = refreshedCredentials.status;
+        continue;
       }
       const storeEnabled = isOpenAIResponsesStoreEnabled(
         refreshedCredentials?.providerSpecificData ?? credentials?.providerSpecificData
@@ -2163,6 +2157,7 @@ async function handleSingleModelChat(
         return execution.localResourcePressureResult.response;
       }
       const { result, tlsFingerprintUsed, wasProviderProbe } = execution;
+      lastPassiveMiss = isPassiveCodex(provider) && result.errorCode === "passive_refresh";
       if (!result.success) releaseOAuthSession();
       if (result.success && agyLease.isStreamingAntigravityResponse(result.response))
         result.response = inheritProviderProbeResponse(
@@ -2689,7 +2684,10 @@ async function handleSingleModelChat(
         breaker._onFailure();
       }
 
-      return withSelectedConnectionHeader(result.response, credentials?.connectionId);
+      return withSelectedConnectionHeader(
+        lastPassiveMiss ? passiveResponse(503) : result.response,
+        credentials?.connectionId
+      );
     }
   }
 }

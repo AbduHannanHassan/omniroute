@@ -1,3 +1,4 @@
+import * as passive from "../services/tokenRefresh/passiveCodex.ts";
 import { HTTP_STATUS, FETCH_TIMEOUT_MS } from "../config/constants.ts";
 import { getApiKeyCodexServiceTier } from "../../src/lib/providers/codexApiKeyServiceMode";
 import { resolveProviderUserAgentOverride } from "./providerUserAgentOverride.ts";
@@ -48,7 +49,7 @@ import { usesCcWireImage } from "../services/ccWireImageBuiltins.ts";
 import { getForcedReasoningEffort } from "../utils/reasoningRuleContext.ts";
 import {
   runWithOnPersist,
-  getRefreshLeadMs,
+  needsTokenRefresh,
   isUnrecoverableRefreshError,
 } from "../services/tokenRefresh.ts";
 import type { ProviderRequestDefaults } from "../services/providerRequestDefaults.ts";
@@ -620,14 +621,7 @@ export class BaseExecutor {
   }
 
   needsRefresh(credentials?: ProviderCredentials | null) {
-    if (!credentials?.expiresAt) return false;
-    const expiresAtMs = new Date(credentials.expiresAt).getTime();
-    // Use the provider-specific lead time (REFRESH_LEAD_MS) so rotating-token
-    // providers like Codex refresh proactively far ahead of expiry. Keeping the
-    // refresh_token "warm" prevents Auth0 from marking it as stale and revoking
-    // the token family on first use after long idle.
-    const lead = getRefreshLeadMs(this.provider);
-    return expiresAtMs - Date.now() < lead;
+    return needsTokenRefresh(this.provider, credentials);
   }
 
   parseError(response: Response, bodyText: string) {
@@ -738,7 +732,11 @@ export class BaseExecutor {
     // Probe-origin dispatches must not consume a refresh-token rotation —
     // routing state untouched; the reactive 401/403 path is probe-guarded
     // in chatCore (#9817).
-    if (!isProbeContext() && this.needsRefresh(credentials)) {
+    if (passive.isPassiveCodex(this.provider)) {
+      const resolved = await passive.resolvePassiveCodex(credentials);
+      if (passive.isPassiveOutcome(resolved)) return passive.passiveExecutionResult(body);
+      activeCredentials = { ...credentials, ...resolved };
+    } else if (!isProbeContext() && this.needsRefresh(credentials)) {
       // Outside the refresh catch below, which would swallow the rejection.
       input.validationDispatch?.reject();
       try {

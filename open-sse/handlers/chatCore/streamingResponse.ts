@@ -1,3 +1,4 @@
+import * as passive from "../../services/tokenRefresh/passiveCodex.ts";
 import { projectFailureUsageErrorCode } from "./failureUsage.ts";
 
 export { extractSystemRoleMessages, relocateDirectiveOnlyMessages } from "./claudeSystemRole.ts";
@@ -644,12 +645,7 @@ export async function runStreamingResponse(deps: StreamingDeps) {
     // and revoke the token family. No connectionId ⇒ no guard (behavior unchanged).
     const casConnectionId =
       typeof credentials?.connectionId === "string" ? credentials.connectionId.trim() : "";
-    const casReread = casConnectionId
-      ? async () => {
-          const latest = await getProviderConnectionById(casConnectionId);
-          return typeof latest?.refreshToken === "string" ? latest.refreshToken : null;
-        }
-      : null;
+    const casReread = passive.tokenRereader(casConnectionId, getProviderConnectionById);
 
     const newCredentials = (await refreshWithRetry(
       () =>
@@ -671,6 +667,7 @@ export async function runStreamingResponse(deps: StreamingDeps) {
       copilotToken?: string;
     };
 
+    if (passive.isPassiveOutcome(newCredentials)) providerResponse = passive.passiveResponse();
     if (newCredentials?.accessToken || newCredentials?.copilotToken) {
       log?.info?.("TOKEN", `${provider?.toUpperCase()} | refreshed`);
 
@@ -680,7 +677,7 @@ export async function runStreamingResponse(deps: StreamingDeps) {
       // mutation already happened atomically inside the mutex.
       if (!persistFnRan) {
         Object.assign(credentials, newCredentials);
-        if (onCredentialsRefreshed) {
+        if (onCredentialsRefreshed && !passive.isPassiveCodex(provider)) {
           await onCredentialsRefreshed(newCredentials);
         }
       }

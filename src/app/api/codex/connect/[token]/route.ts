@@ -1,3 +1,7 @@
+import {
+  isPassiveCodex,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import { finalizeTokens } from "@/lib/oauth/providers";
 import { persistOAuthConnection } from "@/lib/oauth/connectionPersistence";
@@ -23,11 +27,9 @@ import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 const PROVIDER = "codex";
 
 // GET — validate the ticket so the public page can show "ready" vs "expired".
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ token: string }> }
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  if (isPassiveCodex(PROVIDER)) return passiveResponse(409);
   const ticket = peekDeviceFlowTicket(token);
   if (!ticket || ticket.provider !== PROVIDER || ticket.status !== "pending") {
     return NextResponse.json(
@@ -43,11 +45,9 @@ export async function GET(
 }
 
 // POST — the browser finished the device flow; consume the ticket and persist.
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ token: string }> }
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
+  if (isPassiveCodex(PROVIDER)) return passiveResponse(409);
 
   let rawBody: any;
   try {

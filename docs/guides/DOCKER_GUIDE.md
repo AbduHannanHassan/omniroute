@@ -644,6 +644,41 @@ To **multiply heaps** (independent V8 old-spaces) **today**:
 | Duplicate provider secrets into each instance (or accept partitioned dashboards)                                                        | Expect one dashboard / one call-log across instances |
 | Front with any load balancer; sticky by API key or session is enough                                                                    | Require a vendor-specific size-aware middleware      |
 
+### Passive Codex replicas (issue #16471, Codex slice)
+
+Set `OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS=codex` on each passive instance.
+The supported ids are `codex` and its registry alias `cx`; comma-separated values
+are trimmed and case-insensitive. Any other non-empty id (including `openai` or
+`claude`) refuses server startup, rather than silently leaving that provider active.
+Unset or empty preserves the normal active-refresh behaviour.
+
+A passive instance never performs a Codex refresh-token grant or OAuth code exchange.
+Before serving, testing, exporting auth or reading usage it re-reads the connection
+row and uses the whole synchronized credential set. An unchanged access token remains
+usable until its actual expiry, including the proactive refresh lead window. After a
+401 it retries only with a different stored access token. If no eligible synchronized
+account remains, chat, images and Responses WebSocket prepare return HTTP 503 with code
+`passive_refresh` and `Retry-After: 30`; clients can retry, possibly on the active instance.
+Dashboard/management actions keep HTTP 401 on a passive miss.
+A passive miss skips credential, test-status, active-flag, failure-counter and breaker
+writes; existing routing bookkeeping (last-used time and consecutive-use count) is unchanged.
+New login, code exchange and device/login completion return HTTP 409 directing login
+to the active instance. Imports of already-issued tokens remain allowed without an exchange.
+
+A passive Codex 401/403 is treated as "token not synchronized yet" (503 `passive_refresh`,
+no local failure state), unless the body matches the existing account-deactivation
+signals, including operator custom banned signals; explicit deactivation stays terminal.
+Other account problems (for example workspace removal or policy refusals) are owned by
+the primary. Propagate its terminal account state (banned / expired / credits exhausted /
+disabled) to passive instances along with tokens.
+
+The active instance must own refresh, and an operator-managed sync job must copy its
+connection rows (including expiry, refresh token and workspace data) to each replica.
+This switch does not implement synchronization, distributed locking, shared SQLite,
+or passive refresh for other providers. It also cannot stop an external Codex CLI
+from rotating a separately-held copy of the same refresh token. Keep independent
+`DATA_DIR` volumes; do not interpret passive mode as multi-writer database HA.
+
 Hardware: per-instance concurrent long `/v1/responses` is a **memory-budget** question (heap + inflight-byte / #10110). `N` independent `DATA_DIR`s still multiply heaps: host RAM must cover `N × cgroup`, not “one 16 Gi pod with N=8.” Never `replicas > 1` on one SQLite file.
 
 Compose sketch (two heaps, two volumes — not `deploy.replicas: 2`):

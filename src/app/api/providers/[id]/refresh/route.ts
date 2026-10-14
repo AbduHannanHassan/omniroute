@@ -1,3 +1,9 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  resolvePassiveCodex,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import { getCachedProviderConnectionById } from "@/lib/db/readCache";
 import { updateProviderConnection } from "@/lib/db/providers";
@@ -30,6 +36,19 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     const connection = await getCachedProviderConnectionById(id);
     if (!connection) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 });
+    }
+
+    if (isPassiveCodex(connection.provider)) {
+      const resolved = await resolvePassiveCodex({ ...connection, connectionId: id });
+      if (isPassiveOutcome(resolved)) return passiveResponse();
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        connectionId: id,
+        provider: connection.provider,
+        expiresAt: resolved.expiresAt,
+        message: "Using synchronized credentials; refresh belongs to the active instance.",
+      });
     }
 
     if (connection.authType !== "oauth") {

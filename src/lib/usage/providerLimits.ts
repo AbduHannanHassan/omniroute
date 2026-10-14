@@ -1,3 +1,7 @@
+import {
+  isPassiveCodex,
+  passiveError,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { syncCodexQuotaObservation } from "@/lib/db/providers/codexAccountRecovery";
 import {
   getProviderConnectionById,
@@ -831,9 +835,12 @@ async function fetchLiveProviderLimitsWithOptions(
           allowRotatingRefresh: true,
           force: true,
         });
-        if (forced.refreshed) {
+        if (
+          forced.refreshed ||
+          (isPassiveCodex(conn.provider) && forced.connection.accessToken !== conn.accessToken)
+        ) {
           conn = forced.connection;
-          await syncToCloudIfEnabled();
+          if (forced.refreshed) await syncToCloudIfEnabled();
           usageData = sanitizeUsageQuotasForProvider(
             conn.provider,
             (await getUsageForProvider(conn as unknown as JsonRecord, options)) as JsonRecord,
@@ -842,6 +849,8 @@ async function fetchLiveProviderLimitsWithOptions(
         }
       }
 
+      if (isPassiveCodex(conn.provider) && isUsageAuthError(usageData?.message))
+        throw passiveError();
       connection = conn;
       return { usage: usageData };
     });

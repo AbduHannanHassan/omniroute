@@ -1,3 +1,9 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  passiveOutcome,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
+import { shouldSkipCredentialRefresh } from "@omniroute/open-sse/handlers/chatCore/skipCredentialRefresh.ts";
 import { classify429 } from "@omniroute/open-sse/services/antigravity429Engine.ts";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
 
@@ -133,7 +139,29 @@ export async function executeImageWithCredentialFallback({
     }
 
     lastCredentials = currentCredentials;
+    if (isPassiveOutcome(currentCredentials)) {
+      lastResult = { success: false, ...currentCredentials };
+      if (!connectionId) break;
+      currentCredentials = await selectNextCredentials(
+        provider,
+        requestedModel,
+        excludedConnectionIds
+      );
+      continue;
+    }
     lastResult = await execute(currentCredentials);
+    if (
+      !lastResult.success &&
+      isPassiveCodex(provider) &&
+      (lastResult.status === 401 || lastResult.status === 403) &&
+      !(await shouldSkipCredentialRefresh(
+        provider,
+        Response.json(lastResult.error ?? {}, { status: lastResult.status })
+      ))
+    ) {
+      // Never replay non-idempotent image generation on the same rejected account.
+      lastResult = { success: false, ...passiveOutcome() };
+    }
     const shouldTryAnotherAccount =
       Number(lastResult.status) === 401 ||
       lastResult.retryable === true ||

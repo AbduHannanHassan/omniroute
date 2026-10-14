@@ -17,6 +17,40 @@ lastUpdated: 2026-10-11
 
 ---
 
+## Codex passive token refresh
+
+`OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS` is unset by default. This is the Codex
+slice of [issue #16471](https://github.com/diegosouzapw/OmniRoute/issues/16471).
+Its comma-separated ids are trimmed and case-insensitive; only `codex` and `cx`
+(the same registry OAuth credentials) are supported. Any other non-empty id makes
+the existing startup environment validation refuse to start, naming the unsupported
+ids and the supported set. Empty values keep active refresh unchanged.
+
+With Codex passive, refresh paths re-read synchronized database credentials instead
+of exchanging tokens. Unconditional consumers can use an unchanged token until its
+actual expiry; reactive 401 recovery requires a different stored access token. When
+no eligible synchronized account remains, chat, images and Responses WebSocket prepare
+return HTTP 503 / `passive_refresh` with `Retry-After: 30` so clients can retry, possibly
+on the active instance. Dashboard/management actions keep HTTP 401 on a passive miss.
+A passive miss skips credential, test-status, active-flag, failure-counter and breaker
+writes; existing routing bookkeeping (last-used time and consecutive-use count) is unchanged.
+OAuth login/code exchange and device completion return HTTP 409; importing already-issued
+tokens is allowed without exchange.
+
+On a passive instance, a Codex 401/403 means "token not synchronized yet"
+(503 `passive_refresh`, no local failure state), unless its body matches the existing
+account-deactivation signals (including operator custom banned signals). Explicit
+deactivation remains terminal locally. Other account problems, such as workspace
+removal or policy refusals, are owned by the primary: propagate its terminal account
+state (banned / expired / credits exhausted / disabled) along with tokens.
+
+The active instance must own refresh and a sync job must copy complete connection
+rows to the replica. No sync job or distributed lock is created by this option;
+other providers are unchanged. See [passive Codex replicas](../guides/DOCKER_GUIDE.md#passive-codex-replicas-issue-16471-codex-slice).
+
+Policy and read-only resolution: `open-sse/services/tokenRefresh/passiveCodex.ts`.
+Startup validation: `src/lib/env/runtimeEnv.ts`.
+
 ## Table of Contents
 
 - [1. Required Secrets](#1-required-secrets)

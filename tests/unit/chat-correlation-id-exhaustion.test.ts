@@ -154,16 +154,30 @@ function assertChatSenders(source: string) {
   )`,
     "fallback persistence policy"
   );
-  const exhaustion = callsNamed(source, "handleNoCredentials");
+  const exhaustion = callsNamed(source, "credentialExhaustionResponse");
   assert.equal(exhaustion.length, 1, "one exhaustion caller");
-  assert.equal(exhaustion[0].arguments.length, 10, "exhaustion argument count");
-  assertExpression(exhaustion[0].arguments[0], "credentials", "exhaustion credentials");
-  assertExpression(exhaustion[0].arguments[8], "shadowedNode", "shadowed node");
+  assert.equal(exhaustion[0].arguments.length, 7, "exhaustion argument count");
   assertExpression(
-    exhaustion[0].arguments[9],
+    exhaustion[0].arguments[0],
+    "{ credentials, lastError, lastStatus, provider, model }",
+    "exhaustion context"
+  );
+  assertExpression(
+    exhaustion[0].arguments[4],
     "runtimeOptions?.correlationId ?? null",
     "exhaustion request id"
   );
+  assertExpression(exhaustion[0].arguments[5], "lastPassiveMiss", "passive miss flag");
+  assertExhaustionReceiver(readSource("../../src/sse/handlers/chat/credentialExhaustion.ts"));
+}
+
+function assertExhaustionReceiver(source: string) {
+  const exhaustion = callsNamed(source, "handleNoCredentials");
+  assert.equal(exhaustion.length, 1, "one extracted exhaustion receiver");
+  assert.equal(exhaustion[0].arguments.length, 10, "receiver argument count");
+  assertExpression(exhaustion[0].arguments[0], "credentials", "exhaustion credentials");
+  assertExpression(exhaustion[0].arguments[8], "shadowedNode", "shadowed node");
+  assertExpression(exhaustion[0].arguments[9], "correlationId", "forwarded exhaustion request id");
 }
 
 function assertStreamSender(source: string) {
@@ -325,6 +339,11 @@ test("sender AST rejects a request id from another scope and a missing exhaustio
   assert.throws(() =>
     assertChatSenders(replaceNode(source, first.arguments[0], "other.correlationId ?? null"))
   );
-  const exhaustion = callsNamed(source, "handleNoCredentials")[0];
-  assert.throws(() => assertChatSenders(replaceNode(source, exhaustion.arguments[9], "null")));
+  const exhaustion = callsNamed(source, "credentialExhaustionResponse")[0];
+  assert.throws(() => assertChatSenders(replaceNode(source, exhaustion.arguments[4], "null")));
+  const receiverSource = readSource("../../src/sse/handlers/chat/credentialExhaustion.ts");
+  const receiver = callsNamed(receiverSource, "handleNoCredentials")[0];
+  assert.throws(() =>
+    assertExhaustionReceiver(replaceNode(receiverSource, receiver.arguments[9], "null"))
+  );
 });

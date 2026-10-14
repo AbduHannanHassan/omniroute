@@ -1,3 +1,7 @@
+import {
+  isPassiveOutcome,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { handleImageGeneration } from "@omniroute/open-sse/handlers/imageGeneration.ts";
 import { withInjectionGuard } from "@/middleware/promptInjectionGuard";
 import {
@@ -390,6 +394,8 @@ async function postHandler(request, context) {
       headers,
     });
   }
+
+  if (isPassiveOutcome(result)) return passiveResponse(503);
 
   const errorPayload = toJsonErrorPayload(
     (result as any).error,

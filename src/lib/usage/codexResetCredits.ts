@@ -1,3 +1,4 @@
+import { isPassiveOutcome } from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { getProviderConnectionById } from "@/lib/db/providers";
 import { resolveProxyForConnection } from "@/lib/db/settings";
 import { isConnectionUnavailableToAuxiliaryActivity } from "@/lib/exclusiveLeaseIsolation";
@@ -459,6 +460,14 @@ export async function listCodexResetCredits(connectionId: string): Promise<Codex
       credits: result.credits.map(toPublicResetCredit),
     };
   } catch (error) {
+    if (isPassiveOutcome(error))
+      throw new CodexResetCreditError(
+        401,
+        "passive_refresh",
+        error instanceof Error
+          ? error.message
+          : "Sync credentials from the active instance and retry."
+      );
     if (error instanceof CodexResetCreditError) throw error;
     throw new CodexResetCreditError(
       500,
@@ -512,6 +521,14 @@ export async function consumeCodexResetCredit(
 
     return { outcome, usage: refreshed.usage };
   } catch (error) {
+    if (isPassiveOutcome(error))
+      throw new CodexResetCreditError(
+        401,
+        "passive_refresh",
+        error instanceof Error
+          ? error.message
+          : "Sync credentials from the active instance and retry."
+      );
     if (error instanceof CodexResetCreditError) throw error;
     throw new CodexResetCreditError(
       500,

@@ -55,6 +55,7 @@ import {
 } from "./antigravityProjectBootstrap.ts";
 import { persistDiscoveredAntigravityProjectId } from "./antigravityProjectPersist.ts";
 import { refreshCodexToken } from "./tokenRefresh/providers/codex.ts";
+import { isPassiveCodex, resolvePassiveCodex } from "./tokenRefresh/passiveCodex.ts";
 import { refreshCursorToken } from "./tokenRefresh/providers/cursor.ts";
 import { refreshOpenferenceToken } from "./tokenRefresh/providers/openference.ts";
 import { refreshKiroToken } from "./tokenRefresh/providers/kiro.ts";
@@ -111,6 +112,17 @@ export const TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 //
 // Providers with non-rotating tokens (Google, Anthropic) or where multi-
 // account is naturally isolated keep longer lead times.
+export function needsTokenRefresh(provider: string, credentials?: { expiresAt?: string } | null) {
+  if (!credentials?.expiresAt) return false;
+  const expiresAtMs = new Date(credentials.expiresAt).getTime();
+  // Use the provider-specific lead time (REFRESH_LEAD_MS) so rotating-token
+  // providers like Codex refresh proactively far ahead of expiry. Keeping the
+  // refresh_token "warm" prevents Auth0 from marking it as stale and revoking
+  // the token family on first use after long idle.
+  const lead = getRefreshLeadMs(provider);
+  return expiresAtMs - Date.now() < lead;
+}
+
 export const REFRESH_LEAD_MS: Record<string, number> = {
   // Rotating refresh tokens — minimize refresh frequency to avoid the
   // "refresh-invalidates-siblings" cascade documented for OpenAI Auth0.
@@ -252,6 +264,7 @@ export async function refreshAccessToken(
   log,
   proxyConfig: unknown = null
 ) {
+  if (isPassiveCodex(provider)) return resolvePassiveCodex(credentials, true);
   const config = PROVIDERS[provider];
 
   const refreshEndpoint = config?.refreshUrl || config?.tokenUrl;
@@ -550,6 +563,7 @@ export async function getAccessToken(
   proxyConfig: unknown = null,
   onPersist?: RefreshPersistFn
 ) {
+  if (isPassiveCodex(provider)) return resolvePassiveCodex(credentials, true);
   if (!credentials || !credentials.refreshToken || typeof credentials.refreshToken !== "string") {
     log?.warn?.("TOKEN_REFRESH", `No valid refresh token available for provider: ${provider}`);
     return null;

@@ -1,3 +1,4 @@
+import * as passive from "../services/tokenRefresh/passiveCodex.ts";
 import { learnCopilotModelRejection } from "../services/copilotModelRejections.ts";
 import {
   extractRequestToolMetadata,
@@ -284,6 +285,7 @@ import {
 } from "../services/rateLimitManager.ts";
 import { markBlocked as markAccountSemaphoreBlocked } from "../services/accountSemaphore.ts";
 import {
+  isAccountDeactivated as isDeactivated,
   lockModel,
   lockModelIfPerModelQuota,
   recordCoreOwnedAntigravityQuotaState,
@@ -3194,6 +3196,7 @@ async function handleChatCoreInner({
     }
 
     const targetCredentials = (currentCreds || credentials || {}) as Record<string, unknown>;
+    if (passive.isPassiveCodex(provider)) return passive.resolvePassiveCodex(targetCredentials, true);
     const attemptedRefreshToken =
       typeof targetCredentials?.refreshToken === "string" ? targetCredentials.refreshToken : null;
     credentialRefreshPersistRan = false;
@@ -3210,12 +3213,7 @@ async function handleChatCoreInner({
       typeof targetCredentials?.connectionId === "string"
         ? targetCredentials.connectionId.trim()
         : "";
-    const casReread = casConnectionId
-      ? async () => {
-          const latest = await getProviderConnectionById(casConnectionId);
-          return typeof latest?.refreshToken === "string" ? latest.refreshToken : null;
-        }
-      : null;
+    const casReread = passive.tokenRereader(casConnectionId, getProviderConnectionById);
 
     const newCredentials = (await refreshWithRetry(
       () =>
@@ -3252,6 +3250,7 @@ async function handleChatCoreInner({
 
   const handleCredentialsRefreshed = async (refreshed: Record<string, unknown>) => {
     Object.assign(credentials, refreshed);
+    if (passive.isPassiveCodex(provider)) return;
     if (!credentialRefreshPersistRan && onCredentialsRefreshed) {
       credentialRefreshPersistRan = true;
       const targetConnectionId =
@@ -3289,6 +3288,7 @@ async function handleChatCoreInner({
     retryAfterMs?: number | null;
     targetModel: string;
   }) => {
+    if (passive.isPassiveCodex(provider) && statusCode === 401 && !isDeactivated(message)) return;
     let errorType = classifyProviderError(statusCode, message, provider);
     if (statusCode === 429 && isModelScope()) {
       const decision = classifyModelScope429(message, normalizeHeaders(headers));

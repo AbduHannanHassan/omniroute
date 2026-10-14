@@ -1,3 +1,4 @@
+import { isPassiveCodex } from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
@@ -40,6 +41,7 @@ async function validateCodexRefreshToken(payload: {
   accessToken: string;
   refreshToken: string;
 }): Promise<string | null> {
+  if (isPassiveCodex("codex")) return null;
   let refreshResult: unknown;
   try {
     refreshResult = await refreshCodexToken(payload.refreshToken, undefined, null);
