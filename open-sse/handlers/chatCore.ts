@@ -285,6 +285,7 @@ import {
 } from "../services/rateLimitManager.ts";
 import { markBlocked as markAccountSemaphoreBlocked } from "../services/accountSemaphore.ts";
 import {
+  isAccountDeactivated as isDeactivated,
   lockModel,
   lockModelIfPerModelQuota,
   recordCoreOwnedAntigravityQuotaState,
@@ -3287,7 +3288,7 @@ async function handleChatCoreInner({
     retryAfterMs?: number | null;
     targetModel: string;
   }) => {
-    if (passive.isPassiveCodex(provider) && statusCode === 401) return;
+    if (passive.isPassiveCodex(provider) && statusCode === 401 && !isDeactivated(message)) return;
     let errorType = classifyProviderError(statusCode, message, provider);
     if (statusCode === 429 && isModelScope()) {
       const decision = classifyModelScope429(message, normalizeHeaders(headers));

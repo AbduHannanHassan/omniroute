@@ -36,6 +36,14 @@ A passive miss skips credential, test-status, active-flag, failure-counter and b
 writes; existing routing bookkeeping (last-used time and consecutive-use count) is unchanged.
 OAuth login/code exchange and device completion return HTTP 409; importing already-issued
 tokens is allowed without exchange.
+
+On a passive instance, a Codex 401/403 means "token not synchronized yet"
+(503 `passive_refresh`, no local failure state), unless its body matches the existing
+account-deactivation signals (including operator custom banned signals). Explicit
+deactivation remains terminal locally. Other account problems, such as workspace
+removal or policy refusals, are owned by the primary: propagate its terminal account
+state (banned / expired / credits exhausted / disabled) along with tokens.
+
 The active instance must own refresh and a sync job must copy complete connection
 rows to the replica. No sync job or distributed lock is created by this option;
 other providers are unchanged. See [passive Codex replicas](../guides/DOCKER_GUIDE.md#passive-codex-replicas-issue-16471-codex-slice).

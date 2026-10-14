@@ -665,6 +665,13 @@ writes; existing routing bookkeeping (last-used time and consecutive-use count) 
 New login, code exchange and device/login completion return HTTP 409 directing login
 to the active instance. Imports of already-issued tokens remain allowed without an exchange.
 
+A passive Codex 401/403 is treated as "token not synchronized yet" (503 `passive_refresh`,
+no local failure state), unless the body matches the existing account-deactivation
+signals, including operator custom banned signals; explicit deactivation stays terminal.
+Other account problems (for example workspace removal or policy refusals) are owned by
+the primary. Propagate its terminal account state (banned / expired / credits exhausted /
+disabled) to passive instances along with tokens.
+
 The active instance must own refresh, and an operator-managed sync job must copy its
 connection rows (including expiry, refresh token and workspace data) to each replica.
 This switch does not implement synchronization, distributed locking, shared SQLite,

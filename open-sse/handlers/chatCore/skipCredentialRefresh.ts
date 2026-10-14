@@ -1,4 +1,6 @@
 import { isNoAuthProviderKey } from "@/shared/utils/noAuthProviders";
+import { isAccountDeactivated } from "../../services/accountFallback.ts";
+import { isPassiveCodex } from "../../services/tokenRefresh/passiveCodex.ts";
 import { isOpencodeFreeTierRefusalForProvider } from "../../executors/opencodeGeoBlock.ts";
 
 /**
@@ -16,6 +18,8 @@ export async function shouldSkipCredentialRefresh(
   response: Response
 ): Promise<boolean> {
   if (isNoAuthProviderKey(provider)) return true;
+  // Passive token synchronization cannot recover an explicitly deactivated account.
+  if (isPassiveCodex(provider)) return isAccountDeactivated(await response.clone().text());
   if (!provider || !provider.toLowerCase().startsWith("opencode")) return false;
   const bodyText = await response
     .clone()

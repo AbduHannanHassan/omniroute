@@ -16,6 +16,8 @@ const images = await import("../../src/app/api/v1/images/generations/route.ts");
 const { recordKeyHealthStatus } = await import("../../open-sse/handlers/chatCore/keyHealth.ts");
 const { runProviderExecutionPipeline } =
   await import("../../open-sse/handlers/chatCore/providerExecutionPipeline.ts");
+const imageRetry = await import("../../src/sse/services/imageCredentialRetry.ts");
+const fallback = await import("../../open-sse/services/accountFallback.ts");
 const refresh = await import("../../open-sse/services/tokenRefresh.ts");
 const originalFetch = globalThis.fetch;
 let connection: Awaited<ReturnType<typeof createConnection>>;
@@ -172,75 +174,134 @@ for (const status of [401, 403]) {
     assert.equal(response.headers.get("retry-after"), null);
     assert.equal(calls.length, 1);
   });
-  test(`default-off non-stream ${status} after one refresh retains upstream outcome`, async () => {
-    delete process.env.OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS;
-    let sends = 0;
-    let refreshes = 0;
-    let credentials: Record<string, unknown> = { connectionId: connection.id };
-    const outcome = await runProviderExecutionPipeline({
-      policy: { allowAccountRotation: false, allowModelFallback: false },
-      target: {
-        provider: "codex",
-        requestedModel: "gpt-5.5",
-        sourceFormat: "openai",
-        targetFormat: "openai",
-        stream: false,
-      },
-      connection: {
-        initialConnectionId: connection.id,
-        getCurrentConnectionId: () => connection.id,
-        getCredentials: () => credentials,
-        replaceCredentials: (next) => {
-          credentials = next;
+  for (const terminal of [false, true]) {
+    test(`${terminal ? "passive deactivated" : "default-off invalid-token"} non-stream ${status} retains upstream outcome`, async () => {
+      const message = terminal ? "invalid token: account_deactivated" : "invalid token";
+      if (!terminal) delete process.env.OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS;
+      let sends = 0;
+      let refreshes = 0;
+      let credentials: Record<string, unknown> = { connectionId: connection.id };
+      const outcome = await runProviderExecutionPipeline({
+        policy: { allowAccountRotation: false, allowModelFallback: false },
+        target: {
+          provider: "codex",
+          requestedModel: "gpt-5.5",
+          sourceFormat: "openai",
+          targetFormat: "openai",
+          stream: false,
         },
-        onCredentialsRefreshed: () => {},
-        assertManagedLeaseFence: () => {},
-        getProviderCredentials: async () => {
-          throw new Error("unexpected rotation");
+        connection: {
+          initialConnectionId: connection.id,
+          getCurrentConnectionId: () => connection.id,
+          getCredentials: () => credentials,
+          replaceCredentials: (next) => {
+            credentials = next;
+          },
+          onCredentialsRefreshed: () => {},
+          assertManagedLeaseFence: () => {},
+          getProviderCredentials: async () => {
+            throw new Error("unexpected rotation");
+          },
+          refreshCredentials: async () => {
+            refreshes++;
+            return { accessToken: "synthetic-refreshed" };
+          },
         },
-        refreshCredentials: async () => {
-          refreshes++;
-          return { accessToken: "synthetic-refreshed" };
+        wire: {
+          body: {},
+          currentModel: "gpt-5.5",
+          triedModels: new Set(["gpt-5.5"]),
+          setBodyAndModel: () => {},
         },
-      },
-      wire: {
-        body: {},
-        currentModel: "gpt-5.5",
-        triedModels: new Set(["gpt-5.5"]),
-        setBodyAndModel: () => {},
-      },
-      state: {
-        updatePendingStage: () => {},
-        recordRateLimitHeaders: () => {},
-        recordRateLimitBody: () => {},
-        writeTerminalStatus: async () => {},
-        persistConnectionPatch: async () => null,
-        setConnectionRateLimitedUntil: () => {},
-        lockModel: () => {},
-        recordAntigravityQuotaState: async () => {},
-        markAccountSemaphoreBlocked: () => {},
-        isolateProbeFailures: () => false,
-      },
-      sendProviderAttempt: async () => {
-        sends++;
-        return {
-          response: Response.json({ error: { message: "invalid token" } }, { status }),
-          url: "http://localhost/synthetic",
-          headers: {},
-          transformedBody: {},
-        };
+        state: {
+          updatePendingStage: () => {},
+          recordRateLimitHeaders: () => {},
+          recordRateLimitBody: () => {},
+          writeTerminalStatus: async () => {},
+          persistConnectionPatch: async () => null,
+          setConnectionRateLimitedUntil: () => {},
+          lockModel: () => {},
+          recordAntigravityQuotaState: async () => {},
+          markAccountSemaphoreBlocked: () => {},
+          isolateProbeFailures: () => false,
+        },
+        sendProviderAttempt: async () => {
+          sends++;
+          return {
+            response: Response.json({ error: { message } }, { status }),
+            url: "http://localhost/synthetic",
+            headers: {},
+            transformedBody: {},
+          };
+        },
+      });
+      assert.equal(sends, terminal ? 1 : 2);
+      assert.equal(refreshes, terminal ? 0 : 1);
+      assert.equal(outcome.kind, "error");
+      if (outcome.kind === "error") {
+        assert.equal(outcome.result.status, status);
+        assert.equal(outcome.result.rawMessage, message);
+        assert.notEqual(outcome.result.errorCode, "passive_refresh");
+      }
+    });
+  }
+}
+for (const status of [401, 403]) {
+  for (const stream of [false, true]) {
+    test(`passive deactivated chat ${status} locks the account and records key failure, stream=${stream}`, async () => {
+      globalThis.fetch = async (input) => {
+        assert.match(String(input), /backend-api/);
+        calls.push(String(input));
+        return Response.json(
+          { error: { message: "invalid token: account_deactivated" } },
+          { status }
+        );
+      };
+      const response = await chat(stream);
+      const body = await response.json();
+      assert.notEqual(body.error.code, "passive_refresh");
+      assert.equal(calls.length, 1);
+      const after = await db.getProviderConnectionById(connection.id);
+      assert.equal(after.testStatus, "banned");
+      assert.equal(after.isActive, false);
+      assert.equal(after.providerSpecificData.apiKeyHealth.primary.failures, 1);
+    });
+  }
+  test(`passive deactivated image ${status} preserves the error and existing account exclusion rules`, async () => {
+    const selected: string[][] = [];
+    const result = await imageRetry.executeImageWithCredentialFallback({
+      provider: "codex",
+      requestedModel: "gpt-image-2",
+      credentials: { ...connection, connectionId: connection.id },
+      execute: async () => ({ success: false, status, error: { message: "account_deactivated" } }),
+      selectNextCredentials: async (_provider, _model, excluded) => {
+        selected.push([...excluded]);
+        return null;
       },
     });
-    assert.equal(sends, 2);
-    assert.equal(refreshes, 1);
-    assert.equal(outcome.kind, "error");
-    if (outcome.kind === "error") {
-      assert.equal(outcome.result.status, status);
-      assert.equal(outcome.result.rawMessage, "invalid token");
-      assert.notEqual(outcome.result.errorCode, "passive_refresh");
-    }
+    assert.equal(result.result.status, status);
+    assert.deepEqual(result.result.error, { message: "account_deactivated" });
+    assert.deepEqual(selected, status === 401 ? [[connection.id]] : []);
+    assert.equal(calls.length, 0);
   });
 }
+test("passive key health honors operator account-deactivation signals", async () => {
+  fallback.setCustomBannedSignals(["synthetic-terminal-account"]);
+  try {
+    recordKeyHealthStatus(
+      401,
+      { ...connection, connectionId: connection.id },
+      null,
+      undefined,
+      "synthetic-terminal-account"
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    const after = await db.getProviderConnectionById(connection.id);
+    assert.equal(after.providerSpecificData.apiKeyHealth.primary.failures, 1);
+  } finally {
+    fallback.setCustomBannedSignals([]);
+  }
+});
 test("two consecutive passive chat misses never invalidate the primary key", async () => {
   const before = await db.getProviderConnectionById(connection.id);
   for (let i = 0; i < 2; i++) await assertPassive(await chat());
