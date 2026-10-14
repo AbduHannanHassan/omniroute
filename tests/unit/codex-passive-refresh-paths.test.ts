@@ -438,6 +438,17 @@ test("default-off local refresh keeps provider and account proxy resolution", as
   assert.deepEqual(seen[0], reference);
 });
 
+test("manual passive refresh with no stored credentials returns the retryable outcome", async () => {
+  const c = await connection(-60);
+  await db.updateProviderConnection(c.id, { accessToken: null, refreshToken: null });
+  const before = await db.getProviderConnectionById(c.id);
+  const response = await manual.POST(request(), { params: Promise.resolve({ id: c.id }) });
+  assert.equal(response.status, 401);
+  assert.equal((await response.json()).error.code, "passive_refresh");
+  assert.deepEqual(await db.getProviderConnectionById(c.id), before);
+  assert.equal(calls.length, 0);
+});
+
 test("passive shared resolution ignores a pre-existing breaker without changing it", async () => {
   delete process.env[envName];
   await refresh.refreshWithRetry(async () => null, 1, null, "codex", { failureThreshold: 1 });
