@@ -1,7 +1,7 @@
 /**
  * Legacy synchronous SQLite API remains compatible with existing callers/tests.
- * Request routing uses getSessionAffinityStore() and awaits its operations;
- * synchronous planners receive the record fetched once by credential selection.
+ * Request routing awaits Redis operations; SQLite mutations stay synchronous;
+ * synchronous consumers prefetch only for Redis; SQLite reads stay in place.
  */
 export {
   getSessionAccountAffinity,
@@ -13,4 +13,8 @@ export {
   startSessionAccountAffinityCleanup,
 } from "./sessionAffinity/sqliteStore";
 export { getSessionAffinityStore } from "./sessionAffinity/storeFactory";
+export {
+  evictSessionAccountAffinityForConnectionAsync,
+  deleteSessionAccountAffinityBestEffort,
+} from "./sessionAffinity/requestEviction";
 export type { SessionAccountAffinityRecord } from "./sessionAffinity/store";

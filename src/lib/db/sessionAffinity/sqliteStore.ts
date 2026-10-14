@@ -1,7 +1,7 @@
 import { createHash } from "crypto";
 
 import { getDbInstance } from "../core";
-import type { SessionAccountAffinityRecord, SessionAffinityStore } from "./store";
+import type { SessionAccountAffinityRecord } from "./store";
 
 const NAMESPACE = "session_account_affinity";
 const CLEANUP_INTERVAL_MS = 5 * 60_000;
@@ -58,6 +58,30 @@ function deleteAffinityKey(key: string): void {
     .run(NAMESPACE, key);
 }
 
+/** Redis-only fallback provenance helpers; callers must compare exact SQLite bytes. */
+export function getSessionAccountAffinitySerialized(
+  sessionKey: string,
+  provider: string
+): string | null {
+  if (!sessionKey || !provider) return null;
+  const row = getDbInstance()
+    .prepare("SELECT value FROM key_value WHERE namespace = ? AND key = ?")
+    .get(NAMESPACE, affinityKey(sessionKey, provider)) as { value?: unknown } | undefined;
+  return typeof row?.value === "string" ? row.value : null;
+}
+
+export function deleteSessionAccountAffinityIfValue(
+  sessionKey: string,
+  provider: string,
+  serializedValue: string
+): boolean {
+  if (!sessionKey || !provider || typeof serializedValue !== "string") return false;
+  const result = getDbInstance()
+    .prepare("DELETE FROM key_value WHERE namespace = ? AND key = ? AND value = ?")
+    .run(NAMESPACE, affinityKey(sessionKey, provider), serializedValue);
+  return Number(result.changes) > 0;
+}
+
 export function getSessionAccountAffinity(
   sessionKey: string,
   provider: string,
@@ -92,7 +116,6 @@ export function upsertSessionAccountAffinity(
   const normalizedTtlMs = normalizePositiveTtl(ttlMs);
   if (!sessionKey || !provider || !connectionId || normalizedTtlMs <= 0) return;
 
-  const key = affinityKey(sessionKey, provider);
   const existing = getSessionAccountAffinity(sessionKey, provider, normalizedTtlMs, now);
   const timestamp = isoFromMs(now);
   const record: SessionAccountAffinityRecord = {
@@ -103,9 +126,18 @@ export function upsertSessionAccountAffinity(
     expiresAt: isoFromMs(now + normalizedTtlMs),
   };
 
+  persistSessionAccountAffinity(sessionKey, provider, record);
+}
+
+/** Persist an exact local record; also used to seed identity-guard regression tests. */
+function persistSessionAccountAffinity(
+  sessionKey: string,
+  provider: string,
+  record: SessionAccountAffinityRecord
+): void {
   getDbInstance()
     .prepare("INSERT OR REPLACE INTO key_value (namespace, key, value) VALUES (?, ?, ?)")
-    .run(NAMESPACE, key, JSON.stringify(record));
+    .run(NAMESPACE, affinityKey(sessionKey, provider), JSON.stringify(record));
 }
 
 export function touchSessionAccountAffinity(
@@ -165,8 +197,9 @@ export function evictSessionAccountAffinityForConnection(
   const record = parseRecord(row?.value);
   if (
     !record ||
-    (record.connectionId !== connectionId &&
-      (!accountIdentity || record.accountIdentity !== accountIdentity))
+    (record.accountIdentity && accountIdentity
+      ? record.accountIdentity !== accountIdentity
+      : record.connectionId !== connectionId)
   )
     return false;
 
@@ -199,12 +232,17 @@ export function cleanupStaleSessionAccountAffinities(
   return deleted;
 }
 
-export const sqliteSessionAffinityStore: SessionAffinityStore = {
-  driver: "sqlite",
+// Exact-record seeding remains SQLite-only for existing identity regression tests;
+// it is not part of SessionAffinityStore and is never called by the Redis driver.
+export const sqliteSessionAffinityStore = {
+  driver: "sqlite" as const,
   get: getSessionAccountAffinity,
   upsert: upsertSessionAccountAffinity,
+  upsertShadow: persistSessionAccountAffinity,
   touch: touchSessionAccountAffinity,
   delete: deleteSessionAccountAffinity,
+  deleteIfValue: deleteSessionAccountAffinityIfValue,
+  getSerialized: getSessionAccountAffinitySerialized,
   evict: evictSessionAccountAffinityForConnection,
 };
 

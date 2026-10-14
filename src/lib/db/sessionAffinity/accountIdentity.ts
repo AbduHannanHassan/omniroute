@@ -19,13 +19,15 @@ export function resolveSessionAffinityConnection<T extends { id: string }>(
   provider: string
 ): T | null {
   if (!record) return null;
-  return (
-    (record.accountIdentity &&
+  if (record.accountIdentity) {
+    // Every candidate has a usage identity (connection-scoped when metadata is absent).
+    // A contradictory local id must never override the recorded identity.
+    return (
       connections.find(
         (candidate) =>
           sessionAffinityAccountIdentity(candidate, provider) === record.accountIdentity
-      )) ||
-    connections.find((candidate) => candidate.id === record.connectionId) ||
-    null
-  );
+      ) ?? null
+    );
+  }
+  return connections.find((candidate) => candidate.id === record.connectionId) ?? null;
 }

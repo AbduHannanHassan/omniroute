@@ -1219,11 +1219,12 @@ export async function getProviderCredentials(
       model: string | null
     ): boolean => provider === "codex" && isCodexChildUnavailable(connection, model);
 
-    // One async affinity read per credential selection; planners remain synchronous.
+    // Only Redis needs a snapshot for synchronous consumers; SQLite reads in place.
+    const affinityStore = getSessionAffinityStore();
     const affinityRecord =
-      options.sessionKey && sessionAffinityTtlMs > 0
-        ? await getSessionAffinityStore().get(options.sessionKey, provider, sessionAffinityTtlMs)
-        : null;
+      affinityStore.driver === "redis" && options.sessionKey && sessionAffinityTtlMs > 0
+        ? await affinityStore.get(options.sessionKey, provider, sessionAffinityTtlMs)
+        : undefined;
     if (!options.lease) {
       forcedConnectionId =
         applySessionAffinityPin({
@@ -1242,15 +1243,7 @@ export async function getProviderCredentials(
         }) ?? forcedConnectionId;
     }
 
-    // A forced connection (combo step `connectionId` / `x-omniroute-connection`) is an
-    // operator instruction, not a suggestion. resolveForcedConnectionForCredentialPool()
-    // legitimately returns null for several *intentional* pin-release cases (forced ID
-    // already in excludedConnectionIds after a failed attempt, cooldown, quota exhaustion,
-    // quota-policy block) — those must keep degrading to normal sibling fallback, unchanged.
-    // The bug is narrower: the forced connection was requested, was NOT intentionally
-    // excluded, and simply is not present in the current active/allowed pool at all (e.g.
-    // an operator deactivated it). Detect exactly that case *before* calling the resolver,
-    // so it never gets folded in with the intentional-release cases above.
+    // Forced ids absent from the pool fail; excluded/cooling/quota-blocked ids allow fallback.
     if (isForcedConnectionMissingFromPool(forcedConnectionId, excludedConnectionIds, connections)) {
       // Route through the existing "target has no eligible credentials" recoverable path
       // (the connections.length === 0 branch just below) instead of falling through to the
@@ -1881,13 +1874,14 @@ export async function getProviderCredentials(
     >;
     const providerOverride = providerStrategyOverrides[resolvedId] || {};
     const strategy = providerOverride.fallbackStrategy || settings.fallbackStrategy || "fill-first";
-
     let commitSelectionSideEffects: (() => Promise<void> | void) | undefined;
     let connection = leasePolicy.activeLease
       ? orderedConnections.find(
           (candidate) => candidate.id === leasePolicy.activeLease?.connectionId
         )
       : undefined;
+    // Redis lease planning can use a pin evicted after prefetch (accepted synchronous window).
+    // After claim, rejected CAS keeps the claimed account; it never overwrites the shared winner.
     const affinityPlan =
       options.lease && !connection
         ? planSessionAffinityConnection(
@@ -1906,8 +1900,7 @@ export async function getProviderCredentials(
             provider,
             options.sessionKey,
             orderedConnections,
-            sessionAffinityTtlMs,
-            affinityRecord
+            sessionAffinityTtlMs
           );
     if (affinityConnection) {
       connection = affinityConnection;

@@ -49,6 +49,7 @@ import * as log from "../utils/logger";
 import { readHeaderValue } from "./headerReader.ts";
 
 export { readHeaderValue } from "./headerReader.ts";
+export { evictSessionAffinityOnComboTimeoutAsync } from "./comboTimeoutSessionAffinity";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -266,11 +267,18 @@ function compareLruConnections(a: SessionAffinityConnection, b: SessionAffinityC
   return (a.priority || 999) - (b.priority || 999);
 }
 
+function liveAffinitySnapshot(
+  record: SessionAccountAffinityRecord | null | undefined
+): SessionAccountAffinityRecord | null {
+  return record && Date.parse(record.expiresAt) > Date.now() ? record : null;
+}
+
 /**
  * Session-affinity account selection (moved from auth.ts alongside the #5903
  * pin-override so all session-affinity logic lives in one leaf). Reuses an
  * active pin when its connection is in the pool; otherwise picks the LRU
- * connection and creates a fresh pin. Behavior byte-identical to the original.
+ * connection and creates a fresh pin. SQLite preserves the original reads,
+ * mutation order, first yield and selection logs; Redis store operations are awaited.
  */
 export async function selectSessionAffinityConnection<T extends SessionAffinityConnection>(
   provider: string,
@@ -282,54 +290,46 @@ export async function selectSessionAffinityConnection<T extends SessionAffinityC
   if (!sessionKey || connections.length === 0 || ttlMs <= 0) return null;
 
   const store = getSessionAffinityStore();
-  const existing =
-    affinityRecord === undefined ? await store.get(sessionKey, provider, ttlMs) : affinityRecord;
-  if (existing) {
-    const connection = resolveSessionAffinityConnection(existing, connections, provider);
-    if (connection) {
-      await store.touch(sessionKey, provider, Date.now(), ttlMs);
-      const nextCount = (connection.consecutiveUseCount || 0) + 1;
-      await touchConnectionLastUsed(connection.id, nextCount);
-      connection.lastUsedAt = new Date().toISOString();
-      connection.consecutiveUseCount = nextCount;
-      log.info(
-        "AUTH",
-        `session_key=${formatSessionKeyForLog(sessionKey)} -> connection ${connection.id.slice(
-          0,
-          8
-        )} (affinity)`
-      );
-      return connection;
+  if (store.driver === "sqlite") {
+    // Keep the base selector's single await directly in this function. Awaiting
+    // plan.commit would add a completion microtask even with synchronous storage.
+    const existing =
+      affinityRecord === undefined
+        ? getSessionAccountAffinity(sessionKey, provider, ttlMs)
+        : liveAffinitySnapshot(affinityRecord);
+    const pinned = resolveSessionAffinityConnection(existing, connections, provider);
+    const connection = pinned ?? [...connections].sort(compareLruConnections)[0] ?? null;
+    if (!connection) return null;
+    if (pinned) {
+      store.touch(sessionKey, provider, Date.now(), ttlMs);
+    } else {
+      if (existing) {
+        store.delete(sessionKey, provider);
+        log.info(
+          "AUTH",
+          `affinity cleared for session_key=${formatSessionKeyForLog(sessionKey)} provider=${provider}`
+        );
+      }
+      store.upsert(sessionKey, provider, connection.id, Date.now(), ttlMs);
     }
-
-    await store.delete(sessionKey, provider);
+    const nextCount = pinned ? (connection.consecutiveUseCount || 0) + 1 : 1;
+    await touchConnectionLastUsed(connection.id, nextCount);
+    connection.lastUsedAt = new Date().toISOString();
+    connection.consecutiveUseCount = nextCount;
     log.info(
       "AUTH",
-      `affinity cleared for session_key=${formatSessionKeyForLog(sessionKey)} provider=${provider}`
+      pinned
+        ? `session_key=${formatSessionKeyForLog(sessionKey)} -> connection ${connection.id.slice(0, 8)} (affinity)`
+        : `new affinity created for session_key=${formatSessionKeyForLog(sessionKey)} -> connection ${connection.id.slice(0, 8)}`
     );
+    return connection;
   }
-
-  const connection = [...connections].sort(compareLruConnections)[0] ?? null;
-  if (!connection) return null;
-
-  await store.upsert(
-    sessionKey,
-    provider,
-    connection.id,
-    Date.now(),
-    ttlMs,
-    sessionAffinityAccountIdentity(connection, provider)
-  );
-  await touchConnectionLastUsed(connection.id, 1);
-  connection.lastUsedAt = new Date().toISOString();
-  connection.consecutiveUseCount = 1;
-  log.info(
-    "AUTH",
-    `new affinity created for session_key=${formatSessionKeyForLog(
-      sessionKey
-    )} -> connection ${connection.id.slice(0, 8)}`
-  );
-  return connection;
+  const existing =
+    affinityRecord === undefined ? await store.get(sessionKey, provider, ttlMs) : affinityRecord;
+  const plan = planSessionAffinityConnection(provider, sessionKey, connections, ttlMs, existing);
+  if (!plan) return null;
+  await plan.commit(true, true);
+  return plan.connection;
 }
 
 /**
@@ -345,39 +345,83 @@ export function planSessionAffinityConnection<T extends SessionAffinityConnectio
 ) {
   if (!sessionKey || connections.length === 0 || ttlMs <= 0) return null;
   const store = getSessionAffinityStore();
-  const existing =
+  const observed =
     affinityRecord === undefined
       ? getSessionAccountAffinity(sessionKey, provider, ttlMs)
       : affinityRecord;
+  const existing = affinityRecord === undefined ? observed : liveAffinitySnapshot(observed);
   const existingConnection = resolveSessionAffinityConnection(existing, connections, provider);
   const connection = existingConnection ?? [...connections].sort(compareLruConnections)[0] ?? null;
   if (!connection) return null;
 
-  return {
+  const plan = {
     connection,
-    commit: async () => {
+    // On rejected CAS, lease commits keep the claimed candidate for this request
+    // only, leaving the shared winner untouched; ordinary selection may adopt it.
+    commit: async (logSelection = false, adoptSharedWinner = false): Promise<void> => {
       if (existingConnection) {
-        await store.touch(sessionKey, provider, Date.now(), ttlMs);
+        const touched = store.touch(sessionKey, provider, Date.now(), ttlMs);
+        if (touched instanceof Promise) await touched;
         const nextCount = (connection.consecutiveUseCount || 0) + 1;
         await touchConnectionLastUsed(connection.id, nextCount);
         connection.lastUsedAt = new Date().toISOString();
         connection.consecutiveUseCount = nextCount;
+        if (logSelection)
+          log.info(
+            "AUTH",
+            `session_key=${formatSessionKeyForLog(sessionKey)} -> connection ${connection.id.slice(0, 8)} (affinity)`
+          );
         return;
       }
-      if (existing) await store.delete(sessionKey, provider);
-      await store.upsert(
+      if (existing) {
+        // Redis replaces the obsolete observation in one CAS, never delete-then-create.
+        if (store.driver === "sqlite") store.delete(sessionKey, provider);
+        if (logSelection)
+          log.info(
+            "AUTH",
+            `affinity cleared for session_key=${formatSessionKeyForLog(sessionKey)} provider=${provider}`
+          );
+      }
+      const upserted = store.upsert(
         sessionKey,
         provider,
         connection.id,
         Date.now(),
         ttlMs,
-        sessionAffinityAccountIdentity(connection, provider)
+        store.driver === "redis" ? sessionAffinityAccountIdentity(connection, provider) : undefined,
+        observed
       );
-      await touchConnectionLastUsed(connection.id, 1);
-      connection.lastUsedAt = new Date().toISOString();
-      connection.consecutiveUseCount = 1;
+      const winner = upserted instanceof Promise ? await upserted : upserted;
+      const adopted =
+        adoptSharedWinner && winner
+          ? resolveSessionAffinityConnection(liveAffinitySnapshot(winner), connections, provider)
+          : null;
+      const selected = adopted ?? connection;
+      plan.connection = selected;
+      const nextCount = adopted ? (selected.consecutiveUseCount || 0) + 1 : 1;
+      await touchConnectionLastUsed(selected.id, nextCount);
+      selected.lastUsedAt = new Date().toISOString();
+      selected.consecutiveUseCount = nextCount;
+      if (logSelection) {
+        if (winner === undefined)
+          log.info(
+            "AUTH",
+            `new affinity created for session_key=${formatSessionKeyForLog(sessionKey)} -> connection ${selected.id.slice(0, 8)}`
+          );
+        else if (adopted)
+          log.info(
+            "AUTH",
+            `session_key=${formatSessionKeyForLog(sessionKey)} -> connection ${selected.id.slice(0, 8)} (affinity)`
+          );
+        else
+          log.debug(
+            "AUTH",
+            `shared affinity winner unavailable for session_key=${formatSessionKeyForLog(sessionKey)} provider=${provider}; keeping connection ${selected.id.slice(0, 8)} without changing the shared pin`
+          );
+      }
     },
   };
+  return plan;
 }
 
 /** Inputs the combo-timeout eviction needs from the dispatch site. */
@@ -552,7 +596,7 @@ export function applySessionAffinityPin(params: ApplySessionAffinityPinParams): 
   const pinned =
     params.affinityRecord === undefined
       ? getSessionAccountAffinity(sessionKey, provider, sessionAffinityTtlMs)
-      : params.affinityRecord;
+      : liveAffinitySnapshot(params.affinityRecord);
   const pinnedConnection = resolveSessionAffinityConnection(pinned, connections, provider);
   if (
     !pinnedConnection ||
