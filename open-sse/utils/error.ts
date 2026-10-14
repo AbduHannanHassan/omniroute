@@ -356,7 +356,7 @@ const SAFE_PUBLIC_ERROR_IDENTIFIERS = new Set([
 function isSafePublicErrorIdentifier(value: string): boolean {
   if (!PUBLIC_ERROR_IDENTIFIER.test(value)) return false;
   if (/^[1-5]\d{2}$/.test(value)) return true;
-  if (/^HTTP_[1-5]\d{2}$/i.test(value)) return true;
+  if (/^(?:HTTP_[1-5]\d{2}|passive_refresh)$/i.test(value)) return true;
   return SAFE_PUBLIC_ERROR_IDENTIFIERS.has(value.toLowerCase());
 }
 

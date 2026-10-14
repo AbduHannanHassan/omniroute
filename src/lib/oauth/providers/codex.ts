@@ -1,3 +1,7 @@
+import {
+  isPassiveCodex,
+  passiveError,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { CODEX_CONFIG } from "../constants/oauth";
 
 /**
@@ -101,6 +105,7 @@ export const codex = {
   },
 
   exchangeToken: async (config, code, redirectUri, codeVerifier) => {
+    if (isPassiveCodex("codex")) throw passiveError(409);
     const response = await fetch(config.tokenUrl, {
       method: "POST",
       headers: {

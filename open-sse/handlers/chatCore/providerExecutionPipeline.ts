@@ -1,3 +1,4 @@
+import { isPassiveOutcome, passiveResponse } from "../../services/tokenRefresh/passiveCodex.ts";
 import type { ChatCoreErrorResult, ProviderLegUsage } from "@/lib/skills/toolLoopTypes.ts";
 import type { getProviderCredentials } from "@/sse/services/auth.ts";
 import type { updateFromHeaders, updateFromResponseBody } from "../../services/rateLimitManager.ts";
@@ -459,6 +460,9 @@ export async function runProviderExecutionPipeline(
       !(await shouldSkipCredentialRefresh(target.provider, attempt.response))
     ) {
       const refreshed = await connection.refreshCredentials(connection.getCredentials());
+      if (isPassiveOutcome(refreshed)) {
+        attempt.response = passiveResponse();
+      }
       if (refreshed && (refreshed.accessToken || refreshed.copilotToken)) {
         connection.replaceCredentials({ ...connection.getCredentials(), ...refreshed });
         await connection.onCredentialsRefreshed(refreshed);

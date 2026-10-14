@@ -1,3 +1,5 @@
+import { isTokenExpired } from "./tokenExpiry";
+import * as passive from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
@@ -237,31 +239,6 @@ async function refreshOAuthToken(connection: any) {
   }
 }
 
-/**
- * Check if token is expired or about to expire (within 5 minutes).
- *
- * A NULL/missing expiry is treated as expired when the connection carries a
- * refresh token: connections imported without an expires_at (bulk import,
- * manual entry) would otherwise never trigger the proactive refresh before the
- * probe, and a stale access token then surfaces as a provider-specific 400
- * that the 401/403 reactive branch never recovers from. When there is no
- * refresh token the old behaviour stands — an unknown expiry cannot be fixed,
- * so probing as-is is the only option.
- */
-function isTokenExpired(connection: any) {
-  const expiresAtValue = connection.expiresAt || connection.tokenExpiresAt;
-  if (!expiresAtValue) {
-    return typeof connection.refreshToken === "string" && connection.refreshToken.length > 0;
-  }
-  const expiresAt = new Date(expiresAtValue).getTime();
-  if (!Number.isFinite(expiresAt)) {
-    // Corrupt date string: unverifiable, and refreshable if we can refresh.
-    return typeof connection.refreshToken === "string" && connection.refreshToken.length > 0;
-  }
-  const buffer = 5 * 60 * 1000; // 5 minutes
-  return expiresAt <= Date.now() + buffer;
-}
-
 // #12958: GitLab's own `direct_access` 403 JSON body (e.g. `{"error":"insufficient_scope"}`)
 // is safe operator-facing diagnostic text — it is not a stack trace and does not echo the
 // token — but is capped and stripped of control characters defensively before it reaches
@@ -361,8 +338,14 @@ export function isReactive400Recoverable(args: {
  */
 export async function testOAuthConnection(
   connection: any,
-  timeoutMs: number = OAUTH_TEST_TIMEOUT_MS
+  timeoutMs: number = OAUTH_TEST_TIMEOUT_MS,
+  passiveRetried = false
 ) {
+  if (passive.isPassiveCodex(connection.provider)) {
+    const resolved = await passive.resolvePassiveCodex(connection);
+    if (passive.isPassiveOutcome(resolved)) return passive.passiveTestOutcome();
+    connection = { ...connection, ...resolved };
+  }
   const config = OAUTH_TEST_CONFIG[connection.provider];
 
   if (!config) {
@@ -501,6 +484,12 @@ export async function testOAuthConnection(
     if (config.body && !builtProbe) fetchInit.body = config.body;
     if (builtProbe?.body) fetchInit.body = builtProbe.body;
     const res = await fetch(url, fetchInit);
+    if (passive.isPassiveCodex(connection.provider) && (res.status === 401 || res.status === 403)) {
+      const resolved = await passive.resolvePassiveCodex(connection, true);
+      return passive.isPassiveOutcome(resolved) || passiveRetried
+        ? passive.passiveTestOutcome()
+        : testOAuthConnection({ ...connection, ...resolved }, timeoutMs, true);
+    }
 
     // Some providers (Antigravity family) reject a stale access token with 400
     // instead of 401/403. If the token has not been refreshed yet and the
@@ -1037,6 +1026,7 @@ export async function testSingleConnection(
     );
   }
 
+  if (passive.isPassiveOutcome(result)) return result;
   // Every runtime path converges here before any health-state write, diagnosis,
   // persistent log, or public response. API-key validation is projected at its
   // own seam above as well so future refactors cannot move it past this boundary.
@@ -1253,6 +1243,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Connection not found" }, { status: 404 });
     }
 
+    if (passive.isPassiveOutcome(data)) return passive.passiveResponse();
     return NextResponse.json(data);
   } catch (error) {
     const retired = retirement.responseForError(error);

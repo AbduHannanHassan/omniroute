@@ -1,4 +1,10 @@
 import { getApiKeyCodexServiceTier } from "../../src/lib/providers/codexApiKeyServiceMode";
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  resolvePassiveCodex,
+  passiveResponse,
+} from "../services/tokenRefresh/passiveCodex.ts";
 import { buildErrorBody } from "../utils/error.ts";
 import { getCodexRequestDefaults } from "@/lib/providers/requestDefaults";
 import {
@@ -743,6 +749,12 @@ export class CodexExecutor extends BaseExecutor {
   }
 
   async execute(input: ExecuteInput) {
+    if (isPassiveCodex("codex")) {
+      const resolved = await resolvePassiveCodex(input.credentials);
+      if (isPassiveOutcome(resolved))
+        return { response: passiveResponse(), url: "", headers: {}, transformedBody: input.body };
+      input = { ...input, credentials: { ...input.credentials, ...resolved } };
+    }
     const requestBody = enforceCodexResponsesLiteParallelToolCalls(
       input.body,
       input.clientHeaders,
@@ -1170,6 +1182,7 @@ export class CodexExecutor extends BaseExecutor {
    * base class returned null causing the request to fail instead of refreshing.
    */
   async refreshCredentials(credentials: ProviderCredentials, log?: ExecutorLog | null) {
+    if (isPassiveCodex("codex")) return resolvePassiveCodex(credentials, true);
     if (!credentials?.refreshToken) {
       log?.warn?.("TOKEN_REFRESH", "Codex: no refresh token available, re-authentication required");
       return null;

@@ -16,6 +16,10 @@ import {
   getProviderConnectionById,
   updateProviderConnection,
 } from "@/lib/db/providers";
+import {
+  isPassiveCodex,
+  resolvePassiveCodex,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { getCachedProviderConnectionById } from "@/lib/db/readCache";
 import { getSettings } from "@/lib/db/settings";
 import { resolveGuardedProxyConfig } from "@/lib/tokenHealthCheckProxyGuard";
@@ -88,6 +92,7 @@ export function extractResolvedProxyConfig(resolvedProxy: unknown) {
 }
 
 import {
+  getHealthCheckSkipProviders,
   getEffectiveTokenExpiryIso,
   getEffectiveTokenExpiryMs,
   parseTokenExpiryMs,
@@ -339,22 +344,6 @@ export function isHealthCheckDisabled(): boolean {
   );
 }
 
-/**
- * Providers excluded from the PROACTIVE sweep, comma-separated, case-insensitive
- * (e.g. "codex,openai"). Targeted alternative to OMNIROUTE_DISABLE_TOKEN_HEALTHCHECK:
- * keeps rotating-token cascade providers (Codex/OpenAI share one Auth0 family) on the
- * reactive 401 path WITHOUT starving short-TTL providers (Kimi-coding) sweep-wide.
- */
-function getHealthCheckSkipProviders(): Set<string> {
-  const raw = process.env.OMNIROUTE_HEALTHCHECK_SKIP_PROVIDERS || "";
-  return new Set(
-    raw
-      .split(",")
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean)
-  );
-}
-
 // ── Logging helper ───────────────────────────────────────────────────────────
 let cachedHideLogs: boolean | null = null;
 let cacheTimestamp = 0;
@@ -573,6 +562,7 @@ async function getRefreshRecoveryUpdate(connectionId: string) {
 
 export async function checkConnection(conn) {
   if (!conn?.id) return;
+  if (isPassiveCodex(conn.provider)) return resolvePassiveCodex(conn);
 
   const latestConnection = (await getCachedProviderConnectionById(conn.id)) || conn;
   conn = latestConnection;

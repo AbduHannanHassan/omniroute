@@ -1,3 +1,7 @@
+import {
+  isPassiveOutcome,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import {
   applyApiKeyCodexServiceMode,
@@ -463,6 +467,10 @@ async function resolveCodexCredentials(
       };
     }
 
+    if (isPassiveOutcome(refreshed)) {
+      releaseCodexWsLease(leaseId);
+      return { error: passiveResponse() };
+    }
     if (!refreshed?.accessToken) {
       releaseCodexWsLease(leaseId);
       return {

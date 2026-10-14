@@ -1,3 +1,7 @@
+import {
+  isPassiveCodex,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import {
@@ -179,6 +183,7 @@ export async function GET(
 
   try {
     const { provider, action } = await params;
+    if (isPassiveCodex(provider)) return passiveResponse(409);
     const { searchParams } = new URL(request.url);
 
     if (action === "authorize") {
@@ -439,6 +444,7 @@ export async function POST(
 
   try {
     const { provider, action } = await params;
+    if (isPassiveCodex(provider)) return passiveResponse(409);
 
     // Phase 1 hotfix (2026-05-29): retired PKCE flows return 410 Gone before
     // body parsing. Devin Desktop/CLI `poll-callback` is permanently retired;

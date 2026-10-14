@@ -771,6 +771,7 @@ const SAFE_UPSTREAM_ERROR_IDENTIFIERS = new Set([
   "gateway_timeout",
   "insufficient_quota",
   "invalid_api_key",
+  "passive_refresh",
   "invalid_request",
   "invalid_request_error",
   "model_not_found",

@@ -17,6 +17,28 @@ lastUpdated: 2026-10-11
 
 ---
 
+## Codex passive token refresh
+
+`OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS` is unset by default. This is the Codex
+slice of [issue #16471](https://github.com/diegosouzapw/OmniRoute/issues/16471).
+Its comma-separated ids are trimmed and case-insensitive; only `codex` and `cx`
+(the same registry OAuth credentials) are supported. Any other non-empty id makes
+the existing startup environment validation refuse to start, naming the unsupported
+ids and the supported set. Empty values keep active refresh unchanged.
+
+With Codex passive, refresh paths re-read synchronized database credentials instead
+of exchanging tokens. Unconditional consumers can use an unchanged token until its
+actual expiry; reactive 401 recovery requires a different stored access token. An
+unusable row yields retryable HTTP 401 / `passive_refresh`, not terminal account
+expiry or a refresh-breaker failure. OAuth login/code exchange and device completion
+return HTTP 409; importing already-issued tokens is allowed without exchange.
+The active instance must own refresh and a sync job must copy complete connection
+rows to the replica. No sync job or distributed lock is created by this option;
+other providers are unchanged. See [passive Codex replicas](../guides/DOCKER_GUIDE.md#passive-codex-replicas-issue-16471-codex-slice).
+
+Policy and read-only resolution: `open-sse/services/tokenRefresh/passiveCodex.ts`.
+Startup validation: `src/lib/env/runtimeEnv.ts`.
+
 ## Table of Contents
 
 - [1. Required Secrets](#1-required-secrets)

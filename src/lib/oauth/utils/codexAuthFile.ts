@@ -1,3 +1,8 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  resolvePassiveCodex,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import fs from "fs/promises";
 import path from "path";
 import { getCachedProviderConnectionById } from "@/lib/db/readCache";
@@ -212,6 +217,16 @@ async function resolveFreshCodexConnection(connectionId: string): Promise<CodexC
     throw new CodexAuthFileError("Only OAuth Codex connections support auth.json export");
   }
 
+  if (isPassiveCodex("codex")) {
+    const resolved = await resolvePassiveCodex({ ...connection, connectionId });
+    if (isPassiveOutcome(resolved))
+      throw new CodexAuthFileError(
+        "Sync Codex credentials from the active instance and retry.",
+        401,
+        "passive_refresh"
+      );
+    return { ...connection, ...resolved };
+  }
   if (!shouldRefreshCodexConnection(connection)) {
     return connection;
   }

@@ -1,3 +1,7 @@
+import {
+  isPassiveCodex,
+  resolvePassiveCodex,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 // Re-export from open-sse with local logger
 import * as log from "../utils/logger";
 import { updateProviderConnection } from "@/lib/db/providers";
@@ -82,6 +86,7 @@ export const refreshAccessToken = async (
   refreshToken: string,
   credentials: any
 ) => {
+  if (isPassiveCodex(provider)) return resolvePassiveCodex(credentials, true);
   const proxy = await resolveProxyForCredentials(provider, credentials);
   return _refreshAccessToken(provider, refreshToken, credentials, log, proxy);
 };
@@ -103,6 +108,7 @@ export const refreshGoogleToken = async (
 };
 
 export const refreshCodexToken = async (refreshToken: string, credentials?: any) => {
+  if (isPassiveCodex("codex")) return resolvePassiveCodex(credentials, true);
   const proxy = await resolveProxyForCredentials("codex", credentials);
   return _refreshCodexToken(refreshToken, log, proxy);
 };
@@ -150,11 +156,13 @@ export const getAccessToken = async (
   credentials: any,
   onPersist?: (result: any) => Promise<void>
 ) => {
+  if (isPassiveCodex(provider)) return resolvePassiveCodex(credentials, true);
   const proxy = await resolveProxyForCredentials(provider, credentials);
   return _getAccessToken(provider, credentials, log, proxy, onPersist);
 };
 
 export const refreshTokenByProvider = async (provider: string, credentials: any) => {
+  if (isPassiveCodex(provider)) return resolvePassiveCodex(credentials, true);
   const proxy = await resolveProxyForCredentials(provider, credentials);
   return _refreshTokenByProvider(provider, credentials, log, proxy);
 };
@@ -247,6 +255,10 @@ export async function updateProviderCredentials(connectionId: string, newCredent
 
 // Local-specific: Check and refresh token proactively
 export async function checkAndRefreshToken(provider: string, credentials: any) {
+  if (isPassiveCodex(provider)) {
+    const resolved = await resolvePassiveCodex(credentials);
+    return "accessToken" in resolved ? { ...credentials, ...resolved } : resolved;
+  }
   let updatedCredentials = { ...credentials };
 
   // Check regular token expiry. Use the provider-specific lead time so rotating-

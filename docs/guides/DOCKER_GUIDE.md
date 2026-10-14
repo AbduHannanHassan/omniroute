@@ -644,6 +644,31 @@ To **multiply heaps** (independent V8 old-spaces) **today**:
 | Duplicate provider secrets into each instance (or accept partitioned dashboards)                                                        | Expect one dashboard / one call-log across instances |
 | Front with any load balancer; sticky by API key or session is enough                                                                    | Require a vendor-specific size-aware middleware      |
 
+### Passive Codex replicas (issue #16471, Codex slice)
+
+Set `OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS=codex` on each passive instance.
+The supported ids are `codex` and its registry alias `cx`; comma-separated values
+are trimmed and case-insensitive. Any other non-empty id (including `openai` or
+`claude`) refuses server startup, rather than silently leaving that provider active.
+Unset or empty preserves the normal active-refresh behaviour.
+
+A passive instance never performs a Codex refresh-token grant or OAuth code exchange.
+Before serving, testing, exporting auth or reading usage it re-reads the connection
+row and uses the whole synchronized credential set. An unchanged access token remains
+usable until its actual expiry, including the proactive refresh lead window. After a
+401 it retries only with a different stored access token. If no usable token exists,
+it returns retryable HTTP 401 with code `passive_refresh` without disabling the account,
+writing refresh results or incrementing refresh-failure counters. New login, code
+exchange and device/login completion return HTTP 409 directing login to the active
+instance. Imports of already-issued tokens remain allowed without an exchange.
+
+The active instance must own refresh, and an operator-managed sync job must copy its
+connection rows (including expiry, refresh token and workspace data) to each replica.
+This switch does not implement synchronization, distributed locking, shared SQLite,
+or passive refresh for other providers. It also cannot stop an external Codex CLI
+from rotating a separately-held copy of the same refresh token. Keep independent
+`DATA_DIR` volumes; do not interpret passive mode as multi-writer database HA.
+
 Hardware: per-instance concurrent long `/v1/responses` is a **memory-budget** question (heap + inflight-byte / #10110). `N` independent `DATA_DIR`s still multiply heaps: host RAM must cover `N × cgroup`, not “one 16 Gi pod with N=8.” Never `replicas > 1` on one SQLite file.
 
 Compose sketch (two heaps, two volumes — not `deploy.replicas: 2`):

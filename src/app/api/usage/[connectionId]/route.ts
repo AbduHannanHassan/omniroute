@@ -1,3 +1,7 @@
+import {
+  isPassiveOutcome,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { fetchAndPersistProviderLimits } from "@/lib/usage/providerLimits";
 
 /**
@@ -22,6 +26,7 @@ export async function GET(
     });
     return Response.json(usage);
   } catch (error) {
+    if (isPassiveOutcome(error)) return passiveResponse();
     const status =
       typeof (error as { status?: unknown })?.status === "number"
         ? (error as { status: number }).status

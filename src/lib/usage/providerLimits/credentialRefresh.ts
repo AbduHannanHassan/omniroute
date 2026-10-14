@@ -1,3 +1,9 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  resolvePassiveCodex,
+  passiveError,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { updateProviderConnection } from "@/lib/db/providers";
 import type { BaseExecutor } from "@omniroute/open-sse/executors/base";
 import { isUnrecoverableRefreshError } from "@omniroute/open-sse/services/tokenRefresh/shared.ts";
@@ -102,6 +108,11 @@ export async function refreshAndUpdateCredentialsWithResolver(
   resolveExecutor: CredentialExecutorResolver,
   opts: CredentialRefreshOptions = {}
 ) {
+  if (isPassiveCodex(connection.provider)) {
+    const resolved = await resolvePassiveCodex(connection, opts.force === true);
+    if (isPassiveOutcome(resolved)) throw passiveError();
+    return { connection: { ...connection, ...resolved }, refreshed: false };
+  }
   if (!shouldAttemptRotatingRefresh(connection.provider, opts.allowRotatingRefresh)) {
     return { connection, refreshed: false };
   }

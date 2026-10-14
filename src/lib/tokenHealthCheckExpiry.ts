@@ -3,6 +3,22 @@
  * token health sweep. Extracted from tokenHealthCheck.ts (file-size ceiling);
  * re-exported from there, so existing imports keep working.
  */
+/**
+ * Providers excluded from the PROACTIVE sweep, comma-separated, case-insensitive
+ * (e.g. "codex,openai"). Targeted alternative to OMNIROUTE_DISABLE_TOKEN_HEALTHCHECK:
+ * keeps rotating-token cascade providers (Codex/OpenAI share one Auth0 family) on the
+ * reactive 401 path WITHOUT starving short-TTL providers (Kimi-coding) sweep-wide.
+ */
+export function getHealthCheckSkipProviders(): Set<string> {
+  const raw = process.env.OMNIROUTE_HEALTHCHECK_SKIP_PROVIDERS || "";
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
 const NUMERIC_STRING = /^\d+(\.\d+)?$/;
 
 /**

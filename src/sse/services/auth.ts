@@ -1,3 +1,4 @@
+import { isPassiveCodex } from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import type { CredentialSelectionOptions } from "./credentialSelectionOptions";
 export type { CredentialSelectionOptions } from "./credentialSelectionOptions";
 import { qoderSupportsCallerTools } from "@omniroute/open-sse/services/qoderCapabilities";
@@ -2568,17 +2569,7 @@ async function applyEgressIpLockout(
   }
 }
 
-type ExhaustionOptions = NonNullable<Parameters<typeof markAccountUnavailable>[6]>;
-
-/** Build the options for markAccountUnavailable on the chat exhaustion path.
- * Single place that forwards the request id so no chat sender can forget it:
- * every chat caller passes its in-scope id through here. */
-export function buildExhaustionOptions(
-  correlationId: string | null,
-  rest: Omit<ExhaustionOptions, "correlationId"> = {}
-): ExhaustionOptions & { correlationId: string | null } {
-  return { ...rest, correlationId };
-}
+export { buildExhaustionOptions } from "./authFailureOptions";
 
 /** Persist exponential-backoff state for an unavailable provider connection. */
 /** The content-stall watchdog's error (open-sse/utils/streamHandler.ts). */
@@ -2603,6 +2594,9 @@ export async function markAccountUnavailable(
     structuredError?: { code?: string | null; type?: string | null } | null;
   } = {}
 ) {
+  if (isPassiveCodex(provider) && options.structuredError?.code === "passive_refresh") {
+    return { shouldFallback: true, cooldownMs: 0 };
+  }
   const currentMutex = markMutexes.get(connectionId) || Promise.resolve();
   let resolveMutex: (() => void) | undefined;
   markMutexes.set(

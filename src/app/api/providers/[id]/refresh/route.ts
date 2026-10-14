@@ -1,3 +1,9 @@
+import {
+  isPassiveCodex,
+  isPassiveOutcome,
+  resolvePassiveCodex,
+  passiveResponse,
+} from "@omniroute/open-sse/services/tokenRefresh/passiveCodex.ts";
 import { NextResponse } from "next/server";
 import { getCachedProviderConnectionById } from "@/lib/db/readCache";
 import { updateProviderConnection } from "@/lib/db/providers";
@@ -51,6 +57,18 @@ export async function POST(_request: Request, { params }: { params: Promise<{ id
     }
 
     const provider = connection.provider;
+    if (isPassiveCodex(provider)) {
+      const resolved = await resolvePassiveCodex({ ...connection, connectionId: id });
+      if (isPassiveOutcome(resolved)) return passiveResponse();
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        connectionId: id,
+        provider,
+        expiresAt: resolved.expiresAt,
+        message: "Using synchronized credentials; refresh belongs to the active instance.",
+      });
+    }
 
     // Codex/OpenAI multi-account family-revocation cascade guard.
     // These two providers share the same Auth0 client_id and can revoke sibling
