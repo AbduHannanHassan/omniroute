@@ -17,6 +17,7 @@ const settings = await import("../../src/lib/db/settings.ts");
 const { handleChat } = await import("../../src/sse/handlers/chat.ts");
 const images = await import("../../src/app/api/v1/images/generations/route.ts");
 const ws = await import("../../src/app/api/internal/codex-responses-ws/route.ts");
+const wsLeases = await import("../../src/sse/services/codexWsLease.ts");
 const auth = await import("../../src/sse/services/auth.ts");
 const refresh = await import("../../src/sse/services/tokenRefresh.ts");
 const sharedRefresh = await import("../../open-sse/services/tokenRefresh.ts");
@@ -91,7 +92,23 @@ async function assertPassive(response: Response) {
   assert.equal(body.error.code, "passive_refresh");
   assert.match(body.error.message, /retry/i);
 }
+function prepareWs() {
+  return ws.POST(
+    request(
+      "/api/internal/codex-responses-ws",
+      {
+        action: "prepare",
+        requestUrl: "http://localhost/v1/responses",
+        headers: {},
+        response: { model: "cx/gpt-5.5", input: "synthetic" },
+      },
+      { "x-omniroute-ws-bridge-secret": "synthetic-bridge-secret" }
+    )
+  );
+}
 test.beforeEach(async () => {
+  process.env.OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS = "codex";
+  wsLeases.clearCodexWsLeasesForTest();
   core.resetDbInstance();
   fs.rmSync(dataDir, { recursive: true, force: true });
   fs.mkdirSync(dataDir, { recursive: true });
@@ -110,6 +127,7 @@ test.beforeEach(async () => {
   };
 });
 test.after(() => {
+  wsLeases.clearCodexWsLeasesForTest();
   globalThis.fetch = originalFetch;
   core.resetDbInstance();
   fs.rmSync(dataDir, { recursive: true, force: true });
@@ -203,6 +221,59 @@ test("Responses WS prepare returns retryable passive response without fetching",
     )
   );
   assert.equal(calls.length, 0);
+});
+test("Responses WS prepare skips an expired priority account and leases its fresh sibling", async () => {
+  await db.updateProviderConnection(connection.id, { priority: 1 });
+  const sibling = await createConnection(3600);
+  await db.updateProviderConnection(sibling.id, { priority: 2 });
+  const response = await prepareWs();
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).connectionId, sibling.id);
+  assert.equal(calls.length, 0);
+  // The skipped account's lease must be available to another request.
+  const lease = await wsLeases.acquireCodexWsLease(connection.id, 1);
+  assert.ok(lease);
+  wsLeases.releaseCodexWsLease(lease);
+});
+test("Responses WS prepare returns passive exhaustion only after excluding all expired candidates", async () => {
+  await createConnection();
+  await assertPassive(await prepareWs());
+  assert.equal(calls.length, 0);
+});
+for (const passive of [false, true]) {
+  test(`Responses WS with no candidates keeps credentials-unavailable response, passive=${passive}`, async () => {
+    if (!passive) delete process.env.OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS;
+    await db.deleteProviderConnection(connection.id);
+    const response = await prepareWs();
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), {
+      error: {
+        code: "codex_credentials_unavailable",
+        message: "No available Codex OAuth connection for Responses WebSocket",
+      },
+    });
+    assert.equal(response.headers.get("retry-after"), null);
+    assert.equal(calls.length, 0);
+  });
+}
+test("Responses WS with passive flag unset refreshes the first expired account", async () => {
+  delete process.env.OMNIROUTE_TOKEN_REFRESH_PASSIVE_PROVIDERS;
+  await db.updateProviderConnection(connection.id, { priority: 1 });
+  const sibling = await createConnection(3600);
+  await db.updateProviderConnection(sibling.id, { priority: 2 });
+  globalThis.fetch = async (input) => {
+    calls.push(String(input));
+    assert.match(String(input), /auth.openai.com\/oauth\/token/);
+    return Response.json({
+      access_token: "synthetic-refreshed",
+      refresh_token: "synthetic-rotated",
+      expires_in: 3600,
+    });
+  };
+  const response = await prepareWs();
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).connectionId, connection.id);
+  assert.equal(calls.length, 1);
 });
 test("round-robin passive miss skips credential/status/failure/breaker writes, not routing bookkeeping", async () => {
   await settings.updateSettings({ fallbackStrategy: "round-robin" });

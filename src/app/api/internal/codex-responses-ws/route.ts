@@ -432,6 +432,7 @@ async function resolveCodexCredentials(
   allowedConnections: string[] | null
 ): Promise<CodexWsFailure | CodexWsCredentials> {
   const excludedConnectionIds: string[] = [];
+  let passiveMiss = false;
   let credentials: Awaited<ReturnType<typeof getProviderCredentialsWithQuotaPreflight>> = null;
 
   // A saturated account is excluded and another eligible account is selected;
@@ -469,7 +470,9 @@ async function resolveCodexCredentials(
 
     if (isPassiveOutcome(refreshed)) {
       releaseCodexWsLease(leaseId);
-      return { error: passiveResponse(503) };
+      passiveMiss = true;
+      excludedConnectionIds.push(credentials.connectionId);
+      continue;
     }
     if (!refreshed?.accessToken) {
       releaseCodexWsLease(leaseId);
@@ -480,6 +483,7 @@ async function resolveCodexCredentials(
     return { credentials: refreshed, leaseId };
   }
 
+  if (passiveMiss) return { error: passiveResponse(503) };
   return {
     error: jsonError(
       503,
